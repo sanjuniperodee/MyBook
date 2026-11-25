@@ -319,3 +319,14 @@ export function naturalLineHeight(key: FontKey, weight = 400, italic = false): n
   const best = list.reduce((a, b) => (Math.abs(b.weight - weight) < Math.abs(a.weight - weight) ? b : a));
   return FONT_LINES[best.file] ?? 1.2;
 }
+
+/** Файл начертания шрифта, ближайшего к весу (и курсиву, если он есть) — для подписи в своём шрифте в приложении. */
+export function fontFile(key: FontKey, weight = 400, italic = false): FontFace {
+  const list = fontFaces[key].faces;
+  const styled = list.filter((f) => (f.style === "italic") === italic);
+  const pool = styled.length ? styled : list;
+  return pool.reduce((best, f) => (Math.abs(f.weight - weight) < Math.abs(best.weight - weight) ? f : best), pool[0]);
+}
+
+/** Все файлы шрифтов реестра — что отдаёт /api/fonts/{file}. */
+export const fontFiles = new Set(Object.values(fontFaces).flatMap((d) => d.faces.map((f) => f.file)));

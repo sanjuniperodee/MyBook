@@ -8,8 +8,8 @@ import { cssFont, type FontKey } from "@/lib/book/fonts";
 import type { FontPick, FontRole, InteriorDesign, InteriorStyle, TextFace } from "@/lib/book/interiors";
 import { headingFace, quoteFace } from "@/lib/book/typesetting";
 import { cn } from "@/lib/class-names";
-import { fontPairs } from "./presets";
-import { patchSection } from "./style-edit";
+import { fontPairs } from "@/lib/book/interiors/studio-presets";
+import { patchSection } from "@/lib/book/interiors/style-edit";
 
 /** Начертание роли в дизайне (со всеми настройками). */
 function roleFace(design: InteriorDesign, role: FontRole): TextFace {

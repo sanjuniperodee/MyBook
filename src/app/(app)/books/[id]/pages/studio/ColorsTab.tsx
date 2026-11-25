@@ -5,8 +5,8 @@ import { useMessages } from "@/i18n/client";
 import { ColorField, PanelSection } from "@/components/design/controls";
 import { luminance, PAPER, type InteriorDesign, type InteriorPalette, type InteriorStyle } from "@/lib/book/interiors";
 import { cn } from "@/lib/class-names";
-import { openerFills, palettes, papers } from "./presets";
-import { patchSection } from "./style-edit";
+import { openerFills, palettes, papers } from "@/lib/book/interiors/studio-presets";
+import { patchSection } from "@/lib/book/interiors/style-edit";
 
 /** Контраст двух цветов по WCAG: текст на бумаге должен читаться (≥ 4.5 для основного текста). */
 export function contrast(a: string, b: string) {

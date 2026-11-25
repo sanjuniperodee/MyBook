@@ -16,6 +16,7 @@ import { lettersRoutes } from "./letters";
 import { previewRoutes } from "./preview";
 import { reviewsRoutes } from "./reviews";
 import { coverRoutes } from "./cover";
+import { pagesRoutes } from "./pages";
 import { photoEditorRoutes } from "./photo-editor";
 import { crmListsRoutes } from "./crm-lists";
 import { meRoutes } from "./me";
@@ -46,6 +47,7 @@ export * from "./letters";
 export * from "./preview";
 export * from "./reviews";
 export * from "./cover";
+export * from "./pages";
 export * from "./photo-editor";
 export * from "./crm-lists";
 export * from "./me";
@@ -74,6 +76,7 @@ export const v1 = {
   ...previewRoutes,
   ...reviewsRoutes,
   ...coverRoutes,
+  ...pagesRoutes,
   ...photoEditorRoutes,
   ...crmListsRoutes,
   ...meRoutes,

@@ -242,6 +242,18 @@ class MybookApi {
     return CoverView.fromJson(json as Map<String, dynamic>);
   }
 
+  /// Страницы книги: развороты картинками, состав книги, стили и пары шрифтов
+  Future<PagesView> pagesGet({required String bookId}) async {
+    final json = await _send('GET', '/api/v1/books/${Uri.encodeComponent('$bookId')}/pages');
+    return PagesView.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Правка страниц: стиль, пара шрифтов, посвящение, оглавление, последняя страница, титул
+  Future<PagesView> pagesUpdate({required String bookId, required PagesPatch body}) async {
+    final json = await _send('PATCH', '/api/v1/books/${Uri.encodeComponent('$bookId')}/pages', body: body.toJson());
+    return PagesView.fromJson(json as Map<String, dynamic>);
+  }
+
   /// Состояние редактора фото: текущая правка photo_edits, оригинал, слот книги, пределы, пресеты и подписи на языке пользователя
   Future<PhotoEditorState> photoEditorGet({required String bookId, required String photoId}) async {
     final json = await _send('GET', '/api/v1/books/${Uri.encodeComponent('$bookId')}/photos/${Uri.encodeComponent('$photoId')}/editor');
@@ -3742,6 +3754,7 @@ class CoverBackLayout {
 
 class CoverLabels {
   final String title;
+  final CoverLabelsDesignSwitch designSwitch;
   final String saving;
   final CoverLabelsSides sides;
   final CoverLabelsTabs tabs;
@@ -3755,11 +3768,22 @@ class CoverLabels {
   final CoverLabelsText text;
   final CoverLabelsBack back;
 
-  const CoverLabels({required this.title, required this.saving, required this.sides, required this.tabs, required this.variants, required this.shown, required this.showAll, required this.onCover, required this.designActive, required this.readonly, required this.photo, required this.text, required this.back});
+  const CoverLabels({required this.title, required this.designSwitch, required this.saving, required this.sides, required this.tabs, required this.variants, required this.shown, required this.showAll, required this.onCover, required this.designActive, required this.readonly, required this.photo, required this.text, required this.back});
 
-  factory CoverLabels.fromJson(Map<String, dynamic> json) => CoverLabels(title: json['title'] as String, saving: json['saving'] as String, sides: CoverLabelsSides.fromJson(json['sides'] as Map<String, dynamic>), tabs: CoverLabelsTabs.fromJson(json['tabs'] as Map<String, dynamic>), variants: json['variants'] as String, shown: (json['shown'] as num).toInt(), showAll: json['showAll'] as String, onCover: json['onCover'] as String, designActive: json['designActive'] as String, readonly: json['readonly'] as String, photo: CoverLabelsPhoto.fromJson(json['photo'] as Map<String, dynamic>), text: CoverLabelsText.fromJson(json['text'] as Map<String, dynamic>), back: CoverLabelsBack.fromJson(json['back'] as Map<String, dynamic>));
+  factory CoverLabels.fromJson(Map<String, dynamic> json) => CoverLabels(title: json['title'] as String, designSwitch: CoverLabelsDesignSwitch.fromJson(json['designSwitch'] as Map<String, dynamic>), saving: json['saving'] as String, sides: CoverLabelsSides.fromJson(json['sides'] as Map<String, dynamic>), tabs: CoverLabelsTabs.fromJson(json['tabs'] as Map<String, dynamic>), variants: json['variants'] as String, shown: (json['shown'] as num).toInt(), showAll: json['showAll'] as String, onCover: json['onCover'] as String, designActive: json['designActive'] as String, readonly: json['readonly'] as String, photo: CoverLabelsPhoto.fromJson(json['photo'] as Map<String, dynamic>), text: CoverLabelsText.fromJson(json['text'] as Map<String, dynamic>), back: CoverLabelsBack.fromJson(json['back'] as Map<String, dynamic>));
 
-  Map<String, dynamic> toJson() => {'title': title, 'saving': saving, 'sides': sides.toJson(), 'tabs': tabs.toJson(), 'variants': variants, 'shown': shown, 'showAll': showAll, 'onCover': onCover, 'designActive': designActive, 'readonly': readonly, 'photo': photo.toJson(), 'text': text.toJson(), 'back': back.toJson()};
+  Map<String, dynamic> toJson() => {'title': title, 'designSwitch': designSwitch.toJson(), 'saving': saving, 'sides': sides.toJson(), 'tabs': tabs.toJson(), 'variants': variants, 'shown': shown, 'showAll': showAll, 'onCover': onCover, 'designActive': designActive, 'readonly': readonly, 'photo': photo.toJson(), 'text': text.toJson(), 'back': back.toJson()};
+}
+
+class CoverLabelsDesignSwitch {
+  final String cover;
+  final String pages;
+
+  const CoverLabelsDesignSwitch({required this.cover, required this.pages});
+
+  factory CoverLabelsDesignSwitch.fromJson(Map<String, dynamic> json) => CoverLabelsDesignSwitch(cover: json['cover'] as String, pages: json['pages'] as String);
+
+  Map<String, dynamic> toJson() => {'cover': cover, 'pages': pages};
 }
 
 class CoverLabelsSides {
@@ -3912,6 +3936,274 @@ class CoverDesignResetBody {
   factory CoverDesignResetBody.fromJson(Map<String, dynamic> json) => CoverDesignResetBody(side: json['side'] as String, coverTemplate: json['coverTemplate'] == null ? null : json['coverTemplate'] as String, coverPhotoId: json['coverPhotoId'] == null ? null : json['coverPhotoId'] as String, coverPhotoExtra: json['coverPhotoExtra'] == null ? null : (json['coverPhotoExtra'] as List).map((e) => e as String).toList());
 
   Map<String, dynamic> toJson() => {'side': side, if (coverTemplate != null) 'coverTemplate': coverTemplate!, if (coverPhotoId != null || nulls.contains('coverPhotoId')) 'coverPhotoId': coverPhotoId, if (coverPhotoExtra != null) 'coverPhotoExtra': coverPhotoExtra!.map((e) => e).toList()};
+}
+
+class PagesSpread {
+  /// chapter | photos | front | toc
+  final String kind;
+  final String label;
+  final String imageUrl;
+
+  const PagesSpread({required this.kind, required this.label, required this.imageUrl});
+
+  factory PagesSpread.fromJson(Map<String, dynamic> json) => PagesSpread(kind: json['kind'] as String, label: json['label'] as String, imageUrl: json['imageUrl'] as String);
+
+  Map<String, dynamic> toJson() => {'kind': kind, 'label': label, 'imageUrl': imageUrl};
+}
+
+class PagesFontFace {
+  final String family;
+  final int weight;
+  final bool italic;
+  final String url;
+
+  const PagesFontFace({required this.family, required this.weight, required this.italic, required this.url});
+
+  factory PagesFontFace.fromJson(Map<String, dynamic> json) => PagesFontFace(family: json['family'] as String, weight: (json['weight'] as num).toInt(), italic: json['italic'] as bool, url: json['url'] as String);
+
+  Map<String, dynamic> toJson() => {'family': family, 'weight': weight, 'italic': italic, 'url': url};
+}
+
+class PagesState {
+  final String interior;
+  final String dedication;
+  final bool showToc;
+  final String? endText;
+  final bool titlePage;
+  /// chapters | end | none
+  final String photoPlacement;
+  final int customCount;
+
+  const PagesState({required this.interior, required this.dedication, required this.showToc, this.endText, required this.titlePage, required this.photoPlacement, required this.customCount});
+
+  factory PagesState.fromJson(Map<String, dynamic> json) => PagesState(interior: json['interior'] as String, dedication: json['dedication'] as String, showToc: json['showToc'] as bool, endText: json['endText'] == null ? null : json['endText'] as String, titlePage: json['titlePage'] as bool, photoPlacement: json['photoPlacement'] as String, customCount: (json['customCount'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'interior': interior, 'dedication': dedication, 'showToc': showToc, 'endText': endText, 'titlePage': titlePage, 'photoPlacement': photoPlacement, 'customCount': customCount};
+}
+
+class PagesStyle {
+  final String id;
+  final String name;
+  final String description;
+  final String direction;
+  final String directionLabel;
+  final bool forCover;
+  final String? openerPhoto;
+  final String previewTitle;
+  final String imageUrl;
+
+  const PagesStyle({required this.id, required this.name, required this.description, required this.direction, required this.directionLabel, required this.forCover, this.openerPhoto, required this.previewTitle, required this.imageUrl});
+
+  factory PagesStyle.fromJson(Map<String, dynamic> json) => PagesStyle(id: json['id'] as String, name: json['name'] as String, description: json['description'] as String, direction: json['direction'] as String, directionLabel: json['directionLabel'] as String, forCover: json['forCover'] as bool, openerPhoto: json['openerPhoto'] == null ? null : json['openerPhoto'] as String, previewTitle: json['previewTitle'] as String, imageUrl: json['imageUrl'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'description': description, 'direction': direction, 'directionLabel': directionLabel, 'forCover': forCover, 'openerPhoto': openerPhoto, 'previewTitle': previewTitle, 'imageUrl': imageUrl};
+}
+
+class PagesFontPair {
+  final String id;
+  final String name;
+  final PagesFontFace display;
+  final PagesFontFace body;
+  final bool upper;
+  final double tracking;
+  final bool active;
+
+  const PagesFontPair({required this.id, required this.name, required this.display, required this.body, required this.upper, required this.tracking, required this.active});
+
+  factory PagesFontPair.fromJson(Map<String, dynamic> json) => PagesFontPair(id: json['id'] as String, name: json['name'] as String, display: PagesFontFace.fromJson(json['display'] as Map<String, dynamic>), body: PagesFontFace.fromJson(json['body'] as Map<String, dynamic>), upper: json['upper'] as bool, tracking: (json['tracking'] as num).toDouble(), active: json['active'] as bool);
+
+  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'display': display.toJson(), 'body': body.toJson(), 'upper': upper, 'tracking': tracking, 'active': active};
+}
+
+class PagesView {
+  final String bookId;
+  final bool editable;
+  final PagesState state;
+  final List<int> imageWidths;
+  final double spreadAspect;
+  final List<PagesSpread> spreads;
+  final PagesViewLimits limits;
+  final PagesViewStyles styles;
+  final PagesViewFonts fonts;
+  final PagesViewLabels labels;
+
+  const PagesView({required this.bookId, required this.editable, required this.state, required this.imageWidths, required this.spreadAspect, required this.spreads, required this.limits, required this.styles, required this.fonts, required this.labels});
+
+  factory PagesView.fromJson(Map<String, dynamic> json) => PagesView(bookId: json['bookId'] as String, editable: json['editable'] as bool, state: PagesState.fromJson(json['state'] as Map<String, dynamic>), imageWidths: (json['imageWidths'] as List).map((e) => (e as num).toInt()).toList(), spreadAspect: (json['spreadAspect'] as num).toDouble(), spreads: (json['spreads'] as List).map((e) => PagesSpread.fromJson(e as Map<String, dynamic>)).toList(), limits: PagesViewLimits.fromJson(json['limits'] as Map<String, dynamic>), styles: PagesViewStyles.fromJson(json['styles'] as Map<String, dynamic>), fonts: PagesViewFonts.fromJson(json['fonts'] as Map<String, dynamic>), labels: PagesViewLabels.fromJson(json['labels'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'bookId': bookId, 'editable': editable, 'state': state.toJson(), 'imageWidths': imageWidths.map((e) => e).toList(), 'spreadAspect': spreadAspect, 'spreads': spreads.map((e) => e.toJson()).toList(), 'limits': limits.toJson(), 'styles': styles.toJson(), 'fonts': fonts.toJson(), 'labels': labels.toJson()};
+}
+
+class PagesViewLimits {
+  final int dedication;
+  final int endText;
+
+  const PagesViewLimits({required this.dedication, required this.endText});
+
+  factory PagesViewLimits.fromJson(Map<String, dynamic> json) => PagesViewLimits(dedication: (json['dedication'] as num).toInt(), endText: (json['endText'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'dedication': dedication, 'endText': endText};
+}
+
+class PagesViewStyles {
+  final List<PagesStyle> items;
+  final List<PagesViewStylesFilters> filters;
+  final int shown;
+
+  const PagesViewStyles({required this.items, required this.filters, required this.shown});
+
+  factory PagesViewStyles.fromJson(Map<String, dynamic> json) => PagesViewStyles(items: (json['items'] as List).map((e) => PagesStyle.fromJson(e as Map<String, dynamic>)).toList(), filters: (json['filters'] as List).map((e) => PagesViewStylesFilters.fromJson(e as Map<String, dynamic>)).toList(), shown: (json['shown'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'items': items.map((e) => e.toJson()).toList(), 'filters': filters.map((e) => e.toJson()).toList(), 'shown': shown};
+}
+
+class PagesViewStylesFilters {
+  final String id;
+  final String label;
+
+  const PagesViewStylesFilters({required this.id, required this.label});
+
+  factory PagesViewStylesFilters.fromJson(Map<String, dynamic> json) => PagesViewStylesFilters(id: json['id'] as String, label: json['label'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'label': label};
+}
+
+class PagesViewFonts {
+  final String sample;
+  final List<PagesFontPair> pairs;
+
+  const PagesViewFonts({required this.sample, required this.pairs});
+
+  factory PagesViewFonts.fromJson(Map<String, dynamic> json) => PagesViewFonts(sample: json['sample'] as String, pairs: (json['pairs'] as List).map((e) => PagesFontPair.fromJson(e as Map<String, dynamic>)).toList());
+
+  Map<String, dynamic> toJson() => {'sample': sample, 'pairs': pairs.map((e) => e.toJson()).toList()};
+}
+
+class PagesViewLabels {
+  final PagesViewLabelsDesignSwitch designSwitch;
+  final PagesViewLabelsTabs tabs;
+  final PagesViewLabelsContent content;
+  final PagesViewLabelsStyles styles;
+  final PagesViewLabelsFonts fonts;
+
+  const PagesViewLabels({required this.designSwitch, required this.tabs, required this.content, required this.styles, required this.fonts});
+
+  factory PagesViewLabels.fromJson(Map<String, dynamic> json) => PagesViewLabels(designSwitch: PagesViewLabelsDesignSwitch.fromJson(json['designSwitch'] as Map<String, dynamic>), tabs: PagesViewLabelsTabs.fromJson(json['tabs'] as Map<String, dynamic>), content: PagesViewLabelsContent.fromJson(json['content'] as Map<String, dynamic>), styles: PagesViewLabelsStyles.fromJson(json['styles'] as Map<String, dynamic>), fonts: PagesViewLabelsFonts.fromJson(json['fonts'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'designSwitch': designSwitch.toJson(), 'tabs': tabs.toJson(), 'content': content.toJson(), 'styles': styles.toJson(), 'fonts': fonts.toJson()};
+}
+
+class PagesViewLabelsDesignSwitch {
+  final String cover;
+  final String pages;
+
+  const PagesViewLabelsDesignSwitch({required this.cover, required this.pages});
+
+  factory PagesViewLabelsDesignSwitch.fromJson(Map<String, dynamic> json) => PagesViewLabelsDesignSwitch(cover: json['cover'] as String, pages: json['pages'] as String);
+
+  Map<String, dynamic> toJson() => {'cover': cover, 'pages': pages};
+}
+
+class PagesViewLabelsTabs {
+  final String content;
+  final String styles;
+  final String fonts;
+
+  const PagesViewLabelsTabs({required this.content, required this.styles, required this.fonts});
+
+  factory PagesViewLabelsTabs.fromJson(Map<String, dynamic> json) => PagesViewLabelsTabs(content: json['content'] as String, styles: json['styles'] as String, fonts: json['fonts'] as String);
+
+  Map<String, dynamic> toJson() => {'content': content, 'styles': styles, 'fonts': fonts};
+}
+
+class PagesViewLabelsContent {
+  final String start;
+  final String front;
+  final String frontSet;
+  final String frontEmpty;
+  final String dedication;
+  final String dedicationText;
+  final String dedicationPlaceholder;
+  final String toc;
+  final String tocOn;
+  final String tocOff;
+  final String tocLabel;
+  final String tocApprox;
+  final String endTitle;
+  final List<PagesViewLabelsContentEndModes> endModes;
+  final String endLabel;
+  final String endPlaceholder;
+  final String endHint;
+  final String endNoneHint;
+  final String endDefault;
+  final String photos;
+  final String photosSummary;
+  final String photosLink;
+
+  const PagesViewLabelsContent({required this.start, required this.front, required this.frontSet, required this.frontEmpty, required this.dedication, required this.dedicationText, required this.dedicationPlaceholder, required this.toc, required this.tocOn, required this.tocOff, required this.tocLabel, required this.tocApprox, required this.endTitle, required this.endModes, required this.endLabel, required this.endPlaceholder, required this.endHint, required this.endNoneHint, required this.endDefault, required this.photos, required this.photosSummary, required this.photosLink});
+
+  factory PagesViewLabelsContent.fromJson(Map<String, dynamic> json) => PagesViewLabelsContent(start: json['start'] as String, front: json['front'] as String, frontSet: json['frontSet'] as String, frontEmpty: json['frontEmpty'] as String, dedication: json['dedication'] as String, dedicationText: json['dedicationText'] as String, dedicationPlaceholder: json['dedicationPlaceholder'] as String, toc: json['toc'] as String, tocOn: json['tocOn'] as String, tocOff: json['tocOff'] as String, tocLabel: json['tocLabel'] as String, tocApprox: json['tocApprox'] as String, endTitle: json['endTitle'] as String, endModes: (json['endModes'] as List).map((e) => PagesViewLabelsContentEndModes.fromJson(e as Map<String, dynamic>)).toList(), endLabel: json['endLabel'] as String, endPlaceholder: json['endPlaceholder'] as String, endHint: json['endHint'] as String, endNoneHint: json['endNoneHint'] as String, endDefault: json['endDefault'] as String, photos: json['photos'] as String, photosSummary: json['photosSummary'] as String, photosLink: json['photosLink'] as String);
+
+  Map<String, dynamic> toJson() => {'start': start, 'front': front, 'frontSet': frontSet, 'frontEmpty': frontEmpty, 'dedication': dedication, 'dedicationText': dedicationText, 'dedicationPlaceholder': dedicationPlaceholder, 'toc': toc, 'tocOn': tocOn, 'tocOff': tocOff, 'tocLabel': tocLabel, 'tocApprox': tocApprox, 'endTitle': endTitle, 'endModes': endModes.map((e) => e.toJson()).toList(), 'endLabel': endLabel, 'endPlaceholder': endPlaceholder, 'endHint': endHint, 'endNoneHint': endNoneHint, 'endDefault': endDefault, 'photos': photos, 'photosSummary': photosSummary, 'photosLink': photosLink};
+}
+
+class PagesViewLabelsContentEndModes {
+  /// default | custom | none
+  final String id;
+  final String label;
+
+  const PagesViewLabelsContentEndModes({required this.id, required this.label});
+
+  factory PagesViewLabelsContentEndModes.fromJson(Map<String, dynamic> json) => PagesViewLabelsContentEndModes(id: json['id'] as String, label: json['label'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'label': label};
+}
+
+class PagesViewLabelsStyles {
+  final String inBook;
+  final String pairBadge;
+  final String open;
+  final String apply;
+  final String current;
+  final String previewText;
+  final String showAll;
+  final String empty;
+  final String search;
+  final String reset;
+
+  const PagesViewLabelsStyles({required this.inBook, required this.pairBadge, required this.open, required this.apply, required this.current, required this.previewText, required this.showAll, required this.empty, required this.search, required this.reset});
+
+  factory PagesViewLabelsStyles.fromJson(Map<String, dynamic> json) => PagesViewLabelsStyles(inBook: json['inBook'] as String, pairBadge: json['pairBadge'] as String, open: json['open'] as String, apply: json['apply'] as String, current: json['current'] as String, previewText: json['previewText'] as String, showAll: json['showAll'] as String, empty: json['empty'] as String, search: json['search'] as String, reset: json['reset'] as String);
+
+  Map<String, dynamic> toJson() => {'inBook': inBook, 'pairBadge': pairBadge, 'open': open, 'apply': apply, 'current': current, 'previewText': previewText, 'showAll': showAll, 'empty': empty, 'search': search, 'reset': reset};
+}
+
+class PagesViewLabelsFonts {
+  final String pairs;
+  final String pairsText;
+
+  const PagesViewLabelsFonts({required this.pairs, required this.pairsText});
+
+  factory PagesViewLabelsFonts.fromJson(Map<String, dynamic> json) => PagesViewLabelsFonts(pairs: json['pairs'] as String, pairsText: json['pairsText'] as String);
+
+  Map<String, dynamic> toJson() => {'pairs': pairs, 'pairsText': pairsText};
+}
+
+class PagesPatch {
+  final String? interior;
+  final String? fontPair;
+  final String? dedication;
+  final bool? showToc;
+  final String? endText;
+  final bool? titlePage;
+  /// Поля, которые отправить как null (иначе пустое необязательное поле не отправляется).
+  final Set<String> nulls;
+
+  const PagesPatch({this.interior, this.fontPair, this.dedication, this.showToc, this.endText, this.titlePage, this.nulls = const {}});
+
+  factory PagesPatch.fromJson(Map<String, dynamic> json) => PagesPatch(interior: json['interior'] == null ? null : json['interior'] as String, fontPair: json['fontPair'] == null ? null : json['fontPair'] as String, dedication: json['dedication'] == null ? null : json['dedication'] as String, showToc: json['showToc'] == null ? null : json['showToc'] as bool, endText: json['endText'] == null ? null : json['endText'] as String, titlePage: json['titlePage'] == null ? null : json['titlePage'] as bool);
+
+  Map<String, dynamic> toJson() => {if (interior != null) 'interior': interior!, if (fontPair != null) 'fontPair': fontPair!, if (dedication != null) 'dedication': dedication!, if (showToc != null) 'showToc': showToc!, if (endText != null || nulls.contains('endText')) 'endText': endText, if (titlePage != null) 'titlePage': titlePage!};
 }
 
 class PhotoEditRect {

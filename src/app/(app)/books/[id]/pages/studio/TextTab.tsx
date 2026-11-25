@@ -5,7 +5,7 @@ import { useMessages } from "@/i18n/client";
 import { NumberField, PanelSection, Segmented, Toggle } from "@/components/design/controls";
 import { LIMITS, type InteriorDesign, type InteriorStyle, type TextAlign } from "@/lib/book/interiors";
 import { headingFace, indentEm, paraAfter } from "@/lib/book/typesetting";
-import { patchSection } from "./style-edit";
+import { patchSection } from "@/lib/book/interiors/style-edit";
 
 /**
  * Текст: основной набор (кегль, интерлиньяж, разрядка, выключка, красная строка, отбивки, ширина колонки), заголовки

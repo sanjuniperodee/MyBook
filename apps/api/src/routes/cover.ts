@@ -526,6 +526,7 @@ async function view(book: BookRow, viewer: BookViewer) {
     limits: { ...COVER_TEXT_MAX },
     labels: {
       title: t.title,
+      designSwitch: { cover: m.bookStudio.nav.designSwitch.cover, pages: m.bookStudio.nav.designSwitch.pages },
       saving: m.common.actions.saving,
       sides: { front: t.side.front, back: t.side.back },
       tabs: { designs: m.design.ui.studio.cover.tabs.designs, photo: m.design.ui.studio.cover.tabs.photo, text: m.design.ui.studio.cover.tabs.text, variant: m.design.ui.studio.cover.tabs.variant },

@@ -10,6 +10,7 @@ import 'checkout_screen.dart';
 import 'cover_screen.dart';
 import 'letters_screen.dart';
 import 'order_screen.dart';
+import 'pages_screen.dart';
 import 'photos_screen.dart';
 import 'preview_screen.dart';
 
@@ -101,6 +102,12 @@ Future<Widget?> _stagePage(BuildContext context, v1api.CabinetBook h, String key
       return LettersScreen(hub: h);
   }
   return null;
+}
+
+/// «Обложка · Страницы» — половины шага «Оформить»: другая половина встаёт вместо открытой (лента и шапка на месте).
+void openDesignHalf(BuildContext context, v1api.CabinetBook hub, String half) {
+  final h = _fresh(context, hub);
+  Navigator.of(context).pushReplacement(StageRoute<void>(builder: (_) => half == 'pages' ? PagesScreen(hub: h) : CoverScreen(hub: h)));
 }
 
 /// Смена этапа: шапка и лента одинаковые на обоих экранах, поэтому меняется только содержимое — короткое

@@ -11,7 +11,7 @@ import { cssFont } from "@/lib/book/fonts";
 import { TITLE_LINE_MAX } from "@/lib/book/title-line";
 import { quoteStyle } from "@/lib/book/typesetting";
 import { cn } from "@/lib/class-names";
-import { patchSection } from "./style-edit";
+import { patchSection } from "@/lib/book/interiors/style-edit";
 
 const px = pxUnits(4);
 

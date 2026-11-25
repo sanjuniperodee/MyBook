@@ -12,6 +12,7 @@ import '../../ui/kit.dart';
 import '../../ui/tokens.dart';
 import '../data/session.dart';
 import 'book_stages.dart';
+import 'pages_screen.dart';
 import '../ui/book_chrome.dart';
 import '../ui/cabinet.dart';
 import 'cover_designer.dart';
@@ -510,8 +511,11 @@ class _CoverScreenState extends State<CoverScreen> {
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       children: [
         // Заголовок и переключатель «Лицо / Оборот»
+        // «Обложка · Страницы» — заголовок шага и переключатель его половин, как на сайте.
+        DesignSwitch(hub: widget.hub, active: 'cover', cover: l.designSwitch.cover, pages: l.designSwitch.pages),
+        const SizedBox(height: 14),
         Row(children: [
-          Expanded(child: Text(l.title, style: AppText.serif(context, size: 28, weight: FontWeight.w500))),
+          const Spacer(),
           _PillToggle(
             value: _back,
             leftLabel: l.sides.front,

@@ -6,8 +6,8 @@ import { ColorField, PanelSection, Segmented } from "@/components/design/control
 import { chapterDesign, interiorStyleOptions, type ChapterOverride, type InteriorDesign, type InteriorStyle } from "@/lib/book/interiors";
 import { cn } from "@/lib/class-names";
 import { GlyphTile } from "./ElementsTab";
-import { openerFills, palettes } from "./presets";
-import { patchChapter } from "./style-edit";
+import { openerFills, palettes } from "@/lib/book/interiors/studio-presets";
+import { patchChapter } from "@/lib/book/interiors/style-edit";
 
 export interface StudioChapter {
   key: string;

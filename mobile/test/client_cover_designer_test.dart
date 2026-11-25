@@ -13,6 +13,8 @@ import 'package:mybooks_seller/client/data/models.dart';
 import 'package:mybooks_seller/client/data/session.dart';
 import 'package:mybooks_seller/client/screens/cover_designer.dart';
 import 'package:mybooks_seller/client/screens/cover_screen.dart';
+import 'package:mybooks_seller/client/screens/pages_screen.dart';
+import 'dart:io';
 import 'package:mybooks_seller/ui/tokens.dart';
 
 const _bookId = '3f2b8c1e-7a4d-4e5f-9b6c-1d2e3f4a5b6c';
@@ -82,6 +84,7 @@ Map<String, dynamic> _coverViewJson({
       'limits': {'title': 80, 'authorName': 60, 'recordedBy': 80, 'recipientName': 60, 'subtitle': 80, 'namesOnCover': 120, 'backText': 400},
       'labels': {
         'title': 'Обложка',
+        'designSwitch': {'cover': 'Обложка', 'pages': 'Страницы'},
         'saving': 'Сохраняем…',
         'sides': {'front': 'Лицо', 'back': 'Оборот'},
         'tabs': {'designs': 'Дизайн', 'photo': 'Фото', 'text': 'Текст', 'variant': 'Вариант'},
@@ -653,5 +656,69 @@ void main() {
       expect(calls, contains('POST /api/v1/books/$_bookId/cover/design/reset'));
       expect(state['cover']['hasDesign'], isFalse);
     });
+  });
+
+  // «Страницы» (вторая половина «Оформить»): модель с сервера (фикстура — ответ API v1 pagesGet), развороты, вкладки,
+  // выбор стиля и пары шрифтов — правкой PATCH /pages.
+  testWidgets('PagesScreen: переключатель «Обложка · Страницы», развороты, состав книги, стили и шрифты с сервера', (tester) async {
+    tester.view.physicalSize = const Size(430, 1600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    final fixture = jsonDecode(File('test/fixtures/pages_view.json').readAsStringSync()) as Map<String, dynamic>;
+    final patches = <Map<String, dynamic>>[];
+    final mockClient = MockClient((req) async {
+      if (req.method == 'PATCH' && req.url.path.endsWith('/pages')) {
+        final body = jsonDecode(req.body) as Map<String, dynamic>;
+        patches.add(body);
+        if (body['interior'] != null) (fixture['state'] as Map<String, dynamic>)['interior'] = body['interior'];
+      }
+      return http.Response(jsonEncode(fixture), 200, headers: {'content-type': 'application/json'});
+    });
+    final api = v1api.MybookApi(baseUrl: 'http://127.0.0.1', client: mockClient);
+    final backend = _FakeBackend(api, () async => throw UnimplementedError(), (_) async => throw UnimplementedError());
+    await tester.pumpWidget(
+      ChangeNotifierProvider<ClientSession>.value(
+        value: _FakeSession(backend),
+        child: MaterialApp(theme: buildTheme(Brightness.light, client: true), home: PagesScreen(hub: _fakeHub())),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    final labels = fixture['labels'] as Map<String, dynamic>;
+    // Заголовок шага — переключатель половин; развороты и вкладки — подписи с сервера.
+    expect(find.text((labels['designSwitch'] as Map)['pages'] as String), findsOneWidget);
+    expect(find.text((labels['designSwitch'] as Map)['cover'] as String), findsOneWidget);
+    for (final s in fixture['spreads'] as List) {
+      expect(find.text((s as Map)['label'] as String), findsWidgets);
+    }
+    final content = labels['content'] as Map<String, dynamic>;
+    expect(find.text(content['front'] as String), findsOneWidget);
+    expect(find.text(content['toc'] as String), findsWidgets);
+    expect(find.text(content['endTitle'] as String), findsOneWidget);
+
+    // Стили: выбранный — первым; нажатие на другой — PATCH { interior }.
+    await tester.tap(find.text((labels['tabs'] as Map)['styles'] as String));
+    await tester.pump();
+    final items = (fixture['styles'] as Map)['items'] as List;
+    final other = items.firstWhere((d) => (d as Map)['id'] != (fixture['state'] as Map)['interior']) as Map;
+    await tester.ensureVisible(find.text(other['name'] as String).first);
+    await tester.tap(find.text(other['name'] as String).first);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(patches.last, {'interior': other['id']});
+
+    // Шрифты: пары по названиям с сервера; нажатие — PATCH { fontPair }.
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, 4000));
+    await tester.pump();
+    await tester.tap(find.text((labels['tabs'] as Map)['fonts'] as String));
+    await tester.pump();
+    expect(find.text(((labels['fonts'] as Map)['pairs'] as String).toUpperCase()), findsOneWidget);
+    final pair = ((fixture['fonts'] as Map)['pairs'] as List).first as Map;
+    final pairName = pair['upper'] == true ? (pair['name'] as String).toUpperCase() : pair['name'] as String;
+    await tester.ensureVisible(find.text(pairName));
+    await tester.tap(find.text(pairName));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(patches.last, {'fontPair': pair['id']});
   });
 }

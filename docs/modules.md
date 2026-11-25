@@ -12,7 +12,7 @@
 |---|---|---:|---:|
 | [access](#access) | Access: сотрудники, роли и права, правила безопасности, журнал. | 16 / 866 | 48 |
 | [assistant](#assistant) | AI-помощник (Claude, ChatGPT, DeepSeek или свой OpenAI-совместимый сервер). | 24 / 2314 | 25 |
-| [authoring](#authoring) | Authoring: книги, вопросы, оглавление своей книги, фото, письма близких. | 29 / 3882 | 74 |
+| [authoring](#authoring) | Authoring: книги, вопросы, оглавление своей книги, фото, письма близких. | 29 / 3882 | 75 |
 | [automation](#automation) | Автоматизации (цифровая воронка CRM). | 16 / 1987 | 9 |
 | [boards](#boards) | Доски задач: доски отделов, личные и проектные, колонки с лимитами, карточки (задачи CRM) с исполнителями, метками, чек-листами, комментариями и вложениями, правила досок, календарь, личная iCal-ссылка и Google Календарь сотрудника. | 15 / 3218 | 15 |
 | [clients](#clients) | Клиенты CRM: профиль клиента, задачи и заметки менеджеров. | 10 / 1167 | 29 |
@@ -22,7 +22,7 @@
 | [messaging](#messaging) | Переписка: единый инбокс, бот-квалификатор, виджет на сайте. | 60 / 16694 | 152 |
 | [notifications](#notifications) | Уведомления: автописьма, напоминания из CRM, отписка. | 10 / 707 | 6 |
 | [ordering](#ordering) | Заказы. Остальной код видит только его. | 48 / 5792 | 96 |
-| [production](#production) | Производство: вёрстка PDF книги и сертификатов, предпросмотры полос и обложек, файлы для типографии, очередь сборки. В container — previews (BookPreviewService) и printFiles. | 42 / 5294 | 0 |
+| [production](#production) | Производство: вёрстка PDF книги и сертификатов, предпросмотры полос и обложек, файлы для типографии, очередь сборки. В container — previews (BookPreviewService) и printFiles. | 43 / 5606 | 0 |
 | [referrals](#referrals) | Приглашения: код для друзей, награда за их заказы и покупки из чата. | 10 / 358 | 3 |
 | [reporting](#reporting) | Отчёты CRM — сторона чтения (CQRS): сводные выборки по нескольким контекстам для страниц (дашборд, аналитика, поиск, «Мой день»). Только чтение, без бизнес-правил: команды идут через модули контекстов. | 44 / 4494 | 57 |
 | [sales](#sales) | Продажи: сделки, воронки, этапы, дубли, воронка по действиям на сайте. | 28 / 2977 | 90 |
@@ -157,7 +157,7 @@ Identity: учётные записи, вход, пароли, второй фа
 - Папка: `src/modules/production` (application, infrastructure)
 - Фасад: нет класса-фасада (функции из index.ts)
 - Таблицы: своих нет
-- Тесты (38): `book-build.test.ts`, `chapter-opener-left.test.tsx`, `chapter-start.test.tsx`, `characterization/covers.test.ts`, `characterization/fingerprint.test.ts`, `characterization/render.test.ts`, `cover-back-color.test.tsx`, `cover-emoji.test.tsx`, `cover-lines.test.tsx`, `cover-reverse.test.tsx`, `design-polish.test.tsx`, `end-text.test.tsx`, `fixtures.test.ts`, `gallery-title.test.tsx`, `i18n.test.ts`, `linebreak.test.tsx`, `page-layout.test.ts`, `paginate.test.tsx`, `pdf-critical.test.ts`, `pdf-drafts.test.ts`, `pdf-flow.test.ts`, `pdf-frames.test.tsx`, `pdf-media.test.tsx`, `pdf-opener-limits.test.ts`, `pdf-photos.test.tsx`, `pdf-pool-limits.test.ts`, `pdf-tree-parity.test.ts`, `pdf.test.tsx`, `photo-crop.test.ts`, `preview-page-numbers.test.ts`, `preview-pdf-parity.test.tsx`, `print-kinds.test.tsx`, `print-spec.test.ts`, `production.test.ts`, `render-progress.test.ts`, `title-page.test.tsx`, `toc.test.ts`, `verse-stanzas.test.tsx`
+- Тесты (39): `book-build.test.ts`, `chapter-opener-left.test.tsx`, `chapter-start.test.tsx`, `characterization/covers.test.ts`, `characterization/fingerprint.test.ts`, `characterization/render.test.ts`, `cover-back-color.test.tsx`, `cover-emoji.test.tsx`, `cover-lines.test.tsx`, `cover-reverse.test.tsx`, `design-polish.test.tsx`, `end-text.test.tsx`, `fixtures.test.ts`, `gallery-title.test.tsx`, `i18n.test.ts`, `linebreak.test.tsx`, `page-layout.test.ts`, `pages-spreads.test.ts`, `paginate.test.tsx`, `pdf-critical.test.ts`, `pdf-drafts.test.ts`, `pdf-flow.test.ts`, `pdf-frames.test.tsx`, `pdf-media.test.tsx`, `pdf-opener-limits.test.ts`, `pdf-photos.test.tsx`, `pdf-pool-limits.test.ts`, `pdf-tree-parity.test.ts`, `pdf.test.tsx`, `photo-crop.test.ts`, `preview-page-numbers.test.ts`, `preview-pdf-parity.test.tsx`, `print-kinds.test.tsx`, `print-spec.test.ts`, `production.test.ts`, `render-progress.test.ts`, `title-page.test.tsx`, `toc.test.ts`, `verse-stanzas.test.tsx`
 
 ## referrals
 

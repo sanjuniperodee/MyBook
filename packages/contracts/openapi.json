@@ -1559,6 +1559,102 @@
         "x-auth": "user"
       }
     },
+    "/api/v1/books/{bookId}/pages": {
+      "get": {
+        "operationId": "pagesGet",
+        "tags": [
+          "pages"
+        ],
+        "summary": "Страницы книги: развороты картинками, состав книги, стили и пары шрифтов",
+        "parameters": [
+          {
+            "name": "bookId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagesView"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      },
+      "patch": {
+        "operationId": "pagesUpdate",
+        "tags": [
+          "pages"
+        ],
+        "summary": "Правка страниц: стиль, пара шрифтов, посвящение, оглавление, последняя страница, титул",
+        "parameters": [
+          {
+            "name": "bookId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PagesPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagesView"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      }
+    },
     "/api/v1/books/{bookId}/photos/{photoId}/editor": {
       "get": {
         "operationId": "photoEditorGet",
@@ -18359,6 +18455,22 @@
           "title": {
             "type": "string"
           },
+          "designSwitch": {
+            "type": "object",
+            "properties": {
+              "cover": {
+                "type": "string"
+              },
+              "pages": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "cover",
+              "pages"
+            ],
+            "additionalProperties": false
+          },
           "saving": {
             "type": "string"
           },
@@ -18539,6 +18651,7 @@
         },
         "required": [
           "title",
+          "designSwitch",
           "saving",
           "sides",
           "tabs",
@@ -18760,6 +18873,578 @@
         "required": [
           "side"
         ],
+        "additionalProperties": false
+      },
+      "PagesSpread": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "chapter",
+              "photos",
+              "front",
+              "toc"
+            ]
+          },
+          "label": {
+            "type": "string"
+          },
+          "imageUrl": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "label",
+          "imageUrl"
+        ],
+        "additionalProperties": false
+      },
+      "PagesFontFace": {
+        "type": "object",
+        "properties": {
+          "family": {
+            "type": "string"
+          },
+          "weight": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "italic": {
+            "type": "boolean"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "family",
+          "weight",
+          "italic",
+          "url"
+        ],
+        "additionalProperties": false
+      },
+      "PagesState": {
+        "type": "object",
+        "properties": {
+          "interior": {
+            "type": "string"
+          },
+          "dedication": {
+            "type": "string"
+          },
+          "showToc": {
+            "type": "boolean"
+          },
+          "endText": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "titlePage": {
+            "type": "boolean"
+          },
+          "photoPlacement": {
+            "type": "string",
+            "enum": [
+              "chapters",
+              "end",
+              "none"
+            ]
+          },
+          "customCount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "interior",
+          "dedication",
+          "showToc",
+          "endText",
+          "titlePage",
+          "photoPlacement",
+          "customCount"
+        ],
+        "additionalProperties": false
+      },
+      "PagesStyle": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "direction": {
+            "type": "string"
+          },
+          "directionLabel": {
+            "type": "string"
+          },
+          "forCover": {
+            "type": "boolean"
+          },
+          "openerPhoto": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "previewTitle": {
+            "type": "string"
+          },
+          "imageUrl": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "direction",
+          "directionLabel",
+          "forCover",
+          "openerPhoto",
+          "previewTitle",
+          "imageUrl"
+        ],
+        "additionalProperties": false
+      },
+      "PagesFontPair": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "display": {
+            "$ref": "#/components/schemas/PagesFontFace"
+          },
+          "body": {
+            "$ref": "#/components/schemas/PagesFontFace"
+          },
+          "upper": {
+            "type": "boolean"
+          },
+          "tracking": {
+            "type": "number"
+          },
+          "active": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "display",
+          "body",
+          "upper",
+          "tracking",
+          "active"
+        ],
+        "additionalProperties": false
+      },
+      "PagesView": {
+        "type": "object",
+        "properties": {
+          "bookId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "editable": {
+            "type": "boolean"
+          },
+          "state": {
+            "$ref": "#/components/schemas/PagesState"
+          },
+          "imageWidths": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          },
+          "spreadAspect": {
+            "type": "number"
+          },
+          "spreads": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PagesSpread"
+            }
+          },
+          "limits": {
+            "type": "object",
+            "properties": {
+              "dedication": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "endText": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "dedication",
+              "endText"
+            ],
+            "additionalProperties": false
+          },
+          "styles": {
+            "type": "object",
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PagesStyle"
+                }
+              },
+              "filters": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "label": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "label"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "shown": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "items",
+              "filters",
+              "shown"
+            ],
+            "additionalProperties": false
+          },
+          "fonts": {
+            "type": "object",
+            "properties": {
+              "sample": {
+                "type": "string"
+              },
+              "pairs": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PagesFontPair"
+                }
+              }
+            },
+            "required": [
+              "sample",
+              "pairs"
+            ],
+            "additionalProperties": false
+          },
+          "labels": {
+            "type": "object",
+            "properties": {
+              "designSwitch": {
+                "type": "object",
+                "properties": {
+                  "cover": {
+                    "type": "string"
+                  },
+                  "pages": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "cover",
+                  "pages"
+                ],
+                "additionalProperties": false
+              },
+              "tabs": {
+                "type": "object",
+                "properties": {
+                  "content": {
+                    "type": "string"
+                  },
+                  "styles": {
+                    "type": "string"
+                  },
+                  "fonts": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "content",
+                  "styles",
+                  "fonts"
+                ],
+                "additionalProperties": false
+              },
+              "content": {
+                "type": "object",
+                "properties": {
+                  "start": {
+                    "type": "string"
+                  },
+                  "front": {
+                    "type": "string"
+                  },
+                  "frontSet": {
+                    "type": "string"
+                  },
+                  "frontEmpty": {
+                    "type": "string"
+                  },
+                  "dedication": {
+                    "type": "string"
+                  },
+                  "dedicationText": {
+                    "type": "string"
+                  },
+                  "dedicationPlaceholder": {
+                    "type": "string"
+                  },
+                  "toc": {
+                    "type": "string"
+                  },
+                  "tocOn": {
+                    "type": "string"
+                  },
+                  "tocOff": {
+                    "type": "string"
+                  },
+                  "tocLabel": {
+                    "type": "string"
+                  },
+                  "tocApprox": {
+                    "type": "string"
+                  },
+                  "endTitle": {
+                    "type": "string"
+                  },
+                  "endModes": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "enum": [
+                            "default",
+                            "custom",
+                            "none"
+                          ]
+                        },
+                        "label": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "label"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "endLabel": {
+                    "type": "string"
+                  },
+                  "endPlaceholder": {
+                    "type": "string"
+                  },
+                  "endHint": {
+                    "type": "string"
+                  },
+                  "endNoneHint": {
+                    "type": "string"
+                  },
+                  "endDefault": {
+                    "type": "string"
+                  },
+                  "photos": {
+                    "type": "string"
+                  },
+                  "photosSummary": {
+                    "type": "string"
+                  },
+                  "photosLink": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "start",
+                  "front",
+                  "frontSet",
+                  "frontEmpty",
+                  "dedication",
+                  "dedicationText",
+                  "dedicationPlaceholder",
+                  "toc",
+                  "tocOn",
+                  "tocOff",
+                  "tocLabel",
+                  "tocApprox",
+                  "endTitle",
+                  "endModes",
+                  "endLabel",
+                  "endPlaceholder",
+                  "endHint",
+                  "endNoneHint",
+                  "endDefault",
+                  "photos",
+                  "photosSummary",
+                  "photosLink"
+                ],
+                "additionalProperties": false
+              },
+              "styles": {
+                "type": "object",
+                "properties": {
+                  "inBook": {
+                    "type": "string"
+                  },
+                  "pairBadge": {
+                    "type": "string"
+                  },
+                  "open": {
+                    "type": "string"
+                  },
+                  "apply": {
+                    "type": "string"
+                  },
+                  "current": {
+                    "type": "string"
+                  },
+                  "previewText": {
+                    "type": "string"
+                  },
+                  "showAll": {
+                    "type": "string"
+                  },
+                  "empty": {
+                    "type": "string"
+                  },
+                  "search": {
+                    "type": "string"
+                  },
+                  "reset": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "inBook",
+                  "pairBadge",
+                  "open",
+                  "apply",
+                  "current",
+                  "previewText",
+                  "showAll",
+                  "empty",
+                  "search",
+                  "reset"
+                ],
+                "additionalProperties": false
+              },
+              "fonts": {
+                "type": "object",
+                "properties": {
+                  "pairs": {
+                    "type": "string"
+                  },
+                  "pairsText": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "pairs",
+                  "pairsText"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "designSwitch",
+              "tabs",
+              "content",
+              "styles",
+              "fonts"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "bookId",
+          "editable",
+          "state",
+          "imageWidths",
+          "spreadAspect",
+          "spreads",
+          "limits",
+          "styles",
+          "fonts",
+          "labels"
+        ],
+        "additionalProperties": false
+      },
+      "PagesPatch": {
+        "type": "object",
+        "properties": {
+          "interior": {
+            "type": "string",
+            "maxLength": 40
+          },
+          "fontPair": {
+            "type": "string",
+            "maxLength": 20
+          },
+          "dedication": {
+            "type": "string",
+            "maxLength": 600
+          },
+          "showToc": {
+            "type": "boolean"
+          },
+          "endText": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "titlePage": {
+            "type": "boolean"
+          }
+        },
         "additionalProperties": false
       },
       "PhotoEditRect": {

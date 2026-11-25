@@ -18,7 +18,7 @@ import { ElementsTab } from "./ElementsTab";
 import { FontsTab } from "./FontsTab";
 import { StylesTab } from "./StylesTab";
 import { TextTab } from "./TextTab";
-import { countCustom, resetStyle } from "./style-edit";
+import { countCustom, resetStyle } from "@/lib/book/interiors/style-edit";
 
 export type StudioTabId = "ai" | "styles" | "fonts" | "text" | "elements" | "colors" | "chapters";
 export const STUDIO_TABS: StudioTabId[] = ["ai", "styles", "fonts", "text", "elements", "colors", "chapters"];

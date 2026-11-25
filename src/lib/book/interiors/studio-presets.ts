@@ -2,7 +2,7 @@
  * Готовые пары шрифтов и палитры студии оформления: быстрый старт, дальше любую роль и цвет можно поменять отдельно.
  * Насыщенность — из начертаний, которые у шрифта есть (fonts.ts).
  */
-import type { FontPick, InteriorPalette, InteriorStyle } from "@/lib/book/interiors";
+import type { FontPick, InteriorPalette, InteriorStyle } from "./index";
 
 export interface FontPair {
   id: string;

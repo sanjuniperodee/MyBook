@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { CoverFields } from "@mybook/contracts";
+import { PAGES_TEXT_MAX } from "@mybook/contracts/limits";
 import { idParams } from "@/server/input";
 import { api, apiViewer } from "@/server/api";
 import { isLocale } from "@/i18n/config";
@@ -18,7 +19,7 @@ const patchSchema = z
     recipientGender: z.enum(["m", "f"]),
     // Кадры фото на обложке: форму и числа проверяет домен (parseFrames), здесь — только размер.
     photoFrames: z.record(z.string().max(12), z.object({ zoom: z.number(), x: z.number(), y: z.number() })).refine((o) => Object.keys(o).length <= 12),
-    dedication: z.string().trim().max(600),
+    dedication: z.string().trim().max(PAGES_TEXT_MAX.dedication),
     interior: z.string().max(40),
     // Настройки дизайнера страниц и обложка из слоёв: поля и числа проверяет домен (parseInteriorStyle, parseCoverDesign),
     // здесь — только что это объект разумного размера.

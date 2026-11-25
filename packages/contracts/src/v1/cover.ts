@@ -602,6 +602,8 @@ export const CoverBackLayout = z
 export const CoverLabels = z
   .object({
     title: z.string(),
+    /** Шаг «Оформить» — две половины: «Обложка · Страницы» (заголовок экрана и есть переключатель, как на сайте). */
+    designSwitch: z.object({ cover: z.string(), pages: z.string() }),
     saving: z.string(),
     sides: z.object({ front: z.string(), back: z.string() }),
     tabs: z.object({ designs: z.string(), photo: z.string(), text: z.string(), variant: z.string() }),

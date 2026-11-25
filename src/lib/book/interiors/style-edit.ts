@@ -2,7 +2,7 @@
  * Правка настроек дизайнера страниц (InteriorStyle) без мутаций: поле со значением undefined удаляется — значит
  * «как в стиле»; пустой раздел тоже удаляется. Так в базе хранится только то, что клиент действительно поменял.
  */
-import type { ChapterOverride, InteriorStyle } from "@/lib/book/interiors";
+import type { ChapterOverride, InteriorStyle } from "./index";
 
 type Section = Exclude<keyof InteriorStyle, "chapters">;
 
