@@ -118,9 +118,11 @@ class Message {
 
   bool get isPending => status == 'sending';
   bool get isFailed => status == 'error';
+  bool get isBot => outgoing && author == 'бот';
+  bool get hasTrace => raw?['trace'] == true;
 
   /// Отпечаток того, что видно в пузыре: одинаковый — пузырь перерисовывать незачем.
-  String get signature => '$status|${error ?? ''}|${text.hashCode}|$edited|$deleted|${transcript?.hashCode ?? 0}|${revoked ?? ''}|${editHistory.length}|$mediaGone|${card?.kind ?? ''}';
+  String get signature => '$status|${error ?? ''}|${text.hashCode}|$edited|$deleted|${transcript?.hashCode ?? 0}|${revoked ?? ''}|${editHistory.length}|$mediaGone|${card?.kind ?? ''}|$hasTrace';
 
   factory Message.fromJson(Map<String, dynamic> j) {
     final reply = j['replyTo'];

@@ -12,6 +12,7 @@ import '../../ui/tokens.dart';
 import '../../widgets/crm_form.dart';
 import '../crm_web_screen.dart';
 import '../money/money_widgets.dart';
+import 'roles_screen.dart';
 
 /// «Команда» (API v1 crmTeam): сотрудники — роль, добавочный, телефон для напоминаний, отключить, сбросить пароль, забрать
 /// доступ; «+» — добавить сотрудника. Роли и их права, планы продаж — страницей CRM.
@@ -136,7 +137,7 @@ class _TeamScreenState extends State<TeamScreen> {
     final c = context.c;
     return MoneyPage(
       title: 'Команда',
-      subtitle: 'Роли и права ролей, планы продаж — в CRM на сайте',
+      subtitle: 'Сотрудники, роли и права — нативно; планы продаж — в CRM',
       period: null,
       onPeriod: null,
       onRefresh: _load,
@@ -161,9 +162,9 @@ class _TeamScreenState extends State<TeamScreen> {
                     onTap: m.locked ? null : () => _member(t, m),
                   ),
               ]),
-              MoneySection(title: 'Роли и планы', hint: 'редакторы прав и планов — страницами CRM'),
+              MoneySection(title: 'Роли и планы', hint: 'Роли и права — нативно, планы продаж — страницей CRM'),
               GroupCard(padding: EdgeInsets.zero, children: [
-                GroupTile(title: 'Роли и права', icon: LucideIcons.lockKeyhole, onTap: () => openCrm(context, '/admin/team/roles', title: 'Роли и права').then((_) => _load())),
+                GroupTile(title: 'Роли и права', icon: LucideIcons.keyRound, onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const RolesScreen())).then((_) => _load())),
                 GroupTile(title: 'Планы продаж', icon: LucideIcons.target, onTap: () => openCrm(context, '/admin/team/plans', title: 'Планы продаж')),
               ]),
             ],

@@ -16,6 +16,7 @@ import '../ui/tokens.dart';
 import 'chat_screen.dart';
 import 'deals_screen.dart' show hexColor;
 import 'invoice_sheet.dart';
+import 'kp_sheet.dart';
 import 'payment_sheet.dart';
 import 'task_editor.dart';
 import '../api/mybook_api.g.dart' as v1api;
@@ -79,13 +80,16 @@ class _DealScreenState extends State<DealScreen> {
     }
   }
 
-  /// «Ещё»: клиент (открыть, привязать найденного, завести, отвязать), другая воронка, удалить.
+  /// «Ещё»: КП в чат, клиент (открыть, привязать найденного, завести, отвязать), другая воронка, удалить.
   Future<void> _more() async {
     final x = _x;
     if (x == null) return;
+    final chatId = _d?['chatId'] as String?;
+    final canKp = chatId != null && ((_d?['perms'] as Map<String, dynamic>?)?['canInvoice'] == true);
     final pick = await showAppSheet<String>(context, title: 'Сделка', builder: (sheet) {
       return ListView(shrinkWrap: true, padding: const EdgeInsets.fromLTRB(16, 4, 16, 24), children: [
         GroupCard(padding: EdgeInsets.zero, children: [
+          if (canKp) GroupTile(title: 'Коммерческое предложение (КП)', subtitle: 'ссылка на оплату, книгу или скидка в чат', icon: LucideIcons.gift, onTap: () => Navigator.pop(sheet, 'kp')),
           if (x.clientId != null) GroupTile(title: 'Открыть клиента', icon: LucideIcons.user, onTap: () => Navigator.pop(sheet, 'client')),
           if (x.clientId == null && x.suggested != null && x.canLink) GroupTile(title: 'Привязать к клиенту', subtitle: '${x.suggested!.name} — тот же телефон', icon: LucideIcons.link, onTap: () => Navigator.pop(sheet, 'link')),
           if (x.canCreateClient) GroupTile(title: 'Завести клиента', subtitle: 'аккаунт на сайте по телефону сделки', icon: LucideIcons.userPlus, onTap: () => Navigator.pop(sheet, 'create')),
@@ -97,6 +101,8 @@ class _DealScreenState extends State<DealScreen> {
     });
     if (!mounted || pick == null) return;
     switch (pick) {
+      case 'kp':
+        if (chatId != null && await showKpSheet(context, chatId: chatId) && mounted) await _load();
       case 'client':
         await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => ClientScreen(clientId: x.clientId!)));
       case 'link':

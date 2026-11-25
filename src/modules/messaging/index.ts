@@ -497,6 +497,11 @@ export class MessagingModule {
     return this.queries.botTrace(messageId);
   }
 
+  /** Последние следы ходов продажника в диалоге, включая ходы без ответа (почему промолчал или передал). */
+  botTraces(conversationId: string, limit = 15) {
+    return this.queries.botTraces(conversationId, limit);
+  }
+
   /** Медленный проход планировщика: следы ходов бота старше 90 дней удаляются порциями. */
   purgeBotTraces() {
     return purgeBotTraces();

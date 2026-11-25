@@ -7,7 +7,7 @@
  * пустая строка — поле не заполнено.
  */
 import { z } from "zod";
-import { route, schemas, uuid, type RouteDef } from "./core";
+import { iso, route, schemas, uuid, type RouteDef } from "./core";
 
 export const Choice = z.object({ id: z.string(), label: z.string() }).register(schemas, { id: "Choice" });
 
@@ -487,6 +487,31 @@ export const DealMergeBody = z.object({ sourceId: uuid }).strict().register(sche
 export const DealPipelineBody = z.object({ pipelineId: uuid }).strict().register(schemas, { id: "DealPipelineBody" });
 const ClientParams = z.object({ clientId: uuid });
 
+// ─── Чат: «Почему так?» бота ───────────────────────────────────────────────────────────────────────────────────────
+
+/** Строка следа хода AI-продажника (как «Почему так?» в чате CRM): подпись, строки, предупреждение. */
+export const BotTraceRow = z.object({ label: z.string(), lines: z.array(z.string()), warn: z.boolean() }).register(schemas, { id: "BotTraceRow" });
+
+/** След хода AI-продажника у конкретного ответа бота. */
+export const BotTrace = z.object({ rows: z.array(BotTraceRow) }).register(schemas, { id: "BotTrace" });
+
+/** Один ход бота в журнале диалога (в т.ч. когда бот промолчал или передал без ответа). */
+export const BotTraceItem = z
+  .object({
+    id: uuid,
+    at: iso,
+    messageId: uuid.nullable(),
+    /** Бот не отправил клиенту сообщение в этом ходе (промолчал, сбой или передал). */
+    silent: z.boolean(),
+    /** Краткий заголовок хода (например «ответить · предложение» или «промолчать»). */
+    summary: z.string(),
+    rows: z.array(BotTraceRow),
+  })
+  .register(schemas, { id: "BotTraceItem" });
+
+/** Последние ходы бота в диалоге («Почему так?» для ответов и молчания). */
+export const BotTraces = z.object({ items: z.array(BotTraceItem) }).register(schemas, { id: "BotTraces" });
+
 /** Новый пароль клиента (потерял, не получил): прежние входы завершаются; пароль показывается один раз. */
 export const ClientAccess = z.object({ login: z.string(), password: z.string(), message: z.string() }).register(schemas, { id: "ClientAccess" });
 const OrderParams = z.object({ orderId: uuid });
@@ -508,6 +533,8 @@ export const crmRoutes = {
   crmClientAccess: route({ method: "POST", path: "/api/v1/crm/clients/{clientId}/access", auth: "staff", tag: "crm", summary: "Выдать клиенту новый пароль в кабинет (прежние входы завершаются)", params: ClientParams, response: ClientAccess }),
   crmClientRemind: route({ method: "POST", path: "/api/v1/crm/clients/{clientId}/remind", auth: "staff", tag: "crm", summary: "Напомнить клиенту о книге (письмо или WhatsApp)", params: ClientParams, response: Done }),
   crmClientUpdate: route({ method: "PATCH", path: "/api/v1/crm/clients/{clientId}", auth: "staff", tag: "crm", summary: "Правка клиента (только переданные поля)", params: ClientParams, body: ClientPatch, response: Done }),
+  crmChatBotTrace: route({ method: "GET", path: "/api/v1/crm/chats/{chatId}/messages/{messageId}/trace", auth: "staff", tag: "crm", summary: "«Почему так?» у ответа бота: что решила модель, что сделал код, уроки, токены", params: z.object({ chatId: uuid, messageId: uuid }), response: BotTrace }),
+  crmChatBotTraces: route({ method: "GET", path: "/api/v1/crm/chats/{chatId}/bot/traces", auth: "staff", tag: "crm", summary: "Последние ходы бота в диалоге («Почему так?» для ответов и молчания)", params: z.object({ chatId: uuid }), response: BotTraces }),
   crmChatBot: route({ method: "POST", path: "/api/v1/crm/chats/{chatId}/bot", auth: "staff", tag: "crm", summary: "Запустить или остановить бота в диалоге", params: z.object({ chatId: uuid }), body: ChatBotBody, response: Done }),
   crmOrderMoney: route({ method: "GET", path: "/api/v1/crm/orders/{orderId}/money", auth: "staff", tag: "crm", summary: "Деньги и доставка заказа: платежи, к оплате, тариф и цена, статус и трек", params: OrderParams, response: OrderMoney }),
   crmOrderPay: route({ method: "POST", path: "/api/v1/crm/orders/{orderId}/payments", auth: "staff", tag: "crm", summary: "Принять оплату с чеком (multipart, поле file; сумма и дата — в query)", params: OrderParams, query: OrderPayQuery, files: { field: "file" }, response: Done }),
