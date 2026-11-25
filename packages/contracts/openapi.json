@@ -7681,6 +7681,190 @@
         "x-auth": "staff"
       }
     },
+    "/api/v1/crm/invoices/form": {
+      "get": {
+        "operationId": "crmInvoiceForm",
+        "tags": [
+          "crm-invoices"
+        ],
+        "summary": "Форма счёта: договорённость сделки, тарифы, способы оплаты, открытый счёт, лимит скидки (dealId или conversationId)",
+        "parameters": [
+          {
+            "name": "dealId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "conversationId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CrmInvoiceForm"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "staff"
+      }
+    },
+    "/api/v1/crm/invoices": {
+      "post": {
+        "operationId": "crmInvoiceIssue",
+        "tags": [
+          "crm-invoices"
+        ],
+        "summary": "Выставить счёт из чата или сделки: ссылка клиенту в WhatsApp (диалог без сделки — сделка заводится)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrmInvoiceBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CrmInvoiceSent"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "staff"
+      }
+    },
+    "/api/v1/crm/invoices/{invoiceId}/cancel": {
+      "post": {
+        "operationId": "crmInvoiceCancel",
+        "tags": [
+          "crm-invoices"
+        ],
+        "summary": "Отменить счёт, который ждёт оплаты",
+        "parameters": [
+          {
+            "name": "invoiceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CrmInvoiceCancelled"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "staff"
+      }
+    },
+    "/api/v1/crm/invoices/{invoiceId}/resend": {
+      "post": {
+        "operationId": "crmInvoiceResend",
+        "tags": [
+          "crm-invoices"
+        ],
+        "summary": "Отправить счёт клиенту ещё раз (тот же текст и ссылка)",
+        "parameters": [
+          {
+            "name": "invoiceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CrmInvoiceSent"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "staff"
+      }
+    },
     "/api/v1/boards": {
       "get": {
         "operationId": "boardsList",
@@ -25993,6 +26177,418 @@
             "$ref": "#/components/schemas/SellerDetails"
           }
         },
+        "additionalProperties": false
+      },
+      "CrmInvoicePlan": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "price": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "printed": {
+            "type": "boolean"
+          },
+          "giftwrap": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "price",
+          "printed",
+          "giftwrap"
+        ],
+        "additionalProperties": false
+      },
+      "CrmInvoiceForm": {
+        "type": "object",
+        "properties": {
+          "dealId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "dealNumber": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "plan": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "agreedTotal": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "batchSize": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "paid": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "hasOrder": {
+            "type": "boolean"
+          },
+          "orderId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "closed": {
+            "type": "boolean"
+          },
+          "open": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "label": {
+                    "type": "string"
+                  },
+                  "amount": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "id",
+                  "label",
+                  "amount"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "clientName": {
+            "type": "string"
+          },
+          "locale": {
+            "type": "string"
+          },
+          "channel": {
+            "type": "string"
+          },
+          "chat": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "plans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CrmInvoicePlan"
+            }
+          },
+          "gifts": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "giftPrices": {
+            "type": "object",
+            "properties": {
+              "giftwrap": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "delivery": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "giftwrap",
+              "delivery"
+            ],
+            "additionalProperties": false
+          },
+          "methods": {
+            "type": "object",
+            "properties": {
+              "kaspi": {
+                "type": "boolean"
+              },
+              "card": {
+                "type": "boolean"
+              },
+              "transfer": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "kaspi",
+              "card",
+              "transfer"
+            ],
+            "additionalProperties": false
+          },
+          "kaspiPhoneMasked": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "kaspiWarning": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "maxDiscountPercent": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "preview": {
+            "type": "object",
+            "properties": {
+              "until": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
+              "link": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "until",
+              "link"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "dealId",
+          "dealNumber",
+          "plan",
+          "agreedTotal",
+          "paid",
+          "hasOrder",
+          "orderId",
+          "closed",
+          "open",
+          "clientName",
+          "locale",
+          "channel",
+          "chat",
+          "plans",
+          "gifts",
+          "giftPrices",
+          "methods",
+          "kaspiPhoneMasked",
+          "maxDiscountPercent",
+          "preview"
+        ],
+        "additionalProperties": false
+      },
+      "CrmInvoiceBody": {
+        "type": "object",
+        "properties": {
+          "dealId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "string",
+                "const": ""
+              }
+            ]
+          },
+          "conversationId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "string",
+                "const": ""
+              }
+            ]
+          },
+          "clientName": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "locale": {
+            "type": "string",
+            "enum": [
+              "ru",
+              "kk",
+              "uz",
+              "en"
+            ]
+          },
+          "channel": {
+            "type": "string"
+          },
+          "plan": {
+            "type": "string"
+          },
+          "agreedTotal": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "count": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "amount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "purpose": {
+            "type": "string",
+            "enum": [
+              "prepayment",
+              "remainder",
+              "full",
+              "custom"
+            ]
+          },
+          "issueKey": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "string",
+                "const": ""
+              }
+            ]
+          },
+          "kaspiPush": {
+            "type": "boolean"
+          },
+          "gifts": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "giftwrap",
+                "delivery"
+              ]
+            }
+          }
+        },
+        "required": [
+          "channel",
+          "plan",
+          "agreedTotal",
+          "amount",
+          "purpose"
+        ],
+        "additionalProperties": false
+      },
+      "CrmInvoiceSent": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "const": true
+          },
+          "message": {
+            "type": "string"
+          },
+          "link": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "sent": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok",
+          "message",
+          "link",
+          "text",
+          "sent"
+        ],
+        "additionalProperties": false
+      },
+      "CrmInvoiceCancelled": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "const": true
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "ok",
+          "message"
+        ],
         "additionalProperties": false
       }
     },

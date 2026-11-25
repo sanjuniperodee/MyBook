@@ -992,6 +992,30 @@ class MybookApi {
     return Done.fromJson(json as Map<String, dynamic>);
   }
 
+  /// Форма счёта: договорённость сделки, тарифы, способы оплаты, открытый счёт, лимит скидки (dealId или conversationId)
+  Future<CrmInvoiceForm> crmInvoiceForm({String? dealId, String? conversationId}) async {
+    final json = await _send('GET', '/api/v1/crm/invoices/form', query: {if (dealId != null) 'dealId': '${dealId}', if (conversationId != null) 'conversationId': '${conversationId}'});
+    return CrmInvoiceForm.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Выставить счёт из чата или сделки: ссылка клиенту в WhatsApp (диалог без сделки — сделка заводится)
+  Future<CrmInvoiceSent> crmInvoiceIssue({required CrmInvoiceBody body}) async {
+    final json = await _send('POST', '/api/v1/crm/invoices', body: body.toJson());
+    return CrmInvoiceSent.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Отменить счёт, который ждёт оплаты
+  Future<CrmInvoiceCancelled> crmInvoiceCancel({required String invoiceId}) async {
+    final json = await _send('POST', '/api/v1/crm/invoices/${Uri.encodeComponent('$invoiceId')}/cancel');
+    return CrmInvoiceCancelled.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Отправить счёт клиенту ещё раз (тот же текст и ссылка)
+  Future<CrmInvoiceSent> crmInvoiceResend({required String invoiceId}) async {
+    final json = await _send('POST', '/api/v1/crm/invoices/${Uri.encodeComponent('$invoiceId')}/resend');
+    return CrmInvoiceSent.fromJson(json as Map<String, dynamic>);
+  }
+
   /// Доски, которые видит сотрудник (с числом открытых карточек)
   Future<BoardList> boardsList() async {
     final json = await _send('GET', '/api/v1/boards');
@@ -7561,4 +7585,146 @@ class SiteSettingsPatch {
   factory SiteSettingsPatch.fromJson(Map<String, dynamic> json) => SiteSettingsPatch(registration: json['registration'] == null ? null : json['registration'] as bool, giftNote: json['giftNote'] == null ? null : json['giftNote'] as bool, maxPhotos: json['maxPhotos'] == null ? null : (json['maxPhotos'] as num).toInt(), seller: json['seller'] == null ? null : SellerDetails.fromJson(json['seller'] as Map<String, dynamic>));
 
   Map<String, dynamic> toJson() => {if (registration != null) 'registration': registration!, if (giftNote != null) 'giftNote': giftNote!, if (maxPhotos != null) 'maxPhotos': maxPhotos!, if (seller != null) 'seller': seller!.toJson()};
+}
+
+class CrmInvoicePlan {
+  final String id;
+  final String label;
+  final int price;
+  final bool printed;
+  final bool giftwrap;
+
+  const CrmInvoicePlan({required this.id, required this.label, required this.price, required this.printed, required this.giftwrap});
+
+  factory CrmInvoicePlan.fromJson(Map<String, dynamic> json) => CrmInvoicePlan(id: json['id'] as String, label: json['label'] as String, price: (json['price'] as num).toInt(), printed: json['printed'] as bool, giftwrap: json['giftwrap'] as bool);
+
+  Map<String, dynamic> toJson() => {'id': id, 'label': label, 'price': price, 'printed': printed, 'giftwrap': giftwrap};
+}
+
+class CrmInvoiceForm {
+  final String? dealId;
+  final int? dealNumber;
+  final String? plan;
+  final int agreedTotal;
+  final int? batchSize;
+  final int paid;
+  final bool hasOrder;
+  final String? orderId;
+  final bool closed;
+  final CrmInvoiceFormOpen? open;
+  final String clientName;
+  final String locale;
+  final String channel;
+  final String? chat;
+  final List<CrmInvoicePlan> plans;
+  final List<String> gifts;
+  final CrmInvoiceFormGiftPrices giftPrices;
+  final CrmInvoiceFormMethods methods;
+  final String? kaspiPhoneMasked;
+  final String? kaspiWarning;
+  final double? maxDiscountPercent;
+  final CrmInvoiceFormPreview preview;
+  /// Поля, которые отправить как null (иначе пустое необязательное поле не отправляется).
+  final Set<String> nulls;
+
+  const CrmInvoiceForm({this.dealId, this.dealNumber, this.plan, required this.agreedTotal, this.batchSize, required this.paid, required this.hasOrder, this.orderId, required this.closed, this.open, required this.clientName, required this.locale, required this.channel, this.chat, required this.plans, required this.gifts, required this.giftPrices, required this.methods, this.kaspiPhoneMasked, this.kaspiWarning, this.maxDiscountPercent, required this.preview, this.nulls = const {}});
+
+  factory CrmInvoiceForm.fromJson(Map<String, dynamic> json) => CrmInvoiceForm(dealId: json['dealId'] == null ? null : json['dealId'] as String, dealNumber: json['dealNumber'] == null ? null : (json['dealNumber'] as num).toInt(), plan: json['plan'] == null ? null : json['plan'] as String, agreedTotal: (json['agreedTotal'] as num).toInt(), batchSize: json['batchSize'] == null ? null : (json['batchSize'] as num).toInt(), paid: (json['paid'] as num).toInt(), hasOrder: json['hasOrder'] as bool, orderId: json['orderId'] == null ? null : json['orderId'] as String, closed: json['closed'] as bool, open: json['open'] == null ? null : CrmInvoiceFormOpen.fromJson(json['open'] as Map<String, dynamic>), clientName: json['clientName'] as String, locale: json['locale'] as String, channel: json['channel'] as String, chat: json['chat'] == null ? null : json['chat'] as String, plans: (json['plans'] as List).map((e) => CrmInvoicePlan.fromJson(e as Map<String, dynamic>)).toList(), gifts: (json['gifts'] as List).map((e) => e as String).toList(), giftPrices: CrmInvoiceFormGiftPrices.fromJson(json['giftPrices'] as Map<String, dynamic>), methods: CrmInvoiceFormMethods.fromJson(json['methods'] as Map<String, dynamic>), kaspiPhoneMasked: json['kaspiPhoneMasked'] == null ? null : json['kaspiPhoneMasked'] as String, kaspiWarning: json['kaspiWarning'] == null ? null : json['kaspiWarning'] as String, maxDiscountPercent: json['maxDiscountPercent'] == null ? null : (json['maxDiscountPercent'] as num).toDouble(), preview: CrmInvoiceFormPreview.fromJson(json['preview'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'dealId': dealId, 'dealNumber': dealNumber, 'plan': plan, 'agreedTotal': agreedTotal, if (batchSize != null || nulls.contains('batchSize')) 'batchSize': batchSize, 'paid': paid, 'hasOrder': hasOrder, 'orderId': orderId, 'closed': closed, 'open': open == null ? null : open!.toJson(), 'clientName': clientName, 'locale': locale, 'channel': channel, 'chat': chat, 'plans': plans.map((e) => e.toJson()).toList(), 'gifts': gifts.map((e) => e).toList(), 'giftPrices': giftPrices.toJson(), 'methods': methods.toJson(), 'kaspiPhoneMasked': kaspiPhoneMasked, if (kaspiWarning != null || nulls.contains('kaspiWarning')) 'kaspiWarning': kaspiWarning, 'maxDiscountPercent': maxDiscountPercent, 'preview': preview.toJson()};
+}
+
+class CrmInvoiceFormOpen {
+  final String id;
+  final String label;
+  final int amount;
+
+  const CrmInvoiceFormOpen({required this.id, required this.label, required this.amount});
+
+  factory CrmInvoiceFormOpen.fromJson(Map<String, dynamic> json) => CrmInvoiceFormOpen(id: json['id'] as String, label: json['label'] as String, amount: (json['amount'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'id': id, 'label': label, 'amount': amount};
+}
+
+class CrmInvoiceFormGiftPrices {
+  final int giftwrap;
+  final int delivery;
+
+  const CrmInvoiceFormGiftPrices({required this.giftwrap, required this.delivery});
+
+  factory CrmInvoiceFormGiftPrices.fromJson(Map<String, dynamic> json) => CrmInvoiceFormGiftPrices(giftwrap: (json['giftwrap'] as num).toInt(), delivery: (json['delivery'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'giftwrap': giftwrap, 'delivery': delivery};
+}
+
+class CrmInvoiceFormMethods {
+  final bool kaspi;
+  final bool card;
+  final bool transfer;
+
+  const CrmInvoiceFormMethods({required this.kaspi, required this.card, required this.transfer});
+
+  factory CrmInvoiceFormMethods.fromJson(Map<String, dynamic> json) => CrmInvoiceFormMethods(kaspi: json['kaspi'] as bool, card: json['card'] as bool, transfer: json['transfer'] as bool);
+
+  Map<String, dynamic> toJson() => {'kaspi': kaspi, 'card': card, 'transfer': transfer};
+}
+
+class CrmInvoiceFormPreview {
+  final Map<String, dynamic> until;
+  final Map<String, dynamic> link;
+
+  const CrmInvoiceFormPreview({required this.until, required this.link});
+
+  factory CrmInvoiceFormPreview.fromJson(Map<String, dynamic> json) => CrmInvoiceFormPreview(until: json['until'] as Map<String, dynamic>, link: json['link'] as Map<String, dynamic>);
+
+  Map<String, dynamic> toJson() => {'until': until, 'link': link};
+}
+
+class CrmInvoiceBody {
+  final String? dealId;
+  final String? conversationId;
+  final String? clientName;
+  /// ru | kk | uz | en
+  final String? locale;
+  final String channel;
+  final String plan;
+  final int agreedTotal;
+  final int? count;
+  final int amount;
+  /// prepayment | remainder | full | custom
+  final String purpose;
+  final String? issueKey;
+  final bool? kaspiPush;
+  final List<String>? gifts;
+
+  const CrmInvoiceBody({this.dealId, this.conversationId, this.clientName, this.locale, required this.channel, required this.plan, required this.agreedTotal, this.count, required this.amount, required this.purpose, this.issueKey, this.kaspiPush, this.gifts});
+
+  factory CrmInvoiceBody.fromJson(Map<String, dynamic> json) => CrmInvoiceBody(dealId: json['dealId'] == null ? null : json['dealId'] as String, conversationId: json['conversationId'] == null ? null : json['conversationId'] as String, clientName: json['clientName'] == null ? null : json['clientName'] as String, locale: json['locale'] == null ? null : json['locale'] as String, channel: json['channel'] as String, plan: json['plan'] as String, agreedTotal: (json['agreedTotal'] as num).toInt(), count: json['count'] == null ? null : (json['count'] as num).toInt(), amount: (json['amount'] as num).toInt(), purpose: json['purpose'] as String, issueKey: json['issueKey'] == null ? null : json['issueKey'] as String, kaspiPush: json['kaspiPush'] == null ? null : json['kaspiPush'] as bool, gifts: json['gifts'] == null ? null : (json['gifts'] as List).map((e) => e as String).toList());
+
+  Map<String, dynamic> toJson() => {if (dealId != null) 'dealId': dealId!, if (conversationId != null) 'conversationId': conversationId!, if (clientName != null) 'clientName': clientName!, if (locale != null) 'locale': locale!, 'channel': channel, 'plan': plan, 'agreedTotal': agreedTotal, if (count != null) 'count': count!, 'amount': amount, 'purpose': purpose, if (issueKey != null) 'issueKey': issueKey!, if (kaspiPush != null) 'kaspiPush': kaspiPush!, if (gifts != null) 'gifts': gifts!.map((e) => e).toList()};
+}
+
+class CrmInvoiceSent {
+  final bool ok;
+  final String message;
+  final String link;
+  final String text;
+  final bool sent;
+
+  const CrmInvoiceSent({required this.ok, required this.message, required this.link, required this.text, required this.sent});
+
+  factory CrmInvoiceSent.fromJson(Map<String, dynamic> json) => CrmInvoiceSent(ok: json['ok'] as bool, message: json['message'] as String, link: json['link'] as String, text: json['text'] as String, sent: json['sent'] as bool);
+
+  Map<String, dynamic> toJson() => {'ok': ok, 'message': message, 'link': link, 'text': text, 'sent': sent};
+}
+
+class CrmInvoiceCancelled {
+  final bool ok;
+  final String message;
+
+  const CrmInvoiceCancelled({required this.ok, required this.message});
+
+  factory CrmInvoiceCancelled.fromJson(Map<String, dynamic> json) => CrmInvoiceCancelled(ok: json['ok'] as bool, message: json['message'] as String);
+
+  Map<String, dynamic> toJson() => {'ok': ok, 'message': message};
 }
