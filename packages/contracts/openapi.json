@@ -1397,6 +1397,174 @@
         "x-auth": "user"
       }
     },
+    "/api/v1/books/{bookId}/photos/{photoId}/editor": {
+      "get": {
+        "operationId": "photoEditorGet",
+        "tags": [
+          "photos"
+        ],
+        "summary": "Состояние редактора фото: текущая правка photo_edits, оригинал, слот книги, пределы, пресеты и подписи на языке пользователя",
+        "parameters": [
+          {
+            "name": "bookId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "photoId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PhotoEditorState"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      },
+      "put": {
+        "operationId": "photoEditorSave",
+        "tags": [
+          "photos"
+        ],
+        "summary": "Сохранить правку редактора фото: пересобрать готовую картинку и миниатюру на сервере и записать photo_edits",
+        "parameters": [
+          {
+            "name": "bookId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "photoId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PhotoEditorSaveBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PhotoEditorResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      },
+      "delete": {
+        "operationId": "photoEditorRevert",
+        "tags": [
+          "photos"
+        ],
+        "summary": "Сбросить правку редактора фото и вернуть оригинальный снимок",
+        "parameters": [
+          {
+            "name": "bookId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "photoId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PhotoEditorResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      }
+    },
     "/api/v1/crm/today": {
       "get": {
         "operationId": "crmToday",
@@ -12667,6 +12835,802 @@
         ],
         "additionalProperties": false
       },
+      "PhotoEditRect": {
+        "type": "object",
+        "properties": {
+          "x": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "y": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "w": {
+            "type": "number",
+            "minimum": 0.01,
+            "maximum": 1
+          },
+          "h": {
+            "type": "number",
+            "minimum": 0.01,
+            "maximum": 1
+          }
+        },
+        "required": [
+          "x",
+          "y",
+          "w",
+          "h"
+        ],
+        "additionalProperties": false
+      },
+      "PhotoEditGeometry": {
+        "type": "object",
+        "properties": {
+          "turns": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3
+          },
+          "flip": {
+            "type": "boolean"
+          },
+          "straighten": {
+            "type": "number",
+            "minimum": -45,
+            "maximum": 45
+          },
+          "crop": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PhotoEditRect"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "aspect": {
+            "type": "string",
+            "maxLength": 16
+          }
+        },
+        "required": [
+          "turns",
+          "flip",
+          "straighten",
+          "crop",
+          "aspect"
+        ],
+        "additionalProperties": false
+      },
+      "PhotoEditLevels": {
+        "type": "object",
+        "properties": {
+          "black": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 0.5
+          },
+          "white": {
+            "type": "number",
+            "minimum": 0.5,
+            "maximum": 1
+          },
+          "gamma": {
+            "type": "number",
+            "minimum": 0.3,
+            "maximum": 3
+          }
+        },
+        "required": [
+          "black",
+          "white",
+          "gamma"
+        ],
+        "additionalProperties": false
+      },
+      "PhotoEditFilter": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "enum": [
+              "none",
+              "vivid",
+              "warm",
+              "cool",
+              "soft",
+              "film",
+              "vintage",
+              "drama",
+              "bw",
+              "noir",
+              "sepia",
+              "fade"
+            ]
+          },
+          "strength": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          }
+        },
+        "required": [
+          "id",
+          "strength"
+        ],
+        "additionalProperties": false
+      },
+      "PhotoEditDoc": {
+        "type": "object",
+        "properties": {
+          "v": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1
+          },
+          "geometry": {
+            "$ref": "#/components/schemas/PhotoEditGeometry"
+          },
+          "adjust": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "number"
+            }
+          },
+          "levels": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PhotoEditLevels"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "filter": {
+            "$ref": "#/components/schemas/PhotoEditFilter"
+          },
+          "layers": {
+            "maxItems": 80,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {}
+            }
+          }
+        },
+        "required": [
+          "v",
+          "geometry",
+          "adjust",
+          "levels",
+          "filter",
+          "layers"
+        ],
+        "additionalProperties": false
+      },
+      "PhotoEditorAspect": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "ratio": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "ratio"
+        ],
+        "additionalProperties": false
+      },
+      "PhotoEditorAdjustControl": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "enum": [
+              "brightness",
+              "contrast",
+              "highlights",
+              "shadows",
+              "saturation",
+              "warmth",
+              "tint",
+              "fade",
+              "vignette",
+              "sharpen"
+            ]
+          },
+          "label": {
+            "type": "string"
+          },
+          "min": {
+            "type": "number"
+          },
+          "max": {
+            "type": "number"
+          },
+          "step": {
+            "type": "number"
+          },
+          "defaultValue": {
+            "type": "number"
+          },
+          "centered": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "min",
+          "max",
+          "step",
+          "defaultValue",
+          "centered"
+        ],
+        "additionalProperties": false
+      },
+      "PhotoEditorFilterPreset": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "enum": [
+              "none",
+              "vivid",
+              "warm",
+              "cool",
+              "soft",
+              "film",
+              "vintage",
+              "drama",
+              "bw",
+              "noir",
+              "sepia",
+              "fade"
+            ]
+          },
+          "label": {
+            "type": "string"
+          },
+          "adjust": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "number"
+            }
+          },
+          "mono": {
+            "type": "number"
+          },
+          "sepia": {
+            "type": "number"
+          },
+          "splitShadows": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "splitHighlights": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "adjust",
+          "mono",
+          "sepia",
+          "splitShadows",
+          "splitHighlights"
+        ],
+        "additionalProperties": false
+      },
+      "PhotoEditorSlot": {
+        "type": "object",
+        "properties": {
+          "ratio": {
+            "type": "number"
+          },
+          "widthMm": {
+            "type": "number"
+          },
+          "heightMm": {
+            "type": "number"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "cover",
+              "contain"
+            ]
+          },
+          "label": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "mask": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "ratio",
+          "widthMm",
+          "heightMm",
+          "mode",
+          "label",
+          "mask"
+        ],
+        "additionalProperties": false
+      },
+      "PhotoEditorLimits": {
+        "type": "object",
+        "properties": {
+          "minCropFraction": {
+            "type": "number"
+          },
+          "smallLongSidePx": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "minDpi": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "straightenMin": {
+            "type": "number"
+          },
+          "straightenMax": {
+            "type": "number"
+          },
+          "straightenStep": {
+            "type": "number"
+          },
+          "filterStrengthMin": {
+            "type": "number"
+          },
+          "filterStrengthMax": {
+            "type": "number"
+          },
+          "filterStrengthStep": {
+            "type": "number"
+          },
+          "filterStrengthDefault": {
+            "type": "number"
+          },
+          "maxLayers": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "minCropFraction",
+          "smallLongSidePx",
+          "minDpi",
+          "straightenMin",
+          "straightenMax",
+          "straightenStep",
+          "filterStrengthMin",
+          "filterStrengthMax",
+          "filterStrengthStep",
+          "filterStrengthDefault",
+          "maxLayers"
+        ],
+        "additionalProperties": false
+      },
+      "PhotoEditorLabels": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "close": {
+            "type": "string"
+          },
+          "save": {
+            "type": "string"
+          },
+          "saving": {
+            "type": "string"
+          },
+          "savingHint": {
+            "type": "string"
+          },
+          "saved": {
+            "type": "string"
+          },
+          "unsaved": {
+            "type": "string"
+          },
+          "reverted": {
+            "type": "string"
+          },
+          "loading": {
+            "type": "string"
+          },
+          "loadError": {
+            "type": "string"
+          },
+          "retry": {
+            "type": "string"
+          },
+          "undo": {
+            "type": "string"
+          },
+          "redo": {
+            "type": "string"
+          },
+          "compare": {
+            "type": "string"
+          },
+          "compareShort": {
+            "type": "string"
+          },
+          "more": {
+            "type": "string"
+          },
+          "resetAll": {
+            "type": "string"
+          },
+          "revert": {
+            "type": "string"
+          },
+          "revertTitle": {
+            "type": "string"
+          },
+          "revertText": {
+            "type": "string"
+          },
+          "revertYes": {
+            "type": "string"
+          },
+          "discardTitle": {
+            "type": "string"
+          },
+          "discardText": {
+            "type": "string"
+          },
+          "discardYes": {
+            "type": "string"
+          },
+          "discardNo": {
+            "type": "string"
+          },
+          "cancel": {
+            "type": "string"
+          },
+          "done": {
+            "type": "string"
+          },
+          "toolCrop": {
+            "type": "string"
+          },
+          "toolAdjust": {
+            "type": "string"
+          },
+          "toolFilters": {
+            "type": "string"
+          },
+          "cropAspect": {
+            "type": "string"
+          },
+          "cropRotateLeft": {
+            "type": "string"
+          },
+          "cropRotateRight": {
+            "type": "string"
+          },
+          "cropFlip": {
+            "type": "string"
+          },
+          "cropStraighten": {
+            "type": "string"
+          },
+          "cropReset": {
+            "type": "string"
+          },
+          "cropHint": {
+            "type": "string"
+          },
+          "cropSmallTemplate": {
+            "type": "string"
+          },
+          "lowRes": {
+            "type": "string"
+          },
+          "lowDpiTemplate": {
+            "type": "string"
+          },
+          "adjustAuto": {
+            "type": "string"
+          },
+          "adjustAutoHint": {
+            "type": "string"
+          },
+          "adjustReset": {
+            "type": "string"
+          },
+          "adjustResetAll": {
+            "type": "string"
+          },
+          "filterStrength": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "close",
+          "save",
+          "saving",
+          "savingHint",
+          "saved",
+          "unsaved",
+          "reverted",
+          "loading",
+          "loadError",
+          "retry",
+          "undo",
+          "redo",
+          "compare",
+          "compareShort",
+          "more",
+          "resetAll",
+          "revert",
+          "revertTitle",
+          "revertText",
+          "revertYes",
+          "discardTitle",
+          "discardText",
+          "discardYes",
+          "discardNo",
+          "cancel",
+          "done",
+          "toolCrop",
+          "toolAdjust",
+          "toolFilters",
+          "cropAspect",
+          "cropRotateLeft",
+          "cropRotateRight",
+          "cropFlip",
+          "cropStraighten",
+          "cropReset",
+          "cropHint",
+          "cropSmallTemplate",
+          "lowRes",
+          "lowDpiTemplate",
+          "adjustAuto",
+          "adjustAutoHint",
+          "adjustReset",
+          "adjustResetAll",
+          "filterStrength"
+        ],
+        "additionalProperties": false
+      },
+      "PhotoEditorState": {
+        "type": "object",
+        "properties": {
+          "bookId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "photoId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "editable": {
+            "type": "boolean"
+          },
+          "edited": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "string"
+          },
+          "width": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "height": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "originalWidth": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "originalHeight": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "originalUrl": {
+            "type": "string"
+          },
+          "thumbUrl": {
+            "type": "string"
+          },
+          "viewUrl": {
+            "type": "string"
+          },
+          "edit": {
+            "$ref": "#/components/schemas/PhotoEditDoc"
+          },
+          "suggestedLevels": {
+            "$ref": "#/components/schemas/PhotoEditLevels"
+          },
+          "slot": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PhotoEditorSlot"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "limits": {
+            "$ref": "#/components/schemas/PhotoEditorLimits"
+          },
+          "aspects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PhotoEditorAspect"
+            }
+          },
+          "adjustControls": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PhotoEditorAdjustControl"
+            }
+          },
+          "filters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PhotoEditorFilterPreset"
+            }
+          },
+          "labels": {
+            "$ref": "#/components/schemas/PhotoEditorLabels"
+          }
+        },
+        "required": [
+          "bookId",
+          "photoId",
+          "editable",
+          "edited",
+          "version",
+          "width",
+          "height",
+          "originalWidth",
+          "originalHeight",
+          "originalUrl",
+          "thumbUrl",
+          "viewUrl",
+          "edit",
+          "suggestedLevels",
+          "slot",
+          "limits",
+          "aspects",
+          "adjustControls",
+          "filters",
+          "labels"
+        ],
+        "additionalProperties": false
+      },
+      "PhotoEditorSaveBody": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "edit": {
+            "$ref": "#/components/schemas/PhotoEditDoc"
+          }
+        },
+        "required": [
+          "version",
+          "edit"
+        ],
+        "additionalProperties": false
+      },
+      "PhotoEditorResult": {
+        "type": "object",
+        "properties": {
+          "photoId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "width": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "height": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "edited": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "string"
+          },
+          "thumbUrl": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "photoId",
+          "width",
+          "height",
+          "edited",
+          "version",
+          "thumbUrl",
+          "url"
+        ],
+        "additionalProperties": false
+      },
       "CrmTaskContext": {
         "type": "object",
         "properties": {
@@ -17446,6 +18410,9 @@
               "string",
               "null"
             ]
+          },
+          "edited": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -17653,6 +18620,15 @@
                 "type": "string"
               },
               "cancel": {
+                "type": "string"
+              },
+              "editLabel": {
+                "type": "string"
+              },
+              "editHint": {
+                "type": "string"
+              },
+              "editedLabel": {
                 "type": "string"
               }
             },
