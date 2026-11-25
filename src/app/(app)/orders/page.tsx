@@ -6,6 +6,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Badge } from "@/components/ui/Badge";
 import { requireUser } from "@/server/auth";
 import { container } from "@/server/container";
+import { v1WebRead } from "@/server/v1-web-client";
 import { formatPrice } from "@/config/site";
 import { getLocale, getMessages } from "@/i18n/server";
 import { planName } from "@/i18n/labels";
@@ -32,7 +33,16 @@ export default async function OrdersPage() {
   const user = await requireUser("/orders");
   const [list, locale, m, agreement] = await Promise.all([container().ordering.queries.userOrders(user.id), getLocale(), getMessages(), container().ordering.orders.agreementFor(user.id)]);
   // Заказа ещё нет, но есть договорённость с менеджером: показываем «бронь» вместо пустого списка.
-  const books = agreement ? await container().authoring.queries.userBooks(user.id) : [];
+  const books = agreement
+    ? await v1WebRead({
+        name: "orders.agreementBooks",
+        section: "cabinet",
+        locale,
+        local: async () =>
+          (await container().authoring.queries.userBooks(user.id)).map((r) => ({ id: r.book.id, status: r.book.status, theme: r.book.theme, answered: r.answered, total: r.total, words: r.words })),
+        viaApi: async (api) => (await api.booksList({})).books.map((b) => ({ id: b.id, status: b.status, theme: b.theme, answered: b.answered, total: b.total, words: b.words })),
+      })
+    : [];
   const t = m.orders.list;
   const o = m.orders.order;
   return (
@@ -40,7 +50,7 @@ export default async function OrdersPage() {
       <PageHead title={t.title} lead={t.lead} />
       {agreement ? (
         <div className="mt-8">
-          <AgreementCard agreement={agreement} books={books.map((r) => ({ id: r.book.id, status: r.book.status, theme: r.book.theme, answered: r.answered, total: r.total, words: r.words }))} />
+          <AgreementCard agreement={agreement} books={books} />
         </div>
       ) : null}
       {list.length === 0 && agreement ? null : list.length === 0 ? (
