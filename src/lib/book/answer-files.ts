@@ -60,8 +60,10 @@ export interface MediaPackOffer {
   featured: boolean;
 }
 
-const VIDEO_EXT = new Set(["mp4", "mov", "m4v", "3gp", "3g2", "webm", "mkv", "avi", "mpg", "mpeg", "mts", "m2ts", "wmv", "flv"]);
-const AUDIO_EXT = new Set(["mp3", "m4a", "aac", "wav", "ogg", "oga", "opus", "amr", "flac", "wma", "aif", "aiff", "caf", "weba"]);
+export const VIDEO_EXTENSIONS = ["mp4", "mov", "m4v", "3gp", "3g2", "webm", "mkv", "avi", "mpg", "mpeg", "mts", "m2ts", "wmv", "flv"] as const;
+export const AUDIO_EXTENSIONS = ["mp3", "m4a", "aac", "wav", "ogg", "oga", "opus", "amr", "flac", "wma", "aif", "aiff", "caf", "weba"] as const;
+const VIDEO_EXT = new Set<string>(VIDEO_EXTENSIONS);
+const AUDIO_EXT = new Set<string>(AUDIO_EXTENSIONS);
 
 /** Что принимает поле выбора файла: по типам и расширениям — iOS и Android по-разному сообщают тип голосовых. */
 export const FILE_ACCEPT = ["video/*", "audio/*", ...[...VIDEO_EXT, ...AUDIO_EXT].map((e) => `.${e}`)].join(",");

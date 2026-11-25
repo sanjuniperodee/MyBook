@@ -16,6 +16,7 @@ import '../data/stores.dart';
 import '../ui/book_chrome.dart';
 import '../ui/cabinet.dart';
 import '../ui/motion.dart';
+import 'answer_media_sheet.dart';
 
 /// Редактор вопросов — как на сайте (QuestionsEditor на телефоне): шапка книги и лента шагов, строка «Глава N / название»
 /// с отметкой сохранения, «Вопрос 1 из 6» с отметками ответов, вопрос засечками, подсказка, «С чего начать?», ответ
@@ -51,19 +52,71 @@ class _AnswerScreenState extends State<AnswerScreen> {
   int _seconds = 0;
   Timer? _clock;
 
+  // Свои видео, аудио и ссылки по QR-коду (состояние и все надписи — с сервера, API v1 answerMediaGet).
+  v1api.AnswerMediaState? _media;
+  Timer? _mediaPoll;
+
   BookModel get _book => widget.store.book!;
   List<Question> get _all => _book.questions;
   Question get _q => _all.firstWhere((q) => q.id == _id);
   int get _index => _all.indexWhere((q) => q.id == _id);
 
   @override
+  void initState() {
+    super.initState();
+    _loadMedia();
+  }
+
+  @override
   void dispose() {
+    _mediaPoll?.cancel();
     _clock?.cancel();
     _recorder.dispose();
     widget.store.flush();
     _text.dispose();
     _focus.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadMedia() async {
+    _mediaPoll?.cancel();
+    final qid = _id;
+    try {
+      final session = context.read<ClientSession>();
+      final fresh = await session.backend.call(
+        () => session.backend.contract.answerMediaGet(bookId: _book.id, questionId: qid),
+      );
+      if (!mounted || qid != _id) return;
+      setState(() => _media = fresh);
+      _scheduleMediaPoll(fresh);
+    } on ApiException catch (_) {}
+  }
+
+  void _scheduleMediaPoll(v1api.AnswerMediaState state) {
+    _mediaPoll?.cancel();
+    final hasPending = state.media.any(
+      (m) => m.file != null && (m.file!.status == 'uploading' || m.file!.status == 'queued' || m.file!.status == 'processing'),
+    );
+    if (!hasPending) return;
+    _mediaPoll = Timer(Duration(milliseconds: state.limits.pollIntervalMs), _loadMedia);
+  }
+
+  Future<void> _openMediaSheet() async {
+    await widget.store.flush();
+    if (!mounted) return;
+    final next = await showAnswerMediaSheet(
+      context,
+      bookId: _book.id,
+      questionId: _id,
+      initialState: _media,
+    );
+    if (!mounted) return;
+    if (next != null) {
+      setState(() => _media = next);
+      _scheduleMediaPoll(next);
+    } else {
+      _loadMedia();
+    }
   }
 
   Future<void> _dictate() async {
@@ -126,7 +179,9 @@ class _AnswerScreenState extends State<AnswerScreen> {
       _tips = false;
       _id = _all[i].id;
       _text.text = _q.answer;
+      _media = null;
     });
+    _loadMedia();
   }
 
   @override
@@ -332,6 +387,11 @@ class _AnswerScreenState extends State<AnswerScreen> {
                                 contentPadding: EdgeInsets.zero,
                               ),
                             ),
+                            if (_media != null)
+                              AnswerMediaPreviewSection(
+                                state: _media!,
+                                onOpen: _openMediaSheet,
+                              ),
                           ],
                         ),
                       ),
@@ -406,6 +466,47 @@ class _AnswerScreenState extends State<AnswerScreen> {
                             Icon(_recording ? LucideIcons.square : LucideIcons.mic, size: 18),
                             if (_recording) ...[const SizedBox(width: 6), Text(h.editor.stop, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500))],
                           ]),
+                        ),
+                      ),
+                    ),
+                  ],
+                  // QR-медиа (свои видео, аудио и ссылки): кнопка в нижней панели со счётчиком.
+                  if (_media != null && (_media!.editable || _media!.media.isNotEmpty)) ...[
+                    const SizedBox(width: 10),
+                    Tooltip(
+                      message: _media!.labels.addTitle,
+                      child: SizedBox(
+                        width: 52,
+                        height: 50,
+                        child: OutlinedButton(
+                          onPressed: _openMediaSheet,
+                          style: OutlinedButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            side: BorderSide(color: _media!.media.isNotEmpty ? c.brand : c.border),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Cab.ctl)),
+                            backgroundColor: c.surfaceRaised,
+                            foregroundColor: _media!.media.isNotEmpty ? c.brand : c.text,
+                          ),
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            alignment: Alignment.center,
+                            children: [
+                              const Icon(LucideIcons.qrCode, size: 19),
+                              if (_media!.media.isNotEmpty)
+                                Positioned(
+                                  right: -6,
+                                  top: -6,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                    decoration: BoxDecoration(color: c.brand, borderRadius: BorderRadius.circular(999)),
+                                    child: Text(
+                                      '${_media!.media.length}',
+                                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.white),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
                         ),
                       ),
                     ),

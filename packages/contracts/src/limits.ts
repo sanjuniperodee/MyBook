@@ -7,3 +7,14 @@ export const COVER_TEXT_MAX = { title: 80, authorName: 60, recordedBy: 80, recip
 export const LETTER_MAX = { inviteText: 500, authorName: 80, relation: 80, text: 8000 } as const;
 /** Отзыв о книге: текст, имя, город. */
 export const REVIEW_MAX = { text: 2000, authorName: 40, city: 40 } as const;
+/** Свои видео/аудио и ссылки по QR в ответе (сверяет tests/api-v1-answer-files.test.ts с lib/book/answer-files и answer-media). */
+export const ANSWER_MEDIA_LIMITS = {
+  maxMedia: 8,
+  titleMax: 90,
+  urlMax: 600,
+  chunkBytes: 8 * 1024 * 1024,
+  maxSourceBytes: 1024 * 1024 * 1024,
+  maxVideoSec: 10 * 60,
+  maxAudioSec: 30 * 60,
+  maxFilesPerBook: 40,
+} as const;

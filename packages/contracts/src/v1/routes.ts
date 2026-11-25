@@ -30,6 +30,7 @@ import { crmMarketingRoutes } from "./crm-marketing";
 import { crmProductionRoutes } from "./crm-production";
 import { crmCatalogRoutes } from "./crm-catalog";
 import { crmAdminRoutes } from "./crm-admin";
+import { answerFilesRoutes } from "./answer-files";
 import type { RouteDef } from "./core";
 
 export * from "./core";
@@ -54,6 +55,7 @@ export * from "./crm-marketing";
 export * from "./crm-production";
 export * from "./crm-catalog";
 export * from "./crm-admin";
+export * from "./answer-files";
 
 export const v1 = {
   ...authRoutes,
@@ -79,6 +81,8 @@ export const v1 = {
   ...crmAdminRoutes,
   // Доски задач и календарь (приложение CRM).
   ...boardsRoutes,
+  // Свои видео, аудио и ссылки по QR в ответах клиента.
+  ...answerFilesRoutes,
 } as const satisfies Record<string, RouteDef>;
 
 export type V1 = typeof v1;
