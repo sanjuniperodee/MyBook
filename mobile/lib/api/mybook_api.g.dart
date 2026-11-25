@@ -362,6 +362,24 @@ class MybookApi {
     return AccountDeleted.fromJson(json as Map<String, dynamic>);
   }
 
+  /// Push приложения CRM: готов ли APNs, данные Firebase для Android
+  Future<CrmPushConfig> crmPushConfig() async {
+    final json = await _send('GET', '/api/v1/crm/push');
+    return CrmPushConfig.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Телефон сотрудника для push приложения CRM (сообщения клиентов, задачи, заявки)
+  Future<DeviceRegistered> crmDevicePut({required DeviceBody body}) async {
+    final json = await _send('PUT', '/api/v1/crm/devices', body: body.toJson());
+    return DeviceRegistered.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Забыть телефон сотрудника (выход из приложения CRM)
+  Future<Ok> crmDeviceDelete({required DeviceForgetBody body}) async {
+    final json = await _send('POST', '/api/v1/crm/devices/forget', body: body.toJson());
+    return Ok.fromJson(json as Map<String, dynamic>);
+  }
+
   /// Настройки приложения: адреса политики конфиденциальности и оферты (locale=ru|kk)
   Future<AppConfig> appConfig({String? locale}) async {
     final json = await _send('GET', '/api/v1/app-config', query: {if (locale != null) 'locale': '${locale}'});
@@ -3811,6 +3829,30 @@ class AccountDeletedLabels {
   factory AccountDeletedLabels.fromJson(Map<String, dynamic> json) => AccountDeletedLabels(title: json['title'] as String, intro: json['intro'] as String, accounting: json['accounting'] as String, password: json['password'] as String, forgot: json['forgot'] as String, next: json['next'] as String, confirmTitle: json['confirmTitle'] as String, confirm: json['confirm'] as String, cancel: json['cancel'] as String, done: json['done'] as String);
 
   Map<String, dynamic> toJson() => {'title': title, 'intro': intro, 'accounting': accounting, 'password': password, 'forgot': forgot, 'next': next, 'confirmTitle': confirmTitle, 'confirm': confirm, 'cancel': cancel, 'done': done};
+}
+
+class CrmPushConfig {
+  final bool ios;
+  final CrmPushConfigAndroid? android;
+
+  const CrmPushConfig({required this.ios, this.android});
+
+  factory CrmPushConfig.fromJson(Map<String, dynamic> json) => CrmPushConfig(ios: json['ios'] as bool, android: json['android'] == null ? null : CrmPushConfigAndroid.fromJson(json['android'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'ios': ios, 'android': android == null ? null : android!.toJson()};
+}
+
+class CrmPushConfigAndroid {
+  final String apiKey;
+  final String appId;
+  final String projectId;
+  final String senderId;
+
+  const CrmPushConfigAndroid({required this.apiKey, required this.appId, required this.projectId, required this.senderId});
+
+  factory CrmPushConfigAndroid.fromJson(Map<String, dynamic> json) => CrmPushConfigAndroid(apiKey: json['apiKey'] as String, appId: json['appId'] as String, projectId: json['projectId'] as String, senderId: json['senderId'] as String);
+
+  Map<String, dynamic> toJson() => {'apiKey': apiKey, 'appId': appId, 'projectId': projectId, 'senderId': senderId};
 }
 
 class BookModel {

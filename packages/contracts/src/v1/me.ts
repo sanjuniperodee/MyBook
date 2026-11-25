@@ -66,6 +66,14 @@ export const AccountDeleted = DeletionInfo.extend({ ok: z.literal(true) }).regis
 
 const LocaleQuery = z.object({ locale: z.enum(["ru", "kk", "uz", "en"]).optional() });
 
+/** Настройки push приложения CRM: iPhone — готов ли ключ APNs; Android — проект Firebase (без него FCM-токен не выдаётся). */
+export const CrmPushConfig = z
+  .object({
+    ios: z.boolean(),
+    android: z.object({ apiKey: z.string(), appId: z.string(), projectId: z.string(), senderId: z.string() }).nullable(),
+  })
+  .register(schemas, { id: "CrmPushConfig" });
+
 export const meRoutes = {
   meDevicePut: route({ method: "PUT", path: "/api/v1/me/devices", auth: "user", tag: "me", summary: "Телефон для push клиентского «MyBooks»: ответ менеджера, заказ, оплата, письмо близкого", body: DeviceBody, response: DeviceRegistered }),
   meDeviceDelete: route({ method: "POST", path: "/api/v1/me/devices/forget", auth: "user", tag: "me", summary: "Забыть телефон (выход из аккаунта)", body: DeviceForgetBody, response: Ok }),
@@ -80,5 +88,8 @@ export const meRoutes = {
     body: DeleteAccountBody,
     response: AccountDeleted,
   }),
+  crmPushConfig: route({ method: "GET", path: "/api/v1/crm/push", auth: "staff", tag: "me", summary: "Push приложения CRM: готов ли APNs, данные Firebase для Android", response: CrmPushConfig }),
+  crmDevicePut: route({ method: "PUT", path: "/api/v1/crm/devices", auth: "staff", tag: "me", summary: "Телефон сотрудника для push приложения CRM (сообщения клиентов, задачи, заявки)", body: DeviceBody, response: DeviceRegistered }),
+  crmDeviceDelete: route({ method: "POST", path: "/api/v1/crm/devices/forget", auth: "staff", tag: "me", summary: "Забыть телефон сотрудника (выход из приложения CRM)", body: DeviceForgetBody, response: Ok }),
   appConfig: route({ method: "GET", path: "/api/v1/app-config", auth: "none", tag: "me", summary: "Настройки приложения: адреса политики конфиденциальности и оферты (locale=ru|kk)", query: z.object({ locale: z.enum(["ru", "kk"]).optional() }), response: AppConfig }),
 } as const satisfies Record<string, RouteDef>;

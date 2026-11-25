@@ -2560,6 +2560,122 @@
         "x-auth": "user"
       }
     },
+    "/api/v1/crm/push": {
+      "get": {
+        "operationId": "crmPushConfig",
+        "tags": [
+          "me"
+        ],
+        "summary": "Push приложения CRM: готов ли APNs, данные Firebase для Android",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CrmPushConfig"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "staff"
+      }
+    },
+    "/api/v1/crm/devices": {
+      "put": {
+        "operationId": "crmDevicePut",
+        "tags": [
+          "me"
+        ],
+        "summary": "Телефон сотрудника для push приложения CRM (сообщения клиентов, задачи, заявки)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeviceBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceRegistered"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "staff"
+      }
+    },
+    "/api/v1/crm/devices/forget": {
+      "post": {
+        "operationId": "crmDeviceDelete",
+        "tags": [
+          "me"
+        ],
+        "summary": "Забыть телефон сотрудника (выход из приложения CRM)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeviceForgetBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "staff"
+      }
+    },
     "/api/v1/app-config": {
       "get": {
         "operationId": "appConfig",
@@ -15879,6 +15995,50 @@
           "keptOrders",
           "labels",
           "ok"
+        ],
+        "additionalProperties": false
+      },
+      "CrmPushConfig": {
+        "type": "object",
+        "properties": {
+          "ios": {
+            "type": "boolean"
+          },
+          "android": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "apiKey": {
+                    "type": "string"
+                  },
+                  "appId": {
+                    "type": "string"
+                  },
+                  "projectId": {
+                    "type": "string"
+                  },
+                  "senderId": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "apiKey",
+                  "appId",
+                  "projectId",
+                  "senderId"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "ios",
+          "android"
         ],
         "additionalProperties": false
       },
