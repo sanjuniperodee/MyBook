@@ -84,6 +84,9 @@ export interface AiStageInput {
   /** Цитата — из сообщения клиента (отказ ИИ ставит сам только по словам клиента). */
   quoteFromClient: boolean;
   lostReason: string | null;
+  /** Сколько дней клиент молчит (по последнему его сообщению) и через сколько дней молчания «не отвечает» по «Порядку в воронке». */
+  silentFor: number;
+  silentDays: number;
 }
 
 /**
@@ -92,6 +95,9 @@ export interface AiStageInput {
  * - Без дословной цитаты из переписки ИИ ничего не делает: вывод нечем подтвердить.
  * - Отказ — сам, только по словам клиента и с причиной из списка; иначе предложение.
  * - Между этапами разговора (новая, в работе, не отвечает и свои этапы без вехи) — сам.
+ * - «Не отвечает» — не раньше, чем клиент молчит столько дней, сколько ждёт «Порядок в воронке»: «подумаю» вчера — ещё
+ *   разговор, менеджер должен напомнить о себе (правило «молчит после нашего ответа» смотрит на этап «в работе»).
+ * - Шаг назад по воронке — только предложением и только при уверенности, как у самостоятельного шага.
  * - Деньги, книга на сайте (этапы с вехой) и возврат из отказа — только предложением: это проверяет человек.
  */
 export function aiStageDecision(d: AiStageInput): "apply" | "propose" | null {
@@ -105,7 +111,9 @@ export function aiStageDecision(d: AiStageInput): "apply" | "propose" | null {
     return sure && d.quoteFromClient ? "apply" : "propose";
   }
   if (current.kind === "lost") return "propose";
+  if (target.role === "silent" && d.silentFor < d.silentDays) return null;
   if (TALK.includes(current.role) && TALK.includes(target.role)) return sure ? "apply" : "propose";
+  if (target.position < current.position && !sure) return null;
   return "propose";
 }
 

@@ -6,6 +6,7 @@ import { AI_STAGES, aiStageDecision, parseAiStages, quoteIn, stageRoles, type Ai
 import type { AiProposalPayload } from "@/shared/domain/aiProposals";
 import type { StageMilestone } from "@/shared/domain/stageMilestones";
 import { fromZonedTime, zonedDay } from "@/shared/domain/time";
+import { parseStageOrder } from "@/shared/domain/stageOrder";
 
 /** Что этап значит для модели — по роли и вехе этапа, а не по названию (этапы переименовывают). */
 export function stageAbout(s: AiStageOption): string {
@@ -16,7 +17,7 @@ export function stageAbout(s: AiStageOption): string {
     case "work":
       return "в работе: идёт разговор, клиент интересуется, задаёт вопросы, выбирает";
     case "silent":
-      return "клиент перестал отвечать или сказал, что подумает, посоветуется, вернётся позже";
+      return "клиент не отвечает уже несколько дней (сказал «подумаю» и замолчал или просто пропал)";
     case "paid":
       return `клиент оплатил (предоплату или полностью)${milestone}`;
     case "won":
@@ -32,6 +33,8 @@ interface Candidate {
   id: string;
   stageId: string;
   order: { id: string; number: number; status: string } | null;
+  /** Последнее сообщение клиента: «не отвечает» — не раньше, чем он молчит silentDays дней. */
+  lastIn: Date;
 }
 
 interface ReviewMessage {
@@ -45,7 +48,7 @@ export interface AiStagesDeps {
   aiReady(): Promise<boolean>;
   reviewedToday(): Promise<number>;
   /** Основная воронка: её этапы с ролями и причины отказа. */
-  funnel(): Promise<{ pipelineId: string; stages: AiStageOption[] } | null>;
+  funnel(): Promise<{ pipelineId: string; stages: AiStageOption[]; silentDays: number } | null>;
   candidates(f: { pipelineId: string; limit: number }): Promise<Candidate[]>;
   markReviewed(dealId: string): Promise<void>;
   review(dealId: string, input: { stages: { n: number; name: string; about: string }[]; current: string; reasons: string[]; messages: number }): Promise<{
@@ -74,7 +77,7 @@ const AI_REASONS = lostReasons.filter((r) => r !== "Не отвечает");
  * что получил книгу, — предложение отметить заказ выданным (только предложением). Отметка разбора ставится до запроса:
  * ошибка модели не зацикливает сделку, следующий разбор — после нового сообщения.
  */
-export async function aiStagesPass(d: AiStagesDeps): Promise<AiStagesResult | null> {
+export async function aiStagesPass(d: AiStagesDeps, now = new Date()): Promise<AiStagesResult | null> {
   const cfg = await d.config();
   if (!cfg.on || !(await d.aiReady())) return null;
   const left = AI_STAGES.perDay - (await d.reviewedToday());
@@ -93,8 +96,10 @@ export async function aiStagesPass(d: AiStagesDeps): Promise<AiStagesResult | nu
       if (!review) continue;
       const target = review.stage ? (funnel.stages[review.stage - 1] ?? null) : null;
       const msg = review.message ? messages[review.message - 1] : undefined;
-      const lostReason = target?.kind === "lost" ? review.lostReason : null;
-      const decision = aiStageDecision({ current, target, confidence: review.confidence, quoteOk: !!msg && quoteIn(review.quote, msg.text), quoteFromClient: msg?.direction === "in", lostReason });
+      // Отказ без названной причины — «Передумал», как у вывода «Порядка в воронке».
+      const lostReason = target?.kind === "lost" ? (review.lostReason ?? AI_REASONS.find((r) => r === "Передумал") ?? null) : null;
+      const silentFor = Math.floor((now.getTime() - c.lastIn.getTime()) / 86_400_000);
+      const decision = aiStageDecision({ current, target, confidence: review.confidence, quoteOk: !!msg && quoteIn(review.quote, msg.text), quoteFromClient: msg?.direction === "in", lostReason, silentFor, silentDays: funnel.silentDays });
       const ai = { reason: review.reason || "по переписке", quote: review.quote || null, messageId: msg?.id ?? null };
       if (target && decision === "apply") {
         await d.move(c.id, target.id, lostReason, ai);
@@ -134,7 +139,8 @@ export function aiStagesDeps(now = new Date()): AiStagesDeps {
       const [pipeline] = await c.sales.queries.listPipelines();
       if (!pipeline) return null;
       const stages = await c.sales.queries.listStages(pipeline.id);
-      return { pipelineId: pipeline.id, stages: stageRoles(stages.map((s) => ({ id: s.id, name: s.name, kind: s.kind, position: s.position, milestone: s.milestone ?? null })), await getSetting("crm.stageOrder")) };
+      const order = await getSetting("crm.stageOrder");
+      return { pipelineId: pipeline.id, stages: stageRoles(stages.map((s) => ({ id: s.id, name: s.name, kind: s.kind, position: s.position, milestone: s.milestone ?? null })), order), silentDays: parseStageOrder(order).silentDays };
     },
     candidates: (f) => c.reporting.aiStageCandidates({ ...f, quietMinutes: AI_STAGES.quietMinutes, lookbackDays: AI_STAGES.lookbackDays, lostDays: AI_STAGES.lookbackDays * 2, now }),
     markReviewed: (dealId) => c.sales.aiProposals.markReviewed(dealId, now),

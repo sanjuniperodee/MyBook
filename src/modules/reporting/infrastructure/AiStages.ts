@@ -11,6 +11,8 @@ export interface AiStageCandidate {
   /** Заказ сделки — для предложения «заказ выдан». */
   order: { id: string; number: number; status: string } | null;
   lastAt: Date;
+  /** Последнее сообщение клиента. */
+  lastIn: Date;
 }
 
 /**
@@ -23,16 +25,16 @@ export async function aiStageCandidates(f: { pipelineId: string; quietMinutes: n
   const since = new Date(f.now.getTime() - f.lookbackDays * 86_400_000);
   const lostSince = new Date(f.now.getTime() - f.lostDays * 86_400_000);
   const r = await executor().execute<Row>(sql`
-    select d.id, d.number, d.stage_id, m.last_at, o.id as order_id, o.number as order_number, o.status as order_status
+    select d.id, d.number, d.stage_id, m.last_at, m.last_in, o.id as order_id, o.number as order_number, o.status as order_status
     from crm_deals d
     join crm_stages s on s.id = d.stage_id
     left join orders o on o.id = d.order_id
     join lateral (
-      select max(x.created_at) as last_at, bool_or(x.direction = 'in') as has_in
+      select max(x.created_at) as last_at, max(x.created_at) filter (where x.direction = 'in') as last_in
       from crm_messages x join crm_conversations cv on cv.id = x.conversation_id
       where cv.deal_id = d.id and x.internal = false and x.deleted_at is null
     ) m on m.last_at is not null
-    where s.pipeline_id = ${f.pipelineId} and d.unsorted = false and m.has_in
+    where s.pipeline_id = ${f.pipelineId} and d.unsorted = false and m.last_in is not null
       and (s.kind = 'open' or (s.kind = 'lost' and d.closed_at >= ${lostSince}) or (s.kind = 'won' and o.status in ('in_production', 'shipped')))
       and m.last_at <= ${quiet} and m.last_at >= ${since}
       and (d.ai_stage_at is null or d.ai_stage_at < m.last_at)
@@ -44,5 +46,6 @@ export async function aiStageCandidates(f: { pipelineId: string; quietMinutes: n
     stageId: String(x.stage_id),
     order: x.order_id ? { id: String(x.order_id), number: Number(x.order_number), status: String(x.order_status) } : null,
     lastAt: x.last_at instanceof Date ? x.last_at : new Date(String(x.last_at)),
+    lastIn: x.last_in instanceof Date ? x.last_in : new Date(String(x.last_in)),
   }));
 }

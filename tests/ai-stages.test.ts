@@ -24,7 +24,7 @@ const stages = stageRoles(
 );
 const st = (id: string) => stages.find((s) => s.id === id)!;
 const decide = (from: string, to: string | null, p: Partial<Parameters<typeof aiStageDecision>[0]> = {}) =>
-  aiStageDecision({ current: st(from), target: to ? st(to) : null, confidence: 0.9, quoteOk: true, quoteFromClient: true, lostReason: to === "lost" ? "Дорого" : null, ...p });
+  aiStageDecision({ current: st(from), target: to ? st(to) : null, confidence: 0.9, quoteOk: true, quoteFromClient: true, lostReason: to === "lost" ? "Дорого" : null, silentFor: 5, silentDays: 3, ...p });
 
 describe("ИИ ведёт этапы: настройка и роли", () => {
   it("выключено, пока явно не включили", () => {
@@ -50,6 +50,16 @@ describe("ИИ ведёт этапы: что ИИ делает сам, а что
     expect(decide("work", "ndz", { confidence: AI_STAGES.propose - 0.01 })).toBeNull();
   });
 
+  it("«не отвечает» — только когда клиент молчит столько, сколько ждёт «Порядок в воронке»: вчерашнее «подумаю» — ещё разговор", () => {
+    expect(decide("work", "ndz", { silentFor: 1 })).toBeNull();
+    expect(decide("work", "ndz", { silentFor: 3 })).toBe("apply");
+  });
+
+  it("шаг назад по воронке — предложением и только при уверенности", () => {
+    expect(decide("ready", "book")).toBe("propose");
+    expect(decide("ready", "book", { confidence: 0.7 })).toBeNull();
+  });
+
   it("отказ сам — только по словам клиента и с причиной; по словам менеджера или без уверенности — предложение", () => {
     expect(decide("work", "lost")).toBe("apply");
     expect(decide("work", "lost", { quoteFromClient: false })).toBe("propose");
@@ -61,6 +71,7 @@ describe("ИИ ведёт этапы: что ИИ делает сам, а что
     expect(decide("work", "book")).toBe("propose");
     expect(decide("work", "ready")).toBe("propose");
     expect(decide("ready", "work")).toBe("propose");
+    expect(decide("ready", "work", { confidence: 0.7 })).toBeNull();
     expect(decide("lost", "work")).toBe("propose");
     expect(decide("book", "ndz")).toBe("propose");
   });
@@ -129,8 +140,8 @@ describe("ИИ ведёт этапы: проход", () => {
       config: async () => ({ on: true }),
       aiReady: async () => true,
       reviewedToday: async () => 0,
-      funnel: async () => ({ pipelineId: "p", stages }),
-      candidates: async () => [{ id: "d1", stageId: "work", order: null }],
+      funnel: async () => ({ pipelineId: "p", stages, silentDays: 3 }),
+      candidates: async () => [{ id: "d1", stageId: "work", order: null, lastIn: new Date() }],
       markReviewed: async (id: string) => void calls.reviewed.push(id),
       review: async () => ({ review: review as never, messages }),
       move: async (...a: unknown[]) => void calls.moved.push(a),
@@ -155,6 +166,12 @@ describe("ИИ ведёт этапы: проход", () => {
     expect(calls.moved).toEqual([["d1", "lost", "Дорого", { reason: "клиенту дорого", quote: "Для меня это дороговато", messageId: "m2" }]]);
   });
 
+  it("отказ без названной причины — «Передумал»", async () => {
+    const { d, calls } = deps({ ...base, lostReason: null });
+    await aiStagesPass(d);
+    expect(calls.moved).toEqual([["d1", "lost", "Передумал", { reason: "клиенту дорого", quote: "Для меня это дороговато", messageId: "m2" }]]);
+  });
+
   it("цитаты нет в названном сообщении — вывод не принимается", async () => {
     const { d, calls } = deps({ ...base, message: 1 });
     expect(await aiStagesPass(d)).toEqual({ reviewed: 1, applied: 0, proposed: 0 });
@@ -164,7 +181,7 @@ describe("ИИ ведёт этапы: проход", () => {
   it("книга на сайте — предложение; клиент получил заказ «в печати» — предложение отметить выданным", async () => {
     const { d, calls } = deps(
       { ...base, stage: 4, lostReason: null, confidence: 0.9, quote: "дороговато", delivered: { quote: "Все получила", message: 3 } },
-      { candidates: async () => [{ id: "d1", stageId: "work", order: { id: "o1", number: 110, status: "in_production" } }] },
+      { candidates: async () => [{ id: "d1", stageId: "work", order: { id: "o1", number: 110, status: "in_production" }, lastIn: new Date() }] },
     );
     expect(await aiStagesPass(d)).toEqual({ reviewed: 1, applied: 0, proposed: 2 });
     expect(calls.proposed).toEqual([
