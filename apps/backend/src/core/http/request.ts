@@ -1,11 +1,14 @@
 import type { FastifyRequest } from "fastify";
 import type { CurrentUser } from "@/modules/identity";
 import { defaultLocale, isLocale, LOCALE_COOKIE, LOCALE_HEADER, type Locale } from "@/i18n/config";
+import type { StaffMember } from "../auth/staff";
 
 declare module "fastify" {
   interface FastifyRequest {
-    /** Кто вошёл — кладёт SessionGuard у маршрутов с auth: user. */
+    /** Кто вошёл — кладёт SessionGuard у маршрутов с auth: user | staff. */
     user?: CurrentUser;
+    /** Сотрудник CRM с правами — кладёт StaffGuard у маршрутов с auth: staff. */
+    staff?: StaffMember;
     /** Вход маршрута, разобранный схемами контракта, — кладёт ContractInputGuard. */
     contractInput?: unknown;
   }

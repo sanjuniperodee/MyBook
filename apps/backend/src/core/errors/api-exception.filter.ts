@@ -16,6 +16,9 @@ interface Failure {
 
 /** Статусы Fastify (тело не JSON, слишком большое, не тот тип) → ключ словаря api. */
 const HTTP_CODES: Record<number, string> = { 413: "badData", 415: "badRequest" };
+/** Метка ForbiddenError из общего слоя прав (src/server/access.ts): узнаётся без импорта @/server. */
+const FORBIDDEN_ERROR = Symbol.for("mybook.forbidden-error");
+const isForbiddenError = (err: unknown): boolean => typeof err === "object" && err !== null && (err as Record<symbol, unknown>)[FORBIDDEN_ERROR] === true;
 
 const log = new Logger("api");
 const contract = createRouter(v1);
@@ -46,6 +49,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
 
   private classify(err: unknown, t: ApiMessages): Failure {
     if (err instanceof ApiError) return { status: err.status, code: err.code, params: err.params };
+    if (isForbiddenError(err)) return { status: 403, code: "forbidden" };
     if (DomainError.isDomainError(err) && isApiKey(t, err.code)) return { status: domainStatus(err.code), code: err.code, params: [...err.params] };
     if (err instanceof ZodError) {
       // В схемах сообщения — ключи словаря; встроенные сообщения zod (английские) заменяем общим текстом.

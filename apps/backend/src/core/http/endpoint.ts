@@ -22,9 +22,6 @@ export const nestPath = (path: string) => path.replace(/\{(\w+)\}/g, ":$1");
  */
 export function Endpoint(name: RouteName): MethodDecorator {
   const def: RouteDef = v1[name];
-  // Вход сотрудника (роль, отключение, 2FA, список IP, права) переедет с первым контекстом CRM — до тех пор маршрут
-  // сотрудника здесь не регистрируется вовсе, чтобы проверку прав нельзя было пропустить (ADR 0014, правило 8).
-  if (def.auth === "staff") throw new Error(`${name}: маршруты сотрудника в бэкенде на Nest ещё не поддерживаются`);
   return applyDecorators(METHOD[def.method](nestPath(def.path)), HttpCode(200), SetMetadata(CONTRACT_ROUTE, { name, def } satisfies ContractRoute));
 }
 
