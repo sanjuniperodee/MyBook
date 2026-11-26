@@ -2,14 +2,12 @@
 
 import { useActionState, useState } from "react";
 import { CheckCircle2 } from "lucide-react";
-import { aiProviderIds, aiProviders, type AiProvider, modelFits } from "@/modules/assistant/domain/providers";
+import { aiProviderIds, aiProviders, mediaDefaultModels, type AiProvider, modelFits } from "@/modules/assistant/domain/providers";
 import { Actions, Choice, Field, Group, Note, Result, SaveButton, Section, SecretInput, type SheetStatus } from "../ui";
 import type { SettingsState } from "@/lib/crm/settings-state";
 import { saveMediaAction } from "./actions";
 import { providerReady, type AiProviderSaved } from "./saved";
 
-/** Модель OpenRouter для голосовых и фото по умолчанию (как в assistant/infrastructure/connection.ts). */
-const OPENROUTER_MEDIA_MODEL = "google/gemini-2.5-flash";
 
 /**
  * Распознавание голосовых и фото клиента для AI-продажника. Отдельно от модели продажника: беседу можно вести на модели
@@ -36,7 +34,7 @@ export function MediaForm({
   const saved = providers[effective];
   const ready = (id: AiProvider) => providerReady(providers, id);
   const savedEffective = provider || sellerProvider;
-  const fallback = savedEffective === "groq" ? "whisper-large-v3" : savedEffective === "openrouter" ? OPENROUTER_MEDIA_MODEL : provider ? providers[savedEffective].model || aiProviders[savedEffective].defaultModel : sellerModel || providers[savedEffective].model || aiProviders[savedEffective].defaultModel;
+  const fallback = mediaDefaultModels[savedEffective] ?? (provider ? providers[savedEffective].model || aiProviders[savedEffective].defaultModel : sellerModel || providers[savedEffective].model || aiProviders[savedEffective].defaultModel);
   const shownModel = model || fallback;
   const cannot = savedEffective === "deepseek";
   const connected = ready(savedEffective) && !cannot;
@@ -45,7 +43,7 @@ export function MediaForm({
     <Section id="ai-media" defaultOpen={false} title="Голосовые и фото клиента (бот)" description="Модель, которой AI-продажник расшифровывает голосовые и описывает фото" status={status}>
       <form action={action} className="space-y-5">
         <Note>
-          Этой моделью AI-продажник расшифровывает голосовые и описывает фото клиента (Бот, Продажи, «Слушать голосовые и смотреть фото»), а дальше отвечает на них, как на текст. Нужна модель, которая понимает аудио и изображения: лучше всего <code className="rounded bg-sunken px-1">{OPENROUTER_MEDIA_MODEL}</code> через OpenRouter — слушает голосовые и видит фото, около 0,3 ₸ за голосовое, но OpenRouter принимает аудио только при балансе от $0.50 (бесплатные модели аудио не берут). Бесплатно — Groq: ключ на console.groq.com, модель Whisper расшифровывает голосовые (фото — нет). Claude видит фото, но не слушает голосовые; DeepSeek не умеет ни то, ни другое.
+          Этой моделью AI-продажник расшифровывает голосовые и описывает фото клиента (Бот, Продажи, «Слушать голосовые и смотреть фото»), а дальше отвечает на них, как на текст. Нужна модель, которая понимает аудио и изображения: лучше всего <code className="rounded bg-sunken px-1">{mediaDefaultModels.openrouter}</code> через OpenRouter — слушает голосовые и видит фото, около 0,3 ₸ за голосовое, но OpenRouter принимает аудио только при балансе от $0.50 (бесплатные модели аудио не берут). Groq: ключ на console.groq.com, Whisper large-v3-turbo расшифровывает голосовые за $0.04 в час аудио (фото — нет). Claude видит фото, но не слушает голосовые; DeepSeek не умеет ни то, ни другое.
         </Note>
         <Group title="Провайдер" hint="Галочка у названия — ключ уже сохранён.">
           <div className="flex flex-wrap gap-2">
@@ -67,8 +65,8 @@ export function MediaForm({
         <Group title="Ключ и модель">
           <div key={effective} className="space-y-4">
             <SecretInput name="key" label={`Ключ ${def.label} API`} saved={saved.apiKey} fromEnv={saved.apiKeyEnv} placeholder={def.keyPlaceholder} />
-            <Field label="Модель" hint={`Пусто — ${effective === "groq" ? "whisper-large-v3" : effective === "openrouter" ? OPENROUTER_MEDIA_MODEL : p ? saved.model || def.defaultModel : "как у продажника"}.`}>
-              <input name="model" defaultValue={p === provider && modelFits(effective, model) ? model : ""} placeholder={effective === "openrouter" ? OPENROUTER_MEDIA_MODEL : saved.model || def.defaultModel} className="input" maxLength={100} />
+            <Field label="Модель" hint={`Пусто — ${mediaDefaultModels[effective] ?? (p ? saved.model || def.defaultModel : "как у продажника")}.`}>
+              <input name="model" defaultValue={p === provider && modelFits(effective, model) ? model : ""} placeholder={mediaDefaultModels[effective] ?? (saved.model || def.defaultModel)} className="input" maxLength={100} />
             </Field>
           </div>
         </Group>

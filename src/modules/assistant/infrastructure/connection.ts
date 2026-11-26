@@ -1,7 +1,7 @@
 import "server-only";
 import type { SettingsReader } from "@/shared/application";
 import type { DesignSettingKey } from "@/lib/book/design-ai";
-import { ROUTE_SETTING_KEYS, aiProviders, isAiProvider, modelFits, readRoutePolicy, type AiConnection, type AiProvider, type RouteSettingKey } from "../domain";
+import { ROUTE_SETTING_KEYS, aiProviders, isAiProvider, mediaDefaultModels, modelFits, readRoutePolicy, type AiConnection, type AiProvider, type RouteSettingKey } from "../domain";
 
 const keys = {
   anthropic: { apiKey: "ai.apiKey", baseUrl: "ai.baseUrl", model: "ai.anthropic.model" },
@@ -13,9 +13,9 @@ const keys = {
 } as const;
 
 /** Модель OpenRouter для голосовых и фото по умолчанию: понимает аудио (ogg из WhatsApp) и изображения, дешёвая и быстрая. */
-export const MEDIA_OPENROUTER_MODEL = "google/gemini-2.5-flash";
-/** Groq: Whisper — бесплатная расшифровка голосовых (фото не понимает). */
-export const MEDIA_GROQ_MODEL = "whisper-large-v3";
+export const MEDIA_OPENROUTER_MODEL = mediaDefaultModels.openrouter!;
+/** Groq: Whisper large-v3-turbo — расшифровка голосовых (фото не понимает). */
+export const MEDIA_GROQ_MODEL = mediaDefaultModels.groq!;
 /**
  * Расшифровка голосовых в обращениях — Gemini Pro через OpenRouter: разбирает смешанную русско-казахскую речь и сленг,
  * где Whisper выдумывает текст. Обращений мало, минута голосового стоит доли цента.
@@ -114,7 +114,7 @@ export function aiConnections(settings: SettingsReader<AssistantSettingKey>) {
    */
   const media: Connection = async () => {
     const [{ provider, own }, model, sellerModel] = await Promise.all([mediaProvider(), settings.get("media.model"), settings.get("seller.model")]);
-    // У Groq голосовые расшифровывает бесплатный Whisper.
+    // У Groq голосовые расшифровывает Whisper large-v3-turbo.
     const fallback = provider === "openrouter" ? MEDIA_OPENROUTER_MODEL : provider === "groq" ? MEDIA_GROQ_MODEL : own ? "" : sellerModel;
     return connectionOf(provider, model || fallback);
   };

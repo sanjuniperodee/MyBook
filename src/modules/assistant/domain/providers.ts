@@ -56,6 +56,13 @@ export const aiProviders = {
 } as const;
 
 export type AiProvider = keyof typeof aiProviders;
+/**
+ * Модель «Голосовые и фото» по умолчанию (поле модели пустое), по провайдеру. Один источник для сервера и формы в «Интеграциях».
+ * OpenRouter — Gemini Flash: слушает голосовые WhatsApp (ogg) и видит фото. Groq — Whisper large-v3-turbo: расшифровка
+ * голосовых всей CRM (чаты, бот, запасная у обращений), $0.04 за час аудио — в 2,8 раза дешевле large-v3; фото не понимает.
+ */
+export const mediaDefaultModels: Partial<Record<AiProvider, string>> = { openrouter: "google/gemini-2.5-flash", groq: "whisper-large-v3-turbo" };
+
 export const aiProviderIds = Object.keys(aiProviders) as AiProvider[];
 export const isAiProvider = (v: unknown): v is AiProvider => typeof v === "string" && Object.prototype.hasOwnProperty.call(aiProviders, v);
 
