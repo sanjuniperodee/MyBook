@@ -31,7 +31,11 @@ class DartWriter {
     const t = this.baseType(base, hint);
     if (!nullable) return t;
     // Простой тип (строка, число) пишется как есть, null тоже; класс и список — через проверку на null.
-    const to = (v: string) => (t.to(`${v}!`) === `${v}!` ? v : `${v} == null ? null : ${t.to(`${v}!`)}`);
+    // Локальную переменную `e` внутри `.map((e) => ...)` Dart промоутит после `e == null` сам — `!` там даёт warning.
+    const to = (v: string) => {
+      const inner = v === "e" ? v : `${v}!`;
+      return t.to(inner) === inner ? v : `${v} == null ? null : ${t.to(inner)}`;
+    };
     return { type: `${t.type}?`, from: (v) => `${v} == null ? null : ${t.from(v)}`, to };
   }
 

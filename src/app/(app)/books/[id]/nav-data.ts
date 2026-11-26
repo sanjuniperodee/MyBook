@@ -1,39 +1,37 @@
 import "server-only";
 import type { BookRow } from "@/modules/authoring";
-import { checkReadiness } from "@/modules/authoring/domain/readiness";
-import { isPaid } from "@/modules/ordering/domain";
-import { print } from "@/lib/book/formats";
-import { bookKind } from "@/lib/content/kinds";
 import type { Locale } from "@/i18n/config";
-import { container } from "@/server/container";
-import { bookNav, type BookNav } from "./book-nav";
+import type { BadgeTone } from "@/components/ui/Badge";
+import { localBookNav, localBookShellNav } from "@/server/v1-local-bridge-book";
+import { v1WebRead } from "@/server/v1-web-client";
+import type { BookNav } from "./book-nav";
+
+export interface BookShellNav {
+  nav: BookNav;
+  orderState: { label: string; tone: BadgeTone } | null;
+}
 
 /**
  * Состояние пути книги для ленты разделов: несколько лёгких запросов (счётчики ответов одним SQL, письма, последний
  * заказ) — без сборки макета и без списка фото. Тот же расчёт, что на обзоре книги (bookNav).
  */
 export async function loadBookNav(book: BookRow, locale: Locale): Promise<BookNav> {
-  const c = container();
-  const [rows, letters, order] = await Promise.all([c.authoring.queries.userBooks(book.userId), c.authoring.queries.letters(book.id), c.ordering.queries.lastOrderOfBook(book.id)]);
-  const row = rows.find((r) => r.book.id === book.id);
-  const answered = row?.answered ?? 0;
-  const total = row?.total ?? 0;
-  const words = row?.words ?? 0;
-  const photos = row?.photos ?? 0;
-  // Готовность обложки — те же проверки, что перед заказом: только ошибки раздела «Обложка».
-  const issues = checkReadiness(book, { answered, total, words, photos, estimatedPages: print.minPages, printedPages: print.minPages, emptyChapters: 0 }, [], locale);
-  const coverReady = !issues.some((i) => i.level === "error" && i.href?.endsWith("/cover"));
-  return bookNav({
-    kind: bookKind(book.theme),
-    answered,
-    total,
-    words,
-    photos,
-    letters: { approved: letters.filter((l) => l.status === "approved").length, pending: letters.filter((l) => l.status === "pending").length },
-    coverReady,
-    // Открытая для правок книга с живым заказом — тоже «заказана»: шаг «Заказ» ведёт в её заказ, а не к оформлению нового.
-    ordered: book.status !== "draft" || (!!order && order.status !== "cancelled"),
-    paid: !!order && isPaid(order.status),
-    order: order ? { id: order.id, number: order.number, status: order.status, plan: order.plan } : null,
+  return v1WebRead({
+    name: "book.nav",
+    section: "book",
+    locale,
+    local: () => localBookNav(book, locale),
+    viaApi: async (api) => (await api.webBookNav({ bookId: book.id, locale })).nav,
+  });
+}
+
+/** Навигация и состояние заказа для шапки книги (`layout.tsx`). */
+export async function loadBookShellNav(book: BookRow, locale: Locale): Promise<BookShellNav> {
+  return v1WebRead({
+    name: "book.layoutNav",
+    section: "book",
+    locale,
+    local: () => localBookShellNav(book, locale),
+    viaApi: (api) => api.webBookNav({ bookId: book.id, locale }),
   });
 }

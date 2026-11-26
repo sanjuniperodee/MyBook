@@ -1,11 +1,16 @@
 import "server-only";
 import { cache } from "react";
 import { notFound } from "next/navigation";
+import { ApiClientError } from "@mybook/contracts";
 import { pageId } from "./input";
 import type { BookRow, BookViewer } from "@/modules/authoring";
-import { isStaff, type User } from "./auth";
-import { container } from "./container";
-import { can, canSeeBook, getStaff } from "./access";
+import type { User } from "./auth";
+import { fromWebBookRow, localViewerOf, localVisibleBook } from "./v1-local-bridge-book";
+import { v1WebRead } from "./v1-web-client";
+
+const isNotFoundApiError = (err: unknown): boolean =>
+  (err instanceof ApiClientError && err.status === 404) ||
+  (typeof err === "object" && err !== null && "status" in err && (err as { status?: unknown }).status === 404);
 
 /**
  * Кто смотрит книгу: владелец или сотрудник CRM. Книги клиентов открыты сотруднику с правом clients.view (менять —
@@ -14,17 +19,26 @@ import { can, canSeeBook, getStaff } from "./access";
  * (только свои книги). user — текущий пользователь запроса.
  */
 export async function viewerOf(user: Pick<User, "id" | "role" | "staffDisabled">, bookId?: string | null): Promise<BookViewer> {
-  const staff = isStaff(user) ? await getStaff() : null;
-  const own = staff?.user.id === user.id ? staff : null;
-  const sees = can(own, "clients.view") && (own!.scope === "all" || (!!bookId && (await canSeeBook(own!, bookId))));
-  const acting = sees ? own : null;
-  return { userId: user.id, isStaff: can(acting, "clients.view"), staffEdits: can(acting, "clients.view", "clients.edit") };
+  return localViewerOf(user, bookId);
 }
 
 /** Книга текущего пользователя (или любая — для сотрудника); чужая — 404. Кэш на запрос. */
 export const getAccessibleBook = cache(async (bookId: string, user: User): Promise<BookRow> => {
   pageId(bookId);
-  const book = await container().authoring.queries.visibleBook(bookId, await viewerOf(user, bookId));
+  const book = await v1WebRead<BookRow | null>({
+    name: "book.accessible",
+    section: "book",
+    local: () => localVisibleBook(bookId, user),
+    viaApi: async (api) => {
+      try {
+        const res = await api.webBook({ bookId });
+        return fromWebBookRow(res.book);
+      } catch (err) {
+        if (isNotFoundApiError(err)) return null;
+        throw err;
+      }
+    },
+  });
   if (!book) notFound();
   return book;
 });

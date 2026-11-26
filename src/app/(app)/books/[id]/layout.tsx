@@ -12,12 +12,10 @@ import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import { coverPhotoIds } from "@/lib/book/covers";
 import { coverNames } from "@/lib/book/cover-names";
 import { photoUrls } from "@/lib/urls";
-import { isPrintedPlan, orderStatusLabel, orderStatusTone } from "@/modules/ordering/ui/status";
-import type { OrderStatus } from "@/shared/domain/orders";
 import { BookTabs } from "./BookTabs";
 import { OrderButton } from "./OrderButton";
 import { BookBack, BookTitleRow } from "./BookTitleRow";
-import { loadBookNav } from "./nav-data";
+import { loadBookShellNav } from "./nav-data";
 import { HelpChat } from "@/components/help/HelpChat";
 import { getLocale, getMessages } from "@/i18n/server";
 
@@ -37,11 +35,11 @@ export default async function BookLayout({ children, params }: { children: React
   const kind = bookKind(book.theme);
   // У автобиографии получателя нет — вместо него автор; у своей книги получатель необязателен.
   const subject = (kind === "autobiography" ? book.authorName : book.recipientName).trim();
-  const nav = await loadBookNav(book, locale);
+  const { nav, orderState } = await loadBookShellNav(book, locale);
   const order = book.status === "draft" ? null : nav.order;
   const state: { label: string; tone: BadgeTone } =
-    book.status !== "draft" && order
-      ? { label: orderStatusLabel(order.status, locale, isPrintedPlan(order.plan)), tone: orderStatusTone[order.status as OrderStatus] ?? "neutral" }
+    book.status !== "draft" && orderState
+      ? orderState
       : nav.ready
         ? { label: s.badge.ready, tone: "success" }
         : { label: s.badge.writing, tone: "neutral" };

@@ -2,17 +2,12 @@ import { DEFAULT_BACK_LAYOUT, isBackLayout } from "@/lib/book/cover-back";
 import type { Metadata } from "next";
 import { requireUser } from "@/server/auth";
 import { getAccessibleBook } from "@/server/books";
-import { container } from "@/server/container";
-import { getTheme } from "@/lib/content/themes";
+import { entriesToPlacePairs, localCoverPageDto } from "@/server/v1-local-bridge-book";
+import { v1WebRead } from "@/server/v1-web-client";
 import { parseFrames } from "@/lib/book/photo-frame";
 import { parseCoverBack, parseCoverDesign } from "@/lib/book/cover-design";
-import { bookSpreadSample } from "@/server/spreadSample";
 import { bookKind } from "@/lib/content/kinds";
-import { buildBookContent } from "@/lib/book/book-content";
-import { withCoverPhotos } from "@/lib/book/cover-photos";
-import { questionTexts, toPhotoItem } from "@/lib/book/layout";
-import { photoPlaceOf } from "@/lib/book/photo-place";
-import { editorModel } from "@/lib/book/editor-data";
+import type { SpreadSample } from "@/components/interior/InteriorSpread";
 import { CoverEditor } from "./CoverEditor";
 import { getLocale, getMessages } from "@/i18n/server";
 
@@ -25,44 +20,36 @@ export default async function CoverPage({ params, searchParams }: { params: Prom
   const { side } = await searchParams;
   const user = await requireUser(`/books/${id}/cover`);
   const book = await getAccessibleBook(id, user);
-  const [photos, questions, chapters, locale, m, stats, built] = await Promise.all([
-    container().authoring.queries.photos(book.id),
-    container().authoring.queries.questions(book.id),
-    container().authoring.queries.chapters(book.id),
-    getLocale(),
-    getMessages(),
-    container().authoring.queries.stats(book),
-    // Готовый макет — точное число страниц, как у cover.pdf; нет — оценка (как в штабе книги).
-    container().previews.current(book.id).catch(() => null),
-  ]);
-  const theme = getTheme(book.theme, locale);
-  // Где каждое фото в книге — та же сборка, что у PDF и вкладки «Фото»: подписи в выборе фото обложки.
-  const covered = withCoverPhotos(book, photos.map((p) => p.id));
-  const content = buildBookContent(covered, questions, photos.map(toPhotoItem), chapters);
-  const places = photoPlaceOf(content, photos, covered);
-  const placeNames = {
-    // Главы книги — названия как в печати (идут последними: у подписей побеждает последнее); без текста — как в редакторе.
-    chapters: [
-      ...editorModel(book, questions, chapters, photos).chapters.map((c) => ({ key: c.key, title: c.title })),
-      ...content.chapters.flatMap((c) => [{ key: c.key, title: c.title }, ...(c.folded ?? []).map((f) => ({ key: f.key, title: f.title }))]),
-    ],
-    answers: questions.map((q) => ({ id: q.id, title: questionTexts(q, book).heading.trim() || m.books.photos.answer })),
+  const [locale, m] = await Promise.all([getLocale(), getMessages()]);
+  const data = await v1WebRead({
+    name: "book.coverPage",
+    section: "book",
+    locale,
+    local: () => localCoverPageDto(book, locale, m),
+    viaApi: (api) => api.webBookCoverPage({ bookId: book.id, locale }),
+  });
+  const sample: SpreadSample = {
+    ...data.sample,
+    toc: data.sample.toc.map(({ level, ...rest }) => ({
+      ...rest,
+      ...(level !== undefined ? { level: (level === 1 ? 1 : 0) as 0 | 1 } : {}),
+    })),
   };
   return (
     <main className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-6">
       <CoverEditor
         bookId={book.id}
         // Пустое название обложка шаблона печатает названием по умолчанию (как PDF) — оно и на превью.
-        defaultTitle={buildBookContent({ ...book, title: "" }, [], [], chapters).title}
+        defaultTitle={data.defaultTitle}
         format={book.format}
         // Страниц — как у печати: от них корешок и место своего фона на обороте и корешке.
-        pages={built?.pageCount ?? stats.printedPages}
+        pages={data.pages}
         editable={book.status === "draft"}
-        recipientLabel={theme.recipientLabel ?? ""}
-        sample={bookSpreadSample(book, questions, chapters, m.books.pages.dedicationEmpty, photos)}
-        photos={photos.map((p) => ({ id: p.id, width: p.width, height: p.height, opener: p.opener ?? false }))}
-        places={[...places]}
-        placeNames={placeNames}
+        recipientLabel={data.recipientLabel}
+        sample={sample}
+        photos={data.photos}
+        places={entriesToPlacePairs(data.places)}
+        placeNames={data.placeNames}
         blank={bookKind(book.theme) === "blank"}
         theme={book.theme}
         year={book.occasionDate ? Number(book.occasionDate.slice(0, 4)) : new Date().getFullYear()}

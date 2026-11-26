@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { requireUser } from "@/server/auth";
 import { getAccessibleBook } from "@/server/books";
-import { container } from "@/server/container";
+import { localLettersPageDto } from "@/server/v1-local-bridge-book";
+import { v1WebRead } from "@/server/v1-web-client";
 import { env } from "@/config/env";
 import { bookKind } from "@/lib/content/kinds";
 import { LettersManager } from "./LettersManager";
@@ -15,8 +16,15 @@ export default async function LettersPage({ params }: { params: Promise<{ id: st
   const { id } = await params;
   const user = await requireUser(`/books/${id}/letters`);
   const book = await getAccessibleBook(id, user);
-  const m = await getMessages();
-  const letters = await container().authoring.queries.letters(book.id);
+  const [m, data] = await Promise.all([
+    getMessages(),
+    v1WebRead({
+      name: "book.lettersPage",
+      section: "book",
+      local: () => localLettersPageDto(book.id),
+      viaApi: (api) => api.webBookLettersPage({ bookId: book.id }),
+    }),
+  ]);
   return (
     <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
       <header className="mb-5 max-w-2xl">
@@ -30,7 +38,7 @@ export default async function LettersPage({ params }: { params: Promise<{ id: st
         invitation={{ kind: bookKind(book.theme), author: book.authorName, title: book.title, recipient: book.recipientName, inviteText: book.inviteText }}
         bookLanguage={book.language}
         editable={book.status === "draft"}
-        initialLetters={letters.map((l) => ({ id: l.id, authorName: l.authorName, relation: l.relation, text: l.text, status: l.status, createdAt: l.createdAt.toISOString() }))}
+        initialLetters={data.letters}
       />
     </main>
   );

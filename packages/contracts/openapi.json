@@ -13633,6 +13633,48 @@
           }
         },
         "x-auth": "user"
+      },
+      "get": {
+        "operationId": "webBook",
+        "tags": [
+          "web-book"
+        ],
+        "summary": "Доступная книга текущего пользователя (или сотрудника CRM) для страниц редактора",
+        "parameters": [
+          {
+            "name": "bookId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebBookResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
       }
     },
     "/api/v1/web/invite": {
@@ -13714,6 +13756,428 @@
           }
         },
         "x-auth": "none"
+      }
+    },
+    "/api/v1/web/books/{bookId}/hub": {
+      "get": {
+        "operationId": "webBookHub",
+        "tags": [
+          "web-book"
+        ],
+        "summary": "Штаб книги для страницы /books/[id]: шаги пути, следующий шаг, замечания, главы, письма и срок",
+        "parameters": [
+          {
+            "name": "bookId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "locale",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ru",
+                "kk",
+                "uz",
+                "en"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebBookHubResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      }
+    },
+    "/api/v1/web/books/{bookId}/nav": {
+      "get": {
+        "operationId": "webBookNav",
+        "tags": [
+          "web-book"
+        ],
+        "summary": "Навигация и состояние шапки книги для layout.tsx и ленты разделов",
+        "parameters": [
+          {
+            "name": "bookId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "locale",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ru",
+                "kk",
+                "uz",
+                "en"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebBookNavResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      }
+    },
+    "/api/v1/web/books/{bookId}/pages/questions": {
+      "get": {
+        "operationId": "webBookQuestionsPage",
+        "tags": [
+          "web-book"
+        ],
+        "summary": "Данные страницы редактора вопросов и ответов (/books/[id]/questions)",
+        "parameters": [
+          {
+            "name": "bookId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebBookQuestionsPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      }
+    },
+    "/api/v1/web/books/{bookId}/pages/photos": {
+      "get": {
+        "operationId": "webBookPhotosPage",
+        "tags": [
+          "web-book"
+        ],
+        "summary": "Данные вкладки «Фото» (/books/[id]/photos): места фото, обрезка, главы, ответы и лимит",
+        "parameters": [
+          {
+            "name": "bookId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "locale",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ru",
+                "kk",
+                "uz",
+                "en"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebBookPhotosPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      }
+    },
+    "/api/v1/web/books/{bookId}/pages/letters": {
+      "get": {
+        "operationId": "webBookLettersPage",
+        "tags": [
+          "web-book"
+        ],
+        "summary": "Список писем близких для страницы /books/[id]/letters",
+        "parameters": [
+          {
+            "name": "bookId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebBookLettersPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      }
+    },
+    "/api/v1/web/books/{bookId}/pages/cover": {
+      "get": {
+        "operationId": "webBookCoverPage",
+        "tags": [
+          "web-book"
+        ],
+        "summary": "Данные редактора обложки (/books/[id]/cover): разворот-образец, фото, места, подписи и объём",
+        "parameters": [
+          {
+            "name": "bookId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "locale",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ru",
+                "kk",
+                "uz",
+                "en"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebBookCoverPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      }
+    },
+    "/api/v1/web/books/{bookId}/pages/pages": {
+      "get": {
+        "operationId": "webBookPagesPage",
+        "tags": [
+          "web-book"
+        ],
+        "summary": "Данные редактора страниц и оформления (/books/[id]/pages): разворот, оглавление, истории и фото глав",
+        "parameters": [
+          {
+            "name": "bookId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "locale",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ru",
+                "kk",
+                "uz",
+                "en"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebBookPagesPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      }
+    },
+    "/api/v1/web/books/{bookId}/pages/preview": {
+      "get": {
+        "operationId": "webBookPreviewPage",
+        "tags": [
+          "web-book"
+        ],
+        "summary": "Данные страницы 3D-превью книги (/books/[id]/preview): переплёт flipbook и право правки",
+        "parameters": [
+          {
+            "name": "bookId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebBookPreviewPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
       }
     }
   },
@@ -41507,6 +41971,3044 @@
           "redis",
           "outbox",
           "time"
+        ],
+        "additionalProperties": false
+      },
+      "WebPhotoFrame": {
+        "type": "object",
+        "properties": {
+          "zoom": {
+            "type": "number"
+          },
+          "x": {
+            "type": "number"
+          },
+          "y": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "zoom",
+          "x",
+          "y"
+        ],
+        "additionalProperties": false
+      },
+      "WebPhotoCrop": {
+        "type": "object",
+        "properties": {
+          "x": {
+            "type": "number"
+          },
+          "y": {
+            "type": "number"
+          },
+          "zoom": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "x",
+          "y",
+          "zoom"
+        ],
+        "additionalProperties": false
+      },
+      "WebTocLineSetting": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "hidden": {
+            "type": "boolean"
+          },
+          "epigraph": {
+            "type": "string"
+          },
+          "noOpenerPhoto": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "WebInlinePhotoStyle": {
+        "type": "object",
+        "properties": {
+          "width": {
+            "type": "number"
+          },
+          "align": {
+            "type": "string",
+            "enum": [
+              "left",
+              "center",
+              "right"
+            ]
+          },
+          "anchor": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "aspect": {
+            "type": "string",
+            "enum": [
+              "original",
+              "1:1",
+              "4:3",
+              "3:4",
+              "16:9"
+            ]
+          },
+          "focusX": {
+            "type": "number"
+          },
+          "focusY": {
+            "type": "number"
+          },
+          "frame": {
+            "type": "string",
+            "enum": [
+              "none",
+              "line",
+              "polaroid",
+              "round"
+            ]
+          },
+          "page": {
+            "type": "boolean"
+          },
+          "pageFit": {
+            "type": "string",
+            "enum": [
+              "contain"
+            ]
+          },
+          "keepSize": {
+            "type": "boolean"
+          },
+          "spaceAbove": {
+            "type": "number"
+          },
+          "breakBefore": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "width",
+          "align",
+          "anchor",
+          "aspect",
+          "focusX",
+          "focusY",
+          "frame"
+        ],
+        "additionalProperties": false
+      },
+      "WebAnswerMedia": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "video",
+              "music",
+              "audio"
+            ]
+          },
+          "url": {
+            "type": "string"
+          },
+          "fileId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "anchor": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "url",
+          "title",
+          "anchor"
+        ],
+        "additionalProperties": false
+      },
+      "WebPhotoPlace": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "answer",
+              "opener",
+              "after",
+              "album",
+              "off"
+            ]
+          },
+          "chapterKey": {
+            "type": "string"
+          },
+          "questionId": {
+            "type": "string"
+          },
+          "auto": {
+            "type": "boolean"
+          },
+          "waitingFor": {
+            "type": "string"
+          },
+          "onCover": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "cover",
+                  "back"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "auto",
+          "onCover"
+        ],
+        "additionalProperties": false
+      },
+      "WebPhotoPlaceEntry": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "place": {
+            "$ref": "#/components/schemas/WebPhotoPlace"
+          }
+        },
+        "required": [
+          "id",
+          "place"
+        ],
+        "additionalProperties": false
+      },
+      "WebBookRow": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "userId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "theme": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "ordered"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "subtitle": {
+            "type": "string"
+          },
+          "authorName": {
+            "type": "string"
+          },
+          "authorGender": {
+            "type": "string",
+            "enum": [
+              "m",
+              "f"
+            ]
+          },
+          "recordedBy": {
+            "type": "string"
+          },
+          "recipientName": {
+            "type": "string"
+          },
+          "recipientGender": {
+            "type": "string",
+            "enum": [
+              "m",
+              "f"
+            ]
+          },
+          "namesOnCover": {
+            "type": "string"
+          },
+          "hideRecipientOnCover": {
+            "type": "boolean"
+          },
+          "coverLines": {
+            "type": "boolean"
+          },
+          "coverTemplate": {
+            "type": "string"
+          },
+          "coverPhotoId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "coverPhotoExtra": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "backText": {
+            "type": "string"
+          },
+          "backLayout": {
+            "type": "string"
+          },
+          "backPhotoId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "backPhotoExtra": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "photoFrames": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "$ref": "#/components/schemas/WebPhotoFrame"
+            }
+          },
+          "dedication": {
+            "type": "string"
+          },
+          "interior": {
+            "type": "string"
+          },
+          "interiorStyle": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          },
+          "coverDesign": {
+            "anyOf": [
+              {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {}
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "coverBack": {
+            "anyOf": [
+              {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {}
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "format": {
+            "type": "string"
+          },
+          "photoPlacement": {
+            "type": "string",
+            "enum": [
+              "chapters",
+              "end",
+              "none"
+            ]
+          },
+          "showToc": {
+            "type": "boolean"
+          },
+          "tocMode": {
+            "type": "string",
+            "enum": [
+              "chapters",
+              "sections",
+              "both"
+            ]
+          },
+          "tocLines": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "$ref": "#/components/schemas/WebTocLineSetting"
+            }
+          },
+          "layoutRev": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "paginationRev": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "inviteToken": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "inviteText": {
+            "type": "string"
+          },
+          "endText": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "chapterStart": {
+            "type": "string",
+            "enum": [
+              "page",
+              "inline",
+              "none"
+            ]
+          },
+          "titlePage": {
+            "type": "boolean"
+          },
+          "language": {
+            "type": "string",
+            "enum": [
+              "ru",
+              "kk",
+              "uz",
+              "en"
+            ]
+          },
+          "occasion": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "occasionDate": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          }
+        },
+        "required": [
+          "id",
+          "userId",
+          "theme",
+          "status",
+          "title",
+          "subtitle",
+          "authorName",
+          "authorGender",
+          "recordedBy",
+          "recipientName",
+          "recipientGender",
+          "namesOnCover",
+          "hideRecipientOnCover",
+          "coverLines",
+          "coverTemplate",
+          "coverPhotoId",
+          "coverPhotoExtra",
+          "backText",
+          "backLayout",
+          "backPhotoId",
+          "backPhotoExtra",
+          "photoFrames",
+          "dedication",
+          "interior",
+          "interiorStyle",
+          "coverDesign",
+          "coverBack",
+          "format",
+          "photoPlacement",
+          "showToc",
+          "tocMode",
+          "tocLines",
+          "layoutRev",
+          "paginationRev",
+          "inviteToken",
+          "inviteText",
+          "endText",
+          "chapterStart",
+          "titlePage",
+          "language",
+          "occasion",
+          "occasionDate",
+          "createdAt",
+          "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "WebBookResponse": {
+        "type": "object",
+        "properties": {
+          "book": {
+            "$ref": "#/components/schemas/WebBookRow"
+          }
+        },
+        "required": [
+          "book"
+        ],
+        "additionalProperties": false
+      },
+      "WebBookNavOrder": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "number": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "status": {
+            "type": "string"
+          },
+          "plan": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "number",
+          "status",
+          "plan"
+        ],
+        "additionalProperties": false
+      },
+      "WebBookNavStep": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "enum": [
+              "questions",
+              "photos",
+              "pages",
+              "cover",
+              "preview",
+              "order"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "done",
+              "partial",
+              "todo",
+              "attention"
+            ]
+          },
+          "fraction": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "key",
+          "status",
+          "fraction"
+        ],
+        "additionalProperties": false
+      },
+      "WebBookNavLetters": {
+        "type": "object",
+        "properties": {
+          "approved": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "pending": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "approved",
+          "pending"
+        ],
+        "additionalProperties": false
+      },
+      "WebBookNav": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "gift",
+              "autobiography",
+              "blank"
+            ]
+          },
+          "answered": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "total": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "words": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "photos": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "letters": {
+            "$ref": "#/components/schemas/WebBookNavLetters"
+          },
+          "coverReady": {
+            "type": "boolean"
+          },
+          "ordered": {
+            "type": "boolean"
+          },
+          "paid": {
+            "type": "boolean"
+          },
+          "order": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WebBookNavOrder"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebBookNavStep"
+            }
+          },
+          "textDone": {
+            "type": "boolean"
+          },
+          "ready": {
+            "type": "boolean"
+          },
+          "current": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "questions",
+                  "photos",
+                  "pages",
+                  "cover",
+                  "preview",
+                  "order"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "answered",
+          "total",
+          "words",
+          "photos",
+          "letters",
+          "coverReady",
+          "ordered",
+          "paid",
+          "order",
+          "steps",
+          "textDone",
+          "ready",
+          "current"
+        ],
+        "additionalProperties": false
+      },
+      "WebBookOrderState": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "tone": {
+            "type": "string",
+            "enum": [
+              "warning",
+              "success",
+              "info",
+              "accent",
+              "neutral",
+              "danger"
+            ]
+          }
+        },
+        "required": [
+          "label",
+          "tone"
+        ],
+        "additionalProperties": false
+      },
+      "WebBookNavResponse": {
+        "type": "object",
+        "properties": {
+          "nav": {
+            "$ref": "#/components/schemas/WebBookNav"
+          },
+          "orderState": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WebBookOrderState"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "nav",
+          "orderState"
+        ],
+        "additionalProperties": false
+      },
+      "WebBookHubStats": {
+        "type": "object",
+        "properties": {
+          "answered": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "total": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "words": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "photos": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "estimatedPages": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "printedPages": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "emptyChapters": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "answered",
+          "total",
+          "words",
+          "photos",
+          "estimatedPages",
+          "printedPages",
+          "emptyChapters"
+        ],
+        "additionalProperties": false
+      },
+      "WebBookHubPhoto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "width": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "height": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "id",
+          "width",
+          "height"
+        ],
+        "additionalProperties": false
+      },
+      "WebBookHubChapter": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "total": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "answered": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "firstId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "firstOpenId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "key",
+          "title",
+          "total",
+          "answered",
+          "firstId",
+          "firstOpenId"
+        ],
+        "additionalProperties": false
+      },
+      "WebBookHubStepRow": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "href": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "bar": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "done",
+              "partial",
+              "todo",
+              "attention"
+            ]
+          },
+          "fraction": {
+            "type": "number"
+          },
+          "active": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "key",
+          "href",
+          "title",
+          "value",
+          "action",
+          "status",
+          "fraction",
+          "active"
+        ],
+        "additionalProperties": false
+      },
+      "WebBookHubCardPrimary": {
+        "type": "object",
+        "properties": {
+          "href": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "icon": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "href",
+          "label"
+        ],
+        "additionalProperties": false
+      },
+      "WebBookHubCardSecondary": {
+        "type": "object",
+        "properties": {
+          "href": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "href",
+          "label"
+        ],
+        "additionalProperties": false
+      },
+      "WebBookHubCardMore": {
+        "type": "object",
+        "properties": {
+          "href": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "href",
+          "label",
+          "text"
+        ],
+        "additionalProperties": false
+      },
+      "WebBookHubCard": {
+        "type": "object",
+        "properties": {
+          "eyebrow": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "serif": {
+            "type": "boolean"
+          },
+          "lang": {
+            "type": "string"
+          },
+          "primary": {
+            "$ref": "#/components/schemas/WebBookHubCardPrimary"
+          },
+          "secondary": {
+            "$ref": "#/components/schemas/WebBookHubCardSecondary"
+          },
+          "more": {
+            "$ref": "#/components/schemas/WebBookHubCardMore"
+          }
+        },
+        "required": [
+          "eyebrow",
+          "title",
+          "primary"
+        ],
+        "additionalProperties": false
+      },
+      "WebBookReadinessIssue": {
+        "type": "object",
+        "properties": {
+          "level": {
+            "type": "string",
+            "enum": [
+              "error",
+              "warning"
+            ]
+          },
+          "text": {
+            "type": "string"
+          },
+          "href": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "level",
+          "text"
+        ],
+        "additionalProperties": false
+      },
+      "WebBookHubDeadline": {
+        "type": "object",
+        "properties": {
+          "days": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "daysShort": {
+            "type": "string"
+          },
+          "tone": {
+            "type": "string",
+            "enum": [
+              "calm",
+              "warm",
+              "hot"
+            ]
+          },
+          "headline": {
+            "type": "string"
+          },
+          "line": {
+            "type": "string"
+          },
+          "icon": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "clock",
+                  "zap"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "changeLabel": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "days",
+          "daysShort",
+          "tone",
+          "headline",
+          "line",
+          "icon",
+          "changeLabel"
+        ],
+        "additionalProperties": false
+      },
+      "WebBookHubLetters": {
+        "type": "object",
+        "properties": {
+          "href": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "href",
+          "title",
+          "text",
+          "action"
+        ],
+        "additionalProperties": false
+      },
+      "WebBookHubPreview": {
+        "type": "object",
+        "properties": {
+          "href": {
+            "type": "string"
+          },
+          "tab": {
+            "type": "string"
+          },
+          "cta": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "href",
+          "tab",
+          "cta"
+        ],
+        "additionalProperties": false
+      },
+      "WebBookHubResponse": {
+        "type": "object",
+        "properties": {
+          "stats": {
+            "$ref": "#/components/schemas/WebBookHubStats"
+          },
+          "photos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebBookHubPhoto"
+            }
+          },
+          "printedPages": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "agreement": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WebDealAgreement"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "letterStats": {
+            "$ref": "#/components/schemas/WebBookNavLetters"
+          },
+          "letters": {
+            "$ref": "#/components/schemas/WebBookHubLetters"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "gift",
+              "autobiography",
+              "blank"
+            ]
+          },
+          "blank": {
+            "type": "boolean"
+          },
+          "editable": {
+            "type": "boolean"
+          },
+          "percent": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "chapters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebBookHubChapter"
+            }
+          },
+          "nav": {
+            "$ref": "#/components/schemas/WebBookNav"
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebBookHubStepRow"
+            }
+          },
+          "card": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WebBookHubCard"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "needs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebBookReadinessIssue"
+            }
+          },
+          "hasErrors": {
+            "type": "boolean"
+          },
+          "deadline": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WebBookHubDeadline"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "preview": {
+            "$ref": "#/components/schemas/WebBookHubPreview"
+          }
+        },
+        "required": [
+          "stats",
+          "photos",
+          "printedPages",
+          "agreement",
+          "letterStats",
+          "letters",
+          "kind",
+          "blank",
+          "editable",
+          "percent",
+          "chapters",
+          "nav",
+          "rows",
+          "card",
+          "needs",
+          "hasErrors",
+          "deadline",
+          "preview"
+        ],
+        "additionalProperties": false
+      },
+      "WebCoverPhotos": {
+        "type": "object",
+        "properties": {
+          "front": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "back": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "front",
+          "back"
+        ],
+        "additionalProperties": false
+      },
+      "WebEditorBook": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "format": {
+            "type": "string"
+          },
+          "interior": {
+            "type": "string"
+          },
+          "interiorStyle": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          },
+          "dedication": {
+            "type": "string"
+          },
+          "showToc": {
+            "type": "boolean"
+          },
+          "tocMode": {
+            "type": "string",
+            "enum": [
+              "chapters",
+              "sections",
+              "both"
+            ]
+          },
+          "tocLines": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "$ref": "#/components/schemas/WebTocLineSetting"
+            }
+          },
+          "photoPlacement": {
+            "type": "string",
+            "enum": [
+              "chapters",
+              "end",
+              "none"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "language": {
+            "type": "string",
+            "enum": [
+              "ru",
+              "kk",
+              "uz",
+              "en"
+            ]
+          },
+          "names": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "theme": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "gift",
+              "autobiography",
+              "blank"
+            ]
+          },
+          "authorGender": {
+            "type": "string",
+            "enum": [
+              "m",
+              "f"
+            ]
+          },
+          "recipientGender": {
+            "type": "string",
+            "enum": [
+              "m",
+              "f"
+            ]
+          },
+          "layoutRev": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "paginationRev": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "chapterStart": {
+            "type": "string",
+            "enum": [
+              "page",
+              "inline",
+              "none"
+            ]
+          },
+          "titlePage": {
+            "type": "boolean"
+          },
+          "coverPhotoId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "coverPhotoExtra": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "backPhotoId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "backPhotoExtra": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "coverPhotos": {
+            "$ref": "#/components/schemas/WebCoverPhotos"
+          }
+        },
+        "required": [
+          "id",
+          "format",
+          "interior",
+          "dedication",
+          "showToc",
+          "photoPlacement",
+          "title",
+          "language",
+          "theme",
+          "kind",
+          "authorGender",
+          "recipientGender"
+        ],
+        "additionalProperties": false
+      },
+      "WebEditorQuestion": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "chapter": {
+            "type": "string"
+          },
+          "chapterTitle": {
+            "type": "string"
+          },
+          "prompt": {
+            "type": "string"
+          },
+          "hint": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "defaultTitle": {
+            "type": "string"
+          },
+          "displayText": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "hideHeading": {
+            "type": "boolean"
+          },
+          "answer": {
+            "type": "string"
+          },
+          "media": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebAnswerMedia"
+            }
+          },
+          "isCustom": {
+            "type": "boolean"
+          },
+          "pageBreak": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "chapter",
+          "chapterTitle",
+          "prompt",
+          "hint",
+          "defaultTitle",
+          "displayText",
+          "hideHeading",
+          "answer",
+          "media",
+          "isCustom"
+        ],
+        "additionalProperties": false
+      },
+      "WebEditorChapter": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "epigraph": {
+            "type": "string"
+          },
+          "own": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "key",
+          "title",
+          "epigraph",
+          "own"
+        ],
+        "additionalProperties": false
+      },
+      "WebEditorPhoto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "width": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "height": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "caption": {
+            "type": "string"
+          },
+          "layout": {
+            "type": "string",
+            "enum": [
+              "full",
+              "bleed",
+              "half",
+              "grid"
+            ]
+          },
+          "questionId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "inline": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WebInlinePhotoStyle"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "crop": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WebPhotoCrop"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "chapter": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "opener": {
+            "type": "boolean"
+          },
+          "onCover": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "cover",
+                  "back"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rev": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "id",
+          "width",
+          "height",
+          "caption",
+          "layout",
+          "questionId",
+          "crop",
+          "chapter",
+          "opener",
+          "onCover"
+        ],
+        "additionalProperties": false
+      },
+      "WebBookLetterBrief": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "authorName": {
+            "type": "string"
+          },
+          "relation": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "authorName",
+          "relation",
+          "text"
+        ],
+        "additionalProperties": false
+      },
+      "WebBookQuestionsPage": {
+        "type": "object",
+        "properties": {
+          "epigraphs": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "book": {
+            "$ref": "#/components/schemas/WebEditorBook"
+          },
+          "proofreadAi": {
+            "type": "boolean"
+          },
+          "writerAi": {
+            "type": "boolean"
+          },
+          "initialQuestions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebEditorQuestion"
+            }
+          },
+          "chapters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebEditorChapter"
+            }
+          },
+          "initialPhotos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebEditorPhoto"
+            }
+          },
+          "maxPhotos": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "letters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebBookLetterBrief"
+            }
+          },
+          "editable": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "epigraphs",
+          "book",
+          "proofreadAi",
+          "writerAi",
+          "initialQuestions",
+          "chapters",
+          "initialPhotos",
+          "maxPhotos",
+          "letters",
+          "editable"
+        ],
+        "additionalProperties": false
+      },
+      "WebPlaceBook": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "interior": {
+            "type": "string"
+          },
+          "format": {
+            "type": "string"
+          },
+          "language": {
+            "type": "string",
+            "enum": [
+              "ru",
+              "kk",
+              "uz",
+              "en"
+            ]
+          },
+          "blank": {
+            "type": "boolean"
+          },
+          "photoPlacement": {
+            "type": "string",
+            "enum": [
+              "chapters",
+              "end",
+              "none"
+            ]
+          },
+          "galleryTitle": {
+            "type": "string"
+          },
+          "editable": {
+            "type": "boolean"
+          },
+          "layoutRev": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "id",
+          "interior",
+          "format",
+          "language",
+          "blank",
+          "photoPlacement",
+          "galleryTitle",
+          "editable"
+        ],
+        "additionalProperties": false
+      },
+      "WebTabPhoto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "width": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "height": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "caption": {
+            "type": "string"
+          },
+          "layout": {
+            "type": "string",
+            "enum": [
+              "full",
+              "bleed",
+              "half",
+              "grid"
+            ]
+          },
+          "questionId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "chapter": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "opener": {
+            "type": "boolean"
+          },
+          "crop": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WebPhotoCrop"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "version": {
+            "type": "string"
+          },
+          "edited": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "width",
+          "height",
+          "caption",
+          "layout",
+          "questionId",
+          "chapter",
+          "opener",
+          "crop"
+        ],
+        "additionalProperties": false
+      },
+      "WebPlaceChapter": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "number": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "epigraph": {
+            "type": "string"
+          },
+          "printed": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "key",
+          "title",
+          "printed"
+        ],
+        "additionalProperties": false
+      },
+      "WebPlaceAnswer": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "title": {
+            "type": "string"
+          },
+          "chapterKey": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "chapterKey"
+        ],
+        "additionalProperties": false
+      },
+      "WebBookPhotosPage": {
+        "type": "object",
+        "properties": {
+          "book": {
+            "$ref": "#/components/schemas/WebPlaceBook"
+          },
+          "photos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebTabPhoto"
+            }
+          },
+          "places": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebPhotoPlaceEntry"
+            }
+          },
+          "chapters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebPlaceChapter"
+            }
+          },
+          "answers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebPlaceAnswer"
+            }
+          },
+          "tocLines": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "$ref": "#/components/schemas/WebTocLineSetting"
+            }
+          },
+          "losses": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "number"
+            }
+          },
+          "maxPhotos": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "book",
+          "photos",
+          "places",
+          "chapters",
+          "answers",
+          "tocLines",
+          "losses",
+          "maxPhotos"
+        ],
+        "additionalProperties": false
+      },
+      "WebBookLetterItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "authorName": {
+            "type": "string"
+          },
+          "relation": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "approved",
+              "hidden"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          }
+        },
+        "required": [
+          "id",
+          "authorName",
+          "relation",
+          "text",
+          "status",
+          "createdAt"
+        ],
+        "additionalProperties": false
+      },
+      "WebBookLettersPage": {
+        "type": "object",
+        "properties": {
+          "letters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebBookLetterItem"
+            }
+          }
+        },
+        "required": [
+          "letters"
+        ],
+        "additionalProperties": false
+      },
+      "WebSpreadChapter": {
+        "type": "object",
+        "properties": {
+          "number": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "title": {
+            "type": "string"
+          },
+          "epigraph": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "number",
+          "title"
+        ],
+        "additionalProperties": false
+      },
+      "WebSpreadEntryPhoto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "width": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "height": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "caption": {
+            "type": "string"
+          },
+          "inline": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WebInlinePhotoStyle"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "url",
+          "width",
+          "height",
+          "caption"
+        ],
+        "additionalProperties": false
+      },
+      "WebSpreadEntry": {
+        "type": "object",
+        "properties": {
+          "heading": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "paragraphs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "breaks": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          },
+          "photos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebSpreadEntryPhoto"
+            }
+          },
+          "media": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebAnswerMedia"
+            }
+          },
+          "pageBreak": {
+            "type": "boolean"
+          },
+          "continued": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "heading",
+          "paragraphs"
+        ],
+        "additionalProperties": false
+      },
+      "WebSampleTocLine": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "number": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "level": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "page": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "title",
+          "number",
+          "page"
+        ],
+        "additionalProperties": false
+      },
+      "WebSampleTocCandidate": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "pageKey": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "chapter",
+              "section"
+            ]
+          },
+          "number": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "label": {
+            "type": "string"
+          },
+          "parent": {
+            "type": "string"
+          },
+          "folded": {
+            "type": "boolean"
+          },
+          "first": {
+            "type": "boolean"
+          },
+          "epigraph": {
+            "type": "string"
+          },
+          "page": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "key",
+          "pageKey",
+          "kind",
+          "number",
+          "label",
+          "page"
+        ],
+        "additionalProperties": false
+      },
+      "WebSpreadPhoto": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "width": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "height": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "caption": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "width",
+          "height",
+          "caption"
+        ],
+        "additionalProperties": false
+      },
+      "WebSpreadOpener": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "crop": {
+            "$ref": "#/components/schemas/WebPhotoCrop"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "additionalProperties": false
+      },
+      "WebSpreadSample": {
+        "type": "object",
+        "properties": {
+          "language": {
+            "type": "string",
+            "enum": [
+              "ru",
+              "kk",
+              "uz",
+              "en"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "subtitle": {
+            "type": "string"
+          },
+          "author": {
+            "type": "string"
+          },
+          "year": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "dedication": {
+            "type": "string"
+          },
+          "dedicationPlaceholder": {
+            "type": "string"
+          },
+          "chapter": {
+            "$ref": "#/components/schemas/WebSpreadChapter"
+          },
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebSpreadEntry"
+            }
+          },
+          "tail": {
+            "type": "boolean"
+          },
+          "folio": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "toc": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebSampleTocLine"
+            }
+          },
+          "tocAll": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebSampleTocCandidate"
+            }
+          },
+          "tocMode": {
+            "type": "string",
+            "enum": [
+              "chapters",
+              "sections",
+              "both"
+            ]
+          },
+          "tocLines": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "$ref": "#/components/schemas/WebTocLineSetting"
+            }
+          },
+          "showToc": {
+            "type": "boolean"
+          },
+          "endText": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "titlePage": {
+            "type": "boolean"
+          },
+          "chapterStart": {
+            "type": "string",
+            "enum": [
+              "inline",
+              "none"
+            ]
+          },
+          "photos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebSpreadPhoto"
+            }
+          },
+          "opener": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WebSpreadOpener"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "captions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "language",
+          "title",
+          "subtitle",
+          "author",
+          "year",
+          "dedication",
+          "dedicationPlaceholder",
+          "chapter",
+          "entries",
+          "toc",
+          "showToc"
+        ],
+        "additionalProperties": false
+      },
+      "WebCoverPagePhoto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "width": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "height": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "opener": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "width",
+          "height",
+          "opener"
+        ],
+        "additionalProperties": false
+      },
+      "WebPlaceNameChapter": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "title"
+        ],
+        "additionalProperties": false
+      },
+      "WebPlaceNameAnswer": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "additionalProperties": false
+      },
+      "WebCoverPlaceNames": {
+        "type": "object",
+        "properties": {
+          "chapters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebPlaceNameChapter"
+            }
+          },
+          "answers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebPlaceNameAnswer"
+            }
+          }
+        },
+        "required": [
+          "chapters",
+          "answers"
+        ],
+        "additionalProperties": false
+      },
+      "WebBookCoverPage": {
+        "type": "object",
+        "properties": {
+          "defaultTitle": {
+            "type": "string"
+          },
+          "pages": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "recipientLabel": {
+            "type": "string"
+          },
+          "sample": {
+            "$ref": "#/components/schemas/WebSpreadSample"
+          },
+          "photos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebCoverPagePhoto"
+            }
+          },
+          "places": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebPhotoPlaceEntry"
+            }
+          },
+          "placeNames": {
+            "$ref": "#/components/schemas/WebCoverPlaceNames"
+          }
+        },
+        "required": [
+          "defaultTitle",
+          "pages",
+          "recipientLabel",
+          "sample",
+          "photos",
+          "places",
+          "placeNames"
+        ],
+        "additionalProperties": false
+      },
+      "WebPageStory": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "displayText": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "hidden": {
+            "type": "boolean"
+          },
+          "pageBreak": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "title",
+          "displayText",
+          "hidden",
+          "pageBreak"
+        ],
+        "additionalProperties": false
+      },
+      "WebPagesSheetPhoto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "width": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "height": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "caption": {
+            "type": "string"
+          },
+          "layout": {
+            "type": "string",
+            "enum": [
+              "full",
+              "bleed",
+              "half",
+              "grid"
+            ]
+          },
+          "questionId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "chapter": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "opener": {
+            "type": "boolean"
+          },
+          "crop": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WebPhotoCrop"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "width",
+          "height",
+          "caption",
+          "layout",
+          "questionId",
+          "chapter",
+          "opener",
+          "crop"
+        ],
+        "additionalProperties": false
+      },
+      "WebPagesPhotoData": {
+        "type": "object",
+        "properties": {
+          "book": {
+            "$ref": "#/components/schemas/WebPlaceBook"
+          },
+          "photos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebPagesSheetPhoto"
+            }
+          },
+          "places": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebPhotoPlaceEntry"
+            }
+          },
+          "chapters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebPlaceChapter"
+            }
+          },
+          "answers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebPlaceAnswer"
+            }
+          },
+          "fit": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "maxPhotos": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "book",
+          "photos",
+          "places",
+          "chapters",
+          "answers",
+          "fit",
+          "maxPhotos"
+        ],
+        "additionalProperties": false
+      },
+      "WebBookPagesPage": {
+        "type": "object",
+        "properties": {
+          "sample": {
+            "$ref": "#/components/schemas/WebSpreadSample"
+          },
+          "exactPages": {
+            "anyOf": [
+              {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "stories": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "$ref": "#/components/schemas/WebPageStory"
+            }
+          },
+          "photos": {
+            "$ref": "#/components/schemas/WebPagesPhotoData"
+          }
+        },
+        "required": [
+          "sample",
+          "exactPages",
+          "stories",
+          "photos"
+        ],
+        "additionalProperties": false
+      },
+      "WebFlipbookPhotoSpec": {
+        "type": "object",
+        "properties": {
+          "href": {
+            "type": "string"
+          },
+          "width": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "height": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "frame": {
+            "$ref": "#/components/schemas/WebPhotoFrame"
+          }
+        },
+        "required": [
+          "href"
+        ],
+        "additionalProperties": false
+      },
+      "WebFlipbookCover": {
+        "type": "object",
+        "properties": {
+          "template": {
+            "type": "string"
+          },
+          "lines": {
+            "type": "boolean"
+          },
+          "format": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "subtitle": {
+            "type": "string"
+          },
+          "names": {
+            "type": "string"
+          },
+          "photos": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/WebFlipbookPhotoSpec"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "design": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          },
+          "back": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          }
+        },
+        "required": [
+          "template",
+          "format",
+          "title",
+          "subtitle",
+          "names",
+          "photos"
+        ],
+        "additionalProperties": false
+      },
+      "WebBackPhotoDims": {
+        "type": "object",
+        "properties": {
+          "width": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "height": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "width",
+          "height"
+        ],
+        "additionalProperties": false
+      },
+      "WebBackContent": {
+        "type": "object",
+        "properties": {
+          "layout": {
+            "type": "string",
+            "enum": [
+              "quote",
+              "letter",
+              "photo",
+              "fullPhoto",
+              "polaroids",
+              "minimal"
+            ]
+          },
+          "text": {
+            "type": "string"
+          },
+          "signature": {
+            "type": "string"
+          },
+          "names": {
+            "type": "string"
+          },
+          "year": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "photos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebBackPhotoDims"
+            }
+          }
+        },
+        "required": [
+          "layout",
+          "text",
+          "signature",
+          "names",
+          "year",
+          "photos"
+        ],
+        "additionalProperties": false
+      },
+      "WebFlipbookModel": {
+        "type": "object",
+        "properties": {
+          "brand": {
+            "type": "string"
+          },
+          "back": {
+            "$ref": "#/components/schemas/WebBackContent"
+          },
+          "backPhotos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebFlipbookPhotoSpec"
+            }
+          }
+        },
+        "required": [
+          "brand",
+          "back",
+          "backPhotos"
+        ],
+        "additionalProperties": false
+      },
+      "WebFlipbookData": {
+        "type": "object",
+        "properties": {
+          "cover": {
+            "$ref": "#/components/schemas/WebFlipbookCover"
+          },
+          "formatId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "model": {
+            "$ref": "#/components/schemas/WebFlipbookModel"
+          }
+        },
+        "required": [
+          "cover",
+          "formatId",
+          "title",
+          "model"
+        ],
+        "additionalProperties": false
+      },
+      "WebBookPreviewPage": {
+        "type": "object",
+        "properties": {
+          "flipbook": {
+            "$ref": "#/components/schemas/WebFlipbookData"
+          },
+          "editable": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "flipbook",
+          "editable"
         ],
         "additionalProperties": false
       }
