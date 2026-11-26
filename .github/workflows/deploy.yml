@@ -106,8 +106,10 @@ jobs:
           go vet ./...
           go test ./...
 
-  # Dart-клиент API v1 (mobile/lib/api/mybook_api.g.dart, генерирует scripts/contracts/generate.ts): маршруты добавляют
-  # разные сессии — генератор не должен выдать код, который приложение не соберёт.
+  # Dart-клиент API v1 (генерирует scripts/contracts/generate.ts): маршруты добавляют разные сессии — генератор не должен
+  # выдать код, который приложение не соберёт. Приложение переехало в mybook-mobile (ADR 0013): пока mobile/ ещё здесь,
+  # анализ идёт по нему; после удаления папки шаги пропускаются, а клиент проверяет CI приложения. Условие — у шагов,
+  # не у задачи: пропущенная задача остановила бы выкатку, которая её ждёт.
   dart-client:
     name: Dart-клиент
     runs-on: ubuntu-24.04
@@ -115,12 +117,54 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
+        if: hashFiles('mobile/pubspec.yaml') != ''
         with: { channel: stable, cache: true }
       - name: dart analyze
+        if: hashFiles('mobile/pubspec.yaml') != ''
         working-directory: mobile
         run: |
           flutter pub get
           dart analyze --fatal-infos lib/api
+
+  # Новый Dart-клиент — пулл-реквестом в mybook-mobile (ADR 0013). Работает только при секрете MOBILE_REPO_TOKEN
+  # (fine-grained токен владельца: mybook-mobile, Contents и Pull requests — запись; как завести — README mybook-mobile).
+  # Без секрета ничего не делает. Выкатку не задерживает: от неё ничего не зависит.
+  mobile-client-pr:
+    name: Dart-клиент → mybook-mobile
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      HAS_TOKEN: ${{ secrets.MOBILE_REPO_TOKEN != '' }}
+    steps:
+      - uses: actions/checkout@v4
+        if: env.HAS_TOKEN == 'true'
+      - uses: actions/checkout@v4
+        if: env.HAS_TOKEN == 'true'
+        with: { repository: sanjuniperodee/mybook-mobile, path: app, token: "${{ secrets.MOBILE_REPO_TOKEN }}" }
+      - uses: actions/setup-node@v4
+        if: env.HAS_TOKEN == 'true'
+        with: { node-version: 22, cache: npm }
+      - if: env.HAS_TOKEN == 'true'
+        run: npm ci --no-audit --no-fund
+      - name: генерация и пулл-реквест
+        if: env.HAS_TOKEN == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.MOBILE_REPO_TOKEN }}
+        run: |
+          npx tsx scripts/contracts/check-dart.ts app && exit 0
+          npx tsx scripts/contracts/generate.ts --dart app/lib/api/mybook_api.g.dart
+          cd app
+          branch="api-v1/${GITHUB_SHA::8}"
+          git config user.name "mybook-ci"
+          git config user.email "ci@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add lib/api/mybook_api.g.dart
+          git commit -m "Клиент API v1 из бэкенда ${GITHUB_SHA::8}"
+          git push -u origin "$branch"
+          gh pr create --repo sanjuniperodee/mybook-mobile --head "$branch" --base main \
+            --title "Клиент API v1 из бэкенда ${GITHUB_SHA::8}" \
+            --body "Сгенерирован scripts/contracts/generate.ts в MyBook ${GITHUB_SHA}. Проверки — CI этого репозитория."
 
   # Сборка и архив релиза. Кэш .next/cache не сохраняем: это кэш Turbopack на гигабайты, а сборка (~1 мин) короче
   # тестов и общее время не задаёт.

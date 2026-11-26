@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ANSWER_MEDIA_LIMITS } from "@mybook/contracts/limits";
@@ -195,8 +195,10 @@ describe("лимиты и архитектура", () => {
     });
   });
 
-  it("в Flutter экране answer_media_sheet.dart нет захардкоженных пользовательских строк на кириллице", () => {
-    const src = readFileSync(path.join(__dirname, "..", "mobile/lib/client/screens/answer_media_sheet.dart"), "utf8");
+  // Экран приложения — пока mobile/ ещё в этом репозитории (ADR 0013: приложение в mybook-mobile).
+  const answerSheet = path.join(__dirname, "..", "mobile/lib/client/screens/answer_media_sheet.dart");
+  it.skipIf(!existsSync(answerSheet))("в Flutter экране answer_media_sheet.dart нет захардкоженных пользовательских строк на кириллице", () => {
+    const src = readFileSync(answerSheet, "utf8");
     const offenders: string[] = [];
     src.split(/\r?\n/).forEach((raw, idx) => {
       const code = raw.replace(/\/\/.*$/, "");

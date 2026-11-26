@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import { ANSWER_MAX, SECTION_PROMPT_MAX, SECTION_TITLE_MAX } from "@/lib/content/kinds";
 import { MAX_MEDIA } from "@/lib/book/answer-media";
@@ -16,7 +16,7 @@ const { v1, QuestionPatch, PhotoPatch, LettersOrder, LetterInviteText, ReviewBod
 const { createApp } = await import("../apps/api/src/app");
 const { createRouter } = await import("../apps/api/src/http/router");
 const { handlers } = await import("../apps/api/src/routes");
-const { generated } = await import("../scripts/contracts/files");
+const { generated, dartClient } = await import("../scripts/contracts/files");
 const { HttpError } = await import("@/server/api");
 
 const BOOK = "3f2b8c1e-7a4d-4e5f-9b6c-1d2e3f4a5b6c";
@@ -41,12 +41,14 @@ const call = (app: ReturnType<typeof createApp>, method: string, path: string, b
   app(new Request(`http://127.0.0.1:3044${path}`, { method, headers: body ? { "content-type": "application/json" } : {}, body: body ? JSON.stringify(body) : undefined }));
 
 describe("контракт", () => {
+  // Dart-клиент проверяется, пока mobile/ ещё в этом репозитории; в mybook-mobile — scripts/contracts/check-dart.ts (ADR 0013).
   it("OpenAPI и Dart-клиент сгенерированы из текущего контракта (npx tsx scripts/contracts/generate.ts)", () => {
-    for (const [file, text] of Object.entries(generated())) expect(readFileSync(file, "utf8"), file).toBe(text);
+    for (const [file, text] of Object.entries(generated()))
+      if (file.endsWith(".json") || existsSync(file)) expect(readFileSync(file, "utf8"), file).toBe(text);
   });
 
   it("Dart: необязательное поле с null — в наборе nulls (обнулить), обязательное с null — всегда в JSON", () => {
-    const dart = generated()["mobile/lib/api/mybook_api.g.dart"];
+    const dart = dartClient();
     expect(dart).toContain("if (questionId != null || nulls.contains('questionId')) 'questionId'");
     expect(dart).toContain("'anchor': anchor,");
   });
