@@ -160,6 +160,18 @@ api_apply() {
   pm2 save
 }
 
+# mybook-backend (NestJS, ADR 0014) — из релиза, если там есть backend.mjs и он не выключен MYBOOK_BACKEND=off. Трафика
+# до переключения контекстов у него нет, поэтому выкатку он не ломает: не ответил — процесс снимается, сайт и api живут.
+has_backend() {
+  node -e 'process.exit(require("./deploy/ecosystem.config.cjs").apps.some((a) => a.name === "mybook-backend") ? 0 : 1)'
+}
+backend_apply() {
+  pm2 delete mybook-backend >/dev/null 2>&1 || true
+  # Ошибка запуска не роняет выкатку: трафика у процесса нет (проверка ответа — ниже).
+  if has_backend; then pm2 start deploy/ecosystem.config.cjs --only mybook-backend || echo "⚠ mybook-backend не запустился"; fi
+  pm2 save
+}
+
 # Воркер жив: online и не перезапускался 15 секунд. 0 — всё хорошо (или воркера в релизе нет).
 check_worker() {
   has_worker || return 0
@@ -269,8 +281,20 @@ if has_api; then
       purge_previews
       pm2_apply
       api_apply
+      backend_apply
     fi
     exit 1
+  fi
+fi
+backend_apply
+if has_backend; then
+  ok=""; for _ in $(seq 1 30); do curl -fsS -m 3 "http://127.0.0.1:${MYBOOK_BACKEND_PORT:-3046}/api/v1/health" 2>/dev/null | grep -q "\"ok\":true" && { ok=1; break; }; sleep 1; done
+  if [ -n "$ok" ]; then
+    echo "✓ mybook-backend отвечает (без трафика)"
+  else
+    echo "⚠ mybook-backend не отвечает — процесс снят, трафика у него нет. Логи: pm2 logs mybook-backend --nostream --lines 50"
+    pm2 delete mybook-backend >/dev/null 2>&1 || true
+    pm2 save
   fi
 fi
 # Основная версия отвечает — запасная больше не нужна.

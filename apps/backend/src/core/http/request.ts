@@ -6,7 +6,7 @@ declare module "fastify" {
   interface FastifyRequest {
     /** Кто вошёл — кладёт SessionGuard у маршрутов с auth: user. */
     user?: CurrentUser;
-    /** Вход маршрута, разобранный схемами контракта, — кладёт ContractInterceptor. */
+    /** Вход маршрута, разобранный схемами контракта, — кладёт ContractInputGuard. */
     contractInput?: unknown;
   }
 }

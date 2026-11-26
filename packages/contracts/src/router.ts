@@ -1,4 +1,4 @@
-import type { RouteDef } from "@mybook/contracts";
+import type { RouteDef } from "./v1/core";
 
 /** Маршрут контракта, найденный по методу и пути, и параметры пути. */
 export interface Matched<N extends string> {
@@ -7,7 +7,11 @@ export interface Matched<N extends string> {
   params: Record<string, string>;
 }
 
-/** Таблица маршрутов из контракта: путь /api/v1/books/{bookId} → регулярное выражение с именованными группами. */
+/**
+ * Таблица маршрутов из контракта — одна для обоих HTTP-процессов: mybook-api ищет по ней обработчик, бэкенд на Nest —
+ * ответ 405 с Allow, когда путь есть, а метода нет (ADR 0014).
+ * Путь /api/v1/books/{bookId} → регулярное выражение с именованными группами.
+ */
 export function createRouter<N extends string>(routes: Record<N, RouteDef>) {
   const table = (Object.entries(routes) as [N, RouteDef][]).map(([name, route]) => ({
     name,

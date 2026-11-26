@@ -71,10 +71,13 @@ describe("бэкенд на Nest: ядро", () => {
     expect(res.json()).toEqual({ ok: true });
   });
 
-  it("неизвестный адрес — 404 в формате API", async () => {
+  it("неизвестный адрес — 404, путь контракта с другим методом — 405 с Allow (как у mybook-api)", async () => {
     const res = await call({ method: "GET", url: "/api/v1/nope" });
     expect(res.statusCode).toBe(404);
-    expect(res.json()).toEqual({ error: "Не найдено", code: "notFound" });
+    expect(res.json()).toEqual({ error: "Not found", code: "notFound" });
+    const wrong = await call({ method: "PATCH", url: URL });
+    expect(wrong.statusCode).toBe(405);
+    expect(wrong.headers.allow).toBe("GET, PUT");
   });
 });
 
@@ -88,13 +91,13 @@ describe("отзыв к заказу (контекст Feedback)", () => {
     expect(en.json().error).not.toBe(ru.json().error);
   });
 
-  it("чужой заказ и кривой номер — одинаково 404", async () => {
+  it("чужой заказ — 404; кривой номер — 400 по схеме, до проверки доступа (как у mybook-api)", async () => {
     const foreign = await call({ method: "GET", url: URL, headers: { cookie: `mb_session=${sessionOf(STRANGER)}` } });
     expect(foreign.statusCode).toBe(404);
     expect(foreign.json().code).toBe("reviewNotFound");
     const bad = await call({ method: "GET", url: "/api/v1/orders/not-a-uuid/review", headers: asOwner });
-    expect(bad.statusCode).toBe(404);
-    expect(bad.json().code).toBe("reviewNotFound");
+    expect(bad.statusCode).toBe(400);
+    expect(bad.json().code).toBe("badData");
   });
 
   it("экран отзыва по контракту: свой отзыв, обложка, надписи; ETag и 304", async () => {
@@ -140,7 +143,10 @@ describe("отзыв к заказу (контекст Feedback)", () => {
     expect(limiter.hits).toEqual([]);
   });
 
-  it("неверное тело — 400 с ключом из схемы; не JSON — 400", async () => {
+  it("неверное тело — 400 до проверки доступа и лимита; не JSON — 400", async () => {
+    const foreign = await call({ method: "PUT", url: URL, headers: { cookie: `mb_session=${sessionOf(STRANGER)}` }, payload: { ...body, rating: 9 } });
+    expect(foreign.statusCode).toBe(400);
+    expect(limiter.hits).toEqual([]);
     const empty = await call({ method: "PUT", url: URL, headers: asOwner, payload: { ...body, authorName: "  " } });
     expect(empty.statusCode).toBe(400);
     expect(empty.json().code).toBe("reviewInvalid");

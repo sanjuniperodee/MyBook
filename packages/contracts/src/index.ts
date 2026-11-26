@@ -3,5 +3,6 @@
  */
 export const contractsVersion = 1;
 export * from "./v1/routes";
+export { createRouter, type Matched } from "./router";
 export { openapi } from "./v1/openapi";
 export { createApiClient, ApiClientError, buildUrl, type ApiClient, type ApiClientOptions } from "./client";

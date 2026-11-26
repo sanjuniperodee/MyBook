@@ -14,7 +14,7 @@ vi.mock("@/i18n/server", async () => ({ getMessages: async () => ({ api: (await 
 
 const { v1, QuestionPatch, PhotoPatch, LettersOrder, LetterInviteText, ReviewBody, CoverPatch, openapi } = await import("@mybook/contracts");
 const { createApp } = await import("../apps/api/src/app");
-const { createRouter } = await import("../apps/api/src/http/router");
+const { createRouter } = await import("@mybook/contracts");
 const { handlers } = await import("../apps/api/src/routes");
 const { generated, dartClient } = await import("../scripts/contracts/files");
 const { HttpError } = await import("@/server/api");

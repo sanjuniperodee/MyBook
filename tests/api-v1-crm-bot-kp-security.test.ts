@@ -221,7 +221,7 @@ vi.mock("@/server/crm-actions/security", () => ({
 
 const { v1 } = await import("@mybook/contracts");
 const { createApp } = await import("../apps/api/src/app");
-const { createRouter } = await import("../apps/api/src/http/router");
+const { createRouter } = await import("@mybook/contracts");
 const { handlers } = await import("../apps/api/src/routes");
 const { HttpError } = await import("@/server/api");
 

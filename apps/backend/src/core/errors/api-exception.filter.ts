@@ -1,6 +1,7 @@
 import { Catch, HttpException, Logger, type ArgumentsHost, type ExceptionFilter } from "@nestjs/common";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { ZodError } from "zod";
+import { createRouter, v1 } from "@mybook/contracts";
 import { domainStatus, errorText, isApiKey, isErrorKey, type ApiMessages } from "@/i18n/api-errors";
 import { messagesFor } from "@/i18n/messages";
 import { DomainError } from "@/shared/domain";
@@ -13,10 +14,11 @@ interface Failure {
   params?: unknown[];
 }
 
-/** Статусы Nest/Fastify (нет маршрута, не тот метод, тело не JSON, слишком большое) → ключ словаря api. */
-const HTTP_CODES: Record<number, string> = { 404: "notFound", 405: "badRequest", 413: "badData", 415: "badRequest" };
+/** Статусы Fastify (тело не JSON, слишком большое, не тот тип) → ключ словаря api. */
+const HTTP_CODES: Record<number, string> = { 413: "badData", 415: "badRequest" };
 
 const log = new Logger("api");
+const contract = createRouter(v1);
 
 /**
  * Любая ошибка → ответ в формате сайта и mybook-api: `{ error, code }`, текст на языке запроса (ADR 0014, правило 4).
@@ -27,12 +29,18 @@ export class ApiExceptionFilter implements ExceptionFilter {
   catch(err: unknown, host: ArgumentsHost) {
     const http = host.switchToHttp();
     const req = http.getRequest<FastifyRequest>();
+    const reply = http.getResponse<FastifyReply>();
+    // Адреса нет среди маршрутов процесса — как у mybook-api: путь контракта с другим методом — 405 с Allow,
+    // неизвестный путь — 404 с тем же телом (код notFound; текст не переводится — так отвечал и прежний API).
+    if (err instanceof HttpException && err.getStatus() === 404) {
+      const found = contract.match(req.method, req.url.split("?")[0]);
+      if (found && "allowed" in found) return void reply.status(405).header("allow", found.allowed.join(", ")).send();
+      return void reply.status(404).header("cache-control", "no-store").send({ error: "Not found", code: "notFound" });
+    }
     const t = messagesFor(requestLocale(req)).api;
     const { status, code, params } = this.classify(err, t);
-    void http
-      .getResponse<FastifyReply>()
+    void reply
       .status(status)
-      .header("cache-control", "no-store")
       .send({ error: errorText(t, code, params), code: isErrorKey(t, code) ? code : undefined });
   }
 

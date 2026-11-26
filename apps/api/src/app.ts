@@ -3,12 +3,11 @@
  * обработчик (тонкий слой над сервисами модулей) → JSON. Ошибки — в формате сайта ({ error, code }) через тот же
  * api() (src/server/api.ts): тексты на языке пользователя, домен и права — как у веба.
  */
-import { openapi, v1, type Output, type Parsed, type RouteDef, type RouteName } from "@mybook/contracts";
+import { createRouter, openapi, v1, type Output, type Parsed, type RouteDef, type RouteName } from "@mybook/contracts";
 import { api, HttpError } from "@/server/api";
 import { jsonWithEtag } from "@/server/mobile-api";
 import { runInApiServer } from "@/server/v1-web-client";
 import type { User } from "@/shared/infrastructure/db/schema";
-import { createRouter } from "./http/router";
 
 /** Кто вошёл: user — любой вошедший, staff — сотрудник CRM. Подменяется в тестах (инверсия зависимости). */
 export interface Authenticator {

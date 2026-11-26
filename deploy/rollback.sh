@@ -26,6 +26,11 @@ pm2 start "$ROOT/deploy/ecosystem.config.cjs" --only mybook
 for app in mybook-api mybook-worker; do
   if pm2 describe "$app" >/dev/null 2>&1; then pm2 delete "$app" >/dev/null 2>&1 || true; pm2 start "$ROOT/deploy/ecosystem.config.cjs" --only "$app"; fi
 done
+# Бэкенд на Nest (ADR 0014) — из того же релиза; в релизе до него backend.mjs нет — процесс просто снимается.
+pm2 delete mybook-backend >/dev/null 2>&1 || true
+if node -e 'process.exit(require(process.argv[1]).apps.some((a) => a.name === "mybook-backend") ? 0 : 1)' "$ROOT/deploy/ecosystem.config.cjs"; then
+  pm2 start "$ROOT/deploy/ecosystem.config.cjs" --only mybook-backend
+fi
 pm2 save
 
 for i in $(seq 1 30); do

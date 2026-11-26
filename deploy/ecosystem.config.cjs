@@ -109,6 +109,25 @@ const api = process.env.MYBOOK_API !== "off" &&
     time: true,
   };
 
+/**
+ * Бэкенд на NestJS (ADR 0014, apps/backend): <релиз>/backend.mjs на 127.0.0.1:3046. Переезжает с mybook-api по
+ * контекстам; трафик на него nginx направляет только по префиксам перенесённых контекстов (до этого — без трафика,
+ * для сверки ответов). MYBOOK_BACKEND=off — не запускать.
+ */
+const backendFile = path.join(releasesDir, "current", "backend.mjs");
+const backend = process.env.MYBOOK_BACKEND !== "off" &&
+  fs.existsSync(backendFile) && {
+    name: "mybook-backend",
+    cwd: path.join(releasesDir, "current"),
+    script: "backend.mjs",
+    node_args: `--env-file=${path.join(root, ".env")}`,
+    env: { NODE_ENV: "production", TZ: "Asia/Almaty", BACKEND_PORT: process.env.MYBOOK_BACKEND_PORT || "3046", ...allocatorEnv },
+    // Тот же код модулей, что у mybook-api (~150–250 МБ); лимит — страховка от утечки.
+    max_memory_restart: "600M",
+    kill_timeout: 3000,
+    time: true,
+  };
+
 module.exports = {
   apps: [
     {
@@ -139,6 +158,7 @@ module.exports = {
     },
     ...(worker ? [worker] : []),
     ...(api ? [api] : []),
+    ...(backend ? [backend] : []),
     ...(files ? [files] : []),
     ...sidecars,
   ],

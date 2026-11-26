@@ -5,7 +5,7 @@ import { HttpError } from "@/server/api";
 vi.mock("@/i18n/server", async () => ({ getMessages: async () => ({ api: (await import("@/i18n/messages/ru/api")).api }), getLocale: async () => "ru" }));
 
 const { createApp } = await import("../apps/api/src/app");
-const { createRouter } = await import("../apps/api/src/http/router");
+const { createRouter } = await import("@mybook/contracts");
 const { handlers } = await import("../apps/api/src/routes");
 const { redirect } = await import("../apps/api/src/http/next-shim");
 
