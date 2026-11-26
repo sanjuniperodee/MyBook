@@ -1,15 +1,10 @@
 import "server-only";
 import type { Locale } from "@/i18n/config";
 import type { Messages } from "@/i18n/messages";
-import type { User } from "@/server/auth";
-import type { getAccessibleBook } from "@/server/books";
-import {
-  entriesToPlacePairs,
-  localPhotosPageDtoForUser,
-  localPhotosTabDto,
-  type WebBookPhotosPageDto,
-} from "@/server/v1-local-bridge-book";
-import { v1WebRead } from "@/server/v1-web-client";
+import type { User } from "@/web/auth";
+import type { getAccessibleBook } from "@/web/books";
+import { entriesToPlacePairs, type WebBookPhotosPageDto } from "@/web/dto";
+import { v1WebRead } from "@/web/api";
 import type { PhotosTabData } from "./photos-tab";
 
 type Book = Awaited<ReturnType<typeof getAccessibleBook>>;
@@ -30,19 +25,17 @@ export async function photosTabData(book: Book, editable: boolean, m: Messages, 
     name: "book.photosTab",
     section: "book",
     locale,
-    local: () => localPhotosTabDto(book, editable, m),
     viaApi: (api) => api.webBookPhotosPage({ bookId: book.id, locale }),
   });
   return fromPhotosDto(dto);
 }
 
 /** Данные страницы /books/[id]/photos: с учётом права правки текущего пользователя (владелец или сотрудник с clients.edit). */
-export async function loadPhotosPageData(book: Book, user: User, locale: Locale, m: Messages): Promise<PhotosTabData> {
+export async function loadPhotosPageData(book: Book, user: User, locale: Locale, _m: Messages): Promise<PhotosTabData> {
   const dto = await v1WebRead({
     name: "book.photosPage",
     section: "book",
     locale,
-    local: () => localPhotosPageDtoForUser(book, user, m),
     viaApi: (api) => api.webBookPhotosPage({ bookId: book.id, locale }),
   });
   return fromPhotosDto(dto);

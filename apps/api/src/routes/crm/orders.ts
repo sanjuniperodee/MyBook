@@ -14,7 +14,7 @@ import { payFormOptions } from "@/server/pay-form";
 import { staffLabel } from "@/shared/domain/staff";
 import { ORDER_STATUSES } from "@/shared/domain/orders";
 import { isPrintedPlan, orderStatusLabel } from "@/modules/ordering/ui/status";
-import { changeOrderTermsAction, requestOrderRepriceAction, reviewOrderPaymentAction, startPostpayAction, updateOrderAction, voidOrderPaymentAction } from "@/app/admin/actions";
+import { changeOrderTermsAction, requestOrderRepriceAction, reviewOrderPaymentAction, startPostpayAction, updateOrderAction, voidOrderPaymentAction } from "@/server/crm-actions/admin";
 import { POST as payRoute } from "@/server/site-handlers/admin/orders-id-payments";
 import { POST as refundRoute } from "@/server/site-handlers/admin/orders-id-refunds";
 import type { Handlers } from "../../app";

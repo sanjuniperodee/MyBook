@@ -1,10 +1,10 @@
 import { Link } from "@/i18n/client";
-import { isStaff, requireUser } from "@/server/auth";
+import { isStaff, requireUser } from "@/web/auth";
 import { LogoMark } from "@/components/Logo";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
 import { ShopThemeToggle } from "@/components/ShopTheme";
 import { ProfileMenu } from "@/components/AppNav";
-import { getAccessibleBook } from "@/server/books";
+import { getAccessibleBook } from "@/web/books";
 import { getTheme } from "@/lib/content/themes";
 import { bookKind } from "@/lib/content/kinds";
 import { CoverPreview } from "@/components/cover/CoverPreview";

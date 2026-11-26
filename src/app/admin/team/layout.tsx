@@ -1,4 +1,4 @@
-import { can, requireStaff } from "@/server/access";
+import { can, requireStaff } from "@/web/access";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { TeamTabs } from "./TeamTabs";
 

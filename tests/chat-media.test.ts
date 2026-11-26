@@ -4,7 +4,7 @@ import type { Conversation } from "@/modules/messaging/domain";
 import { ChatMediaService, isMediaGoneError, MEDIA_GONE, MEDIA_RETRY_MS, type MediaFile, type MediaGateway, type MessageMedia } from "@/modules/messaging/application";
 import { GowaClient } from "@/modules/messaging/infrastructure/gowa";
 import { gowaMediaGateway } from "@/modules/messaging/infrastructure/adapters";
-import { GET as mediaRoute } from "@/app/api/admin/chats/messages/[id]/media/route";
+import { GET as mediaRoute } from "@/server/site-handlers/admin/chats-messages-id-media";
 import { GowaError, MediaUnavailableError } from "@/modules/messaging";
 import { client, dina, fake, owner, resetContainer, resetRequest, signIn } from "./doubles/web";
 

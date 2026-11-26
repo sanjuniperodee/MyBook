@@ -44,7 +44,24 @@ export const webPublicHandlers: Pick<
   | "webReviewPage"
   | "webUnsubscribeLink"
   | "webUnsubscribe"
+  | "webAnswerFilePage"
 > = {
+  async webAnswerFilePage({ input }) {
+    const { FILE_TOKEN } = await import("@/lib/book/answer-files");
+    if (!FILE_TOKEN.test(input.token)) return { found: null };
+    const found = await (await import("@/server/answerFiles")).publicFile(input.token);
+    if (!found) return { found: null };
+    const f = found.file;
+    return {
+      found: {
+        file: { kind: f.kind as "video" | "audio", status: f.status, hasPoster: !!f.hasPoster, width: f.width ?? null, height: f.height ?? null, durationSec: f.durationSec ?? null },
+        bookTitle: found.bookTitle,
+        authorName: found.authorName,
+        caption: found.caption,
+      },
+    };
+  },
+
   webSiteCatalog: () => localSiteCatalog(),
 
   webSiteChrome: () => localSiteChrome(),

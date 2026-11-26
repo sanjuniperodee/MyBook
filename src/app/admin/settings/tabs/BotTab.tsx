@@ -6,7 +6,7 @@ import type { BotFormTab } from "../crm/botTabs";
 import { BotStats } from "../crm/BotStats";
 import { BotLessons } from "../crm/BotLessons";
 import { BotMaterials } from "../crm/BotMaterials";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { crmRead } from "@/web/crm";
 
 export async function BotTab({ section }: { section?: BotFormTab }) {
   const { botMode, botConfig, dealFields, botMetrics, rules, botCatalog, aiModel, sellerModel, coach, materials } = await crmRead("settings.bot", {});

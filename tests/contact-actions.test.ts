@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { callAction, openChatAction, sendEmailAction } from "@/app/admin/crm-actions";
+import { callAction, openChatAction, sendEmailAction } from "@/server/crm-actions/crm";
 import { admin } from "@/i18n/admin";
 import { fake, owner, resetContainer, resetRequest, signIn, timur } from "./doubles/web";
 

@@ -1,5 +1,4 @@
-import { localHealth } from "@/server/v1-local-bridge";
-import { v1WebRead } from "@/server/v1-web-client";
+import { v1WebRead } from "@/web/api";
 
 export const dynamic = "force-dynamic";
 
@@ -9,7 +8,6 @@ export async function GET() {
     const status = await v1WebRead({
       name: "cabinet.health",
       section: "cabinet",
-      local: () => localHealth(),
       viaApi: async (api) => {
         const h = await api.webHealth({});
         return { ok: h.ok, db: h.db, storage: h.storage, redis: h.redis, outbox: h.outbox };

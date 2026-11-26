@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { GET as exportClients } from "@/app/api/admin/export/clients/route";
+import { GET as exportClients } from "@/server/site-handlers/admin/export-clients";
 import { fake, nadia, owner, resetContainer, resetRequest, signIn } from "./doubles/web";
 
 vi.mock("next/headers", async () => (await import("./doubles/web")).nextHeaders);
@@ -23,7 +23,7 @@ beforeEach(() => {
   };
 });
 
-const download = () => exportClients(new Request("http://localhost/api/admin/export/clients?segment=all"));
+const download = () => exportClients(new Request("http://localhost/api/admin/export/clients?segment=all"), undefined as never);
 
 describe("выгрузка клиентов CSV", () => {
   it("роль «только свои» выгружает только своих (scopeManagerId — она сама), руководитель — всех", async () => {

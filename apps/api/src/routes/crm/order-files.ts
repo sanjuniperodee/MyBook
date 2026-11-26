@@ -8,7 +8,7 @@ import { can, canSeeOrder, contactView } from "@/server/access";
 import { deliveryLabels } from "@/modules/ordering/ui/labels";
 import { refused } from "./common";
 import { container } from "@/server/container";
-import { saveAdminNoteAction, toggleBookLockAction, updateOrderDetailsAction } from "@/app/admin/actions";
+import { saveAdminNoteAction, toggleBookLockAction, updateOrderDetailsAction } from "@/server/crm-actions/admin";
 import { isPrintedPlan } from "@/modules/ordering/ui/status";
 import type { Handlers } from "../../app";
 

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireStaff } from "@/server/access";
+import { requireStaff } from "@/web/access";
 import { staffLabel } from "@/shared/domain/staff";
 import { formatDate, nowMs } from "@/lib/dates";
 import { storeTimeZone } from "@/shared/domain/time";
@@ -7,7 +7,7 @@ import { History } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { AuditFilters } from "./AuditFilters";
 import { actions, detailsText, entityLabels } from "./phrases";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { crmRead } from "@/web/crm";
 
 export const metadata = { title: "Журнал действий" };
 

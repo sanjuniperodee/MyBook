@@ -4,7 +4,7 @@ import { periodQuery } from "@/components/admin/PeriodBar";
 import Link from "next/link";
 import { z } from "zod";
 import { CircleCheck, Download, FileText, HandCoins, ShieldCheck, Wallet } from "lucide-react";
-import { can, canWork, requireStaff } from "@/server/access";
+import { can, canWork, requireStaff } from "@/web/access";
 import { storeTimeZone } from "@/shared/domain/time";
 import { formatPrice } from "@/config/site";
 import { BarList, StatRow, StatTile } from "@/components/admin/charts";
@@ -21,7 +21,7 @@ import { financePeriod, financeScreen, REFUND_WINDOW_DAYS, RESOLVED_DAYS, type F
 import { FinanceColumns } from "./FinanceColumns";
 import { ReviewButton } from "./ReviewButton";
 import { IssueActions, UndoResolution, type IssuePerms } from "./IssueActions";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { crmRead } from "@/web/crm";
 
 export const metadata = { title: "Финансы" };
 

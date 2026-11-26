@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ForbiddenError } from "@/server/access";
-import { resolveFinanceIssueAction, reviewDealPaymentAction, undoFinanceResolutionAction } from "@/app/admin/finance/actions";
+import { resolveFinanceIssueAction, reviewDealPaymentAction, undoFinanceResolutionAction } from "@/server/crm-actions/finance";
 import { anna, client, fake, owner, resetContainer, resetRequest, signIn } from "./doubles/web";
 
 vi.mock("next/headers", async () => (await import("./doubles/web")).nextHeaders);

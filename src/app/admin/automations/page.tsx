@@ -1,4 +1,4 @@
-import { requireStaff } from "@/server/access";
+import { requireStaff } from "@/web/access";
 import { staffOptions } from "@/modules/access/ui";
 import { formatDate } from "@/lib/dates";
 import { Zap } from "lucide-react";
@@ -9,7 +9,7 @@ import { AutomationRow, NewRuleButton } from "./AutomationEditor";
 import { InlineStats } from "@/components/admin/bars";
 import { formatPrice } from "@/config/site";
 import { parseHolidays } from "@/modules/automation/domain";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { crmRead } from "@/web/crm";
 
 export const metadata = { title: "Автоматизации" };
 

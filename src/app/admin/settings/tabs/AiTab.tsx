@@ -9,7 +9,7 @@ import { WriterForm } from "../ai/WriterForm";
 import { AiMap } from "../ai/AiMap";
 import { SettingsFrame } from "../frame";
 import { tabAnchors } from "../tabs";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { crmRead } from "@/web/crm";
 
 export async function AiTab() {
   const { aiProvider, aiEnabled, aiKnowledge, pr, sellerSettings, media, route, autofill, providerFromEnv, routeEnv, ...rest } = await crmRead("settings.ai", {});

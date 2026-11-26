@@ -1,3 +1,4 @@
+import { routeWebToApi } from "./doubles/api";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -23,6 +24,11 @@ vi.mock("next/navigation", async () => (await import("./doubles/web")).nextNavig
 vi.mock("next/cache", async () => (await import("./doubles/web")).nextCache);
 vi.mock("@/server/container", async () => (await import("./doubles/web")).containerModule);
 vi.mock("@/server/photoLimit", () => ({ maxPhotos: vi.fn(async () => 120) }));
+
+// ADR 0013: веб ходит только в API v1 — в тестах его запросы обслуживает apps/api в этом же процессе.
+beforeEach(async () => {
+  await routeWebToApi();
+});
 
 const { createApp } = await import("../apps/api/src/app");
 const { handlers } = await import("../apps/api/src/routes");
@@ -561,7 +567,7 @@ describe("PARITY_MODE=strict, fallback и webApiOnly для section='book'", () 
     }
   });
 
-  it("bookHub, loadBookNav, loadBookShellNav, photosTabData, loadPhotosPageData работают и через API v1, и с откатом на local()", async () => {
+  it("bookHub, loadBookNav, loadBookShellNav, photosTabData, loadPhotosPageData работают через API v1 (ADR 0013: отката на local() у веба нет)", async () => {
     const book = setupBookFixture();
     signIn(ownerUser);
     const app = createApp(handlers, fakeAuth(ownerUser));
@@ -590,16 +596,6 @@ describe("PARITY_MODE=strict, fallback и webApiOnly для section='book'", () 
       const tab = await photosTabData(book, true, m, "ru");
       expect(tab.maxPhotos).toBe(120);
 
-      // Сбой транспорта API при наличии БД → безопасный откат на local()
-      fetchSpy.mockRejectedValueOnce(new Error("ECONNREFUSED"));
-      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-      try {
-        const fallbackNav = await loadBookNav(book, "ru");
-        expect(fallbackNav.answered).toBe(1);
-        expect(warnSpy).toHaveBeenCalled();
-      } finally {
-        warnSpy.mockRestore();
-      }
     } finally {
       fetchSpy.mockRestore();
     }

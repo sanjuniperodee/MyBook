@@ -2,12 +2,12 @@ import { Plus, TicketPercent } from "lucide-react";
 import { formatPrice } from "@/config/site";
 import { formatDate } from "@/lib/dates";
 import { PromoForm, PromoToggle } from "./PromoForm";
-import { requireStaff } from "@/server/access";
+import { requireStaff } from "@/web/access";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { DrawerButton } from "@/components/admin/Drawer";
 import { InlineStats, ShareBar } from "@/components/admin/bars";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { crmRead } from "@/web/crm";
 
 export const metadata = { title: "Промокоды" };
 

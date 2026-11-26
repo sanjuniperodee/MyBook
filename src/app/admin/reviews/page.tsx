@@ -8,7 +8,7 @@ import { Alert } from "@/components/ui/Alert";
 import { Facts } from "@/components/ui/Facts";
 import { Panel } from "@/components/ui/Panel";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { requireStaff } from "@/server/access";
+import { requireStaff } from "@/web/access";
 import { PUBLIC_TEXT_MIN, LOW_RATING } from "@/modules/feedback/domain/rules";
 import type { StaffReview } from "@/modules/feedback";
 import type { ReviewStatus } from "@/shared/domain/reviews";
@@ -16,7 +16,7 @@ import { messagesFor } from "@/i18n/messages";
 import { cn } from "@/lib/class-names";
 import { formatDate } from "@/lib/dates";
 import { ReviewActions } from "./ReviewActions";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { crmRead } from "@/web/crm";
 
 export const metadata = { title: "Отзывы" };
 

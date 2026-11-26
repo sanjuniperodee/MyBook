@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
-import { requireUser } from "@/server/auth";
+import { requireUser } from "@/web/auth";
 import { getLocale, getMessages } from "@/i18n/server";
 import { Panel } from "@/components/ui/Panel";
 import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/lib/class-names";
 import { formatDate } from "@/lib/dates";
-import { localInviteData } from "@/server/v1-local-bridge";
-import { v1WebRead } from "@/server/v1-web-client";
+import { v1WebRead } from "@/web/api";
 import { PageHead } from "../_components/PageHead";
 import { InviteShare } from "./InviteShare";
 
@@ -19,13 +18,12 @@ export async function generateMetadata(): Promise<Metadata> {
  * заказало и какие промокоды за это получены. На телефоне итог идёт сразу после ссылки.
  */
 export default async function InvitePage() {
-  const user = await requireUser("/invite");
+  await requireUser("/invite");
   const [locale, m] = await Promise.all([getLocale(), getMessages()]);
   const data = await v1WebRead({
     name: "cabinet.invite",
     section: "cabinet",
     locale,
-    local: () => localInviteData(user.id, locale),
     viaApi: (api) => api.webInvite({ locale }),
   });
   const t = m.invite;

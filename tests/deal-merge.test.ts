@@ -9,7 +9,7 @@ vi.mock("@/server/container", async () => (await import("./doubles/web")).contai
 vi.mock("@/shared/infrastructure/database", () => ({ rootDb: {}, executor: () => ({}) }));
 vi.mock("@/modules/workspace", () => ({ notify: async () => {}, notifyMentions: async () => {}, staffNotifier: { notifyAllWith: async () => {} }, listFields: async () => [], readFieldValues: () => ({}) }));
 
-const { mergeDealAction } = await import("@/app/admin/deals/actions");
+const { mergeDealAction } = await import("@/server/crm-actions/deals");
 
 const TARGET = "0d0d0d0d-0000-4000-8000-0000000000a1";
 const SOURCE = "0d0d0d0d-0000-4000-8000-0000000000a2";

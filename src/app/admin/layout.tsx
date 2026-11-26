@@ -1,5 +1,5 @@
 import { Search } from "lucide-react";
-import { requireStaffShell } from "@/server/access";
+import { requireStaffShell } from "@/web/access";
 import { logoutAction } from "@/app/(auth)/actions";
 import { staffLabel } from "@/shared/domain/staff";
 import { AdminNav } from "@/components/admin/AdminNav";
@@ -8,7 +8,7 @@ import { cookies } from "next/headers";
 import { CrmLiveProvider, IncomingCall, NotificationBell } from "@/components/admin/CrmLive";
 import { PushPrompt } from "@/components/admin/PushPrompt";
 import { Webphone } from "@/components/admin/Webphone";
-import { can } from "@/server/access";
+import { can } from "@/web/access";
 import { autoShiftOnVisitAction } from "./shell-actions";
 import { THEME_SCRIPT, ThemeSync } from "@/components/admin/Theme";
 import { CommandPalette, CreateMenu, PaletteTrigger } from "@/components/admin/CommandPalette";
@@ -17,7 +17,7 @@ import { NavMotion } from "@/components/admin/NavMotion";
 import { MobileTabBar } from "@/components/admin/MobileTabBar";
 import { PullToRefresh } from "@/components/admin/PullToRefresh";
 import { layoutTabs, mobileLayout } from "@/shared/domain/mobileLayout";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { crmRead } from "@/web/crm";
 
 export const metadata = {
   title: { default: "CRM", template: "%s · CRM" },

@@ -14591,6 +14591,51 @@
         "x-auth": "none"
       }
     },
+    "/api/v1/web/answer-files/{token}": {
+      "get": {
+        "operationId": "webAnswerFilePage",
+        "tags": [
+          "web-public"
+        ],
+        "summary": "Свой файл книги по секретной ссылке из QR-кода: вид, готовность, размеры, книга и подпись",
+        "security": [],
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 10,
+              "maxLength": 80
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebAnswerFilePage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "none"
+      }
+    },
     "/api/v1/web/site/catalog": {
       "get": {
         "operationId": "webSiteCatalog",
@@ -48575,6 +48620,88 @@
         },
         "required": [
           "token"
+        ],
+        "additionalProperties": false
+      },
+      "WebAnswerFilePage": {
+        "type": "object",
+        "properties": {
+          "found": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "video",
+                          "audio"
+                        ]
+                      },
+                      "status": {
+                        "type": "string"
+                      },
+                      "hasPoster": {
+                        "type": "boolean"
+                      },
+                      "width": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      },
+                      "height": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      },
+                      "durationSec": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "status",
+                      "hasPoster",
+                      "width",
+                      "height",
+                      "durationSec"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "bookTitle": {
+                    "type": "string"
+                  },
+                  "authorName": {
+                    "type": "string"
+                  },
+                  "caption": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file",
+                  "bookTitle",
+                  "authorName",
+                  "caption"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "found"
         ],
         "additionalProperties": false
       },

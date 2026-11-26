@@ -9,7 +9,7 @@ import Link from "next/link";
 import { CalendarClock, CircleCheck, History, Link2, type LucideIcon } from "lucide-react";
 import { formatPrice, getPlans } from "@/config/site";
 import { orderStatusLabel } from "@/modules/ordering/ui/status";
-import { can, requireStaff } from "@/server/access";
+import { can, requireStaff } from "@/web/access";
 import { redirect } from "next/navigation";
 import { layoutTabs, mobileLayout } from "@/shared/domain/mobileLayout";
 import { MyDay, myDayParts } from "../MyDay";
@@ -20,7 +20,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { cn } from "@/lib/class-names";
 import { formatDate, nowMs } from "@/lib/dates";
 import type { AttentionRow } from "@/modules/reporting";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { crmRead } from "@/web/crm";
 
 export const metadata = { title: "Обзор" };
 

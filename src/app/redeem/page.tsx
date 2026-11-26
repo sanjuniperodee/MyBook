@@ -4,9 +4,8 @@ import { LandingHeader } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
 import { GiftCardVisual } from "@/components/GiftCardVisual";
 import { FilmFrame, Flourish } from "@/components/landing/FilmFrame";
-import { getCurrentUser } from "@/server/auth";
-import { localRedeemCheck } from "@/server/v1-local-bridge-public";
-import { v1WebRead } from "@/server/v1-web-client";
+import { getCurrentUser } from "@/web/auth";
+import { v1WebRead } from "@/web/api";
 import { getLocale, getMessages } from "@/i18n/server";
 import { planName } from "@/i18n/labels";
 import { localizePath } from "@/i18n/config";
@@ -22,7 +21,7 @@ export default async function RedeemPage({ searchParams }: { searchParams: Promi
   const t = m.gift.redeem;
   // Проверка кода — через API v1 (Раздел 4); на сервере с БД — тем же сборщиком напрямую.
   const found = code
-    ? await v1WebRead({ name: "public.redeemCheck", section: "public", locale, local: () => localRedeemCheck(code), viaApi: (api) => api.webRedeemCheck({ code }) })
+    ? await v1WebRead({ name: "public.redeemCheck", section: "public", locale, viaApi: (api) => api.webRedeemCheck({ code }) })
     : null;
   const check = found?.check ?? null;
   const gift = found?.gift ?? null;

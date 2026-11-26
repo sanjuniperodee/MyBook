@@ -122,7 +122,7 @@ describe("фон обложки отдельным файлом", () => {
   });
 
   const get = async (file: string, encoding = "") => {
-    const { GET } = await import("@/app/api/covers/[file]/route");
+    const { GET } = await import("@/server/site-handlers/media/cover");
     return GET(new Request(`http://x/api/covers/${file}`, { headers: { "accept-encoding": encoding } }), { params: Promise.resolve({ file }) });
   };
 

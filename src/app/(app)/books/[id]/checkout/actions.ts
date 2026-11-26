@@ -3,18 +3,17 @@
 import { ApiClientError } from "@mybook/contracts";
 import { z } from "zod";
 import { getLocale, getMessages, lredirect } from "@/i18n/server";
-import { requireUser } from "@/server/auth";
-import { checkoutSchema } from "@/server/checkout";
-import { queueEvent } from "@/server/track";
-import { localCheckPromo, localPlaceOrder } from "@/server/v1-local-bridge-orders";
-import { v1WebAction } from "@/server/v1-web-client";
+import { requireUser } from "@/web/auth";
+import { checkoutSchema } from "@/lib/book/checkout-schema";
+import { queueEvent } from "@/web/track";
+import { v1WebAction } from "@/web/api";
 
 export interface CheckoutState {
   error?: string;
 }
 
 export async function createOrderAction(_: CheckoutState, form: FormData): Promise<CheckoutState> {
-  const user = await requireUser();
+  await requireUser();
   const [locale, m] = await Promise.all([getLocale(), getMessages()]);
   // Проверка формы — общая с приложением (src/server/checkout.ts).
   const parsed = checkoutSchema(m.checkout.errors).safeParse(Object.fromEntries(form));
@@ -58,7 +57,6 @@ export async function createOrderAction(_: CheckoutState, form: FormData): Promi
         throw err;
       }
     },
-    local: () => localPlaceOrder(user, locale, d),
   });
   if (!outcome.ok) return { error: outcome.error };
   // Событие для аналитики сайта (cookie браузера) — только у формы сайта.
@@ -77,7 +75,7 @@ export interface PromoPreview {
 
 /** Проверка промокода для предпросмотра скидки на странице оформления. */
 export async function checkPromoAction(code: string): Promise<PromoPreview> {
-  const user = await requireUser();
+  await requireUser();
   const [locale, m] = await Promise.all([getLocale(), getMessages()]);
   const input = z.string().max(100).safeParse(code);
   if (!input.success) return { ok: false, error: m.checkout.promo.notFound };
@@ -85,7 +83,6 @@ export async function checkPromoAction(code: string): Promise<PromoPreview> {
     section: "orders",
     locale,
     viaApi: (api) => api.webPromoCheck({ body: { code: input.data, locale } }),
-    local: () => localCheckPromo(user.id, input.data, m),
   });
   return {
     ok: res.ok,

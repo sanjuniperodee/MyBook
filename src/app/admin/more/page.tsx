@@ -1,4 +1,4 @@
-import { requireStaff, can } from "@/server/access";
+import { requireStaff, can } from "@/web/access";
 import { MoreMenu } from "@/components/admin/MoreMenu";
 import { layoutTabs, mobileLayout } from "@/shared/domain/mobileLayout";
 

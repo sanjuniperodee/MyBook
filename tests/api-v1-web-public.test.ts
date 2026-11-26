@@ -1,3 +1,4 @@
+import { routeWebToApi } from "./doubles/api";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -32,6 +33,11 @@ vi.mock("@/server/requisites", () => ({
   transferRequisites: vi.fn(async () => ({ phone: "+7 701 555 44 33", name: "ИП MyBooks" })),
   manualPaymentProps: vi.fn(async () => ({ title: "Kaspi перевод", steps: ["Переведите на +7 701 555 44 33"] })),
 }));
+
+// ADR 0013: веб ходит только в API v1 — в тестах его запросы обслуживает apps/api в этом же процессе.
+beforeEach(async () => {
+  await routeWebToApi();
+});
 
 const { createApp } = await import("../apps/api/src/app");
 const { handlers } = await import("../apps/api/src/routes");

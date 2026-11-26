@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { OrderingError, PaymentInvoice } from "@/modules/ordering/domain";
-import { GET, DELETE } from "@/app/api/payments/kaspi/invoices/[id]/route";
-import { POST } from "@/app/api/payments/kaspi/invoices/route";
+import { GET, DELETE } from "@/server/site-handlers/payments/kaspi-invoice-item";
+import { POST } from "@/server/site-handlers/payments/kaspi-invoices";
 import robots from "@/app/robots";
 import { fake, resetContainer, resetRequest, signIn, client } from "./doubles/web";
 

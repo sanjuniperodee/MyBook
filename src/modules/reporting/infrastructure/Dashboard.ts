@@ -87,5 +87,5 @@ export async function dashboard(period: number | { from: Date; to: Date; prev: {
       .limit(10),
   ]);
   const zero = { sum: 0, n: 0, agreed: 0 };
-  return { daily: dailyRes.rows, cur: curRes.rows[0] ?? zero, prev: prevRes.rows[0] ?? zero, newUsers, funnelRows, byPlan: byPlanRes.rows, deadlines, dealDeadlines: dealDeadlines.rows, attention, events };
+  return { daily: dailyRes.rows, cur: curRes.rows[0] ?? zero, prev: prevRes.rows[0] ?? zero, newUsers, funnelRows: { rows: funnelRows.rows }, byPlan: byPlanRes.rows, deadlines, dealDeadlines: dealDeadlines.rows, attention, events };
 }

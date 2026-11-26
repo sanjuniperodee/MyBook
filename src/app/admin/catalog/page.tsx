@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { ShoppingBag } from "lucide-react";
-import { requireStaff } from "@/server/access";
+import { requireStaff } from "@/web/access";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Alert } from "@/components/ui/Alert";
 import { catalogLink } from "@/modules/messaging/domain/catalog";
 import { syncCatalogIfStaleAction } from "./actions";
 import { Collections, NewProductButton, ProductCard, SyncButton } from "./CatalogBoard";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { crmRead } from "@/web/crm";
 
 export const metadata = { title: "Каталог WhatsApp" };
 

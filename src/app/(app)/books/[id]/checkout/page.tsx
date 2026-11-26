@@ -4,10 +4,9 @@ import { GIFT_COOKIE, INVITE_COOKIE } from "@/shared/domain/orders";
 import { Link } from "@/i18n/client";
 import { getLocale, getMessages, lredirect } from "@/i18n/server";
 import { CircleAlert, Eye, TriangleAlert } from "lucide-react";
-import { requireUser } from "@/server/auth";
-import { getAccessibleBook } from "@/server/books";
-import { localCheckoutPageDto } from "@/server/v1-local-bridge-orders";
-import { v1WebRead } from "@/server/v1-web-client";
+import { requireUser } from "@/web/auth";
+import { getAccessibleBook } from "@/web/books";
+import { v1WebRead } from "@/web/api";
 import { CoverPreview } from "@/components/cover/CoverPreview";
 import { coverPhotoIds } from "@/lib/book/covers";
 import { coverNames } from "@/lib/book/cover-names";
@@ -33,7 +32,6 @@ export default async function CheckoutPage({ params, searchParams }: { params: P
     name: "orders.checkoutPage",
     section: "orders",
     locale,
-    local: () => localCheckoutPageDto(book, user, locale, m, { promo: giftCode, upgrade: upgradeParam }),
     viaApi: (api) => api.webCheckoutPage({ bookId: book.id, locale, promo: giftCode, upgrade: upgradeParam }),
   });
 

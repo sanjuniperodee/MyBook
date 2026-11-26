@@ -5,11 +5,11 @@ import { Tabs } from "@/components/admin/Tabs";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { formatDate } from "@/lib/dates";
-import { requireStaff } from "@/server/access";
+import { requireStaff } from "@/web/access";
 import { SUPPORT_KIND_LABELS, SUPPORT_STATUS_LABELS, SUPPORT_STATUSES, type SupportStatus } from "@/shared/domain/support";
 import { phoneLabel, STATUS_TONE } from "./labels";
-import { seesAllTickets } from "@/server/support-access";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { seesAllTickets } from "@/web/support-access";
+import { crmRead } from "@/web/crm";
 
 export const metadata = { title: "Обращения" };
 

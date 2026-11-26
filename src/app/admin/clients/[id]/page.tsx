@@ -14,9 +14,9 @@ import { ClientTabs } from "./ClientTabs";
 import { ClientAccess } from "./ClientAccess";
 import { staffLogin } from "@/lib/crm/access-message";
 import { isPhoneEmail } from "@/modules/identity/domain/Login";
-import { can, canAssignOthers, canSeeAssigned, contactView, requireStaff, canSeeClientRecords } from "@/server/access";
-import { pageId } from "@/server/input";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { can, canAssignOthers, canSeeAssigned, contactView, requireStaff, canSeeClientRecords } from "@/web/access";
+import { pageId } from "@/web/input";
+import { crmRead } from "@/web/crm";
 
 export const metadata = { title: "Клиент" };
 

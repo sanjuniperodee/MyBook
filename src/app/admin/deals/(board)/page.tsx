@@ -3,7 +3,7 @@ import { channelLabel, toAttribution } from "@/shared/domain/channels";
 import Link from "next/link";
 import { MobileFilters } from "@/components/admin/MobileFilters";
 import { ChevronLeft, ChevronRight, Copy, Handshake, ListPlus, Plus, Search, SearchX, Settings2, SlidersHorizontal } from "lucide-react";
-import { can, canAssignOthers, requireStaff } from "@/server/access";
+import { can, canAssignOthers, requireStaff } from "@/web/access";
 import { staffOptions } from "@/modules/access/ui";
 import { staffLabel } from "@/shared/domain/staff";
 import { dealSourceLabels, dealSources } from "@/shared/domain/dealSources";
@@ -24,7 +24,7 @@ import { lostReasons } from "@/modules/sales/domain/meta";
 import { storeTimeZone, zonedDay } from "@/shared/domain/time";
 import { DEAL_DATE_FIELDS, DEAL_FILTER_KEYS, dealAdvancedFilters, dealDatePresets } from "@/modules/reporting/ui/dealFilters";
 import { MANAGER_LISTS, MANAGER_LIST_KEYS, managerListKey } from "@/modules/reporting/ui/managerLists";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { crmRead } from "@/web/crm";
 
 export const metadata = { title: "Сделки" };
 /** Сделок на странице списка; доска показывает до 1000 (закрытые — за 30 дней). */

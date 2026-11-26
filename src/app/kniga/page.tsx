@@ -7,7 +7,7 @@ import { FilmFrame, Flourish } from "@/components/landing/FilmFrame";
 import { CoverPreview } from "@/components/cover/CoverPreview";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
 import { JsonLd } from "@/components/seo/JsonLd";
-import { getCurrentUser } from "@/server/auth";
+import { getCurrentUser } from "@/web/auth";
 import { registrationOpen, site } from "@/config/site";
 import { getLocale, getMessages } from "@/i18n/server";
 import { alternates } from "@/i18n/seo";

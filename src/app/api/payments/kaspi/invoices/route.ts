@@ -1,6 +1,6 @@
-import { v1SiteProxy } from "@/server/v1-proxy";
+import { v1SiteProxy } from "@/web/proxy";
 
 export function POST(req: Request, _ctx?: unknown) {
   void _ctx;
-  return v1SiteProxy("orders", req, async () => (await import("@/server/site-handlers/payments/kaspi-invoices")).POST(req, undefined as never));
+  return v1SiteProxy(req);
 }

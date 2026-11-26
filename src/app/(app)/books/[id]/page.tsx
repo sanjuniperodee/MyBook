@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { Link } from "@/i18n/client";
 import { OpenBookLink } from "@/components/motion/OpenBookLink";
 import { Box, ChevronRight, CircleAlert, Mail, MessageCircle, PenLine, TriangleAlert } from "lucide-react";
-import { requireUser } from "@/server/auth";
-import { getAccessibleBook } from "@/server/books";
+import { requireUser } from "@/web/auth";
+import { getAccessibleBook } from "@/web/books";
 import { Book3D } from "@/components/cover/Book3D";
 import { Morph } from "@/components/motion/PageTransition";
 import { coverPhotoIds } from "@/lib/book/covers";
@@ -16,7 +16,7 @@ import { BookMenu } from "./BookMenu";
 import { DeadlineBanner } from "@/components/DeadlineBanner";
 import { AgreementCard } from "@/components/AgreementCard";
 import { StepNode } from "./StepNode";
-import { bookHub } from "@/server/book-hub";
+import { bookHub } from "@/web/book-hub";
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getMessages()).books.hub.meta };

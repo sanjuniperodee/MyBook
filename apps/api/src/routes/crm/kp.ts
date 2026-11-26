@@ -3,7 +3,7 @@
  * и персональная скидка с одноразовым промокодом. Те же права и действие sendOfferAction, что в чате CRM.
  */
 import { apiStaff, HttpError } from "@/server/api";
-import { sendOfferAction } from "@/app/admin/chats/actions";
+import { sendOfferAction } from "@/server/crm-actions/chats";
 import { can, canWork } from "@/server/access";
 import { container } from "@/server/container";
 import { DISCOUNT_HOURS } from "@/modules/marketing/domain/offers";

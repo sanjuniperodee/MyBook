@@ -8,8 +8,8 @@ vi.mock("@/server/container", async () => (await import("./doubles/web")).contai
 vi.mock("@/shared/infrastructure/database", () => ({ rootDb: {}, executor: () => ({}) }));
 vi.mock("@/modules/workspace", () => ({ notify: async () => {}, notifyMentions: async () => {}, readChatNotifications: async () => false, staffNotifier: { notifyAllWith: async () => {} }, listFields: async () => [], readFieldValues: () => ({}) }));
 
-const { sendMessageAction, assignConversationAction, markReadAction } = await import("@/app/admin/chats/actions");
-const { acceptDealAction, assignDealAction, moveDealAction, rejectDealAction } = await import("@/app/admin/deals/actions");
+const { sendMessageAction, assignConversationAction, markReadAction } = await import("@/server/crm-actions/chats");
+const { acceptDealAction, assignDealAction, moveDealAction, rejectDealAction } = await import("@/server/crm-actions/deals");
 
 const CONV = "0d0d0d0d-0000-4000-8000-0000000000c1";
 const DEAL = "0d0d0d0d-0000-4000-8000-0000000000d1";

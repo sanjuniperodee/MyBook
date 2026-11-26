@@ -1,10 +1,10 @@
 import { PageHeader } from "@/components/admin/PageHeader";
 import { notFound } from "next/navigation";
-import { canAssignOthers, canSeeAssigned, contactView, requireStaff } from "@/server/access";
-import { uuid } from "@/server/input";
+import { canAssignOthers, canSeeAssigned, contactView, requireStaff } from "@/web/access";
+import { uuid } from "@/web/input";
 import { staffOptions } from "@/modules/access/ui";
 import { NewDealForm } from "./NewDealForm";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { crmRead } from "@/web/crm";
 
 export const metadata = { title: "Новая сделка" };
 

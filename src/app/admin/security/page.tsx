@@ -3,13 +3,13 @@ import { PageHeader } from "@/components/admin/PageHeader";
 import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/lib/class-names";
-import { can, requireStaffShell } from "@/server/access";
+import { can, requireStaffShell } from "@/web/access";
 import { staffLabel } from "@/shared/domain/staff";
 import { formatDate } from "@/lib/dates";
 import { SettingsFrame } from "../settings/frame";
 import { Section } from "../settings/ui";
 import { IpAllowlistForm, RecoveryNote, ResetStaffButton, TwoFactorCard } from "./SecurityControls";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { crmRead } from "@/web/crm";
 
 export const metadata = { title: "Безопасность" };
 

@@ -18,6 +18,12 @@ const port = Number(process.env.API_PORT) || 3044;
 const host = process.env.API_HOST || "127.0.0.1";
 
 await configureSharpMemory();
+// Миграции БД — здесь (ADR 0013: веб без БД их больше не запускает), до приёма запросов; SKIP_AUTO_MIGRATE=1 — без них.
+if (process.env.SKIP_AUTO_MIGRATE !== "1") {
+  const { runMigrations } = await import("@/shared/infrastructure/db/migrate");
+  await runMigrations();
+  console.log("[api] database migrations applied");
+}
 startPerfSampler();
 const server = serve(createApp(handlers, siteAuthenticator, handleSiteRoute), { port, host });
 server.on("listening", () => console.log(`[api] v1 на ${host}:${port} (pid ${process.pid})`));

@@ -2,7 +2,7 @@
  * CRM — счета сделки в API v1 (перенос /api/mobile/invoices*): те же действия, что у формы счёта в CRM на сайте (права,
  * проверки, лимит скидки, защита от двойного нажатия). Отказ действия — 400 refused с текстом для сотрудника.
  */
-import { cancelInvoiceAction, invoiceFormInfoAction, issueInvoiceAction, resendInvoiceAction } from "@/app/admin/invoices/actions";
+import { cancelInvoiceAction, invoiceFormInfoAction, issueInvoiceAction, resendInvoiceAction } from "@/server/crm-actions/invoices";
 import { apiStaff } from "@/server/api";
 import type { Handlers } from "../app";
 import { refused } from "./crm/common";

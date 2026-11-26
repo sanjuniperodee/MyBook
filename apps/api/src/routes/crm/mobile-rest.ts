@@ -14,10 +14,10 @@ import { autoShiftOnVisit } from "@/server/shift";
 import { staffLabel } from "@/shared/domain/staff";
 import { taskJson } from "@/server/crm-lists/work";
 import { loadTaskDetail } from "@/server/task-detail";
-import { callAction, markCallHandledAction, openChatAction, setShiftAction } from "@/app/admin/crm-actions";
-import { deleteMyTemplateAction, duplicateTemplateAction, reorderMyTemplatesAction, saveMyTemplateAction } from "@/app/admin/templates/actions";
-import { aiTemplateDraftAction } from "@/app/admin/ai-actions";
-import { chatProductsAction, orderItemsAction, sendCatalogLinkAction, sendProductAction } from "@/app/admin/catalog/actions";
+import { callAction, markCallHandledAction, openChatAction, setShiftAction } from "@/server/crm-actions/crm";
+import { deleteMyTemplateAction, duplicateTemplateAction, reorderMyTemplatesAction, saveMyTemplateAction } from "@/server/crm-actions/templates";
+import { aiTemplateDraftAction } from "@/server/crm-actions/ai";
+import { chatProductsAction, orderItemsAction, sendCatalogLinkAction, sendProductAction } from "@/server/crm-actions/catalog";
 import {
   assignConversationAction,
   createDealFromChatAction,
@@ -32,9 +32,9 @@ import {
   sendMessageAction,
   setConversationStatusAction,
   transcribeMessageAction,
-} from "@/app/admin/chats/actions";
-import { acceptDealAction, assignDealAction, createDealAction, moveDealAction, rejectDealAction } from "@/app/admin/deals/actions";
-import { addNoteAction, completeTaskAction, createTaskAction, deleteTaskAction, moveOrderAction, snoozeTaskAction, toggleTaskAction, updateTaskAction } from "@/app/admin/actions";
+} from "@/server/crm-actions/chats";
+import { acceptDealAction, assignDealAction, createDealAction, moveDealAction, rejectDealAction } from "@/server/crm-actions/deals";
+import { addNoteAction, completeTaskAction, createTaskAction, deleteTaskAction, moveOrderAction, snoozeTaskAction, toggleTaskAction, updateTaskAction } from "@/server/crm-actions/admin";
 import type { Handlers } from "../../app";
 import { refused } from "./common";
 

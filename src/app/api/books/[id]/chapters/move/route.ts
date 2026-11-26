@@ -1,7 +1,5 @@
-import { v1SiteProxy } from "@/server/v1-proxy";
+import { v1SiteProxy } from "@/web/proxy";
 
-type Ctx = { params: Promise<{ id: string }> };
-
-export function PUT(req: Request, ctx: Ctx) {
-  return v1SiteProxy("book", req, async () => (await import("@/server/site-handlers/books/chapters-move")).PUT(req, ctx));
+export function PUT(req: Request) {
+  return v1SiteProxy(req);
 }

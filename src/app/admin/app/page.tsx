@@ -1,9 +1,8 @@
 import { Apple, CheckCircle2, Download, Smartphone } from "lucide-react";
 import { env } from "@/config/env";
 import { PageHeader } from "@/components/admin/PageHeader";
-import { requireStaff } from "@/server/access";
-import { hasMobileApk } from "@/server/mobile-apk";
-import { iosStatus, iosToken } from "@/server/ios-app";
+import { requireStaff } from "@/web/access";
+import { crmRead } from "@/web/crm";
 import { IosEnroll } from "./IosEnroll";
 
 export const metadata = { title: "Приложение для телефона" };
@@ -20,11 +19,11 @@ const NOTICE: Record<string, { tone: "ok" | "warn"; text: string }> = {
  * и установка по ссылке, когда телефон вошёл в сборку (src/server/ios-app.ts, scripts/ios-adhoc.sh в репозитории mybook-mobile).
  */
 export default async function AppPage({ searchParams }: { searchParams: Promise<{ ios?: string }> }) {
-  const staff = await requireStaff();
-  const [{ ios }, apk, status] = await Promise.all([searchParams, hasMobileApk(), iosStatus(staff.user.id)]);
+  await requireStaff();
+  const [{ ios }, { apk, status, installToken }] = await Promise.all([searchParams, crmRead("pages.app", {})]);
   const notice = ios ? NOTICE[ios] : undefined;
   const ready = status.devices.some((d) => d.ready);
-  const manifest = `${env.appUrl}/api/ios-app/manifest?t=${encodeURIComponent(iosToken(staff.user.id, "install", 3600))}`;
+  const manifest = `${env.appUrl}/api/ios-app/manifest?t=${encodeURIComponent(installToken)}`;
   const install = `itms-services://?action=download-manifest&url=${encodeURIComponent(manifest)}`;
   return (
     <div className="flex max-w-3xl flex-col gap-5">

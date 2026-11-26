@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { z } from "zod";
 import { Download, ScrollText } from "lucide-react";
-import { can, canWork, contactView, requireStaff } from "@/server/access";
+import { can, canWork, contactView, requireStaff } from "@/web/access";
 import { PAY_FORM_KEY, PAY_FORM_OPTIONS, parseFeeRates } from "@/shared/domain/expenses";
 import { PayFormSelect } from "./PayFormSelect";
 import { storeTimeZone } from "@/shared/domain/time";
@@ -15,7 +15,7 @@ import { Panel } from "@/components/ui/Panel";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { financePeriod } from "@/modules/reporting/ui/finance-screen";
 import { salesRegisterScreen } from "@/modules/reporting/ui/lead-stats";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { crmRead } from "@/web/crm";
 
 export const metadata = { title: "Реестр продаж" };
 

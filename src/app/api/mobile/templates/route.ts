@@ -1,15 +1,11 @@
-import { v1SiteProxy } from "@/server/v1-proxy";
+import { v1SiteProxy } from "@/web/proxy";
 
 export const dynamic = "force-dynamic";
 
-type Handler = (req: Request) => Response | Promise<Response>;
-
-const handler = async (method: "GET" | "POST") => (await import("@/server/site-handlers/mobile/templates"))[method] as Handler;
-
 export function GET(req: Request) {
-  return v1SiteProxy("crm", req, async () => (await handler("GET"))(req));
+  return v1SiteProxy(req);
 }
 
 export function POST(req: Request) {
-  return v1SiteProxy("crm", req, async () => (await handler("POST"))(req));
+  return v1SiteProxy(req);
 }

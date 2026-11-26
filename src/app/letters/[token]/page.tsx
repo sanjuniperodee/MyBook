@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ApiClientError } from "@mybook/contracts";
-import { localLetterInvite } from "@/server/v1-local-bridge-public";
-import { v1WebRead } from "@/server/v1-web-client";
+import { v1WebRead } from "@/web/api";
 import { bookKind } from "@/lib/content/kinds";
 import { inviteRecipient } from "@/lib/content/letter-invite";
 import { PlainSheet, PlainShell } from "@/components/landing/PlainShell";
@@ -22,7 +21,6 @@ export default async function LetterPage({ params }: { params: Promise<{ token: 
     name: "public.letterInvite",
     section: "public",
     sessionCookie: null,
-    local: () => localLetterInvite(token),
     viaApi: async (api) => {
       try {
         return await api.webLetterInvite({ token });

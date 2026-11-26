@@ -8,9 +8,9 @@ import { can, canAssignOthers } from "@/server/access";
 import { listFields } from "@/modules/workspace";
 import { staffOptions } from "@/modules/access/ui";
 import { channelOf, channels, isManualChannel, manualChannels, toAttribution } from "@/shared/domain/channels";
-import { remindClientAction, updateClientTagsAction } from "@/app/admin/actions";
-import { issueClientAccessAction } from "@/app/admin/clients/new/actions";
-import { setClientChannelAction, setClientFieldsAction, setClientLocaleAction, setClientManagerAction, setClientNoMarketingAction, setClientPhonesAction } from "@/app/admin/crm-actions";
+import { remindClientAction, updateClientTagsAction } from "@/server/crm-actions/admin";
+import { issueClientAccessAction } from "@/server/crm-actions/clients-new";
+import { setClientChannelAction, setClientFieldsAction, setClientLocaleAction, setClientManagerAction, setClientNoMarketingAction, setClientPhonesAction } from "@/server/crm-actions/crm";
 import type { Handlers } from "../../app";
 import { fieldsOut, fieldsToForm, refused } from "./common";
 

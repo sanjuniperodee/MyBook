@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ShieldAlert } from "lucide-react";
-import { getCurrentUser } from "@/server/auth";
-import { trustedClientIp } from "@/server/rateLimit";
+import { getCurrentUser } from "@/web/auth";
+import { clientIp } from "@/web/request";
 import { logoutAction } from "@/app/(auth)/actions";
 import { THEME_SCRIPT, ThemeSync } from "@/components/admin/Theme";
 
@@ -12,7 +12,7 @@ export const metadata = { title: "Нет доступа к CRM", robots: { index
 export default async function AdminDenied() {
   const user = await getCurrentUser();
   if (!user || user.role !== "admin") redirect("/");
-  const ip = await trustedClientIp();
+  const ip = await clientIp();
   return (
     <main className="flex min-h-dvh items-center justify-center bg-canvas px-4 py-10">
       <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />

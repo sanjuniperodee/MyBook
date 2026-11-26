@@ -7,10 +7,9 @@ import { Flourish } from "@/components/landing/FilmFrame";
 import { LandingHeader } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
 import { GiftCardVisual } from "@/components/GiftCardVisual";
-import { getCurrentUser } from "@/server/auth";
+import { getCurrentUser } from "@/web/auth";
 import { ApiClientError } from "@mybook/contracts";
-import { localGiftStatus } from "@/server/v1-local-bridge-public";
-import { v1WebRead } from "@/server/v1-web-client";
+import { v1WebRead } from "@/web/api";
 import { formatPrice, site } from "@/config/site";
 import { parseDay } from "@/lib/occasions";
 import { getLocale, getMessages } from "@/i18n/server";
@@ -31,7 +30,6 @@ export default async function GiftStatusPage({ params }: { params: Promise<{ tok
     name: "public.giftStatus",
     section: "public",
     locale,
-    local: () => localGiftStatus(token, m),
     viaApi: async (api) => {
       try {
         return await api.webGiftStatus({ token, locale });

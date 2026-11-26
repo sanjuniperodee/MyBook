@@ -1,8 +1,8 @@
 import { PageHeader } from "@/components/admin/PageHeader";
-import { requireStaff } from "@/server/access";
+import { requireStaff } from "@/web/access";
 import { staffLabel } from "@/shared/domain/staff";
 import { TemplatesManager } from "./TemplatesManager";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { crmRead } from "@/web/crm";
 
 export const metadata = { title: "Шаблоны ответов" };
 

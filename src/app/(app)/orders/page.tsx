@@ -4,9 +4,8 @@ import { ChevronRight, Package } from "lucide-react";
 import { Link } from "@/i18n/client";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Badge } from "@/components/ui/Badge";
-import { requireUser } from "@/server/auth";
-import { localOrdersListDto } from "@/server/v1-local-bridge-orders";
-import { v1WebRead } from "@/server/v1-web-client";
+import { requireUser } from "@/web/auth";
+import { v1WebRead } from "@/web/api";
 import { formatPrice } from "@/config/site";
 import { getLocale, getMessages } from "@/i18n/server";
 import { planName } from "@/i18n/labels";
@@ -29,13 +28,12 @@ export async function generateMetadata(): Promise<Metadata> {
  * под ней — что с заказом сейчас. Заказ, ждущий оплаты, получает главную кнопку «Перейти к оплате».
  */
 export default async function OrdersPage() {
-  const user = await requireUser("/orders");
+  await requireUser("/orders");
   const [locale, m] = await Promise.all([getLocale(), getMessages()]);
   const { orders: list, agreement, agreementBooks: books } = await v1WebRead({
     name: "orders.list",
     section: "orders",
     locale,
-    local: () => localOrdersListDto(user.id, locale),
     viaApi: (api) => api.webOrdersList({ locale }),
   });
   const t = m.orders.list;

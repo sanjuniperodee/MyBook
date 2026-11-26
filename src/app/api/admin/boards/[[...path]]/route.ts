@@ -1,9 +1,9 @@
-import { v1SiteProxy } from "@/server/v1-proxy";
+import { v1SiteProxy } from "@/web/proxy";
 
 export const dynamic = "force-dynamic";
 
 /** Доски задач CRM: доски, колонки, метки, правила, карточки, чек-листы, комментарии, вложения, календарь (server/boards-api.ts). */
-const handle = (req: Request) => v1SiteProxy("crm", req, async () => (await import("@/server/site-handlers/admin/boards")).GET(req));
+const handle = (req: Request) => v1SiteProxy(req);
 
 export const GET = handle;
 export const POST = handle;

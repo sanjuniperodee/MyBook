@@ -13,7 +13,7 @@ import { staffOptions } from "@/modules/access/ui";
 import { planLabels } from "@/modules/ordering/ui/labels";
 import { channels, manualChannels } from "@/shared/domain/channels";
 import { giftFields } from "@/components/admin/AgreementGiftsField";
-import { createClientAction } from "@/app/admin/clients/new/actions";
+import { createClientAction } from "@/server/crm-actions/clients-new";
 import { POST as receiptRoute } from "@/server/site-handlers/admin/deals-id-receipts";
 import type { Handlers } from "../../app";
 import { refused } from "./common";

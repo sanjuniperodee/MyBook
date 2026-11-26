@@ -1,7 +1,7 @@
 import { AppHeader } from "@/components/AppHeader";
 import { AppTabBar } from "@/components/AppNav";
 import type { Metadata } from "next";
-import { requireUser } from "@/server/auth";
+import { requireUser } from "@/web/auth";
 
 /** Личный кабинет: ни одна страница не должна попадать в выдачу. */
 export const metadata: Metadata = { robots: { index: false, follow: false } };

@@ -1,10 +1,5 @@
-import { v1SiteProxy } from "@/server/v1-proxy";
+import { v1SiteProxy } from "@/web/proxy";
 
-type Ctx = { params: Promise<{ id: string }> };
-type Handler = (req: Request, ctx: Ctx) => Response | Promise<Response>;
-
-const handler = async (method: "POST") => (await import("@/server/site-handlers/admin/calls-whatsapp-id"))[method] as Handler;
-
-export function POST(req: Request, ctx: Ctx) {
-  return v1SiteProxy("crm", req, async () => (await handler("POST"))(req, ctx));
+export function POST(req: Request) {
+  return v1SiteProxy(req);
 }

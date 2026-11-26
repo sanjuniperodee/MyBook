@@ -7,7 +7,7 @@ import { container } from "@/server/container";
 import { chatMessageText } from "@/modules/support";
 import { SUPPORT_KIND_LABELS, SUPPORT_STATUS_LABELS, SUPPORT_STATUSES, type SupportStatus } from "@/shared/domain/support";
 import { canOpenTicket, seesAllTickets } from "@/server/support-access";
-import { notifyTicketAction, updateTicketAction } from "@/app/admin/support/actions";
+import { notifyTicketAction, updateTicketAction } from "@/server/crm-actions/support";
 import type { Handlers } from "../../app";
 import { refused } from "./common";
 

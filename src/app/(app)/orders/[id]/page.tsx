@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { ApiClientError } from "@mybook/contracts";
 import { Link } from "@/i18n/client";
 import { TrackOnce } from "@/components/analytics/TrackOnce";
-import { requireUser } from "@/server/auth";
+import { requireUser } from "@/web/auth";
 import { formatPrice } from "@/config/site";
 import { getLocale, getMessages } from "@/i18n/server";
 import { Badge } from "@/components/ui/Badge";
@@ -14,9 +14,8 @@ import { coverNames } from "@/lib/book/cover-names";
 import { coverPhotoIds } from "@/lib/book/covers";
 import { photoUrls } from "@/lib/urls";
 import { formatDate } from "@/lib/dates";
-import { pageId } from "@/server/input";
-import { localOrderDetailDto } from "@/server/v1-local-bridge-orders";
-import { v1WebRead } from "@/server/v1-web-client";
+import { pageId } from "@/web/input";
+import { v1WebRead } from "@/web/api";
 import { PaymentBlock } from "./PaymentBlock";
 import { BookAside, InviteCard, OrderDetails, OrderFiles, OrderHelp, OrderStatusSheet, ReviewCard, UpgradeCard } from "./sections";
 import { orderSteps } from "../StatusTrack";
@@ -35,14 +34,13 @@ export async function generateMetadata(): Promise<Metadata> {
  */
 export default async function OrderPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const user = await requireUser(`/orders/${id}`);
+  await requireUser(`/orders/${id}`);
   pageId(id);
   const [locale, m] = await Promise.all([getLocale(), getMessages()]);
   const detail = await v1WebRead({
     name: "orders.detail",
     section: "orders",
     locale,
-    local: () => localOrderDetailDto(id, user, locale, m),
     viaApi: async (api) => {
       try {
         return await api.webOrderDetail({ orderId: id, locale });

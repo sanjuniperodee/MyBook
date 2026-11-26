@@ -7,7 +7,7 @@ import { container } from "@/server/container";
 import { getSetting } from "@/modules/workspace";
 import { parseBotConfig } from "@/modules/messaging/domain/botConfig";
 import { parseWorkHours } from "@/shared/domain/schedule";
-import { saveBotAction, saveCrmSettingsAction } from "@/app/admin/settings/crm/actions";
+import { saveBotAction, saveCrmSettingsAction } from "@/server/crm-actions/settings-crm";
 import type { Handlers } from "../../app";
 import { refused } from "./common";
 

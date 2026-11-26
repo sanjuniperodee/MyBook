@@ -1,3 +1,4 @@
+import { routeWebToApi } from "./doubles/api";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { BookRow, PhotoRow } from "@/modules/authoring/infrastructure/queries";
 import type { User } from "@/server/auth";
@@ -9,8 +10,8 @@ import { assertStaff, assertStaffShell, ForbiddenError, requireStaff, requireSta
 import { api, apiBook, apiViewer } from "@/server/api";
 import { getAccessibleBook, viewerOf } from "@/server/books";
 import { trustedClientIp } from "@/server/rateLimit";
-import { PATCH as patchQuestion } from "@/app/api/books/[id]/questions/[qid]/route";
-import { GET as getPhoto } from "@/app/api/photos/[id]/route";
+import { PATCH as patchQuestion } from "@/server/site-handlers/books/question-item";
+import { GET as getPhoto } from "@/server/site-handlers/media/photo";
 import { loginAction } from "@/app/(auth)/actions";
 import { anna, client, egor, fake, kira, NotFound, owner, person, Redirect, request, resetContainer, resetRequest, security, signIn, vera, withTwoFactor } from "./doubles/web";
 
@@ -26,6 +27,11 @@ vi.mock("@/shared/infrastructure/database", () => ({
     select: () => ({ from: () => ({ innerJoin: () => ({ where: async () => (db.photo ? [db.photo] : []) }), where: async () => (db.photo ? [{ bookId: db.photo.photo.bookId }] : []) }) }),
   },
 }));
+
+// ADR 0013: веб ходит только в API v1 — в тестах его запросы обслуживает apps/api в этом же процессе.
+beforeEach(async () => {
+  await routeWebToApi();
+});
 
 // Характеристические тесты (фаза 3, S6): права сотрудников (src/server/access.ts) и доступ к книгам (src/server/books.ts, apiBook).
 

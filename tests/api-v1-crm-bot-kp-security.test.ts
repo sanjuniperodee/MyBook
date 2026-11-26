@@ -172,7 +172,7 @@ const sendOfferActionMock = vi.fn(async (id: string, req: Record<string, unknown
   if (req.kind === "discount") return { ok: true, message: "Отправлено, промокод GIFT15" };
   return { ok: true, message: "Отправлено" };
 });
-vi.mock("@/app/admin/chats/actions", () => ({
+vi.mock("@/server/crm-actions/chats", () => ({
   startBotAction: vi.fn(),
   stopBotAction: vi.fn(),
   botTraceAction: () => botTraceActionMock(),
@@ -184,7 +184,7 @@ const saveRoleActionMock = vi.fn(async (_state: unknown, form: FormData) => {
   return { ok: "Роль сохранена" };
 });
 const deleteRoleActionMock = vi.fn(async () => {});
-vi.mock("@/app/admin/team/actions", () => ({
+vi.mock("@/server/crm-actions/team", () => ({
   createStaffAction: vi.fn(),
   resetStaffPasswordAction: vi.fn(),
   revokeStaffAction: vi.fn(),
@@ -211,7 +211,7 @@ const saveSecurityActionMock = vi.fn(async (_s: unknown, form: FormData) => {
   return { ok: "Сохранено" };
 });
 const resetStaffTwoFactorActionMock = vi.fn(async () => ({ ok: true as const }));
-vi.mock("@/app/admin/security/actions", () => ({
+vi.mock("@/server/crm-actions/security", () => ({
   confirmTwoFactorAction: (c: string) => confirmTwoFactorActionMock(c),
   newBackupCodesAction: (c: string) => newBackupCodesActionMock(c),
   disableTwoFactorAction: (c: string) => disableTwoFactorActionMock(c),

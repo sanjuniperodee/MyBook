@@ -11,8 +11,8 @@ import { parseDay } from "@/lib/occasions";
 import { messagesFor } from "@/i18n/messages";
 
 import { GiftActions } from "./GiftActions";
-import { requireStaff } from "@/server/access";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { requireStaff } from "@/web/access";
+import { crmRead } from "@/web/crm";
 
 const ru = messagesFor("ru").common;
 

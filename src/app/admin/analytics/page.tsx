@@ -1,9 +1,10 @@
-import { loadSalesAnalytics, mins, num, pct } from "@/server/sales-analytics";
+import { change, mins, num, pct } from "@/lib/crm/numbers";
+import { crmRead } from "@/web/crm";
 import { z } from "zod";
 import { MoneyFlow } from "@/components/admin/MoneyFlow";
 import { PeriodBar, periodQuery } from "@/components/admin/PeriodBar";
 import Link from "next/link";
-import { requireStaff } from "@/server/access";
+import { requireStaff } from "@/web/access";
 import { formatPrice } from "@/config/site";
 import { BarList, StatRow, StatTile } from "@/components/admin/charts";
 import { SectionHead } from "@/components/admin/SectionHead";
@@ -25,10 +26,10 @@ export const metadata = { title: "Аналитика продаж" };
 const query = z.object({ p: z.string().max(10).optional(), from: z.string().max(10).optional(), to: z.string().max(10).optional(), pl: z.string().max(40).optional() }).catch({});
 
 export default async function AnalyticsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
-  const staff = await requireStaff("analytics.view");
+  await requireStaff("analytics.view");
   const q = query.parse(await searchParams);
-  const a = await loadSalesAnalytics(staff, q);
-  const { pipelines, pipeline, period, profit, flow, showProfit, resp, sla, shift, workMins, share, t, p, change, channelRows, c, team, inWork, planPct, base, funnel, maxRevenue, maxTeamRevenue, lost, awaiting } = a;
+  const a = await crmRead("pages.analytics", q);
+  const { pipelines, pipeline, period, profit, flow, showProfit, resp, sla, shift, workMins, share, t, p, channelRows, c, team, inWork, planPct, base, funnel, maxRevenue, maxTeamRevenue, lost, awaiting } = a;
   const pq = periodQuery(period);
   const pipeLink = (x: { id: string }) => `/admin/analytics?${periodQuery(period, { pl: x.id })}`;
 

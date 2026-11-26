@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { Columns3 } from "lucide-react";
 import { staffOptions } from "@/modules/access/ui";
-import { can, requireStaff } from "@/server/access";
+import { can, requireStaff } from "@/web/access";
 import { GoogleCalendar } from "./GoogleCalendar";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Panel } from "@/components/ui/Panel";
 import { CalendarPage } from "./CalendarPage";
 import { IcalFeed } from "./IcalFeed";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { crmRead } from "@/web/crm";
 
 export const metadata = { title: "Календарь задач" };
 

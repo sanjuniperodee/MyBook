@@ -13,7 +13,9 @@ import { rateLimit } from "@/server/rateLimit";
  * Общие значения — страница «Лимиты AI»; там же клиенту можно выдать свои лимиты (больше, меньше или 0 — закрыть).
  */
 
-export const CLIENT_AI_TOOLS = ["writer", "proofread", "help"] as const;
+import { CLIENT_AI_TOOLS } from "@/shared/domain/aiTools";
+
+export { CLIENT_AI_TOOLS };
 export type ClientAiTool = (typeof CLIENT_AI_TOOLS)[number];
 
 /** Границы значений в формах. */

@@ -7,7 +7,7 @@ import { PhotoPlate } from "@/components/landing/PageIntro";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
 import { Flourish } from "@/components/landing/FilmFrame";
 import { JsonLd } from "@/components/seo/JsonLd";
-import { getCurrentUser } from "@/server/auth";
+import { getCurrentUser } from "@/web/auth";
 import { site } from "@/config/site";
 import { getLocale, getMessages } from "@/i18n/server";
 import { alternates } from "@/i18n/seo";

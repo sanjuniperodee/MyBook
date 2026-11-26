@@ -21,7 +21,7 @@ const deleteDealAction = vi.fn(async (id: string) => {
   throw Object.assign(new Error("NEXT_REDIRECT"), { digest: "NEXT_REDIRECT;replace;/admin/deals;307;" });
 });
 const mergeDealAction = vi.fn(async (t: string, src: string) => (void t, void src, { error: "Слить можно только открытую сделку" }));
-vi.mock("@/app/admin/deals/actions", () => ({
+vi.mock("@/server/crm-actions/deals", () => ({
   updateDealAction: (s: unknown, f: FormData) => updateDealAction(s, f),
   setDealAgreedPlanAction: vi.fn(),
   setDealAgreedGiftsAction: vi.fn(),
@@ -40,11 +40,11 @@ const payRoute = vi.fn(async (req: Request, ctx: { params: Promise<{ id: string 
 vi.mock("@/server/site-handlers/admin/orders-id-payments", () => ({ POST: (req: Request, ctx: { params: Promise<{ id: string }> }) => payRoute(req, ctx) }));
 vi.mock("@/server/site-handlers/admin/orders-id-refunds", () => ({ POST: vi.fn() }));
 const createClientAction = vi.fn<(state: unknown, form: FormData) => Promise<Record<string, unknown>>>(async () => ({ error: "Клиент с таким телефоном или почтой уже есть" }));
-vi.mock("@/app/admin/clients/new/actions", () => ({ createClientAction: (s: unknown, f: FormData) => createClientAction(s, f) }));
+vi.mock("@/server/crm-actions/clients-new", () => ({ createClientAction: (s: unknown, f: FormData) => createClientAction(s, f) }));
 const updateOrderAction = vi.fn<(state: unknown, form: FormData) => Promise<{ ok?: string; error?: string }>>(async () => ({ ok: "Сохранено" }));
 const saveAdminNoteAction = vi.fn(async (state: unknown, form: FormData) => (void state, void form, { ok: "Заметка сохранена" }));
 const updateOrderDetailsAction = vi.fn<(state: unknown, form: FormData) => Promise<{ ok?: string; error?: string }>>(async () => ({ error: "Проверьте e-mail" }));
-vi.mock("@/app/admin/actions", async (orig) => ({
+vi.mock("@/server/crm-actions/admin", async (orig) => ({
   ...(await orig<object>()),
   updateOrderAction: (s: unknown, f: FormData) => updateOrderAction(s, f),
   updateOrderDetailsAction: (s: unknown, f: FormData) => updateOrderDetailsAction(s, f),
@@ -52,7 +52,7 @@ vi.mock("@/app/admin/actions", async (orig) => ({
 }));
 
 const sendOfferAction = vi.fn(async (id: string, req: Record<string, unknown>) => (void id, void req, { ok: true, message: "Отправлено, промокод ABC123" }));
-vi.mock("@/app/admin/chats/actions", () => ({
+vi.mock("@/server/crm-actions/chats", () => ({
   startBotAction: vi.fn(),
   stopBotAction: vi.fn(),
   sendOfferAction: (id: string, r: Record<string, unknown>) => sendOfferAction(id, r),

@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { Lock, Plus } from "lucide-react";
-import { requireStaff } from "@/server/access";
+import { requireStaff } from "@/web/access";
 import { allPermissions, type Permission } from "@/shared/domain/permissions";
 import { Intro } from "@/components/admin/Intro";
 import { cn } from "@/lib/class-names";
 import { RoleEditor } from "./RoleEditor";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { crmRead } from "@/web/crm";
 
 export const metadata = { title: "Роли и права" };
 

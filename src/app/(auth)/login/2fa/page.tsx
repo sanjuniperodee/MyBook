@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Link } from "@/i18n/client";
 import { getMessages, lredirect } from "@/i18n/server";
-import { getCurrentUser, hasTwoFactorTicket, safeNextPath } from "@/server/auth";
+import { getCurrentUser, hasTwoFactorTicket, safeNextPath } from "@/web/auth";
 import { AuthHead } from "../../AuthHead";
 import { TwoFactorForm } from "./TwoFactorForm";
 

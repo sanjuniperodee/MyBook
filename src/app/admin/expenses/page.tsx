@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { z } from "zod";
 import { Download, ReceiptText } from "lucide-react";
-import { can, requireStaff } from "@/server/access";
+import { can, requireStaff } from "@/web/access";
 import { storeTimeZone } from "@/shared/domain/time";
 import { channels } from "@/shared/domain/channels";
 import { formatPrice } from "@/config/site";
@@ -15,7 +15,7 @@ import { financePeriod } from "@/modules/reporting/ui/finance-screen";
 import { expensesScreen } from "@/modules/reporting/ui/profit-screen";
 import { expenseGroupKeys, expenseGroupOf, expenseGroups } from "@/shared/domain/expenses";
 import { AddExpenseButton, ExpenseRowActions, PasteExpensesButton } from "./ExpenseControls";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { crmRead } from "@/web/crm";
 
 export const metadata = { title: "Расходы" };
 

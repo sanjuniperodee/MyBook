@@ -20,7 +20,7 @@ vi.mock("@/server/container", () => ({
   }),
 }));
 
-const { setClientLocaleAction } = await import("@/app/admin/crm-actions");
+const { setClientLocaleAction } = await import("@/server/crm-actions/crm");
 const ID = "0b0b0b0b-0000-4000-8000-000000000001";
 
 beforeEach(() => {

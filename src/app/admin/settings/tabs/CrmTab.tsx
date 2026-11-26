@@ -13,7 +13,7 @@ import { Blocklist } from "../crm/Blocklist";
 import { TemplateEditor } from "../crm/TemplateEditor";
 import { HolidaysForm } from "../crm/HolidaysForm";
 import { DEFAULT_HOLIDAYS, HOLIDAYS_MAX, parseHolidays } from "@/modules/automation/domain";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { crmRead } from "@/web/crm";
 
 export async function CrmTab() {
   const { sla, templates, workHours, autoDealFrom, unsorted, maxDiscount, blocked, wEnabled, wChat, reassign, holidays, mergeDays, digest, chatReward, wHelp, helpStats, autoLetters, google } = await crmRead("settings.crm", {});

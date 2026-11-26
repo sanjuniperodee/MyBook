@@ -14,8 +14,8 @@ import { IdentityError } from "@/modules/identity";
 import { allPermissions, permissionGroups } from "@/shared/domain/permissions";
 import { staffLabel } from "@/shared/domain/staff";
 import { formatDate } from "@/lib/dates";
-import { deleteRoleAction, saveRoleAction } from "@/app/admin/team/actions";
-import { confirmTwoFactorAction, disableTwoFactorAction, newBackupCodesAction, resetStaffTwoFactorAction, saveSecurityAction } from "@/app/admin/security/actions";
+import { deleteRoleAction, saveRoleAction } from "@/server/crm-actions/team";
+import { confirmTwoFactorAction, disableTwoFactorAction, newBackupCodesAction, resetStaffTwoFactorAction, saveSecurityAction } from "@/server/crm-actions/security";
 import { refused } from "./common";
 import type { Handlers } from "../../app";
 

@@ -1,11 +1,9 @@
-import { v1SiteProxy } from "@/server/v1-proxy";
+import { v1SiteProxy } from "@/web/proxy";
 
-type Ctx = { params: Promise<{ id: string }> };
-
-export function GET(req: Request, ctx: Ctx) {
-  return v1SiteProxy("orders", req, async () => (await import("@/server/site-handlers/payments/kaspi-invoice-item")).GET(req, ctx));
+export function GET(req: Request) {
+  return v1SiteProxy(req);
 }
 
-export function DELETE(req: Request, ctx: Ctx) {
-  return v1SiteProxy("orders", req, async () => (await import("@/server/site-handlers/payments/kaspi-invoice-item")).DELETE(req, ctx));
+export function DELETE(req: Request) {
+  return v1SiteProxy(req);
 }

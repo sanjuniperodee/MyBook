@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { POST as sendFiles } from "@/app/api/admin/chats/[id]/files/route";
-import { editMessageAction, forwardMessageAction } from "@/app/admin/chats/actions";
-import { sendEmailAction } from "@/app/admin/crm-actions";
+import { POST as sendFiles } from "@/server/site-handlers/admin/chats-id-files";
+import { editMessageAction, forwardMessageAction } from "@/server/crm-actions/chats";
+import { sendEmailAction } from "@/server/crm-actions/crm";
 import { MessageActionError } from "@/modules/messaging";
 import { fake, lena, resetContainer, resetRequest, signIn } from "./doubles/web";
 

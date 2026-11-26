@@ -4,15 +4,14 @@ import { ApiClientError } from "@mybook/contracts";
 import { z } from "zod";
 import { PAY_TOKEN } from "@/shared/domain/orders";
 import { getLocale, getMessages, lredirect } from "@/i18n/server";
-import { localPayClaim } from "@/server/v1-local-bridge-orders";
-import { v1WebAction } from "@/server/v1-web-client";
+import { v1WebAction } from "@/web/api";
 
 /**
  * Клиент сообщил, что оплатил счёт из чата переводом: ответственному — проверить поступление (подписчики события
  * ordering.deal_invoice_claimed). Кнопку жмут по ссылке без входа: лимит не даёт перебирать токены.
  */
 export async function claimDealInvoicePaymentAction(rawToken: string): Promise<{ error?: string } | void> {
-  const [locale, m] = await Promise.all([getLocale(), getMessages()]);
+  const [locale] = await Promise.all([getLocale(), getMessages()]);
   const token = z.string().regex(PAY_TOKEN).safeParse(rawToken);
   if (!token.success) return; // как и для неизвестного токена
   const outcome = await v1WebAction({
@@ -30,11 +29,6 @@ export async function claimDealInvoicePaymentAction(rawToken: string): Promise<{
       }
     },
     // Лимит — там, где выполняется действие: здесь (сервер с БД) или в обработчике API v1 (webPayClaim).
-    local: async () => {
-      const { rateLimit, trustedClientIp } = await import("@/server/rateLimit");
-      if (!(await rateLimit(`pay-claim:${await trustedClientIp()}`, 20, 600_000))) return { ok: false as const, error: m.common.errors.tooMany };
-      return localPayClaim(token.data);
-    },
   });
   // Лимит — с текстом, как у сертификата: иначе кнопка «Я оплатил(а)» молча ничего не делает.
   if (!outcome.ok) return { error: outcome.error };

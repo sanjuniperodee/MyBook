@@ -10,7 +10,7 @@ import { messagesFor } from "@/i18n/messages";
 import { getTheme, getThemes } from "@/lib/content/themes";
 import { STALLED_DAYS } from "@/modules/reporting";
 import { bookLine, progressRatio, progressText } from "@/lib/content/crm-labels";
-import { remindManyAction } from "@/app/admin/actions";
+import { remindManyAction } from "@/server/crm-actions/admin";
 import type { Handlers } from "../../app";
 
 const FILTERS = [

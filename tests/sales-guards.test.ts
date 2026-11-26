@@ -18,8 +18,8 @@ vi.mock("@/modules/workspace", () => ({
   getSetting: async () => "",
 }));
 
-const { bulkDealsAction, createDealAction, linkDealClientAction, moveDealAction } = await import("@/app/admin/deals/actions");
-const { assignOrderAction, bulkStatusAction, createTaskAction, reviewOrderPaymentAction } = await import("@/app/admin/actions");
+const { bulkDealsAction, createDealAction, linkDealClientAction, moveDealAction } = await import("@/server/crm-actions/deals");
+const { assignOrderAction, bulkStatusAction, createTaskAction, reviewOrderPaymentAction } = await import("@/server/crm-actions/admin");
 const { restoreCard } = await import("@/app/admin/deals/DealsBoard");
 const { bulkStatusText } = await import("@/app/admin/orders/OrdersTable");
 const { keepVisible } = await import("@/components/admin/useRowSelection");

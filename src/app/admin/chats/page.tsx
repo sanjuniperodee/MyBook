@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Info, MessagesSquare, UserRound } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Badge } from "@/components/ui/Badge";
-import { can, canAssignOthers, canWork, contactView, requireStaff } from "@/server/access";
+import { can, canAssignOthers, canWork, contactView, requireStaff } from "@/web/access";
 import { staffOptions } from "@/modules/access/ui";
 import { staffLabel } from "@/shared/domain/staff";
 import { channelLabel } from "@/modules/messaging/domain/conversation";
@@ -20,7 +20,7 @@ import { PhoneHolder } from "./PhoneHolder";
 import { WhatsappCallButton } from "@/components/admin/WhatsappCall";
 import { CHAT_FILTERS, ChatAvatar, ChatHeader, ChatListPane, SideSection, type ChatFilter } from "@/components/admin/chat/Inbox";
 import { chatTitle, inboxItems, shortTime } from "./inbox-items";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { crmRead } from "@/web/crm";
 
 export const metadata = { title: "Чаты" };
 

@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import { Link } from "@/i18n/client";
-import { requireUser } from "@/server/auth";
-import { getAccessibleBook } from "@/server/books";
-import { localPreviewPageDtoForUser } from "@/server/v1-local-bridge-book";
-import { v1WebRead } from "@/server/v1-web-client";
+import { requireUser } from "@/web/auth";
+import { getAccessibleBook } from "@/web/books";
+import { v1WebRead } from "@/web/api";
 import type { FlipbookData } from "@/components/book3d/pages";
 import { PreviewTabs } from "./PreviewTabs";
 import { getMessages } from "@/i18n/server";
@@ -21,7 +20,6 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
     v1WebRead({
       name: "book.previewPage",
       section: "book",
-      local: () => localPreviewPageDtoForUser(book, user),
       viaApi: (api) => api.webBookPreviewPage({ bookId: book.id }),
     }),
   ]);

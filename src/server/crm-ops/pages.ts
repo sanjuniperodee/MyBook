@@ -236,4 +236,19 @@ export const reads = {
     const [admins, google] = await Promise.all([container().access.queries.allStaff(), container().boards.google.status(boardViewer(staff))]);
     return { admins, google };
   }),
+
+  "pages.analytics": op(["analytics.view"], z.object({ p: text(10), from: text(10), to: text(10), pl: text(40) }), async (q, staff) => (await import("@/server/sales-analytics")).loadSalesAnalytics(staff, q)),
+
+  // Приложение CRM на телефон: есть ли APK, телефоны в сборке iOS и ссылка установки (подпись токена — секрет бэкенда).
+  "pages.app": op([], none, async (_, staff) => {
+    const [{ hasMobileApk }, { iosStatus, iosToken }] = await Promise.all([import("@/server/mobile-apk"), import("@/server/ios-app")]);
+    const [apk, status] = await Promise.all([hasMobileApk(), iosStatus(staff.user.id)]);
+    return { apk, status, installToken: iosToken(staff.user.id, "install", 3600) };
+  }),
+
+  "pages.site": op(["settings.manage"], none, async () => {
+    const [{ hasMobileApk }, { maxPhotos }] = await Promise.all([import("@/server/mobile-apk"), import("@/server/photoLimit")]);
+    const [apkUploaded, photos] = await Promise.all([hasMobileApk(), maxPhotos()]);
+    return { apkUploaded, maxPhotos: photos };
+  }),
 };

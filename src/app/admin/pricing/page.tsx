@@ -1,7 +1,7 @@
 import { factoryCatalog, getAddons, getAiPacks, getDeliveryOptions, getFreeMediaMinutes, getMediaPacks, getPlans } from "@/config/site";
 import { PageHeader } from "@/components/admin/PageHeader";
-import { requireStaff } from "@/server/access";
-import { ensureCatalog } from "@/server/catalog";
+import { requireStaff } from "@/web/access";
+import { ensureCatalog } from "@/web/catalog";
 import { PricingForm } from "./PricingForm";
 
 /** Разделы страницы: якоря слева (на телефоне — лентой над формой). id листов — в PricingForm. */

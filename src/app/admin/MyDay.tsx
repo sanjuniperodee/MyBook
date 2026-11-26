@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { CircleCheck, PhoneMissed } from "lucide-react";
-import { can, canWork, contactView, type Staff } from "@/server/access";
+import { can, canWork, contactView, type Staff } from "@/web/access";
 import { formatPrice } from "@/config/site";
 import { formatPhone } from "@/shared/domain/phone";
 import { channelLabel } from "@/modules/messaging/domain/conversation";
@@ -13,7 +13,7 @@ import { responseWait, slaMinutes } from "@/modules/reporting/ui/response-wait";
 import { TaskRows, type TaskRow } from "./tasks/TaskRows";
 import { taskContact, taskRow, type Reacher } from "@/lib/crm/task-row";
 import { MANAGER_LISTS, MANAGER_LIST_KEYS } from "@/modules/reporting/ui/managerLists";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { crmRead } from "@/web/crm";
 
 /**
  * «Мой день» — рабочее место менеджера: что горит прямо сейчас. Данные одни, а блоков четыре, чтобы страница сама решала,

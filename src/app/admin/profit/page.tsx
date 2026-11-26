@@ -2,7 +2,7 @@ import Link from "next/link";
 import { MoneyFlow } from "@/components/admin/MoneyFlow";
 import { z } from "zod";
 import { Download } from "lucide-react";
-import { can, requireStaff } from "@/server/access";
+import { can, requireStaff } from "@/web/access";
 import { storeTimeZone } from "@/shared/domain/time";
 import { formatPrice } from "@/config/site";
 import { StatRow, StatTile } from "@/components/admin/charts";
@@ -15,7 +15,7 @@ import { Alert } from "@/components/ui/Alert";
 import { financePeriod } from "@/modules/reporting/ui/finance-screen";
 import { expenseGroupKeys, expenseGroups, PAY_FORM_KEY, PAY_FORM_OPTIONS } from "@/shared/domain/expenses";
 import { FeeSettingsButton } from "./FeeSettings";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { crmRead } from "@/web/crm";
 
 export const metadata = { title: "Прибыль" };
 

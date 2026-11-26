@@ -14,9 +14,9 @@ import { FilmFrame, Flourish, frameGhostBtn } from "@/components/landing/FilmFra
 import { adLoveCopy } from "@/lib/content/ad-love";
 import { applyGender } from "@/lib/content/gender";
 import { chapterTitle, countQuestions, getTheme } from "@/lib/content/themes";
-import { getCurrentUser } from "@/server/auth";
-import { siteReviews } from "@/server/reviews";
-import { siteChrome } from "@/server/site-chrome";
+import { getCurrentUser } from "@/web/auth";
+import { siteReviews } from "@/web/reviews";
+import { siteChrome } from "@/web/site-chrome";
 import { isValidSlug, whatsappLink } from "@/shared/domain/links";
 import { formatPrice, getVisiblePlans, productionDays, registrationOpen, site } from "@/config/site";
 import { getLocale, getMessages } from "@/i18n/server";

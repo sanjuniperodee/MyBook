@@ -1,12 +1,9 @@
 import "server-only";
-import { contactView, type Staff } from "@/server/access";
-import { staffLabel } from "@/shared/domain/staff";
+import { contactView, type Staff } from "@/web/access";
 import { formatPhone } from "@/shared/domain/phone";
 import { storeTimeZone } from "@/shared/domain/time";
-import { parseWorkHours } from "@/shared/domain/schedule";
-import { responseWait, slaMinutes } from "@/modules/reporting/ui/response-wait";
-import type { ChatFilter, ChatListItem } from "@/components/admin/chat/inbox-model";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import type { ChatFilter, ChatListItem } from "@/lib/crm/inbox-model";
+import { crmRead } from "@/web/crm";
 
 /** Время в строке списка: сегодня — часы, раньше — «5 нояб.» (по поясу магазина). */
 export const shortTime = (d: Date | null) => {
@@ -21,33 +18,7 @@ export const chatTitle = (staff: Staff, c: { contactName: string; chatId: string
   c.contactName ||
   (c.channel === "email" ? contactView(staff, { email: c.chatId }).email : c.channel === "site" ? (c.meta.phone ? contactView(staff, { phone: formatPhone(c.meta.phone) }).phone : "Посетитель сайта") : contactView(staff, { phone: formatPhone(c.chatId) }).phone || c.chatId);
 
-/**
- * Строки списка «Чатов» — одна сборка для страницы и для живого обновления списка (/api/admin/chats/inbox): ожидание
- * клиента в рабочих минутах против норматива, кто ведёт, бот, закрепление.
- */
-export async function inboxItems(staff: Staff, f: ChatFilter, q: string | undefined): Promise<ChatListItem[]> {
-  const { list, admins, slaRaw, hoursRaw } = await crmRead("chats.inbox", { f, q: q?.slice(0, 200) });
-  const sla = slaMinutes(slaRaw);
-  const hours = parseWorkHours(hoursRaw);
-  const now = new Date();
-  const names = new Map(admins.map((a) => [a.id, staffLabel(a)]));
-  return list.map((c) => {
-    const wait = c.awaitingSince ? responseWait(c.awaitingSince, now, hours, sla) : null;
-    const phase = (c.botState as { phase?: string } | null)?.phase;
-    return {
-      id: c.id,
-      title: chatTitle(staff, c),
-      avatarUrl: c.avatarUrl,
-      channel: c.channel,
-      time: shortTime(c.lastMessageAt),
-      preview: c.lastMessageText,
-      unread: c.unread,
-      assignee: c.assigneeId ? (names.get(c.assigneeId) ?? null) : null,
-      waitMinutes: wait?.minutes ?? null,
-      waitLabel: wait?.label ?? null,
-      overdue: !!wait?.overdue,
-      bot: phase === "active" || phase === "waiting",
-      pinned: !!c.pinnedAt,
-    };
-  });
+/** Строки списка «Чатов» — их собирает mybook-api (`chats.inbox`): та же сборка у страницы и живого обновления. */
+export async function inboxItems(_staff: Staff, f: ChatFilter, q: string | undefined): Promise<ChatListItem[]> {
+  return crmRead("chats.inbox", { f, q: q?.slice(0, 200) });
 }

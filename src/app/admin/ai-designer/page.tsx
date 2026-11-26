@@ -11,9 +11,9 @@ import { Section } from "@/components/admin/Section";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { formatDate } from "@/lib/dates";
-import { can, requireStaff } from "@/server/access";
+import { can, requireStaff } from "@/web/access";
 import { DesignerSettingsForm, FreeLimitForm, GrantForm } from "./Forms";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { crmRead } from "@/web/crm";
 
 export const metadata = { title: "ИИ-дизайнер" };
 

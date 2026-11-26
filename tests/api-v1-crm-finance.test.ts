@@ -9,33 +9,33 @@ vi.mock("@/server/api", async (orig) => ({ ...(await orig<typeof import("@/serve
 
 const reviewDealPaymentAction = vi.fn(async (id: string) => (void id, { ok: "Отмечено: проверено" }));
 const resolveFinanceIssueAction = vi.fn(async (key: string, amount: number, note: string) => (void key, void amount, void note, { error: "Сумма случая изменилась — обновите страницу" }));
-vi.mock("@/app/admin/finance/actions", () => ({
+vi.mock("@/server/crm-actions/finance", () => ({
   reviewDealPaymentAction: (id: string) => reviewDealPaymentAction(id),
   resolveFinanceIssueAction: (k: string, a: number, n: string) => resolveFinanceIssueAction(k, a, n),
   undoFinanceResolutionAction: vi.fn(async () => ({ ok: "Решение отменено" })),
 }));
 const reviewOrderPaymentAction = vi.fn(async (id: string) => (void id, { ok: "Оплата сверена" }));
 const createPromoAction = vi.fn(async (state: unknown, form: FormData) => (void state, void form, { error: "Код: 3–40 символов, латиница, цифры, - и _" }));
-vi.mock("@/app/admin/actions", async (orig) => ({ ...(await orig<object>()), reviewOrderPaymentAction: (id: string) => reviewOrderPaymentAction(id), createPromoAction: (s: unknown, f: FormData) => createPromoAction(s, f) }));
+vi.mock("@/server/crm-actions/admin", async (orig) => ({ ...(await orig<object>()), reviewOrderPaymentAction: (id: string) => reviewOrderPaymentAction(id), createPromoAction: (s: unknown, f: FormData) => createPromoAction(s, f) }));
 const moderateReviewAction = vi.fn(async (id: string, action: string) => void (id + action));
-vi.mock("@/app/admin/reviews/actions", () => ({ moderateReviewAction: (id: string, a: string) => moderateReviewAction(id, a) }));
+vi.mock("@/server/crm-actions/reviews", () => ({ moderateReviewAction: (id: string, a: string) => moderateReviewAction(id, a) }));
 const addExpenseAction = vi.fn(async (input: Record<string, unknown>) => (void input, { ok: true as const }));
-vi.mock("@/app/admin/expenses/actions", () => ({
+vi.mock("@/server/crm-actions/expenses", () => ({
   addExpenseAction: (i: Record<string, unknown>) => addExpenseAction(i),
   updateExpenseAction: vi.fn(async () => ({ ok: false, error: "Рекламу внесите отдельной записью: у неё канал вместо названия" })),
   removeExpenseAction: vi.fn(async () => ({ ok: true })),
 }));
 
 const setPayFormAction = vi.fn(async (dealId: string, form: string) => (void dealId, form === "Bitcoin" ? { ok: false as const, error: "Такой формы оплаты нет в поле сделки" } : { ok: true as const }));
-vi.mock("@/app/admin/sales/actions", () => ({ setPayFormAction: (d: string, f: string) => setPayFormAction(d, f) }));
+vi.mock("@/server/crm-actions/sales", () => ({ setPayFormAction: (d: string, f: string) => setPayFormAction(d, f) }));
 
 const saveCrmSettingsAction = vi.fn(async (state: unknown, form: FormData) => (void state, void form, { ok: "Сохранено" }));
 const saveBotAction = vi.fn(async (input: Record<string, unknown>) => (void input, { error: "Добавьте хотя бы один вопрос" }));
-vi.mock("@/app/admin/settings/crm/actions", () => ({ saveCrmSettingsAction: (s: unknown, f: FormData) => saveCrmSettingsAction(s, f), saveBotAction: (i: Record<string, unknown>) => saveBotAction(i) }));
+vi.mock("@/server/crm-actions/settings-crm", () => ({ saveCrmSettingsAction: (s: unknown, f: FormData) => saveCrmSettingsAction(s, f), saveBotAction: (i: Record<string, unknown>) => saveBotAction(i) }));
 vi.mock("@/modules/workspace", async (orig) => ({ ...(await orig<object>()), getSetting: async (key: string) => (key === "bot.config" ? JSON.stringify({ channels: ["whatsapp"] }) : null) }));
 
 const updateProductAction = vi.fn(async (id: string, form: FormData) => (void id, void form, { ok: true as const }));
-vi.mock("@/app/admin/catalog/actions", () => ({
+vi.mock("@/server/crm-actions/catalog", () => ({
   createProductAction: vi.fn(async () => ({ ok: true, id: "1" })),
   updateProductAction: (id: string, f: FormData) => updateProductAction(id, f),
   deleteCollectionAction: vi.fn(),
@@ -46,10 +46,10 @@ vi.mock("@/app/admin/catalog/actions", () => ({
 }));
 
 const savePricingAction = vi.fn(async (state: unknown, form: FormData) => (void state, void form, { ok: "Сохранено" }));
-vi.mock("@/app/admin/pricing/actions", () => ({ savePricingAction: (s: unknown, f: FormData) => savePricingAction(s, f) }));
+vi.mock("@/server/crm-actions/pricing", () => ({ savePricingAction: (s: unknown, f: FormData) => savePricingAction(s, f) }));
 const setStaffRoleAction = vi.fn(async (id: string, role: string) => void (id + role));
 const setStaffPhoneAction = vi.fn(async (id: string, phone: string) => (void id, void phone, { ok: false, message: "Проверьте номер: нужно не меньше 10 цифр" }));
-vi.mock("@/app/admin/team/actions", () => ({
+vi.mock("@/server/crm-actions/team", () => ({
   createStaffAction: vi.fn(),
   resetStaffPasswordAction: vi.fn(),
   revokeStaffAction: vi.fn(),

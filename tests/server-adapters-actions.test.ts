@@ -1,11 +1,12 @@
+import { routeWebToApi } from "./doubles/api";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AccessError } from "@/modules/access/domain";
 import { IdentityError } from "@/modules/identity/domain";
 import { OrderingError } from "@/modules/ordering/domain";
 import { ForbiddenError } from "@/server/access";
-import { updateOrderAction } from "@/app/admin/actions";
-import { createStaffAction, setStaffRoleAction } from "@/app/admin/team/actions";
-import { confirmTwoFactorAction, newBackupCodesAction, startTwoFactorAction } from "@/app/admin/security/actions";
+import { updateOrderAction } from "@/server/crm-actions/admin";
+import { createStaffAction, setStaffRoleAction } from "@/server/crm-actions/team";
+import { confirmTwoFactorAction, newBackupCodesAction, startTwoFactorAction } from "@/server/crm-actions/security";
 import { loginAction } from "@/app/(auth)/actions";
 import { anna, client, fake, owner, request, resetContainer, resetRequest, security, signIn } from "./doubles/web";
 
@@ -13,6 +14,11 @@ vi.mock("next/headers", async () => (await import("./doubles/web")).nextHeaders)
 vi.mock("next/navigation", async () => (await import("./doubles/web")).nextNavigation);
 vi.mock("next/cache", async () => (await import("./doubles/web")).nextCache);
 vi.mock("@/server/container", async () => (await import("./doubles/web")).containerModule);
+
+// ADR 0013: веб ходит только в API v1 — в тестах его запросы обслуживает apps/api в этом же процессе.
+beforeEach(async () => {
+  await routeWebToApi();
+});
 
 // Характеристические тесты (фаза 3, S6): переводчики ошибок домена в server actions. E4 заменил их общим actionError(err);
 // тексты остались прежними, кроме исправленного B11 (маркеры «B11»): сотрудник видит текст, а не машинный код.

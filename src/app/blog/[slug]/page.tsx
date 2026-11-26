@@ -11,7 +11,7 @@ import { Flourish, themePhoto } from "@/components/landing/FilmFrame";
 import { PhotoPlate } from "@/components/landing/PageIntro";
 import { coverPhotoUrl } from "@/lib/book/photo-cover";
 import { JsonLd } from "@/components/seo/JsonLd";
-import { getCurrentUser } from "@/server/auth";
+import { getCurrentUser } from "@/web/auth";
 import { registrationOpen, site } from "@/config/site";
 import { getLocale, getMessages } from "@/i18n/server";
 import { alternates } from "@/i18n/seo";

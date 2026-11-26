@@ -71,7 +71,7 @@ export async function setStaffExtensionAction(userId: string, extension: string)
 
 /** Телефон сотрудника (WhatsApp): на него уходят личные напоминания о задачах. Пусто — убрать. */
 export async function setStaffPhoneAction(userId: string, phone: string): Promise<{ ok: boolean; message: string }> {
-  const staff = await assertStaff("team.manage");
+  await assertStaff("team.manage");
   const id = uuid.parse(userId);
   const members = await container().access.queries.team();
   if (!members.some((m) => m.user.id === id)) return { ok: false, message: "Сотрудник не найден" };

@@ -14,7 +14,7 @@ import { getInteriorDesign } from "@/lib/book/interiors/catalog";
 import { isBookEditableBy } from "@/modules/authoring";
 import { currentOption, placeNames, placeText } from "@/components/editor/photos/model";
 import { filterCounts, isLossy, lossOf, placeTotals, visibleFilters } from "@/app/(app)/books/[id]/photos/photos-tab";
-import { photosTabData } from "@/app/(app)/books/[id]/photos/photos-data";
+import { photosTabData } from "@/server/photos-tab-data";
 import { helpAsk, helpThread } from "@/server/book-help";
 import type { Handlers } from "../app";
 

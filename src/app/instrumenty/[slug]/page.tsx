@@ -26,7 +26,7 @@ import { QuestionCards } from "@/components/tools/QuestionCards";
 import { Quiz } from "@/components/tools/Quiz";
 import { TogetherCounter } from "@/components/tools/TogetherCounter";
 import { formatPrice, getAddons, getVisiblePlans, registrationOpen, site } from "@/config/site";
-import { getCurrentUser } from "@/server/auth";
+import { getCurrentUser } from "@/web/auth";
 import { getLocale, getMessages } from "@/i18n/server";
 import { alternates } from "@/i18n/seo";
 import { dateFor } from "@/i18n/messages/partial";

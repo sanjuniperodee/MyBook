@@ -1,4 +1,4 @@
-import { requireStaff } from "@/server/access";
+import { requireStaff } from "@/web/access";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { BOT_FORM_TABS } from "./crm/botTabs";
 import { SettingsNav } from "./SettingsNav";

@@ -2,8 +2,7 @@ import "server-only";
 import type { BookRow } from "@/modules/authoring";
 import type { Locale } from "@/i18n/config";
 import type { BadgeTone } from "@/components/ui/Badge";
-import { localBookNav, localBookShellNav } from "@/server/v1-local-bridge-book";
-import { v1WebRead } from "@/server/v1-web-client";
+import { v1WebRead } from "@/web/api";
 import type { BookNav } from "./book-nav";
 
 export interface BookShellNav {
@@ -20,7 +19,6 @@ export async function loadBookNav(book: BookRow, locale: Locale): Promise<BookNa
     name: "book.nav",
     section: "book",
     locale,
-    local: () => localBookNav(book, locale),
     viaApi: async (api) => (await api.webBookNav({ bookId: book.id, locale })).nav,
   });
 }
@@ -31,7 +29,6 @@ export async function loadBookShellNav(book: BookRow, locale: Locale): Promise<B
     name: "book.layoutNav",
     section: "book",
     locale,
-    local: () => localBookShellNav(book, locale),
     viaApi: (api) => api.webBookNav({ bookId: book.id, locale }),
   });
 }

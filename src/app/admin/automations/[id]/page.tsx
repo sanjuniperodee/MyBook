@@ -3,15 +3,15 @@ import { notFound } from "next/navigation";
 import { History } from "lucide-react";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { requireStaff } from "@/server/access";
-import { uuid } from "@/server/input";
+import { requireStaff } from "@/web/access";
+import { uuid } from "@/web/input";
 import { formatDate, nowMs } from "@/lib/dates";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { InlineStats } from "@/components/admin/bars";
 import { automationActions, automationTriggers } from "@/modules/automation/domain/meta";
 import { runStatusLabels, stepResultLabels, RUNS_LIST_LIMIT, type RunStatus } from "@/modules/automation/domain/runs";
 import { RetryRun } from "./RetryRun";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { crmRead } from "@/web/crm";
 
 export const metadata = { title: "Журнал правила" };
 

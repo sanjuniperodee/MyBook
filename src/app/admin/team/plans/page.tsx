@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireStaff } from "@/server/access";
+import { requireStaff } from "@/web/access";
 import { staffLabel } from "@/shared/domain/staff";
 import { currentMonth, shiftMonth } from "@/modules/sales/domain/plans";
 import { formatPrice } from "@/config/site";
@@ -8,7 +8,7 @@ import { Panel } from "@/components/ui/Panel";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { StatRow, StatTile } from "@/components/admin/charts";
 import { PlanRow } from "./PlanRow";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { crmRead } from "@/web/crm";
 
 export const metadata = { title: "Планы продаж" };
 

@@ -1,7 +1,7 @@
 import { TelephonyForm } from "../telephony/TelephonyForm";
 import { SettingsFrame } from "../frame";
 import { hook } from "./shared";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { crmRead } from "@/web/crm";
 
 export async function TelephonyTab() {
   const { provider, providerFromEnv, zadarma, pbxToken } = await crmRead("settings.telephony", {});

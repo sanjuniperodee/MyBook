@@ -1,7 +1,6 @@
 import { Link } from "@/i18n/client";
 import { getLocale, getMessages } from "@/i18n/server";
-import { localResetInfo } from "@/server/v1-local-bridge";
-import { v1WebRead } from "@/server/v1-web-client";
+import { v1WebRead } from "@/web/api";
 import { AuthHead } from "../../AuthHead";
 import { ResetForm } from "./ResetForm";
 
@@ -16,7 +15,6 @@ export default async function ResetPage({ params }: { params: Promise<{ token: s
     name: "cabinet.resetInfo",
     section: "cabinet",
     locale,
-    local: () => localResetInfo(token),
     viaApi: (api) => api.webAuthResetInfo({ token }),
   });
   const t = m.auth.reset;

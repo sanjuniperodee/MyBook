@@ -77,6 +77,8 @@ for (const file of files.sort()) {
     }
     total++;
     const guards = [...guardsOf(node)];
+    // Веб без бэкенда (ADR 0013): действие только передаёт вызов в API v1 (v1WebAction) — права и лимиты проверяет mybook-api.
+    if (!guards.length && /\bv1WebAction\s*(<[^(]*>)?\s*\(/.test(node.getText(sf))) guards.push("через API v1");
     const input = paramsOf(node) > 0;
     const zod = zodOf(node);
     console.log(`${rel}::${name} -> ${guards.join(",") || "НЕТ ПРОВЕРОК"}${zod ? " [zod]" : input ? "" : " [без входа]"}`);

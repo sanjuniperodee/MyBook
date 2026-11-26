@@ -27,12 +27,12 @@ import { AssigneeSelect, NotesTimeline, TaskList, type NoteItem, type TaskItem }
 import { staffOptions } from "@/modules/access/ui";
 import { staffLabel } from "@/shared/domain/staff";
 import { CalendarClock, CircleDollarSign, Gift, History } from "lucide-react";
-import { can, contactView, requireStaff } from "@/server/access";
+import { can, contactView, requireStaff } from "@/web/access";
 import { ContactActions } from "@/components/admin/ContactActions";
 import { formatPhone } from "@/shared/domain/phone";
-import { pageId } from "@/server/input";
+import { pageId } from "@/web/input";
 import type { OrderNoticeFacts } from "@/modules/ordering/ui/notice";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { crmRead } from "@/web/crm";
 
 /** Способ оплаты заказа — по-человечески, а не код платёжной системы. */
 const PROVIDER_LABEL: Record<string, string> = { manual: "перевод или вручную", kaspi: "Kaspi", cloudpayments: "карта (CloudPayments)" };

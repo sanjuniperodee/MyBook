@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
-import { requireUser } from "@/server/auth";
-import { getAccessibleBook } from "@/server/books";
-import { localQuestionsPageDtoForUser } from "@/server/v1-local-bridge-book";
-import { v1WebRead } from "@/server/v1-web-client";
+import { requireUser } from "@/web/auth";
+import { getAccessibleBook } from "@/web/books";
+import { v1WebRead } from "@/web/api";
 import { sectionIndex } from "@/lib/book/editor-model";
 import { QuestionsEditor } from "@/components/editor/QuestionsEditor";
 import { getMessages } from "@/i18n/server";
@@ -19,7 +18,6 @@ export default async function QuestionsPage({ params, searchParams }: { params: 
   const data = await v1WebRead({
     name: "book.questionsPage",
     section: "book",
-    local: () => localQuestionsPageDtoForUser(book, user),
     viaApi: (api) => api.webBookQuestionsPage({ bookId: book.id }),
   });
   return (

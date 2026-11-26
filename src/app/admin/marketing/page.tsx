@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { can, requireStaff } from "@/server/access";
+import { can, requireStaff } from "@/web/access";
 import { conversion, costPerLead, romi } from "@/modules/marketing/domain/report";
 import { SpendForm } from "./SpendForm";
 import { channels as channelLabels } from "@/shared/domain/channels";
@@ -20,7 +20,7 @@ import { cn } from "@/lib/class-names";
 import { formatPhone } from "@/shared/domain/phone";
 import { formatDate } from "@/lib/dates";
 import { LinkBuilder, LinkRowActions, WhatsappNumberForm } from "./MarketingControls";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { crmRead } from "@/web/crm";
 
 export const metadata = { title: "Ссылки и каналы" };
 

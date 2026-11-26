@@ -11,10 +11,10 @@ import { orderStatusLabel, orderStatusTone, isPrintedPlan } from "@/modules/orde
 import { formatDate } from "@/lib/dates";
 import { getTheme } from "@/lib/content/themes";
 import { bookLine } from "@/lib/content/crm-labels";
-import { contactView, requireStaff } from "@/server/access";
+import { contactView, requireStaff } from "@/web/access";
 import { formatPhone } from "@/shared/domain/phone";
 import { channelLabel } from "@/modules/messaging/domain/conversation";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { crmRead } from "@/web/crm";
 
 export const metadata = { title: "Поиск" };
 

@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Bot, ChevronRight, Handshake, MessagesSquare, Package, UserRound } from "lucide-react";
-import { requireStaff } from "@/server/access";
-import { pageId } from "@/server/input";
+import { requireStaff } from "@/web/access";
+import { pageId } from "@/web/input";
 import { formatDate } from "@/lib/dates";
 import { cn } from "@/lib/class-names";
 import { PageHeader } from "@/components/admin/PageHeader";
@@ -12,7 +12,7 @@ import { TaskRows } from "../TaskRows";
 import { CardPage } from "../boards/CardPage";
 import { staffOptions } from "@/modules/access/ui";
 import { Columns3 } from "lucide-react";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { crmRead } from "@/web/crm";
 
 export const metadata = { title: "Задача" };
 

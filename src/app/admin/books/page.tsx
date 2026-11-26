@@ -12,9 +12,9 @@ import { getTheme, getThemes } from "@/lib/content/themes";
 import { STALLED_DAYS } from "@/modules/reporting/ui/books";
 import { RemindAll } from "./RemindAll";
 import { BooksToolbar } from "./BooksToolbar";
-import { requireStaff } from "@/server/access";
+import { requireStaff } from "@/web/access";
 import { bookLine, progressRatio, progressShort, progressText } from "@/lib/content/crm-labels";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { crmRead } from "@/web/crm";
 
 const themes = getThemes("ru");
 

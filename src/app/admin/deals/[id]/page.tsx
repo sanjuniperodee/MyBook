@@ -3,7 +3,7 @@ import Link from "next/link";
 import { cn } from "@/lib/class-names";
 import { Panel } from "@/components/ui/Panel";
 import { notFound } from "next/navigation";
-import { can, canAssignOthers, canSeeAssigned, canWork, contactView, requireStaff } from "@/server/access";
+import { can, canAssignOthers, canSeeAssigned, canWork, contactView, requireStaff } from "@/web/access";
 import { staffOptions } from "@/modules/access/ui";
 import { dealSourceLabels } from "@/shared/domain/dealSources";
 import { channelLabel } from "@/modules/messaging/domain/conversation";
@@ -24,8 +24,8 @@ import { CreateClientFromDeal, DealAssignee, DealDelete, DealFields, PipelineSwi
 import { DealBooks, DealCalls, DealContact, Duplicates, NotesTimelineReadonly, PastDeals } from "./sections";
 import { DealHeader } from "./DealHeader";
 import { DealWorkspace } from "./DealWorkspace";
-import { pageId } from "@/server/input";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { pageId } from "@/web/input";
+import { crmRead } from "@/web/crm";
 
 export const metadata = { title: "Сделка" };
 

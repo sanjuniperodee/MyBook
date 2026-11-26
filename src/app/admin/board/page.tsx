@@ -2,13 +2,13 @@ import { planName } from "@/i18n/labels";
 import { nowMs } from "@/lib/dates";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { OrdersViews } from "../orders/OrdersViews";
-import { requireStaff } from "@/server/access";
+import { requireStaff } from "@/web/access";
 import { staffOptions } from "@/modules/access/ui";
 import { staffLabel } from "@/shared/domain/staff";
 import { formatPrice, getPlan } from "@/config/site";
 import { Board, type BoardCard } from "./Board";
 import { OrdersMobile } from "./OrdersMobile";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { crmRead } from "@/web/crm";
 
 export const metadata = { title: "Производство" };
 

@@ -5,8 +5,8 @@ import { SectionHead } from "@/components/admin/SectionHead";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { formatDate } from "@/lib/dates";
-import { requireStaff } from "@/server/access";
-import { CLIENT_AI_TOOLS } from "@/server/clientAiLimits";
+import { requireStaff } from "@/web/access";
+import { CLIENT_AI_TOOLS } from "@/shared/domain/aiTools";
 import {
   GlobalLimitsForm,
   UserLimitsForm,
@@ -14,7 +14,7 @@ import {
   type UserToolRow,
 } from "./Forms";
 import { CLIENT_AI_TOOL_LABELS, hoursLabel, minutesLabel } from "./labels";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { crmRead } from "@/web/crm";
 
 export const metadata = { title: "Лимиты AI" };
 

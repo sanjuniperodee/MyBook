@@ -2,7 +2,7 @@ import { AutoApply } from "@/components/admin/AutoApply";
 import Link from "next/link";
 import { MobileFilters } from "@/components/admin/MobileFilters";
 import { CalendarDays, CheckCheck, ListChecks, Search, SquareKanban } from "lucide-react";
-import { can, requireStaff } from "@/server/access";
+import { can, requireStaff } from "@/web/access";
 import { staffOptions } from "@/modules/access/ui";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Segmented } from "@/components/admin/Segmented";
@@ -12,7 +12,7 @@ import { cn } from "@/lib/class-names";
 import { TaskRows } from "./TaskRows";
 import { taskRow } from "@/lib/crm/task-row";
 import { NewTask, QuickTask } from "./NewTask";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { crmRead } from "@/web/crm";
 
 export const metadata = { title: "Задачи" };
 

@@ -1,4 +1,4 @@
-// Запуск на Node.js-сервере: миграции БД и фоновые задачи. Подключается только из instrumentation.ts в рантайме nodejs.
+// Запуск веба на Node.js: только часы визуальных тестов. Подключается только из instrumentation.ts в рантайме nodejs.
 
 /**
  * Визуальные тесты: фиксируем часы сервера, чтобы относительные даты («сегодня», «2 дня назад»)
@@ -30,35 +30,10 @@ function installVisualClock() {
   console.log(`[visual] server clock fixed at ${new RealDate(ts).toISOString()}`);
 }
 
-/** Сайт без БД (Vercel, ADR 0012 A5): то же условие, что webApiOnly() в src/server/v1-web-client.ts. */
-const webApiOnly = () => process.env.WEB_API_ONLY?.trim() === "1" || !process.env.DATABASE_URL?.trim();
-
+/**
+ * Веб (ADR 0013): только страницы через API v1 — миграции БД, фон, синхронизация каталога и замеры памяти живут в
+ * mybook-api и mybook-worker (apps/api/src/main.ts, src/worker).
+ */
 export async function registerNode() {
   installVisualClock();
-  // Без БД сайт только показывает страницы через API v1: миграции, синхронизация каталога и фон — на нашем сервере.
-  if (webApiOnly()) {
-    console.log("[mybook] web without database: API v1 only, no migrations or background jobs");
-    return;
-  }
-  const { configureSharpMemory } = await import("@/shared/infrastructure/sharpMemory");
-  await configureSharpMemory();
-  // Память процесса и счётчики отдачи файлов — в журнал замеров раз в 5 минут (perfLog.ts; в проде, без PERF_LOG=off).
-  const { startPerfSampler } = await import("@/shared/infrastructure/perfLog");
-  startPerfSampler();
-  if (process.env.SKIP_AUTO_MIGRATE !== "1") {
-    const { runMigrations } = await import("@/shared/infrastructure/db/migrate");
-    try {
-      await runMigrations();
-      console.log("[mybook] database migrations applied");
-    } catch (err) {
-      console.error("[mybook] failed to apply migrations", err);
-      throw err;
-    }
-  }
-  const { startCatalogSync } = await import("@/server/catalog");
-  startCatalogSync();
-  // Фон — здесь же или в отдельном процессе mybook-worker (deploy/ecosystem.config.cjs ставит MYBOOK_BACKGROUND=worker).
-  const { backgroundInWorker, startBackground } = await import("@/server/background");
-  if (backgroundInWorker()) console.log("[mybook] background jobs run in mybook-worker");
-  else await startBackground();
 }

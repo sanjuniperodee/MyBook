@@ -10,7 +10,7 @@ vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
 vi.mock("@/server/access", () => ({ assertStaff: async () => ({ user: { id: "boss" } }), audit: async () => {} }));
 vi.mock("@/server/container", () => ({ container: () => ({ automation: { rules: { save: async (r: unknown) => void w.saved.push(r) } } }) }));
 
-const { saveAutomationAction } = await import("@/app/admin/automations/actions");
+const { saveAutomationAction } = await import("@/server/crm-actions/automations");
 const { admin } = await import("@/i18n/admin");
 
 const task = [{ type: "create_task" as const, title: "Связаться", dueMinutes: 120 }];

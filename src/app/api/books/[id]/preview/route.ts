@@ -1,9 +1,7 @@
-import { v1SiteProxy } from "@/server/v1-proxy";
+import { v1SiteProxy } from "@/web/proxy";
 
 export const maxDuration = 120;
 
-type Ctx = { params: Promise<{ id: string }> };
-
-export function GET(req: Request, ctx: Ctx) {
-  return v1SiteProxy("book", req, async () => (await import("@/server/site-handlers/books/preview")).GET(req, ctx));
+export function GET(req: Request) {
+  return v1SiteProxy(req);
 }

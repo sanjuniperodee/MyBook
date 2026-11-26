@@ -17,7 +17,7 @@ vi.mock("@/modules/workspace", () => ({
 }));
 vi.mock("@/server/container", () => ({ container: () => ({}) }));
 
-const { saveWhatsappNumberAction } = await import("@/app/admin/marketing/actions");
+const { saveWhatsappNumberAction } = await import("@/server/crm-actions/marketing");
 const { crmMarketingSettings } = await import("@/modules/marketing/infrastructure/adapters");
 const { admin } = await import("@/i18n/admin");
 

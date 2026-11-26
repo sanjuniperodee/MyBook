@@ -1,12 +1,12 @@
 import { planName, deliveryName } from "@/i18n/labels";
 import { notFound } from "next/navigation";
-import { requireStaff } from "@/server/access";
+import { requireStaff } from "@/web/access";
 import { site } from "@/config/site";
 import { deliveryAddress } from "@/modules/ordering/ui/labels";
 import { formatDate } from "@/lib/dates";
 import { PrintButton } from "./PrintButton";
-import { pageId } from "@/server/input";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { pageId } from "@/web/input";
+import { crmRead } from "@/web/crm";
 
 export const metadata = { title: "Упаковочный лист", robots: { index: false } };
 

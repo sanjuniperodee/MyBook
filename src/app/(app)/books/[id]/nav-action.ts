@@ -1,9 +1,9 @@
 "use server";
 
 import { getLocale } from "@/i18n/server";
-import { uuid } from "@/server/input";
-import { requireUser } from "@/server/auth";
-import { getAccessibleBook } from "@/server/books";
+import { uuid } from "@/web/input";
+import { requireUser } from "@/web/auth";
+import { getAccessibleBook } from "@/web/books";
 import type { BookNav } from "./book-nav";
 import { loadBookNav } from "./nav-data";
 

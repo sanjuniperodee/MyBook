@@ -1,11 +1,9 @@
-import { v1SiteProxy } from "@/server/v1-proxy";
+import { v1SiteProxy } from "@/web/proxy";
 
-type Ctx = { params: Promise<{ id: string; key: string }> };
-
-export function PATCH(req: Request, ctx: Ctx) {
-  return v1SiteProxy("book", req, async () => (await import("@/server/site-handlers/books/chapter-item")).PATCH(req, ctx));
+export function PATCH(req: Request) {
+  return v1SiteProxy(req);
 }
 
-export function DELETE(req: Request, ctx: Ctx) {
-  return v1SiteProxy("book", req, async () => (await import("@/server/site-handlers/books/chapter-item")).DELETE(req, ctx));
+export function DELETE(req: Request) {
+  return v1SiteProxy(req);
 }

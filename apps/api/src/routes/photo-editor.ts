@@ -13,7 +13,7 @@ import { photoAreaMm } from "@/lib/book/layout";
 import { FILTERS } from "@/lib/photo-edit/color";
 import { ADJUST_KEYS, ADJUST_RANGE, emptyEdit, FILTER_IDS, isEmptyEdit, MAX_EDIT_BYTES, MAX_LAYERS, parsePhotoEdit, photoVersion } from "@/lib/photo-edit/doc";
 import { cropFrameOf, type PhotoLayout } from "@/app/(app)/books/[id]/photos/photos-tab";
-import { photosTabData } from "@/app/(app)/books/[id]/photos/photos-data";
+import { photosTabData } from "@/server/photos-tab-data";
 import { apiBook, apiViewer, HttpError } from "@/server/api";
 import { container } from "@/server/container";
 import { probeOriginalImage, renderPhotoEdit } from "@/server/photo-edit-render";

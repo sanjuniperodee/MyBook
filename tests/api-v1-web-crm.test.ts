@@ -15,7 +15,7 @@ const { handlers } = await import("../apps/api/src/routes");
 const { siteAuthenticator } = await import("../apps/api/src/auth");
 const { handleSiteRoute, siteRoutePaths } = await import("../apps/api/src/site-routes");
 const { localStaffAccess } = await import("@/server/access");
-const { crmStaffAccess } = await import("@/server/v1-local-bridge-crm");
+const { crmStaffAccess } = await import("@/web/crm");
 const { Redirect } = await import("./doubles/web");
 const { runCrmOp } = await import("@/server/crm-ops/registry");
 
@@ -154,21 +154,20 @@ describe("API v1 Раздел 5 (crm): права сотрудника и server
     expect((await strictStaff(vera)).staff?.permissions).toEqual(["clients.view"]);
   });
 
-  it("crmStaffAccess без БД берёт права из API", async () => {
+  it("crmStaffAccess веба берёт права из API", async () => {
     signIn(anna);
     vi.stubGlobal("fetch", fetchViaApp);
     vi.stubEnv("WEB_USE_API_V1", "crm");
-    const dto = await crmStaffAccess(async () => {
-      throw new Error("local не должен вызываться");
-    });
+    const dto = await crmStaffAccess();
     expect(dto.staff?.roleName).toBe("Менеджер");
   });
 
   it("server action через API v1: те же права, zod и журнал, что локально", async () => {
+    const local = await import("@/server/crm-actions/reviews");
     const { moderateReviewAction } = await import("@/app/admin/reviews/actions");
     const id = "4a1b2c3d-1111-4222-8333-444444444444";
     signIn(owner);
-    await moderateReviewAction(id, "publish");
+    await local.moderateReviewAction(id, "publish");
     vi.stubGlobal("fetch", fetchViaApp);
     vi.stubEnv("WEB_USE_API_V1", "crm");
     await moderateReviewAction(id, "hide");

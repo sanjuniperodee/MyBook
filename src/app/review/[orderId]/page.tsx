@@ -6,8 +6,7 @@ import { getCoverTemplate } from "@/lib/book/covers";
 import { coverNames } from "@/lib/book/cover-names";
 import { ApiClientError } from "@mybook/contracts";
 import { THANK_YOU } from "@/shared/domain/reviews";
-import { localReviewPage } from "@/server/v1-local-bridge-public";
-import { v1WebRead } from "@/server/v1-web-client";
+import { v1WebRead } from "@/web/api";
 import { getMessages } from "@/i18n/server";
 import { bookKind } from "@/lib/content/kinds";
 import { ReviewForm } from "./ReviewForm";
@@ -24,7 +23,6 @@ export default async function ReviewPage({ params, searchParams }: { params: Pro
   const page = await v1WebRead({
     name: "public.reviewPage",
     section: "public",
-    local: () => localReviewPage(orderId, token ?? null),
     viaApi: async (api) => {
       try {
         return await api.webReviewPage({ orderId, ...(token ? { t: token } : {}) });

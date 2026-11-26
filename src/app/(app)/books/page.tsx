@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
 import { Link } from "@/i18n/client";
 import { Plus } from "lucide-react";
-import { requireUser } from "@/server/auth";
+import { requireUser } from "@/web/auth";
 import { getLocale, getMessages } from "@/i18n/server";
 import { AgreementCard } from "@/components/AgreementCard";
 import { PageHead } from "../_components/PageHead";
-import { localBooksPageData } from "@/server/v1-local-bridge";
-import { v1WebRead } from "@/server/v1-web-client";
+import { v1WebRead } from "@/web/api";
 import { FirstBook, HeroBook, ShelfCard } from "./BooksShelf";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -25,7 +24,6 @@ export default async function BooksPage() {
     name: "cabinet.booksPage",
     section: "cabinet",
     locale,
-    local: () => localBooksPageData(user.id, locale, m),
     viaApi: (api) => api.webShelf({ locale }),
   });
   const card = agreement ? <AgreementCard agreement={agreement} books={agreementBooks} /> : null;

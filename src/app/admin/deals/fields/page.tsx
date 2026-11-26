@@ -1,11 +1,11 @@
-import { requireStaff } from "@/server/access";
+import { requireStaff } from "@/web/access";
 import { ListPlus } from "lucide-react";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Segmented } from "@/components/admin/Segmented";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Panel } from "@/components/ui/Panel";
 import { FieldEditor } from "./FieldEditor";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { crmRead } from "@/web/crm";
 
 export const metadata = { title: "Свои поля" };
 

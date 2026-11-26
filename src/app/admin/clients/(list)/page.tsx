@@ -15,10 +15,10 @@ import { messagesFor } from "@/i18n/messages";
 import { formatPrice } from "@/config/site";
 import { cn } from "@/lib/class-names";
 import { formatDate, nowMs } from "@/lib/dates";
-import { can, contactView, requireStaff } from "@/server/access";
+import { can, contactView, requireStaff } from "@/web/access";
 import { staffLabel } from "@/shared/domain/staff";
 import { REPEAT_FORM, RepeatSale } from "./RepeatSale";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { crmRead } from "@/web/crm";
 
 export const metadata = { title: "Клиенты" };
 const PAGE = 50;

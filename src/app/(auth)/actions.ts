@@ -2,29 +2,19 @@
 
 import { ApiClientError } from "@mybook/contracts";
 import { getLocale, getMessages, lredirect } from "@/i18n/server";
-import { readSource, queueEvent } from "@/server/track";
+import { readSource, queueEvent } from "@/web/track";
 import { z } from "zod";
-import { formObject, formText } from "@/server/input";
-import { trustedClientIp, rateLimit } from "@/server/rateLimit";
+import { formObject, formText } from "@/web/input";
 import { isThemeId } from "@/lib/content/themes";
 import {
   clearTwoFactorTicket,
   destroySession,
-  issueTwoFactorTicket,
   rawTwoFactorTicket,
-  readTwoFactorTicket,
   safeNextPath,
   setTwoFactorTicket,
   startSession,
-} from "@/server/auth";
-import {
-  localCompleteSecondFactor,
-  localForgotPassword,
-  localLogin,
-  localRegister,
-  localResetComplete,
-} from "@/server/v1-local-bridge";
-import { v1WebAction } from "@/server/v1-web-client";
+} from "@/web/auth";
+import { v1WebAction } from "@/web/api";
 
 export interface FormState {
   error?: string;
@@ -73,17 +63,6 @@ export async function registerAction(_: FormState, form: FormData): Promise<Form
         throw err;
       }
     },
-    local: async () => {
-      if (!(await rateLimit(`register:${await trustedClientIp()}`, 10, 3600_000))) return { ok: false as const, error: e.tooMany };
-      return localRegister({
-        name: parsed.data.name,
-        email: parsed.data.email,
-        password: parsed.data.password,
-        locale,
-        source,
-        registrationClosedText: e.registrationClosed,
-      });
-    },
   });
   if (!outcome.ok) return { error: outcome.error, field: outcome.field };
   await startSession(outcome.token, outcome.expiresAt);
@@ -104,7 +83,6 @@ export async function loginAction(_: FormState, form: FormData): Promise<FormSta
   const next = safeNextPath(form.get("next"));
   type LoginOutcome =
     | { kind: "session"; token: string; expiresAt: Date }
-    | { kind: "second_factor"; userId: string }
     | { kind: "second_factor_ticket"; ticket: string }
     | { kind: "error"; error: string };
   const outcome = await v1WebAction<LoginOutcome>({
@@ -121,21 +99,11 @@ export async function loginAction(_: FormState, form: FormData): Promise<FormSta
         throw err;
       }
     },
-    local: async () => {
-      if (!(await rateLimit(`login:${await trustedClientIp()}`, 30, 900_000)) || !(await rateLimit(`login:${login.toLowerCase()}`, 10, 900_000))) {
-        return { kind: "error" as const, error: e.tooManyLogin };
-      }
-      return localLogin({ login, password, locale });
-    },
   });
   if (outcome.kind === "error") return { error: outcome.error };
   // Сотрудник с включённой 2FA: сессию создаём только после кода из приложения.
   if (outcome.kind === "second_factor_ticket") {
     await setTwoFactorTicket(outcome.ticket);
-    return lredirect(`/login/2fa?next=${encodeURIComponent(next)}`);
-  }
-  if (outcome.kind === "second_factor") {
-    await issueTwoFactorTicket(outcome.userId);
     return lredirect(`/login/2fa?next=${encodeURIComponent(next)}`);
   }
   await startSession(outcome.token, outcome.expiresAt);
@@ -162,14 +130,6 @@ export async function twoFactorAction(_: FormState, form: FormData): Promise<For
         }
         throw err;
       }
-    },
-    local: async () => {
-      const userId = await readTwoFactorTicket();
-      if (!userId) return { ok: false as const, error: e.twoFactorExpired };
-      if (!(await rateLimit(`2fa:${userId}`, 8, 900_000)) || !(await rateLimit(`2fa-ip:${await trustedClientIp()}`, 30, 900_000))) {
-        return { ok: false as const, error: e.tooManyLogin };
-      }
-      return localCompleteSecondFactor({ userId, code: code.data, locale });
     },
   });
   if (!outcome.ok) return { error: outcome.error, field: outcome.field };
@@ -199,10 +159,6 @@ export async function forgotAction(_: FormState, form: FormData): Promise<FormSt
         throw err;
       }
     },
-    local: async () => {
-      if (!(await rateLimit(`forgot:${await trustedClientIp()}`, 5, 3600_000))) return { ok: false as const, error: m.auth.errors.tooManyForgot };
-      return localForgotPassword({ email: email.data, locale });
-    },
   });
   if (!outcome.ok) return { error: outcome.error };
   return { ok: true, message: m.auth.forgot.sent };
@@ -220,7 +176,6 @@ export async function resetAction(_: FormState, form: FormData): Promise<FormSta
   if (!token.success) return { error: m.auth.errors.resetExpired };
   type ResetOutcome =
     | { kind: "session"; token: string; expiresAt: Date }
-    | { kind: "second_factor"; userId: string }
     | { kind: "second_factor_ticket"; ticket: string }
     | { kind: "error"; error: string; expired?: boolean };
   const outcome = await v1WebAction<ResetOutcome>({
@@ -240,16 +195,11 @@ export async function resetAction(_: FormState, form: FormData): Promise<FormSta
         throw err;
       }
     },
-    local: () => localResetComplete({ token: token.data, password: password.data, accessExpiredText: m.auth.errors.accessExpired }),
   });
   if (outcome.kind === "error") return outcome.expired ? { error: outcome.error, expired: true } : { error: outcome.error };
   // Смена пароля по письму не обходит второй фактор сотрудника.
   if (outcome.kind === "second_factor_ticket") {
     await setTwoFactorTicket(outcome.ticket);
-    return lredirect("/login/2fa?next=%2Fadmin");
-  }
-  if (outcome.kind === "second_factor") {
-    await issueTwoFactorTicket(outcome.userId);
     return lredirect("/login/2fa?next=%2Fadmin");
   }
   await startSession(outcome.token, outcome.expiresAt);

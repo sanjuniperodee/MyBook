@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { Archive, CalendarDays, ChevronRight, Lock, Users } from "lucide-react";
-import { can, requireStaff } from "@/server/access";
+import { can, requireStaff } from "@/web/access";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { BOARD_COLORS, isBoardColor } from "@/shared/domain/boards";
 import { NewBoard } from "./NewBoard";
 import { RestoreBoard } from "./RestoreBoard";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { crmRead } from "@/web/crm";
 
 export const metadata = { title: "Доски" };
 

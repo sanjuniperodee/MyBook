@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
-import { requireUser } from "@/server/auth";
-import { getAccessibleBook } from "@/server/books";
-import { localLettersPageDto } from "@/server/v1-local-bridge-book";
-import { v1WebRead } from "@/server/v1-web-client";
+import { requireUser } from "@/web/auth";
+import { getAccessibleBook } from "@/web/books";
+import { v1WebRead } from "@/web/api";
 import { env } from "@/config/env";
 import { bookKind } from "@/lib/content/kinds";
 import { LettersManager } from "./LettersManager";
@@ -21,7 +20,6 @@ export default async function LettersPage({ params }: { params: Promise<{ id: st
     v1WebRead({
       name: "book.lettersPage",
       section: "book",
-      local: () => localLettersPageDto(book.id),
       viaApi: (api) => api.webBookLettersPage({ bookId: book.id }),
     }),
   ]);

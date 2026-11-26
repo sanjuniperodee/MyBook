@@ -5,7 +5,7 @@ import { site } from "@/config/site";
 import { Link } from "@/i18n/client";
 import { getLocale, getMessages } from "@/i18n/server";
 import { landings } from "@/lib/content/landings";
-import { siteChrome } from "@/server/site-chrome";
+import { siteChrome } from "@/web/site-chrome";
 import { SiteWidget } from "@/components/SiteWidget";
 
 /**

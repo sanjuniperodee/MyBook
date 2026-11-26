@@ -15,7 +15,7 @@ import { coverNames } from "@/lib/book/cover-names";
 import { photoUrls } from "@/lib/urls";
 import { cn } from "@/lib/class-names";
 import { formatDate } from "@/lib/dates";
-import type { WebOrderDetailResponseDto } from "@/server/v1-local-bridge-orders";
+import type { WebOrderDetailResponseDto } from "@/web/dto";
 import { FileButtons } from "./FileButtons";
 import { nowKey, StatusTrack, type TrackStep } from "../StatusTrack";
 

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { PhoneCall, PhoneIncoming, PhoneMissed, PhoneOutgoing, Settings } from "lucide-react";
-import { can, contactView, requireStaff } from "@/server/access";
+import { can, contactView, requireStaff } from "@/web/access";
 import { staffLabel } from "@/shared/domain/staff";
 import { formatPhone } from "@/shared/domain/phone";
 import { cn } from "@/lib/class-names";
@@ -13,7 +13,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { CallRowActions } from "./CallActions";
 import { RecordingPlayer } from "./RecordingPlayer";
 import { LiveCalls } from "./LiveCalls";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { crmRead } from "@/web/crm";
 
 export const metadata = { title: "Звонки" };
 

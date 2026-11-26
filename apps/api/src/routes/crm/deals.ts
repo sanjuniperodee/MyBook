@@ -10,7 +10,7 @@ import { discountLimit } from "@/server/discount";
 import { listFields } from "@/modules/workspace";
 import { planLabels } from "@/modules/ordering/ui/labels";
 import { dealSourceLabels, dealSources } from "@/shared/domain/dealSources";
-import { setDealAgreedGiftsAction, setDealAgreedPlanAction, updateDealAction } from "@/app/admin/deals/actions";
+import { setDealAgreedGiftsAction, setDealAgreedPlanAction, updateDealAction } from "@/server/crm-actions/deals";
 import type { Handlers } from "../../app";
 import { fieldsOut, fieldsToForm, refused } from "./common";
 

@@ -4,6 +4,9 @@
  * скорость ответа людей — в рабочих минутах (бот и правила — отдельно).
  */
 import { container } from "@/server/container";
+import { mins, num, pct } from "@/lib/crm/numbers";
+
+export { mins, num, pct };
 import { loadProfit } from "@/server/money-flow";
 import { financePeriod } from "@/modules/reporting/ui/finance-screen";
 import { storeTimeZone } from "@/shared/domain/time";
@@ -18,9 +21,6 @@ import { shiftMinutes, slaMinutes, waitLabel } from "@/modules/reporting/ui/resp
 
 type Row = Record<string, unknown>;
 
-export const num = (v: unknown) => Number(v ?? 0);
-export const pct = (a: number, b: number) => (b ? `${Math.round((a / b) * 100)}%` : "—");
-export const mins = (sec: number | null) => (sec === null || Number.isNaN(sec) ? "—" : sec < 60 ? `${Math.round(sec)} сек` : sec < 3600 ? `${Math.round(sec / 60)} мин` : `${(sec / 3600).toFixed(1).replace(".", ",")} ч`);
 
 export async function loadSalesAnalytics(staff: Staff, q: { p?: string; from?: string; to?: string; pl?: string }) {
   const pipelines = await container().sales.queries.listPipelines();
@@ -62,7 +62,6 @@ export async function loadSalesAnalytics(staff: Staff, q: { p?: string; from?: s
 
   const t = totals.rows[0] ?? {};
   const p = prevTotals.rows[0] ?? {};
-  const change = (a: number, b: number) => (b ? (a - b) / b : a ? null : 0);
   const names = new Map(admins.map((a) => [a.id, staffLabel(a)]));
 
   // Каналы привлечения сделок: по UTM, если есть, иначе по источнику сделки (чат, звонок).
@@ -109,5 +108,5 @@ export async function loadSalesAnalytics(staff: Staff, q: { p?: string; from?: s
   const maxRevenue = Math.max(...channelRows.map((r) => r.revenue), 0);
   const maxTeamRevenue = Math.max(...team.map((r) => num(r.revenue)), 0);
 
-  return { pipelines, pipeline, period, tz, showProfit, stages, profit, flow, resp, sla, shift, workMins, share, plans, t, p, change, channelRows, stageRows, c, team, inWork, planPct, base, funnel, maxRevenue, maxTeamRevenue, lost, awaiting };
+  return { pipelines, pipeline, period, tz, showProfit, stages, profit, flow, resp, sla, shift, workMins, share, plans, t, p, channelRows, stageRows, c, team, inWork, planPct, base, funnel, maxRevenue, maxTeamRevenue, lost, awaiting };
 }

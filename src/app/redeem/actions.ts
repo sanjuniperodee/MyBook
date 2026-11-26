@@ -2,15 +2,13 @@
 
 import { cookies } from "next/headers";
 import { lredirect } from "@/i18n/server";
-import { getCurrentUser } from "@/server/auth";
+import { getCurrentUser } from "@/web/auth";
 import { isSecureCookie } from "@/config/env";
-import { localRedeemCheck } from "@/server/v1-local-bridge-public";
-import { v1WebAction } from "@/server/v1-web-client";
-import { trustedClientIp, rateLimit } from "@/server/rateLimit";
+import { v1WebAction } from "@/web/api";
 import { GIFT_COOKIE } from "@/shared/domain/orders";
 import { registrationOpen } from "@/config/site";
 import { z } from "zod";
-import { formText } from "@/server/input";
+import { formText } from "@/web/input";
 
 /** Запоминает код сертификата — он подставится при оформлении заказа — и ведёт к созданию книги. */
 export async function activateGiftAction(form: FormData) {
@@ -20,7 +18,6 @@ export async function activateGiftAction(form: FormData) {
   const found = await v1WebAction({
     section: "public",
     viaApi: (api) => api.webRedeemCheck({ code: code.data }),
-    local: async () => ((await rateLimit(`redeem:${await trustedClientIp()}`, 30, 600_000)) ? localRedeemCheck(code.data) : null),
   });
   if (!found) return lredirect("/redeem?error=limit");
   const { check } = found;

@@ -3,14 +3,12 @@
 import { getLocale, getMessages, lredirect } from "@/i18n/server";
 import { isLocale } from "@/i18n/config";
 import { z } from "zod";
-import { getCurrentUser } from "@/server/auth";
-import { trustedClientIp, rateLimit } from "@/server/rateLimit";
+
 import { toIsoDay } from "@/lib/occasions";
-import { queueEvent } from "@/server/track";
+import { queueEvent } from "@/web/track";
 import { ApiClientError } from "@mybook/contracts";
-import { ensureCatalog } from "@/server/catalog";
-import { localGiftClaim, localGiftCreate } from "@/server/v1-local-bridge-public";
-import { v1WebAction } from "@/server/v1-web-client";
+import { ensureCatalog } from "@/web/catalog";
+import { v1WebAction } from "@/web/api";
 import { getVisiblePlans, type PlanId } from "@/config/site";
 
 export interface GiftFormState {
@@ -67,11 +65,6 @@ export async function createGiftAction(_: GiftFormState, form: FormData): Promis
         throw err;
       }
     },
-    local: async () => {
-      if (!(await rateLimit(`gift:${await trustedClientIp()}`, 10, 60 * 60_000))) return { ok: false as const, error: "tooMany" as const };
-      const user = await getCurrentUser();
-      return localGiftCreate(body, user?.id ?? null);
-    },
   });
   if (!outcome.ok) return { error: outcome.error === "tooMany" ? e.tooMany : e.pastDate };
   await queueEvent("gift_checkout", outcome.amount);
@@ -96,7 +89,6 @@ export async function claimGiftPaymentAction(rawToken: string): Promise<{ error?
         throw err;
       }
     },
-    local: async () => ((await rateLimit(`gift-claim:${await trustedClientIp()}`, 20, 600_000)) ? localGiftClaim(token.data) : null),
   });
   if (!outcome) return tooMany;
   if (!outcome.token) return;

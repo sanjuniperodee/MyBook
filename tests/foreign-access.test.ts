@@ -1,3 +1,4 @@
+import { routeWebToApi } from "./doubles/api";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthoringError, Letter, Photo } from "@/modules/authoring/domain";
 import { BookOutlineService, BooksService, LettersService, PhotosService, QuestionsService } from "@/modules/authoring/application/services";
@@ -96,6 +97,11 @@ vi.mock("next/headers", async () => (await import("./doubles/web")).nextHeaders)
 vi.mock("next/navigation", async () => (await import("./doubles/web")).nextNavigation);
 vi.mock("@/server/container", async () => (await import("./doubles/web")).containerModule);
 
+// ADR 0013: веб ходит только в API v1 — в тестах его запросы обслуживает apps/api в этом же процессе.
+beforeEach(async () => {
+  await routeWebToApi();
+});
+
 /** id заказа: роут файлов проверяет, что это UUID (решение 7). */
 const ORDER = "0f000000-0000-4000-8000-000000000001";
 
@@ -104,7 +110,7 @@ const orders = new Map<string, { id: string; number: number; userId: string; boo
 let built: { kind: string; force: boolean }[] = [];
 
 async function download(kind: string, query = "") {
-  const { GET } = await import("@/app/api/orders/[id]/files/[kind]/route");
+  const { GET } = await import("@/server/site-handlers/orders/file");
   const res = await GET(new Request(`http://localhost/api/orders/${ORDER}/files/${kind}${query}`), { params: Promise.resolve({ id: ORDER, kind }) });
   const type = res.headers.get("content-type") ?? "";
   return { status: res.status, body: type.includes("json") ? ((await res.json()) as { code?: string }).code : await res.text(), name: res.headers.get("content-disposition") };
@@ -202,7 +208,7 @@ const orderView = {
   itemsAmount: 24900, discountAmount: 0, promoCode: null, deliveryAmount: 0, addons: [], addonsAmount: 0, prepaidAmount: 0, amount: 24900, currency: "KZT",
   paymentClaimedAt: null, trackingNumber: null, contactName: "Айжан", contactPhone: "+77010000000", contactEmail: "aizhan@b.kz",
   deliveryMethod: "courier", city: "Алматы", address: "Абая, 1", postalCode: null, giftNote: null, desiredDate: null, surprise: false, customerComment: null,
-  book: { id: "b1", title: "Наша история", subtitle: "", coverTemplate: "linen", format: "a5", authorName: "Айжан", recipientName: "Марат", hideRecipientOnCover: false, coverPhotoId: null, coverPhotoExtra: [] },
+  book: { id: "4a1b2c3d-1111-4222-8333-444444444444", title: "Наша история", subtitle: "", theme: "mom", coverTemplate: "linen", format: "a5", authorName: "Айжан", recipientName: "Марат", hideRecipientOnCover: false, namesOnCover: "both", coverLines: true, coverPhotoId: null, coverPhotoExtra: [] },
 };
 
 /** Строки дерева, которое вернула страница: компоненты не вызываются, видны данные самой страницы. */
@@ -280,7 +286,7 @@ describe("Фото неопубликованного отзыва /api/reviews/
     fake.feedback = { queries: { photo: async (id: string) => (id === PHOTO ? { key: "reviews/p.jpg", userId: client.id, published: false } : null) }, photoFile: async () => Buffer.from("jpg") };
   });
   const open = async () => {
-    const { GET } = await import("@/app/api/reviews/photo/[id]/route");
+    const { GET } = await import("@/server/site-handlers/public/review-photo");
     try {
       return (await GET(new Request(`http://localhost/api/reviews/photo/${PHOTO}`), { params: Promise.resolve({ id: PHOTO }) })).status;
     } catch (err) {

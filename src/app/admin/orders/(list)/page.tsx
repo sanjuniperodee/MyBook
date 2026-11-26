@@ -1,7 +1,7 @@
 import { planName } from "@/i18n/labels";
 import { Download } from "lucide-react";
 import { ORDER_STATUSES as orderStatuses } from "@/shared/domain/orders";
-import { contactView, requireStaff } from "@/server/access";
+import { contactView, requireStaff } from "@/web/access";
 import { formatPrice, getPlans } from "@/config/site";
 import { isPrintedPlan, orderStatusDot, orderStatusLabel } from "@/modules/ordering/ui/status";
 import { orderMoney } from "@/modules/ordering/ui/money";
@@ -13,7 +13,7 @@ import { PageHeader } from "@/components/admin/PageHeader";
 import { OrdersViews } from "../OrdersViews";
 import { OrdersTable, type OrderDue, type OrderRow } from "../OrdersTable";
 import { OrdersToolbar, type StatusChip } from "../OrdersToolbar";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { crmRead } from "@/web/crm";
 
 export const metadata = { title: "Заказы" };
 const PAGE = 50;

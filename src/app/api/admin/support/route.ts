@@ -1,11 +1,7 @@
-import { v1SiteProxy } from "@/server/v1-proxy";
+import { v1SiteProxy } from "@/web/proxy";
 
 export const maxDuration = 300;
 
-type Handler = (req: Request) => Response | Promise<Response>;
-
-const handler = async (method: "POST") => (await import("@/server/site-handlers/admin/support"))[method] as Handler;
-
 export function POST(req: Request) {
-  return v1SiteProxy("crm", req, async () => (await handler("POST"))(req));
+  return v1SiteProxy(req);
 }

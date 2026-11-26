@@ -18,10 +18,9 @@ describe("server actions: вход через zod", () => {
     expect(report).toContain("через API v1:");
   });
 
-  it("без проверок прав и лимитов — только выход и сброс пароля по токену из письма", () => {
+  it("без проверок прав и лимитов — только выход (вход, регистрация, сброс и оплата по ссылке проверяет mybook-api: действие лишь передаёт вызов в API v1)", () => {
     expect(report.split("\n").filter((l) => l.startsWith("  без проверок:"))).toEqual([
       "  без проверок: src/app/(auth)/actions.ts::logoutAction",
-      "  без проверок: src/app/(auth)/actions.ts::resetAction",
     ]);
   });
 });

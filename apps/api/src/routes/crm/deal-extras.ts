@@ -7,7 +7,7 @@ import { can, canWork } from "@/server/access";
 import { container } from "@/server/container";
 import { formatDate } from "@/lib/dates";
 import { channels, manualChannels } from "@/shared/domain/channels";
-import { createClientFromDealAction, deleteDealAction, linkDealClientAction, mergeDealAction, movePipelineAction } from "@/app/admin/deals/actions";
+import { createClientFromDealAction, deleteDealAction, linkDealClientAction, mergeDealAction, movePipelineAction } from "@/server/crm-actions/deals";
 import type { Handlers } from "../../app";
 import { refused } from "./common";
 

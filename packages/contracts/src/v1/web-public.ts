@@ -168,7 +168,37 @@ export const WebUnsubscribeLink = z.object({ valid: z.boolean() }).register(sche
 const UnsubscribeBody = z.object({ u: z.string().max(200), t: z.string().max(200) }).register(schemas, { id: "WebUnsubscribeBody" });
 const WebGiftClaimBody = z.object({ token: z.string().max(200) }).register(schemas, { id: "WebGiftClaimBody" });
 
+/** Свой файл книги по ссылке из QR-кода (страница /v/<токен>): проигрыватель и подписи. */
+export const WebAnswerFilePage = z
+  .object({
+    found: z
+      .object({
+        file: z.object({
+          kind: z.enum(["video", "audio"]),
+          status: z.string(),
+          hasPoster: z.boolean(),
+          width: z.number().nullable(),
+          height: z.number().nullable(),
+          durationSec: z.number().nullable(),
+        }),
+        bookTitle: z.string(),
+        authorName: z.string(),
+        caption: z.string(),
+      })
+      .nullable(),
+  })
+  .register(schemas, { id: "WebAnswerFilePage" });
+
 export const webPublicRoutes = {
+  webAnswerFilePage: route({
+    method: "GET",
+    path: "/api/v1/web/answer-files/{token}",
+    auth: "none",
+    tag: "web-public",
+    summary: "Свой файл книги по секретной ссылке из QR-кода: вид, готовность, размеры, книга и подпись",
+    params: z.object({ token: z.string().min(10).max(80) }),
+    response: WebAnswerFilePage,
+  }),
   webSiteCatalog: route({
     method: "GET",
     path: "/api/v1/web/site/catalog",

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { z } from "zod";
 import { Download, Users } from "lucide-react";
-import { can, canWork, requireStaff } from "@/server/access";
+import { can, canWork, requireStaff } from "@/web/access";
 import { storeTimeZone } from "@/shared/domain/time";
 import { formatPrice } from "@/config/site";
 import { StatRow, StatTile } from "@/components/admin/charts";
@@ -14,7 +14,7 @@ import { Panel } from "@/components/ui/Panel";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { financePeriod } from "@/modules/reporting/ui/finance-screen";
 import { leadStatsScreen } from "@/modules/reporting/ui/lead-stats";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { crmRead } from "@/web/crm";
 
 export const metadata = { title: "Статистика лидов" };
 

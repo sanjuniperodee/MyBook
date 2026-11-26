@@ -1,9 +1,9 @@
 import { PageHeader } from "@/components/admin/PageHeader";
-import { can, requireStaff } from "@/server/access";
+import { can, requireStaff } from "@/web/access";
 import { FILE_MAX_BYTES, FILES_MAX } from "@/modules/support/domain";
 import type { ChatHit } from "../actions";
 import { SupportForm } from "./SupportForm";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { crmRead } from "@/web/crm";
 
 export const metadata = { title: "Новое обращение" };
 

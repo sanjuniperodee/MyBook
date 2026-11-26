@@ -5,14 +5,14 @@ import { Panel } from "@/components/ui/Panel";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ruCount } from "@/i18n/plural";
-import { can, canSeeAssigned, contactView, requireStaff } from "@/server/access";
+import { can, canSeeAssigned, contactView, requireStaff } from "@/web/access";
 import { formatPhone } from "@/shared/domain/phone";
 import { formatPrice } from "@/config/site";
 import { staffLabel } from "@/shared/domain/staff";
 import { mergeCancels } from "@/shared/domain/orders";
 import { formatDate } from "@/lib/dates";
 import { DuplicateCompare, type CompareDeal } from "./DuplicateCompare";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { crmRead } from "@/web/crm";
 
 export const metadata = { title: "Дубли сделок" };
 

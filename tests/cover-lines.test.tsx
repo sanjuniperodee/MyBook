@@ -6,7 +6,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import sharp from "sharp";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { GET } from "@/app/api/covers/[file]/route";
+import { GET } from "@/server/site-handlers/media/cover";
 import { CoverBackPreview } from "@/components/cover/CoverBackPreview";
 import { CoverPreview } from "@/components/cover/CoverPreview";
 import { designBackgroundSvg } from "@/components/cover/DesignedCover";

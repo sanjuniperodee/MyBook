@@ -11,7 +11,7 @@ vi.mock("@/server/container", async () => (await import("./doubles/web")).contai
 vi.mock("@/shared/infrastructure/database", () => ({ rootDb: {}, executor: () => ({}) }));
 vi.mock("@/modules/workspace", () => ({ notify: async () => {}, notifyMentions: async () => {}, readChatNotifications: async (userId: string, convId: string) => (notesRead.push(`${userId}:${convId}`), true), staffNotifier: { notifyAllWith: async () => {} }, listFields: async () => [], readFieldValues: () => ({}) }));
 
-const { markReadAction } = await import("@/app/admin/chats/actions");
+const { markReadAction } = await import("@/server/crm-actions/chats");
 
 const CONV = "0d0d0d0d-0000-4000-8000-0000000000c1";
 

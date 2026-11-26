@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { GET as exportVcard } from "@/app/api/admin/export/vcard/route";
+import { GET as exportVcard } from "@/server/site-handlers/admin/export-vcard";
 import { fake, nadia, owner, resetContainer, resetRequest, signIn } from "./doubles/web";
 
 vi.mock("next/headers", async () => (await import("./doubles/web")).nextHeaders);
@@ -22,7 +22,7 @@ beforeEach(() => {
   };
 });
 
-const download = (qs = "") => exportVcard(new Request(`http://localhost/api/admin/export/vcard${qs}`));
+const download = (qs = "") => exportVcard(new Request(`http://localhost/api/admin/export/vcard${qs}`), undefined as never);
 
 describe("выгрузка контактов vCard", () => {
   it("файл .vcf: подпись с номером сделки и поводом по-русски, номера в международном виде", async () => {

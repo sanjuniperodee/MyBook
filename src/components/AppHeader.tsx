@@ -1,7 +1,7 @@
 import { Logo } from "@/components/Logo";
 import { AppNav, CabinetHeaderGate } from "@/components/AppNav";
-import type { User } from "@/server/auth";
-import { isStaff } from "@/server/auth";
+import type { User } from "@/web/auth";
+import { isStaff } from "@/web/auth";
 
 /**
  * Шапка кабинета: знак, разделы (Книги, Заказы, Аккаунт), язык, тема и профиль. Высота — 56 px: от неё отсчитывают

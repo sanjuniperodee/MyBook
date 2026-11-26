@@ -1,9 +1,9 @@
 import { DEFAULT_BACK_LAYOUT, isBackLayout } from "@/lib/book/cover-back";
 import type { Metadata } from "next";
-import { requireUser } from "@/server/auth";
-import { getAccessibleBook } from "@/server/books";
-import { entriesToPlacePairs, localCoverPageDto } from "@/server/v1-local-bridge-book";
-import { v1WebRead } from "@/server/v1-web-client";
+import { requireUser } from "@/web/auth";
+import { getAccessibleBook } from "@/web/books";
+import { entriesToPlacePairs } from "@/web/dto";
+import { v1WebRead } from "@/web/api";
 import { parseFrames } from "@/lib/book/photo-frame";
 import { parseCoverBack, parseCoverDesign } from "@/lib/book/cover-design";
 import { bookKind } from "@/lib/content/kinds";
@@ -20,12 +20,11 @@ export default async function CoverPage({ params, searchParams }: { params: Prom
   const { side } = await searchParams;
   const user = await requireUser(`/books/${id}/cover`);
   const book = await getAccessibleBook(id, user);
-  const [locale, m] = await Promise.all([getLocale(), getMessages()]);
+  const [locale] = await Promise.all([getLocale(), getMessages()]);
   const data = await v1WebRead({
     name: "book.coverPage",
     section: "book",
     locale,
-    local: () => localCoverPageDto(book, locale, m),
     viaApi: (api) => api.webBookCoverPage({ bookId: book.id, locale }),
   });
   const sample: SpreadSample = {

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { GET as exportPayments } from "@/app/api/admin/export/payments/route";
+import { GET as exportPayments } from "@/server/site-handlers/admin/export-payments";
 import { fake, owner, resetContainer, resetRequest, signIn } from "./doubles/web";
 
 vi.mock("next/headers", async () => (await import("./doubles/web")).nextHeaders);
@@ -22,7 +22,7 @@ beforeEach(() => {
 describe("выгрузка поступлений", () => {
   it("платёж — «платёж менеджеру», сделка без платежа — с подписью «денег в журнале нет»", async () => {
     signIn(owner);
-    const res = await exportPayments(new Request("http://localhost/api/admin/export/payments?days=30"));
+    const res = await exportPayments(new Request("http://localhost/api/admin/export/payments?days=30"), undefined as never);
     expect(res.status).toBe(200);
     const [, paid, agreed] = (await res.text()).replace(/^﻿/, "").split(/\r?\n/);
     expect(paid).toContain("платёж менеджеру");

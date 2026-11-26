@@ -5,7 +5,7 @@ import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
 import { productionDays, site } from "@/config/site";
 import { getMessages } from "@/i18n/server";
 import type { LegalBlock, LegalFacts } from "@/i18n/messages/ru/legal";
-import { getCurrentUser } from "@/server/auth";
+import { getCurrentUser } from "@/web/auth";
 import { env } from "@/config/env";
 
 /** Реквизиты и параметры, которые подставляются в тексты оферты и политики. */

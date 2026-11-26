@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { requireUser } from "@/server/auth";
-import { getAccessibleBook } from "@/server/books";
+import { requireUser } from "@/web/auth";
+import { getAccessibleBook } from "@/web/books";
 import { PhotosManager } from "./PhotosManager";
 import { isPhotoFilter } from "./photos-tab";
 import { loadPhotosPageData } from "./photos-data";

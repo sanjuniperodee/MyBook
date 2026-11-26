@@ -6,7 +6,9 @@ import { PlainShell } from "@/components/landing/PlainShell";
 import { getLocale, getMessages } from "@/i18n/server";
 import { localizePath } from "@/i18n/config";
 import { FILE_TOKEN, formatDuration } from "@/lib/book/answer-files";
-import { publicFile } from "@/server/answerFiles";
+import { v1WebRead } from "@/web/api";
+
+const publicFile = (token: string) => v1WebRead({ name: "public.answerFile", sessionCookie: null, viaApi: async (api) => (await api.webAnswerFilePage({ token })).found });
 
 type Props = { params: Promise<{ token: string }> };
 

@@ -4,7 +4,7 @@ import { TransferForm } from "../transfer/TransferForm";
 import { SettingsFrame } from "../frame";
 import { tabAnchors } from "../tabs";
 import { hook } from "./shared";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { crmRead } from "@/web/crm";
 
 export async function PaymentsTab() {
   const { kaspi, transfer, alertAfterMinutes, secretFromEnv, transferFromEnv } = await crmRead("settings.payments", {});

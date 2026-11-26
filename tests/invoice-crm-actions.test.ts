@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DealInvoice, type DealInvoiceProps } from "@/modules/ordering/domain";
 import { ForbiddenError } from "@/server/access";
-import { cancelInvoiceAction, invoiceAccountsAction, invoiceFormInfoAction, issueInvoiceAction, resendInvoiceAccessAction, resendInvoiceAction, type InvoiceFormInfo } from "@/app/admin/invoices/actions";
+import { cancelInvoiceAction, invoiceAccountsAction, invoiceFormInfoAction, issueInvoiceAction, resendInvoiceAccessAction, resendInvoiceAction, type InvoiceFormInfo } from "@/server/crm-actions/invoices";
 import { DiscountError } from "@/shared/domain/discount";
 import { anna, dina, fake, kira, lena, owner, resetContainer, resetRequest, rita, signIn } from "./doubles/web";
 

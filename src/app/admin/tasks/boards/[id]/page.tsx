@@ -1,9 +1,9 @@
 import { notFound } from "next/navigation";
 import { staffOptions } from "@/modules/access/ui";
-import { requireStaff } from "@/server/access";
-import { pageId } from "@/server/input";
+import { requireStaff } from "@/web/access";
+import { pageId } from "@/web/input";
 import { BoardApp } from "../BoardApp";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { crmRead } from "@/web/crm";
 
 export const metadata = { title: "Доска" };
 

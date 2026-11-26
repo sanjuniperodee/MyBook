@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PaymentError, ReceiptError, RECEIPT_MAX_BYTES } from "@/modules/sales";
-import { POST as acceptPayment } from "@/app/api/admin/deals/[id]/payments/route";
-import { POST as attachReceipt } from "@/app/api/admin/deals/[id]/receipts/route";
-import { DELETE as removePayment } from "@/app/api/admin/payments/[id]/route";
-import { POST as refundOrder } from "@/app/api/admin/orders/[id]/refunds/route";
+import { POST as acceptPayment } from "@/server/site-handlers/admin/deals-id-payments";
+import { POST as attachReceipt } from "@/server/site-handlers/admin/deals-id-receipts";
+import { DELETE as removePayment } from "@/server/site-handlers/admin/payments-id";
+import { POST as refundOrder } from "@/server/site-handlers/admin/orders-id-refunds";
 import { PaymentIntakeService } from "@/modules/sales/application";
 import { DealInvoice, OrderingError } from "@/modules/ordering/domain";
 import { anna, client, fake, owner, request, resetContainer, resetRequest, signIn } from "./doubles/web";

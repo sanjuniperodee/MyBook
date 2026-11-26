@@ -9,7 +9,7 @@ vi.mock("@/server/container", async () => (await import("./doubles/web")).contai
 
 const app = new URL(env.appUrl);
 const post = (body: unknown, origin = app.origin) =>
-  POST(new Request(`${app.origin}/api/locale`, { method: "POST", headers: { "Content-Type": "application/json", origin, host: app.host }, body: JSON.stringify(body) }), {});
+  POST(new Request(`${app.origin}/api/locale`, { method: "POST", headers: { "Content-Type": "application/json", origin, host: app.host }, body: JSON.stringify(body) }));
 
 beforeEach(() => resetRequest());
 

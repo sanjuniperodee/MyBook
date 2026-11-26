@@ -7,7 +7,7 @@ import { randomUUID } from "node:crypto";
 import { apiStaff } from "@/server/api";
 import { container } from "@/server/container";
 import { catalogLink } from "@/modules/messaging";
-import { createProductAction, deleteCollectionAction, deleteProductAction, saveCollectionAction, setProductHiddenAction, syncCatalogAction, updateProductAction } from "@/app/admin/catalog/actions";
+import { createProductAction, deleteCollectionAction, deleteProductAction, saveCollectionAction, setProductHiddenAction, syncCatalogAction, updateProductAction } from "@/server/crm-actions/catalog";
 import type { Handlers } from "../../app";
 import { refused } from "./common";
 

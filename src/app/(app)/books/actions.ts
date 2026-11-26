@@ -3,19 +3,18 @@
 import { ApiClientError } from "@mybook/contracts";
 import { isLocale } from "@/i18n/config";
 import { getLocale, getMessages, lredirect } from "@/i18n/server";
-import { requireUser } from "@/server/auth";
-import { queueEvent } from "@/server/track";
+import { requireUser } from "@/web/auth";
+import { queueEvent } from "@/web/track";
 import { bookKind } from "@/lib/content/kinds";
 import { createBookSchema } from "@/lib/book/create-book-schema";
-import { localStartBook } from "@/server/v1-local-bridge";
-import { v1WebAction } from "@/server/v1-web-client";
+import { v1WebAction } from "@/web/api";
 
 export interface CreateState {
   error?: string;
 }
 
 export async function createBookAction(_: CreateState, form: FormData): Promise<CreateState> {
-  const user = await requireUser();
+  await requireUser();
   const [locale, m] = await Promise.all([getLocale(), getMessages()]);
   const parsed = createBookSchema(m.books.wizard.errors).safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
@@ -47,7 +46,6 @@ export async function createBookAction(_: CreateState, form: FormData): Promise<
         throw err;
       }
     },
-    local: async () => ({ ok: true as const, id: (await localStartBook(user.id, d)).id }),
   });
   if (!outcome.ok) return { error: outcome.error };
   // Цель «book_created» — для всех книг, со свойством «вид книги»; для автобиографии и своей книги — ещё и цель

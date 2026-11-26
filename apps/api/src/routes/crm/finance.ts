@@ -12,10 +12,10 @@ import { channels } from "@/shared/domain/channels";
 import { expenseCategories, expenseCategoryKeys, expenseGroupKeys, expenseGroupOf, expenseGroups, PAY_FORM_KEY, PAY_FORM_OPTIONS } from "@/shared/domain/expenses";
 import { financePeriod, financeScreen, type FinancePeriod } from "@/modules/reporting/ui/finance-screen";
 import { expensesScreen } from "@/modules/reporting/ui/profit-screen";
-import { resolveFinanceIssueAction, reviewDealPaymentAction, undoFinanceResolutionAction } from "@/app/admin/finance/actions";
-import { reviewOrderPaymentAction } from "@/app/admin/actions";
-import { addExpenseAction, removeExpenseAction, updateExpenseAction } from "@/app/admin/expenses/actions";
-import { saveFeeRatesAction } from "@/app/admin/profit/actions";
+import { resolveFinanceIssueAction, reviewDealPaymentAction, undoFinanceResolutionAction } from "@/server/crm-actions/finance";
+import { reviewOrderPaymentAction } from "@/server/crm-actions/admin";
+import { addExpenseAction, removeExpenseAction, updateExpenseAction } from "@/server/crm-actions/expenses";
+import { saveFeeRatesAction } from "@/server/crm-actions/profit";
 import type { Handlers } from "../../app";
 import { refused } from "./common";
 

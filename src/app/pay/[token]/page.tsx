@@ -7,14 +7,13 @@ import { CheckCircle2, Gift, MessageCircle, ShieldCheck, XCircle } from "lucide-
 import { Link } from "@/i18n/client";
 import { LandingHeader } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
-import { getCurrentUser } from "@/server/auth";
+import { getCurrentUser } from "@/web/auth";
 import { formatPrice, site } from "@/config/site";
 import { getLocale, getMessages } from "@/i18n/server";
 import { planName } from "@/i18n/labels";
 import { isLinkPreviewAgent, isPayToken } from "@/shared/domain/orders";
 import { storeTimeZone } from "@/shared/domain/time";
-import { localPayPageDto, localPayViewed } from "@/server/v1-local-bridge-orders";
-import { v1WebAction, v1WebRead } from "@/server/v1-web-client";
+import { v1WebAction, v1WebRead } from "@/web/api";
 import { InvoicePayment } from "./InvoicePayment";
 
 const isNotFoundApiError = (err: unknown): boolean =>
@@ -38,7 +37,6 @@ export default async function PayPage({ params }: { params: Promise<{ token: str
     name: "orders.payPage",
     section: "orders",
     locale,
-    local: () => localPayPageDto(token),
     viaApi: async (api) => {
       try {
         return await api.webPayPage({ token, locale });
@@ -59,7 +57,6 @@ export default async function PayPage({ params }: { params: Promise<{ token: str
       section: "orders",
       locale,
       viaApi: (api) => api.webPayViewed({ token }),
-      local: () => localPayViewed(token),
     }).catch((err) => console.error("[pay] viewed", err));
   }
 

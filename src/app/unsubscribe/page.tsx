@@ -3,8 +3,7 @@ import { Link } from "@/i18n/client";
 import { PlainSheet, PlainShell } from "@/components/landing/PlainShell";
 import { getMessages, lredirect } from "@/i18n/server";
 import { z } from "zod";
-import { localUnsubscribe, localUnsubscribeLink } from "@/server/v1-local-bridge-public";
-import { v1WebAction, v1WebRead } from "@/server/v1-web-client";
+import { v1WebAction, v1WebRead } from "@/web/api";
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getMessages()).gift.unsubscribe.meta, robots: { index: false } };
@@ -16,7 +15,7 @@ async function unsubscribeAction(form: FormData) {
   if (!link.success) return lredirect("/unsubscribe");
   const { u, t } = link.data;
   // Подпись ссылки проверяет сам сервис отписки (isValidLink) — в обоих путях.
-  await v1WebAction({ section: "public", viaApi: (api) => api.webUnsubscribe({ body: { u, t } }), local: () => localUnsubscribe(u, t) });
+  await v1WebAction({ section: "public", viaApi: (api) => api.webUnsubscribe({ body: { u, t } }),});
   return lredirect("/unsubscribe?done=1");
 }
 
@@ -27,7 +26,6 @@ export default async function UnsubscribePage({ searchParams }: { searchParams: 
     name: "public.unsubscribeLink",
     section: "public",
     sessionCookie: null,
-    local: () => localUnsubscribeLink(u, t),
     viaApi: (api) => api.webUnsubscribeLink({ u, t }),
   });
   const m = (await getMessages()).gift.unsubscribe;

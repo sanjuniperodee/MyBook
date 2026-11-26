@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { requireUser } from "@/server/auth";
+import { requireUser } from "@/web/auth";
 import { countQuestions, getTheme, getThemes, isThemeId } from "@/lib/content/themes";
 import { getLocale, getMessages } from "@/i18n/server";
 import { locales } from "@/i18n/config";

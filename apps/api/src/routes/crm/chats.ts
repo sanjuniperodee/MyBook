@@ -1,6 +1,6 @@
 /** Бот в диалоге из приложения CRM: «Почему так?» (ответы и молчание) и запуск/остановка бота. */
 import { apiStaff, HttpError } from "@/server/api";
-import { botTraceAction, startBotAction, stopBotAction } from "@/app/admin/chats/actions";
+import { botTraceAction, startBotAction, stopBotAction } from "@/server/crm-actions/chats";
 import { container } from "@/server/container";
 import { traceRows } from "@/modules/messaging/ui/botTrace";
 import { refused } from "./common";

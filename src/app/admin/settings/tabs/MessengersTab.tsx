@@ -24,7 +24,7 @@ import { WazzupForm } from "../wazzup/WazzupForm";
 import { SettingsFrame } from "../frame";
 import { tabAnchors } from "../tabs";
 import { hook } from "./shared";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { crmRead } from "@/web/crm";
 
 export async function MessengersTab() {
   const { wazzup, gowa, recordingDays, rules, lifecycleChat, catalog: c } = await crmRead("settings.messengers", {});

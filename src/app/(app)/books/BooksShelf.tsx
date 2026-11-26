@@ -14,8 +14,8 @@ import { nowKey, orderSteps, StatusTrack } from "../orders/StatusTrack";
 
 type M = Awaited<ReturnType<typeof getMessages>>;
 
-export type { ShelfBook } from "@/server/shelf";
-import type { ShelfBook } from "@/server/shelf";
+export type { ShelfBook } from "@/web/shelf";
+import type { ShelfBook } from "@/web/shelf";
 
 const coverProps = (b: ShelfBook["row"]["book"]) => ({
   template: b.coverTemplate,

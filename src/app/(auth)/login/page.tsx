@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Link } from "@/i18n/client";
 import { getMessages, lredirect } from "@/i18n/server";
-import { getCurrentUser, safeNextPath } from "@/server/auth";
+import { getCurrentUser, safeNextPath } from "@/web/auth";
 import { registrationOpen } from "@/config/site";
 import { isThemeId } from "@/lib/content/themes";
 import { AuthHead } from "../AuthHead";

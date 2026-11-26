@@ -46,14 +46,14 @@ vi.mock("@/server/bot-site", () => ({
 vi.mock("@/server/catalog", () => ({ ensureCatalog: async () => {}, saveCatalog: async (next: unknown) => void w.saved.push({ catalog: JSON.stringify(next) }) }));
 
 const actions = {
-  ...(await import("@/app/admin/pricing/actions")),
-  ...(await import("@/app/admin/settings/wazzup/actions")),
-  ...(await import("@/app/admin/settings/telephony/actions")),
-  ...(await import("@/app/admin/settings/crm/actions")),
-  ...(await import("@/app/admin/settings/mail/actions")),
-  ...(await import("@/app/admin/settings/ai/actions")),
-  ...(await import("@/app/admin/settings/kaspi/actions")),
-  ...(await import("@/app/admin/settings/whatsapp/actions")),
+  ...(await import("@/server/crm-actions/pricing")),
+  ...(await import("@/server/crm-actions/settings-wazzup")),
+  ...(await import("@/server/crm-actions/settings-telephony")),
+  ...(await import("@/server/crm-actions/settings-crm")),
+  ...(await import("@/server/crm-actions/settings-mail")),
+  ...(await import("@/server/crm-actions/settings-ai")),
+  ...(await import("@/server/crm-actions/settings-kaspi")),
+  ...(await import("@/server/crm-actions/settings-whatsapp")),
 };
 
 const form = (fields: Record<string, string | string[] | File>) => {

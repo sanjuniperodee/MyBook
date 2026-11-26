@@ -14,9 +14,10 @@ import { leadStatsScreen, salesRegisterScreen } from "@/modules/reporting/ui/lea
 import { waitLabel } from "@/modules/reporting/ui/response-wait";
 import { formatDate } from "@/lib/dates";
 import { loadSalesAnalytics, mins, num, pct } from "@/server/sales-analytics";
-import { setPayFormAction } from "@/app/admin/sales/actions";
+import { setPayFormAction } from "@/server/crm-actions/sales";
 import type { Handlers } from "../../app";
 import { refused } from "./common";
+import { change } from "@/lib/crm/numbers";
 
 const PRESETS = [
   { id: "today", label: "Сегодня" },
@@ -56,7 +57,7 @@ export const crmAnalyticsHandlers: Pick<Handlers, "crmSalesRegister" | "crmSales
   async crmAnalytics({ req, input }) {
     const staff = await apiStaff(req, "analytics.view");
     const a = await loadSalesAnalytics(staff, input);
-    const { t, p, change, resp, flow } = a;
+    const { t, p, resp, flow } = a;
     return {
       period: periodOut(a.period),
       pipelines: a.pipelines.map((x) => ({ id: x.id, label: x.name })),

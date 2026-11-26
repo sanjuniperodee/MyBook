@@ -97,47 +97,47 @@ describe("API v1 A5: маршруты сайта в mybook-api (site-routes.ts)"
       {
         name: "PATCH /api/books/{id}",
         req: () => new Request(`http://127.0.0.1:3044/api/books/${ID1}`, { method: "PATCH", body: "{}" }),
-        direct: async (r: Request) => (await import("@/app/api/books/[id]/route")).PATCH(r, { params: Promise.resolve({ id: ID1 }) }),
+        direct: async (r: Request) => (await import("@/server/site-handlers/books/book")).PATCH(r, { params: Promise.resolve({ id: ID1 }) }),
       },
       {
         name: "POST /api/books/{id}/chapters",
         req: () => new Request(`http://127.0.0.1:3044/api/books/${ID1}/chapters`, { method: "POST", body: "{}" }),
-        direct: async (r: Request) => (await import("@/app/api/books/[id]/chapters/route")).POST(r, { params: Promise.resolve({ id: ID1 }) }),
+        direct: async (r: Request) => (await import("@/server/site-handlers/books/chapters")).POST(r, { params: Promise.resolve({ id: ID1 }) }),
       },
       {
         name: "PATCH /api/books/{id}/chapters/{key}",
         req: () => new Request(`http://127.0.0.1:3044/api/books/${ID1}/chapters/${ID2}`, { method: "PATCH", body: "{}" }),
-        direct: async (r: Request) => (await import("@/app/api/books/[id]/chapters/[key]/route")).PATCH(r, { params: Promise.resolve({ id: ID1, key: ID2 }) }),
+        direct: async (r: Request) => (await import("@/server/site-handlers/books/chapter-item")).PATCH(r, { params: Promise.resolve({ id: ID1, key: ID2 }) }),
       },
       {
         name: "POST /api/books/{id}/questions/{qid}/move",
         req: () => new Request(`http://127.0.0.1:3044/api/books/${ID1}/questions/${ID2}/move`, { method: "POST", body: "{}" }),
-        direct: async (r: Request) => (await import("@/app/api/books/[id]/questions/[qid]/move/route")).POST(r, { params: Promise.resolve({ id: ID1, qid: ID2 }) }),
+        direct: async (r: Request) => (await import("@/server/site-handlers/books/question-move")).POST(r, { params: Promise.resolve({ id: ID1, qid: ID2 }) }),
       },
       {
         name: "PATCH /api/books/{id}/photos/{pid}",
         req: () => new Request(`http://127.0.0.1:3044/api/books/${ID1}/photos/${ID2}`, { method: "PATCH", body: "{}" }),
-        direct: async (r: Request) => (await import("@/app/api/books/[id]/photos/[pid]/route")).PATCH(r, { params: Promise.resolve({ id: ID1, pid: ID2 }) }),
+        direct: async (r: Request) => (await import("@/server/site-handlers/books/photo-item")).PATCH(r, { params: Promise.resolve({ id: ID1, pid: ID2 }) }),
       },
       {
         name: "POST /api/books/{id}/layout",
         req: () => new Request(`http://127.0.0.1:3044/api/books/${ID1}/layout`, { method: "POST", body: "{}" }),
-        direct: async (r: Request) => (await import("@/app/api/books/[id]/layout/route")).POST(r, { params: Promise.resolve({ id: ID1 }) }),
+        direct: async (r: Request) => (await import("@/server/site-handlers/books/layout")).POST(r, { params: Promise.resolve({ id: ID1 }) }),
       },
       {
         name: "PATCH /api/books/{id}/letters/{lid}",
         req: () => new Request(`http://127.0.0.1:3044/api/books/${ID1}/letters/${ID2}`, { method: "PATCH", body: "{}" }),
-        direct: async (r: Request) => (await import("@/app/api/books/[id]/letters/[lid]/route")).PATCH(r, { params: Promise.resolve({ id: ID1, lid: ID2 }) }),
+        direct: async (r: Request) => (await import("@/server/site-handlers/books/letter-item")).PATCH(r, { params: Promise.resolve({ id: ID1, lid: ID2 }) }),
       },
       {
         name: "GET /api/admin/chats/{id}/messages",
         req: () => new Request(`http://127.0.0.1:3044/api/admin/chats/${ID1}/messages`, { method: "GET" }),
-        direct: async (r: Request) => (await import("@/app/api/admin/chats/[id]/messages/route")).GET(r, { params: Promise.resolve({ id: ID1 }) }),
+        direct: async (r: Request) => (await import("@/server/site-handlers/admin/chats-id-messages")).GET(r, { params: Promise.resolve({ id: ID1 }) }),
       },
       {
         name: "POST /api/admin/notifications",
         req: () => new Request("http://127.0.0.1:3044/api/admin/notifications", { method: "POST", body: "{}" }),
-        direct: async (r: Request) => (await import("@/app/api/admin/notifications/route")).POST(r),
+        direct: async (r: Request) => (await import("@/server/site-handlers/admin/notifications")).POST(r, undefined as never),
       },
     ];
 

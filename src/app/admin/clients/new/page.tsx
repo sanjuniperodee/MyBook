@@ -1,8 +1,8 @@
 import { PageHeader } from "@/components/admin/PageHeader";
-import { canAssignOthers, requireStaff, can } from "@/server/access";
+import { canAssignOthers, requireStaff, can } from "@/web/access";
 import { staffOptions } from "@/modules/access/ui";
 import { NewClientForm } from "./NewClientForm";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { crmRead } from "@/web/crm";
 
 export const metadata = { title: "Новый клиент" };
 

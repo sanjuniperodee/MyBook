@@ -9,7 +9,7 @@ import { Overlays } from "@/components/ui/overlays";
 import { StaleVersionGuard } from "@/components/StaleVersionGuard";
 import { I18nProvider } from "@/i18n/client";
 import { getLocale } from "@/i18n/server";
-import { ensureCatalog } from "@/server/catalog";
+import { ensureCatalog } from "@/web/catalog";
 import { CatalogSync } from "@/components/CatalogSync";
 import { messagesFor } from "@/i18n/messages";
 import { localeMeta } from "@/i18n/config";

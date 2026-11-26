@@ -1,11 +1,11 @@
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Segmented } from "@/components/admin/Segmented";
 import { Panel } from "@/components/ui/Panel";
-import { requireStaff } from "@/server/access";
+import { requireStaff } from "@/web/access";
 import { NewPipeline, NewStage, PipelineHeader, StageRow } from "./StageEditor";
 import { RoutingPanel } from "./RoutingPanel";
 import { StageOrderPanel } from "./StageOrderPanel";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { crmRead } from "@/web/crm";
 
 export const metadata = { title: "Этапы воронки" };
 

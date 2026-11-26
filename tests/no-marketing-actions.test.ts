@@ -50,8 +50,8 @@ vi.mock("@/server/container", async () => {
   };
 });
 
-const { addBlocklistAction } = await import("@/app/admin/deals/actions");
-const { setClientNoMarketingAction, setDealNoMarketingAction } = await import("@/app/admin/crm-actions");
+const { addBlocklistAction } = await import("@/server/crm-actions/deals");
+const { setClientNoMarketingAction, setDealNoMarketingAction } = await import("@/server/crm-actions/crm");
 
 beforeEach(() => {
   w.audits = [];

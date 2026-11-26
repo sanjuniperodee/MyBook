@@ -22,7 +22,7 @@ import * as calendarFeed from "@/server/site-handlers/public/calendar-feed";
 import * as chatAvatar from "@/server/site-handlers/public/chat-avatar";
 import * as inviteLink from "@/server/site-handlers/public/invite-link";
 import * as shortLink from "@/server/site-handlers/public/short-link";
-import * as chatsInbox from "@/app/api/admin/chats/inbox/route";
+import * as chatsInbox from "@/server/site-handlers/admin/chats-inbox";
 import * as bookRoute from "@/server/site-handlers/books/book";
 import * as build from "@/server/site-handlers/books/build";
 import * as buildProgress from "@/server/site-handlers/books/build-progress";
@@ -61,6 +61,9 @@ import * as writeAi from "@/server/site-handlers/books/write-ai";
 import * as mediaPhoto from "@/server/site-handlers/media/photo";
 import * as mediaCover from "@/server/site-handlers/media/cover";
 import * as mediaCoverPhoto from "@/server/site-handlers/media/cover-photo";
+import * as vToken from "@/server/site-handlers/v/token";
+import * as designAiPacks from "@/server/site-handlers/design-ai/packs";
+import * as mediaOembed from "@/server/site-handlers/media/oembed";
 import * as adminBoards from "@/server/site-handlers/admin/boards";
 import * as adminMobileApk from "@/server/site-handlers/admin/mobile-apk";
 import * as adminIosAppEnroll from "@/server/site-handlers/admin/ios-app-enroll";
@@ -241,6 +244,10 @@ const table: [string, RouteModule][] = [
   ["/api/books/{id}/build", build as RouteModule],
   ["/api/books/{id}/build-progress", buildProgress as RouteModule],
   ["/api/books/{id}", bookRoute as RouteModule],
+  // Свои файлы книги по QR (/api/v/<токен>), пакеты дизайнера ИИ, превью ссылок на видео (ADR 0013: обработчики только в mybook-api).
+  ["/api/v/{token}", vToken as RouteModule],
+  ["/api/design-ai/packs", designAiPacks as RouteModule],
+  ["/api/media/oembed", mediaOembed as RouteModule],
   // Потоковые медиа книги и шаблонов обложек.
   ["/api/photos/{id}", mediaPhoto as RouteModule],
   ["/api/covers/{file}", mediaCover as RouteModule],

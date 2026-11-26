@@ -1,7 +1,7 @@
-import { requireStaff } from "@/server/access";
+import { requireStaff } from "@/web/access";
 import { formatDate } from "@/lib/dates";
 import { StaffBoard, type Member } from "../TeamControls";
-import { crmRead } from "@/server/v1-local-bridge-crm";
+import { crmRead } from "@/web/crm";
 
 export const metadata = { title: "Команда" };
 

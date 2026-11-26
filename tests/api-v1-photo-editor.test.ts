@@ -103,7 +103,7 @@ vi.mock("@/server/books", () => ({
   viewerOf: async (u: { id: string }) => ({ userId: u.id, isStaff: false, staffEdits: false }),
 }));
 
-vi.mock("@/app/(app)/books/[id]/photos/photos-data", () => ({
+vi.mock("@/server/photos-tab-data", () => ({
   photosTabData: async () => ({
     book: { id: BOOK_ID, format: "a5", interior: "classic", language: "ru", blank: false, photoPlacement: "after", galleryTitle: "Альбом", editable: stateRef.bookStatus === "draft", layoutRev: 2 },
     photos: [],
