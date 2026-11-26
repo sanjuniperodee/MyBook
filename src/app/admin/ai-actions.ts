@@ -14,3 +14,5 @@ export const aiExtractFieldsAction = crmAction<typeof impl.aiExtractFieldsAction
 export const aiApplyFieldsAction = crmAction<typeof impl.aiApplyFieldsAction>("ai", "aiApplyFieldsAction");
 export const aiNextStepTaskAction = crmAction<typeof impl.aiNextStepTaskAction>("ai", "aiNextStepTaskAction");
 export const aiTemplateDraftAction = crmAction<typeof impl.aiTemplateDraftAction>("ai", "aiTemplateDraftAction");
+export const aiProposalApplyAction = crmAction<typeof impl.aiProposalApplyAction>("ai", "aiProposalApplyAction");
+export const aiProposalDismissAction = crmAction<typeof impl.aiProposalDismissAction>("ai", "aiProposalDismissAction");

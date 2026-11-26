@@ -35,3 +35,4 @@ export const saveViewAction = crmAction<typeof impl.saveViewAction>("deals", "sa
 export const deleteViewAction = crmAction<typeof impl.deleteViewAction>("deals", "deleteViewAction");
 export const createClientFromDealAction = crmAction<typeof impl.createClientFromDealAction>("deals", "createClientFromDealAction");
 export const saveStageOrderAction = crmAction<typeof impl.saveStageOrderAction>("deals", "saveStageOrderAction");
+export const saveAiStagesAction = crmAction<typeof impl.saveAiStagesAction>("deals", "saveAiStagesAction");
