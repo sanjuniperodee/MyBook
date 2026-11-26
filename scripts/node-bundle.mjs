@@ -3,7 +3,7 @@
 // вшиваются — берутся из node_modules релиза; остальное — в бандле, потому что standalone-сборка кладёт в node_modules
 // только то, что Next оставил внешним.
 import { build } from "esbuild";
-import { cpSync, existsSync, readFileSync } from "node:fs";
+import { cpSync, existsSync, readdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { asciiBundle } from "./ascii-bundle.mjs";
@@ -63,6 +63,19 @@ export async function bundleNodeProcess({ name, entry, nextShim }) {
  * трассирует (26.11 mybook-api упал на «Cannot find package 'pg'»). Пакет копируется папкой (с вложенными node_modules),
  * файлы, которые уже положил Next, не трогаются; затем каждый внешний пакет должен находиться из папки релиза.
  */
+/** Папки пакетов во вложенных node_modules (на любой глубине). */
+function nestedPackages(dir) {
+  const nm = path.join(dir, "node_modules");
+  if (!existsSync(nm)) return [];
+  const out = [];
+  for (const e of readdirSync(nm, { withFileTypes: true })) {
+    if (!e.isDirectory() || e.name.startsWith(".")) continue;
+    const dirs = e.name.startsWith("@") ? readdirSync(path.join(nm, e.name)).map((n) => path.join(nm, e.name, n)) : [path.join(nm, e.name)];
+    for (const d of dirs) if (existsSync(path.join(d, "package.json"))) out.push(d, ...nestedPackages(d));
+  }
+  return out;
+}
+
 async function traceExternals(out) {
   const seen = new Set();
   const stack = [...EXTERNAL];
@@ -73,8 +86,11 @@ async function traceExternals(out) {
     const dir = path.join("node_modules", name);
     if (!existsSync(path.join(dir, "package.json"))) continue;
     cpSync(dir, path.join(".next", "standalone", "node_modules", name), { recursive: true, force: false, dereference: true });
-    const pkg = JSON.parse(readFileSync(path.join(dir, "package.json"), "utf8"));
-    for (const dep of Object.keys({ ...pkg.dependencies, ...pkg.optionalDependencies })) stack.push(dep);
+    // Зависимости самого пакета и пакетов во вложенных node_modules: им тоже нужны поднятые наверх соседи.
+    for (const pkgDir of [dir, ...nestedPackages(dir)]) {
+      const pkg = JSON.parse(readFileSync(path.join(pkgDir, "package.json"), "utf8"));
+      for (const dep of Object.keys({ ...pkg.dependencies, ...pkg.optionalDependencies })) stack.push(dep);
+    }
   }
   const fromRelease = createRequire(path.resolve(out));
   const missing = EXTERNAL.filter((pkg) => {
