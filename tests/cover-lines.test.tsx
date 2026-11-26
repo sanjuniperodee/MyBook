@@ -5,7 +5,7 @@ import { spawnSync } from "node:child_process";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import sharp from "sharp";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GET } from "@/app/api/covers/[file]/route";
 import { CoverBackPreview } from "@/components/cover/CoverBackPreview";
 import { CoverPreview } from "@/components/cover/CoverPreview";
@@ -35,6 +35,15 @@ const leftLines = (svg: string) =>
   [...svg.matchAll(/<(line|rect|path|circle|ellipse)\b[^>]*?\/>/g)].filter(([el, tag]) => !/data-keep/.test(el) && (/data-line/.test(el) || tag === "line" || (tag === "rect" && /fill="none"/.test(el) && /stroke="/.test(el))));
 
 describe("декоративные линии обложки (обращение №17)", () => {
+  beforeEach(() => {
+    vi.stubEnv("DATABASE_URL", "postgres://test/mybook");
+    vi.stubEnv("WEB_API_ONLY", "");
+    vi.stubEnv("WEB_USE_API_V1", "");
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it("все шаблоны: без линий нет ни линий, ни рамок, а места под фото, картинки и прочий рисунок те же", async () => {
     let withLines = 0;
     for (const t of allCoverTemplates) {

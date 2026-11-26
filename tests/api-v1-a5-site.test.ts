@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { handleSiteRoute, siteRoutePaths } from "../apps/api/src/site-routes";
 
 // Мокаем сессию и i18n, чтобы проверять эквивалентность Next route handlers и mybook-api без подключения к БД.
@@ -16,6 +16,15 @@ const ID1 = "11111111-2222-4333-8444-555555555555";
 const ID2 = "22222222-3333-4444-8555-666666666666";
 
 describe("API v1 A5: маршруты сайта в mybook-api (site-routes.ts)", () => {
+  beforeEach(() => {
+    vi.stubEnv("DATABASE_URL", "postgres://test/mybook");
+    vi.stubEnv("WEB_API_ONLY", "");
+    vi.stubEnv("WEB_USE_API_V1", "");
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it("содержит новую порцию JSON-маршрутов редактора и CRM, а статические пути стоят раньше параметрических", () => {
     const idx = (p: string) => siteRoutePaths.indexOf(p);
     for (const p of [

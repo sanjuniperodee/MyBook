@@ -1,15 +1,7 @@
-import { NextResponse } from "next/server";
-import { api, apiViewer } from "@/server/api";
-import { container } from "@/server/container";
-import { idParams } from "@/server/input";
+import { v1SiteProxy } from "@/server/v1-proxy";
 
 type Ctx = { params: Promise<{ id: string; pid: string }> };
 
-/** Поворачивает сам файл на 90° по часовой стрелке (и превью), точка фокуса поворачивается вместе с ним. */
-export const POST = api(async (req, { params }: Ctx) => {
-  const { id, pid } = idParams(await params, "id", "pid");
-  const { viewer } = await apiViewer(req, id);
-  const authoring = container().authoring;
-  await authoring.photos.rotate(id, viewer, pid);
-  return NextResponse.json({ photo: (await authoring.queries.photos(id)).find((p) => p.id === pid) });
-});
+export function POST(req: Request, ctx: Ctx) {
+  return v1SiteProxy("book", req, async () => (await import("@/server/site-handlers/books/photo-rotate")).POST(req, ctx));
+}

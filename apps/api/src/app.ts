@@ -52,7 +52,7 @@ export function createApp(handlers: Handlers, auth: Authenticator, siteRoutes?: 
     return runInApiServer(async () => {
       const { pathname } = new URL(req.url);
       if (pathname === "/api/v1/health") return json({ ok: true });
-      if (!pathname.startsWith("/api/v1/")) return (await siteRoutes?.(req)) ?? json({ error: "Not found", code: "notFound" }, 404);
+      if (!pathname.startsWith("/api/v1/") || pathname.startsWith("/api/v1/site/")) return (await siteRoutes?.(req)) ?? json({ error: "Not found", code: "notFound" }, 404);
       if (pathname === "/api/v1/openapi.json") return new Response((spec ??= JSON.stringify(openapi())), { headers: { "content-type": "application/json", "cache-control": "public, max-age=300" } });
       const found = router.match(req.method, pathname);
       if (!found) return json({ error: "Not found", code: "notFound" }, 404);
