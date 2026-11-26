@@ -1,17 +1,9 @@
 import { Link } from "@/i18n/client";
-import { getMessages } from "@/i18n/server";
-import { container } from "@/server/container";
-import { site } from "@/config/site";
+import { getLocale, getMessages } from "@/i18n/server";
+import { localResetInfo } from "@/server/v1-local-bridge";
+import { v1WebRead } from "@/server/v1-web-client";
 import { AuthHead } from "../../AuthHead";
 import { ResetForm } from "./ResetForm";
-
-/** wa.me компании с готовым текстом: у клиентов, заведённых по телефону, почты нет — новую ссылку пришлёт менеджер. */
-async function whatsappUrl(text: string) {
-  const digits = await container()
-    .marketing.service.shopWhatsapp()
-    .catch(() => site.contacts.whatsapp.replace(/\D/g, ""));
-  return `https://wa.me/${digits}?text=${encodeURIComponent(text)}`;
-}
 
 /**
  * Новый пароль по ссылке: из письма (сброс) или из WhatsApp после оплаты (доступ в кабинет — «Задайте пароль»).
@@ -19,14 +11,21 @@ async function whatsappUrl(text: string) {
  */
 export default async function ResetPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  const [info, m] = await Promise.all([container().identity.auth.linkInfo(token), getMessages()]);
+  const [locale, m] = await Promise.all([getLocale(), getMessages()]);
+  const info = await v1WebRead({
+    name: "cabinet.resetInfo",
+    section: "cabinet",
+    locale,
+    local: () => localResetInfo(token),
+    viaApi: (api) => api.webAuthResetInfo({ token }),
+  });
   const t = m.auth.reset;
-  const access = info?.purpose === "access";
-  const wa = await whatsappUrl(t.writeUsText);
-  if (!info?.valid)
+  const access = info.purpose === "access";
+  const wa = `https://wa.me/${info.shopWhatsappDigits}?text=${encodeURIComponent(t.writeUsText)}`;
+  if (!info.valid)
     return (
       <div data-testid="reset-invalid">
-        <AuthHead title={t.invalidTitle} text={access || !info ? t.invalidAccess : t.invalidReset} />
+        <AuthHead title={t.invalidTitle} text={access || !info.purpose ? t.invalidAccess : t.invalidReset} />
         <div className="flex flex-col gap-3 sm:flex-row">
           <a href={wa} target="_blank" rel="noopener noreferrer" className="btn btn-primary">
             {t.writeUs}

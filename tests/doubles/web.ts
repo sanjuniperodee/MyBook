@@ -11,6 +11,8 @@ import { isPhoneEmail } from "@/modules/identity/domain";
 export const request = { headers: new Headers(), cookies: new Map<string, string>() };
 
 export function resetRequest(headers: Record<string, string> = {}) {
+  // Двойник container() имитирует сервер с БД: без DATABASE_URL webApiOnly() увёл бы вызовы в HTTP.
+  process.env.DATABASE_URL ??= "postgres://test/mybook";
   request.headers = new Headers(headers);
   request.cookies.clear();
 }

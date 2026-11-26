@@ -9,8 +9,6 @@ import { coverPhotoIds } from "@/lib/book/covers";
 import { coverNames } from "@/lib/book/cover-names";
 import { photoUrls } from "@/lib/urls";
 import { cn } from "@/lib/class-names";
-import { orderStatusLabel, orderStatusTone } from "@/modules/ordering/ui/status";
-import type { Locale } from "@/i18n/config";
 import type { getMessages } from "@/i18n/server";
 import { nowKey, orderSteps, StatusTrack } from "../orders/StatusTrack";
 
@@ -60,7 +58,7 @@ function Deadline({ d, aria, className }: { d: NonNullable<ShelfBook["deadline"]
 }
 
 /** Состояние заказанной книги: номер, статус и линейка этапов. */
-function OrderState({ b, m, locale, className }: { b: ShelfBook; m: M; locale: Locale; className?: string }) {
+function OrderState({ b, m, className }: { b: ShelfBook; m: M; className?: string }) {
   const o = m.orders.order;
   const order = b.order;
   if (!order)
@@ -73,7 +71,7 @@ function OrderState({ b, m, locale, className }: { b: ShelfBook; m: M; locale: L
     <div className={className}>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
         <span className="text-[15px] font-medium">{m.orders.list.number(order.number)}</span>
-        <Badge tone={orderStatusTone[order.status]}>{orderStatusLabel(order.status, locale, order.printed)}</Badge>
+        <Badge tone={order.statusTone}>{order.statusLabel}</Badge>
       </div>
       {order.status === "cancelled" ? null : <StatusTrack steps={orderSteps(order.printed, o.steps)} status={order.status} label={o.stepsAria} size="sm" className="mt-4 max-w-lg" />}
       <p className="mt-3 text-sm text-ink-soft">{o.now.title[nowKey(order.status, order.printed)]}</p>
@@ -85,7 +83,7 @@ function OrderState({ b, m, locale, className }: { b: ShelfBook; m: M; locale: L
  * Главная книга: самая свежая из тех, что пишутся. Объёмная обложка слева (та же, что на странице книги, — переход между
  * ними «перетекает»), справа название, где книга на пути, срок и одно главное действие.
  */
-export function HeroBook({ b, m, locale }: { b: ShelfBook; m: M; locale: Locale }) {
+export function HeroBook({ b, m }: { b: ShelfBook; m: M }) {
   const t = m.books.list;
   const { book, answered, words, photos } = b.row;
   const href = `/books/${book.id}`;
@@ -113,7 +111,7 @@ export function HeroBook({ b, m, locale }: { b: ShelfBook; m: M; locale: Locale 
       </div>
       <div className="min-w-0 [grid-area:body] md:self-start">
         {b.ordered ? (
-          <OrderState b={b} m={m} locale={locale} className="max-w-xl md:mt-6" />
+          <OrderState b={b} m={m} className="max-w-xl md:mt-6" />
         ) : (
           <>
             <Progress b={b} m={m} className="max-w-xl md:mt-6" />
@@ -155,7 +153,7 @@ export function HeroBook({ b, m, locale }: { b: ShelfBook; m: M; locale: Locale 
 }
 
 /** Книга на второй полке: мини-обложка, название, прогресс и действие — компактная строка листа. */
-export function ShelfCard({ b, m, locale }: { b: ShelfBook; m: M; locale: Locale }) {
+export function ShelfCard({ b, m }: { b: ShelfBook; m: M }) {
   const t = m.books.list;
   const { book, answered, words, photos } = b.row;
   const href = `/books/${book.id}`;
@@ -175,7 +173,7 @@ export function ShelfCard({ b, m, locale }: { b: ShelfBook; m: M; locale: Locale
           </Link>
         </h3>
         {b.ordered ? (
-          <OrderState b={b} m={m} locale={locale} className="mt-3" />
+          <OrderState b={b} m={m} className="mt-3" />
         ) : (
           <>
             <Progress b={b} m={m} className="mt-3" />

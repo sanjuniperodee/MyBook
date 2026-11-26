@@ -37,6 +37,7 @@ import { crmSecurityRoutes } from "./crm-security";
 import { crmInvoiceRoutes } from "./crm-invoices";
 import { crmMobileRestRoutes } from "./crm-mobile-rest";
 import { answerFilesRoutes } from "./answer-files";
+import { webCabinetRoutes } from "./web-cabinet";
 import type { RouteDef } from "./core";
 
 export * from "./core";
@@ -68,6 +69,7 @@ export * from "./crm-security";
 export * from "./crm-invoices";
 export * from "./crm-mobile-rest";
 export * from "./answer-files";
+export * from "./web-cabinet";
 
 export const v1 = {
   ...authRoutes,
@@ -101,6 +103,8 @@ export const v1 = {
   ...boardsRoutes,
   // Свои видео, аудио и ссылки по QR в ответах клиента.
   ...answerFilesRoutes,
+  // Веб-кабинет (SSR и Server Actions без прямого доступа к БД).
+  ...webCabinetRoutes,
 } as const satisfies Record<string, RouteDef>;
 
 export type V1 = typeof v1;

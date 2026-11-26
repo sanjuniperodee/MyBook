@@ -13293,6 +13293,428 @@
         },
         "x-auth": "user"
       }
+    },
+    "/api/v1/web/session": {
+      "get": {
+        "operationId": "meWebSession",
+        "tags": [
+          "web-cabinet"
+        ],
+        "summary": "Текущая сессия веба: полная безопасная проекция пользователя или null (без 401 на истёкшей cookie)",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebSessionResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "none"
+      }
+    },
+    "/api/v1/web/auth/register": {
+      "post": {
+        "operationId": "webAuthRegister",
+        "tags": [
+          "web-cabinet"
+        ],
+        "summary": "Регистрация клиента с сайта: проверка открытой регистрации, лимит и открытие сессии",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebAuthRegisterBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebAuthSession"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "none"
+      }
+    },
+    "/api/v1/web/auth/forgot": {
+      "post": {
+        "operationId": "webAuthForgot",
+        "tags": [
+          "web-cabinet"
+        ],
+        "summary": "Запрос письма со ссылкой сброса пароля (с лимитом по IP)",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebAuthForgotBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "none"
+      }
+    },
+    "/api/v1/web/auth/reset/{token}": {
+      "get": {
+        "operationId": "webAuthResetInfo",
+        "tags": [
+          "web-cabinet"
+        ],
+        "summary": "Проверка ссылки сброса пароля или доступа в кабинет (без погашения) + номер WhatsApp поддержки",
+        "security": [],
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebResetInfo"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "none"
+      }
+    },
+    "/api/v1/web/auth/reset": {
+      "post": {
+        "operationId": "webAuthResetComplete",
+        "tags": [
+          "web-cabinet"
+        ],
+        "summary": "Задать новый пароль по ссылке сброса или доступа (с учётом 2FA сотрудника)",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebResetCompleteBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebResetCompleteResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "none"
+      }
+    },
+    "/api/v1/web/shelf": {
+      "get": {
+        "operationId": "webShelf",
+        "tags": [
+          "web-cabinet"
+        ],
+        "summary": "Полка «Мои книги» для веба: книги с полями обложки, договорённость-бронь и книги для карточки брони",
+        "parameters": [
+          {
+            "name": "locale",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ru",
+                "kk",
+                "uz",
+                "en"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebShelfData"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      }
+    },
+    "/api/v1/web/books": {
+      "post": {
+        "operationId": "webBookCreate",
+        "tags": [
+          "web-cabinet"
+        ],
+        "summary": "Создание новой книги с сайта (поддержка всех языков веба: ru, kk, uz, en)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebBookCreateBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedBook"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      }
+    },
+    "/api/v1/web/books/{bookId}": {
+      "delete": {
+        "operationId": "webBookDelete",
+        "tags": [
+          "web-cabinet"
+        ],
+        "summary": "Удаление книги клиента (черновик без заказов)",
+        "parameters": [
+          {
+            "name": "bookId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      }
+    },
+    "/api/v1/web/invite": {
+      "get": {
+        "operationId": "webInvite",
+        "tags": [
+          "web-cabinet"
+        ],
+        "summary": "Страница приглашений: персональный код, ссылка, проценты и список наград",
+        "parameters": [
+          {
+            "name": "locale",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ru",
+                "kk",
+                "uz",
+                "en"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebInviteData"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      }
+    },
+    "/api/v1/web/health": {
+      "get": {
+        "operationId": "webHealth",
+        "tags": [
+          "web-cabinet"
+        ],
+        "summary": "Состояние инфраструктуры для /api/health веба (БД, хранилище, Redis, outbox)",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebHealth"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "none"
+      }
     }
   },
   "components": {
@@ -39983,6 +40405,1108 @@
         "required": [
           "invoice",
           "quota"
+        ],
+        "additionalProperties": false
+      },
+      "WebSessionUser": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "email": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "phone": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "user",
+              "admin"
+            ]
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "lastSeenAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "remindedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "emailOptOut": {
+            "type": "boolean"
+          },
+          "locale": {
+            "type": "string",
+            "enum": [
+              "ru",
+              "kk",
+              "uz",
+              "en"
+            ]
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "crmRoleId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "managerId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sipExtension": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "notifyPrefs": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          },
+          "onShift": {
+            "type": "boolean"
+          },
+          "extraPhones": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "customFields": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          },
+          "staffDisabled": {
+            "type": "boolean"
+          },
+          "totpEnabledAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hasTotpSecret": {
+            "type": "boolean"
+          },
+          "totpBackupCount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "deletedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "purgedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "name",
+          "phone",
+          "role",
+          "tags",
+          "lastSeenAt",
+          "remindedAt",
+          "emailOptOut",
+          "locale",
+          "source",
+          "crmRoleId",
+          "managerId",
+          "sipExtension",
+          "notifyPrefs",
+          "onShift",
+          "extraPhones",
+          "customFields",
+          "staffDisabled",
+          "totpEnabledAt",
+          "hasTotpSecret",
+          "totpBackupCount",
+          "deletedAt",
+          "purgedAt",
+          "createdAt",
+          "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "WebSessionResponse": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WebSessionUser"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "user"
+        ],
+        "additionalProperties": false
+      },
+      "WebAuthRegisterBody": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "email": {
+            "type": "string",
+            "maxLength": 200,
+            "format": "email",
+            "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 200
+          },
+          "locale": {
+            "type": "string",
+            "enum": [
+              "ru",
+              "kk",
+              "uz",
+              "en"
+            ]
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "email",
+          "password"
+        ],
+        "additionalProperties": false
+      },
+      "WebAuthSession": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          }
+        },
+        "required": [
+          "token",
+          "expiresAt"
+        ],
+        "additionalProperties": false
+      },
+      "WebAuthForgotBody": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "maxLength": 200,
+            "format": "email",
+            "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+          },
+          "locale": {
+            "type": "string",
+            "enum": [
+              "ru",
+              "kk",
+              "uz",
+              "en"
+            ]
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "additionalProperties": false
+      },
+      "WebResetInfo": {
+        "type": "object",
+        "properties": {
+          "valid": {
+            "type": "boolean"
+          },
+          "purpose": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "reset",
+                  "access"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "shopWhatsappDigits": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "valid",
+          "purpose",
+          "shopWhatsappDigits"
+        ],
+        "additionalProperties": false
+      },
+      "WebResetCompleteBody": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{20,100}$"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "token",
+          "password"
+        ],
+        "additionalProperties": false
+      },
+      "WebResetCompleteResult": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "session",
+              "second_factor"
+            ]
+          },
+          "token": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "expiresAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "secondFactorTicket": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "access": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "kind",
+          "token",
+          "expiresAt",
+          "secondFactorTicket",
+          "access"
+        ],
+        "additionalProperties": false
+      },
+      "WebShelfBookRowBook": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "title": {
+            "type": "string"
+          },
+          "subtitle": {
+            "type": "string"
+          },
+          "theme": {
+            "type": "string"
+          },
+          "format": {
+            "type": "string"
+          },
+          "coverTemplate": {
+            "type": "string"
+          },
+          "coverLines": {
+            "type": "boolean"
+          },
+          "coverPhotoId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "coverPhotoExtra": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "coverDesign": {
+            "anyOf": [
+              {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {}
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "authorName": {
+            "type": "string"
+          },
+          "recipientName": {
+            "type": "string"
+          },
+          "hideRecipientOnCover": {
+            "type": "boolean"
+          },
+          "namesOnCover": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "subtitle",
+          "theme",
+          "format",
+          "coverTemplate",
+          "coverLines",
+          "coverPhotoId",
+          "coverPhotoExtra",
+          "coverDesign",
+          "authorName",
+          "recipientName",
+          "hideRecipientOnCover",
+          "namesOnCover"
+        ],
+        "additionalProperties": false
+      },
+      "WebShelfBookRow": {
+        "type": "object",
+        "properties": {
+          "book": {
+            "$ref": "#/components/schemas/WebShelfBookRowBook"
+          },
+          "answered": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "total": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "words": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "photos": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "book",
+          "answered",
+          "total",
+          "words",
+          "photos"
+        ],
+        "additionalProperties": false
+      },
+      "WebShelfOrder": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "number": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending_payment",
+              "paid",
+              "in_production",
+              "shipped",
+              "delivered",
+              "cancelled"
+            ]
+          },
+          "printed": {
+            "type": "boolean"
+          },
+          "statusLabel": {
+            "type": "string"
+          },
+          "statusTone": {
+            "type": "string",
+            "enum": [
+              "warning",
+              "success",
+              "info",
+              "accent",
+              "neutral",
+              "danger"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "number",
+          "status",
+          "printed",
+          "statusLabel",
+          "statusTone"
+        ],
+        "additionalProperties": false
+      },
+      "WebShelfBook": {
+        "type": "object",
+        "properties": {
+          "row": {
+            "$ref": "#/components/schemas/WebShelfBookRow"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "blank": {
+            "type": "boolean"
+          },
+          "progress": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "order": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WebShelfOrder"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ordered": {
+            "type": "boolean"
+          },
+          "writeHref": {
+            "type": "string"
+          },
+          "writeSection": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "deadline": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ShelfDeadline"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "updated": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "row",
+          "kind",
+          "blank",
+          "progress",
+          "order",
+          "ordered",
+          "writeHref",
+          "writeSection",
+          "deadline",
+          "updated"
+        ],
+        "additionalProperties": false
+      },
+      "WebDealAgreementBatch": {
+        "type": "object",
+        "properties": {
+          "index": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "size": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "left": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "agreedLeft": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "prepaidLeft": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "implicit": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "index",
+          "size",
+          "left",
+          "agreedLeft",
+          "prepaidLeft"
+        ],
+        "additionalProperties": false
+      },
+      "WebDealAgreement": {
+        "type": "object",
+        "properties": {
+          "dealId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "dealNumber": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "agreedTotal": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "prepaid": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "plan": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "gifts": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "giftwrap",
+                "delivery"
+              ]
+            }
+          },
+          "deadline": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "batch": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WebDealAgreementBatch"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "recipient": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "dealId",
+          "dealNumber",
+          "agreedTotal",
+          "prepaid",
+          "plan",
+          "deadline"
+        ],
+        "additionalProperties": false
+      },
+      "WebAgreementBook": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "status": {
+            "type": "string"
+          },
+          "theme": {
+            "type": "string"
+          },
+          "answered": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "total": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "words": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "theme",
+          "answered",
+          "total",
+          "words"
+        ],
+        "additionalProperties": false
+      },
+      "WebShelfData": {
+        "type": "object",
+        "properties": {
+          "books": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebShelfBook"
+            }
+          },
+          "agreement": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WebDealAgreement"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "agreementBooks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebAgreementBook"
+            }
+          }
+        },
+        "required": [
+          "books",
+          "agreement",
+          "agreementBooks"
+        ],
+        "additionalProperties": false
+      },
+      "WebBookCreateBody": {
+        "type": "object",
+        "properties": {
+          "theme": {
+            "type": "string"
+          },
+          "language": {
+            "default": "ru",
+            "type": "string",
+            "enum": [
+              "ru",
+              "kk",
+              "uz",
+              "en"
+            ]
+          },
+          "authorName": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "authorGender": {
+            "type": "string",
+            "enum": [
+              "m",
+              "f"
+            ]
+          },
+          "recipientName": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "recipientGender": {
+            "type": "string",
+            "enum": [
+              "m",
+              "f"
+            ]
+          },
+          "recordedBy": {
+            "type": "string"
+          },
+          "firstChapterTitle": {
+            "type": "string"
+          },
+          "dedication": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "occasion": {
+            "type": "string"
+          },
+          "occasionDate": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "theme",
+          "language",
+          "authorName",
+          "authorGender"
+        ],
+        "additionalProperties": false
+      },
+      "WebInviteReward": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "orderNumber": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "chat": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          },
+          "used": {
+            "type": "boolean"
+          },
+          "expiresAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "orderNumber",
+          "chat",
+          "createdAt",
+          "used",
+          "expiresAt"
+        ],
+        "additionalProperties": false
+      },
+      "WebInviteData": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "link": {
+            "type": "string"
+          },
+          "friendPercent": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "rewardPercent": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "friends": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "rewards": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebInviteReward"
+            }
+          }
+        },
+        "required": [
+          "code",
+          "link",
+          "friendPercent",
+          "rewardPercent",
+          "friends",
+          "rewards"
+        ],
+        "additionalProperties": false
+      },
+      "WebHealthOutbox": {
+        "type": "object",
+        "properties": {
+          "pending": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "failed": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "oldestPendingSec": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "pending",
+          "failed",
+          "oldestPendingSec"
+        ],
+        "additionalProperties": false
+      },
+      "WebHealth": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "db": {
+            "type": "boolean"
+          },
+          "storage": {
+            "type": "boolean"
+          },
+          "redis": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "outbox": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WebHealthOutbox"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "time": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          }
+        },
+        "required": [
+          "ok",
+          "db",
+          "storage",
+          "redis",
+          "outbox",
+          "time"
         ],
         "additionalProperties": false
       }

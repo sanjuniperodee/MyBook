@@ -5,7 +5,7 @@
 import { messagesFor } from "@/i18n/messages";
 import { orderStatusLabel, orderStatusTone } from "@/modules/ordering/ui/status";
 import { coverImagePath } from "@/server/cover-image";
-import { shelfBooks } from "@/server/shelf";
+import { localShelfBooks } from "@/server/v1-local-bridge";
 import { site } from "@/config/site";
 import { getTheme } from "@/lib/content/themes";
 import { apiBook } from "@/server/api";
@@ -23,7 +23,7 @@ export const cabinetHandlers: Pick<Handlers, "cabinetShelf" | "cabinetBook" | "c
     const locale = user!.locale === "kk" ? "kk" : "ru";
     const m = messagesFor(locale);
     const t = m.books.list;
-    const books = await shelfBooks(user!.id, locale, m);
+    const books = await localShelfBooks(user!.id, locale, m);
     return {
       books: books.map((b) => {
         const { book, answered, total, words, photos } = b.row;

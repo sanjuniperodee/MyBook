@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { requireUser } from "@/server/auth";
 import { site } from "@/config/site";
 import { DeleteAccountForm, PasswordForm, ProfileForm, RemindersForm } from "./AccountForms";
-import { deletionPreview } from "@/server/account-deletion";
+import { localDeletionPreview } from "@/server/v1-local-bridge";
 import { v1WebRead } from "@/server/v1-web-client";
 import { accountDeletionFor } from "@/i18n/messages/account-deletion";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
@@ -42,7 +42,7 @@ export default async function AccountPage() {
           name: "cabinet.deletionPreview",
           section: "cabinet",
           locale,
-          local: () => deletionPreview(user.id, locale),
+          local: () => localDeletionPreview(user.id, locale),
           viaApi: async (api) => {
             const info = await api.meDeletionInfo({ locale });
             return { confirm: info.confirm, items: info.items, kept: info.kept, keptOrders: info.keptOrders };

@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import { requireUser } from "@/server/auth";
-import { container } from "@/server/container";
-import { inviteUrl, REFERRAL } from "@/modules/referrals";
 import { getLocale, getMessages } from "@/i18n/server";
 import { Panel } from "@/components/ui/Panel";
 import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/lib/class-names";
 import { formatDate } from "@/lib/dates";
+import { localInviteData } from "@/server/v1-local-bridge";
+import { v1WebRead } from "@/server/v1-web-client";
 import { PageHead } from "../_components/PageHead";
 import { InviteShare } from "./InviteShare";
 
@@ -20,35 +20,40 @@ export async function generateMetadata(): Promise<Metadata> {
  */
 export default async function InvitePage() {
   const user = await requireUser("/invite");
-  const referrals = container().referrals.service;
-  const code = await referrals.invite(user.id);
-  const [summary, locale, m] = await Promise.all([referrals.summary(user.id), getLocale(), getMessages()]);
+  const [locale, m] = await Promise.all([getLocale(), getMessages()]);
+  const data = await v1WebRead({
+    name: "cabinet.invite",
+    section: "cabinet",
+    locale,
+    local: () => localInviteData(user.id, locale),
+    viaApi: (api) => api.webInvite({ locale }),
+  });
   const t = m.invite;
-  const link = inviteUrl(code, locale);
   const now = new Date();
-  const steps = t.steps(REFERRAL.friendPercent, REFERRAL.rewardPercent);
+  const steps = t.steps(data.friendPercent, data.rewardPercent);
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
-      <PageHead title={t.title} lead={<span className="block max-w-2xl sm:text-base">{t.lead(REFERRAL.friendPercent, REFERRAL.rewardPercent)}</span>} />
+      <PageHead title={t.title} lead={<span className="block max-w-2xl sm:text-base">{t.lead(data.friendPercent, data.rewardPercent)}</span>} />
 
       <div className="mt-8 grid gap-6 sm:mt-10 lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-10">
         <Panel title={t.yourLink} className="min-w-0 lg:col-start-1 lg:row-start-1">
-          <InviteShare link={link} code={code} message={t.message(link, REFERRAL.friendPercent)} />
+          <InviteShare link={data.link} code={data.code} message={t.message(data.link, data.friendPercent)} />
         </Panel>
 
         <Panel title={t.statsTitle} className="min-w-0 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-start">
           <div className="flex items-baseline gap-3">
-            <span className="font-serif text-5xl leading-none font-medium tabular-nums">{summary.friends}</span>
+            <span className="font-serif text-5xl leading-none font-medium tabular-nums">{data.friends}</span>
           </div>
-          <p className="mt-2 text-sm text-ink-soft">{t.friends(summary.friends)}</p>
-          {summary.rewards.length ? (
+          <p className="mt-2 text-sm text-ink-soft">{t.friends(data.friends)}</p>
+          {data.rewards.length ? (
             <>
               <h3 className="mt-6 text-sm font-medium text-muted">{t.rewards}</h3>
               <ul className="mt-2 divide-y divide-line">
-                {summary.rewards.map((r) => {
-                  const expired = !r.used && !!r.expiresAt && r.expiresAt < now;
-                  const status = r.used ? t.used : expired ? t.expired : r.expiresAt ? t.until(formatDate(r.expiresAt, false, locale)) : "";
+                {data.rewards.map((r) => {
+                  const expiresAt = r.expiresAt ? new Date(r.expiresAt) : null;
+                  const expired = !r.used && !!expiresAt && expiresAt < now;
+                  const status = r.used ? t.used : expired ? t.expired : expiresAt ? t.until(formatDate(expiresAt, false, locale)) : "";
                   return (
                     <li key={r.code} className={cn("py-3", (r.used || expired) && "opacity-60")}>
                       <div className="flex items-center justify-between gap-3">

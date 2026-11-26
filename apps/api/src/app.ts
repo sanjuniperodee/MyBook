@@ -6,6 +6,7 @@
 import { openapi, v1, type Output, type Parsed, type RouteDef, type RouteName } from "@mybook/contracts";
 import { api, HttpError } from "@/server/api";
 import { jsonWithEtag } from "@/server/mobile-api";
+import { runInApiServer } from "@/server/v1-web-client";
 import type { User } from "@/shared/infrastructure/db/schema";
 import { createRouter } from "./http/router";
 
@@ -48,27 +49,29 @@ async function readInput(req: Request, route: RouteDef, params: Record<string, s
 export function createApp(handlers: Handlers, auth: Authenticator, siteRoutes?: (req: Request) => Promise<Response | null>) {
   let spec: string | null = null;
   return async function handle(req: Request): Promise<Response> {
-    const { pathname } = new URL(req.url);
-    if (pathname === "/api/v1/health") return json({ ok: true });
-    if (!pathname.startsWith("/api/v1/")) return (await siteRoutes?.(req)) ?? json({ error: "Not found", code: "notFound" }, 404);
-    if (pathname === "/api/v1/openapi.json") return new Response((spec ??= JSON.stringify(openapi())), { headers: { "content-type": "application/json", "cache-control": "public, max-age=300" } });
-    const found = router.match(req.method, pathname);
-    if (!found) return json({ error: "Not found", code: "notFound" }, 404);
-    if ("allowed" in found) return new Response(null, { status: 405, headers: { allow: found.allowed.join(", ") } });
-    const { name, route, params } = found;
-    return api(async () => {
-      const user = route.auth === "staff" ? await auth.staff(req) : route.auth === "user" ? await auth.user(req) : null;
-      const input = await readInput(req, route, params);
-      const handler = handlers[name] as Handler<RouteName>;
-      const out = await handler({ req, user, input: input as Parsed<RouteName> });
-      if (out instanceof Response) return out;
-      // Вне прода ответ сверяется с контрактом: расхождение — 500 (ошибка сервера, не данных клиента) и падение теста.
-      if (process.env.NODE_ENV !== "production") {
-        const check = route.response.safeParse(out);
-        if (!check.success) throw new Error(`Ответ ${name} не по контракту: ${check.error.message}`);
-      }
-      // GET — с ETag, как /api/mobile: приложение шлёт If-None-Match и при неизменных данных получает пустой 304.
-      return req.method === "GET" ? jsonWithEtag(req, out) : json(out);
-    })(req, undefined);
+    return runInApiServer(async () => {
+      const { pathname } = new URL(req.url);
+      if (pathname === "/api/v1/health") return json({ ok: true });
+      if (!pathname.startsWith("/api/v1/")) return (await siteRoutes?.(req)) ?? json({ error: "Not found", code: "notFound" }, 404);
+      if (pathname === "/api/v1/openapi.json") return new Response((spec ??= JSON.stringify(openapi())), { headers: { "content-type": "application/json", "cache-control": "public, max-age=300" } });
+      const found = router.match(req.method, pathname);
+      if (!found) return json({ error: "Not found", code: "notFound" }, 404);
+      if ("allowed" in found) return new Response(null, { status: 405, headers: { allow: found.allowed.join(", ") } });
+      const { name, route, params } = found;
+      return api(async () => {
+        const user = route.auth === "staff" ? await auth.staff(req) : route.auth === "user" ? await auth.user(req) : null;
+        const input = await readInput(req, route, params);
+        const handler = handlers[name] as Handler<RouteName>;
+        const out = await handler({ req, user, input: input as Parsed<RouteName> });
+        if (out instanceof Response) return out;
+        // Вне прода ответ сверяется с контрактом: расхождение — 500 (ошибка сервера, не данных клиента) и падение теста.
+        if (process.env.NODE_ENV !== "production") {
+          const check = route.response.safeParse(out);
+          if (!check.success) throw new Error(`Ответ ${name} не по контракту: ${check.error.message}`);
+        }
+        // GET — с ETag, как /api/mobile: приложение шлёт If-None-Match и при неизменных данных получает пустой 304.
+        return req.method === "GET" ? jsonWithEtag(req, out) : json(out);
+      })(req, undefined);
+    });
   };
 }

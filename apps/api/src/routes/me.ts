@@ -266,8 +266,11 @@ export const meHandlers: Pick<
   /** Сотрудник себя не удаляет (его отключает руководитель); неверный пароль — 400, чтобы приложение не сочло это выходом. */
   async meDelete({ user, input }) {
     if (user!.role !== "user") throw new HttpError(403, "staffAccount");
+    const locale = await localeOf(input.locale);
+    if (!(await rateLimit(`del:${user!.id}:${await trustedClientIp()}`, 10, 900_000))) {
+      return Response.json({ error: messagesFor(locale).orders.account.errors.tooMany, code: "tooMany" }, { status: 429 });
+    }
     try {
-      const locale = await localeOf(input.locale);
       return {
         ok: true as const,
         ...(await deleteClientAccount(user!.id, input.body.password, locale)),

@@ -2,11 +2,10 @@ import type { Metadata } from "next";
 import { Link } from "@/i18n/client";
 import { Plus } from "lucide-react";
 import { requireUser } from "@/server/auth";
-import { container } from "@/server/container";
 import { getLocale, getMessages } from "@/i18n/server";
 import { AgreementCard } from "@/components/AgreementCard";
 import { PageHead } from "../_components/PageHead";
-import { shelfBooks } from "@/server/shelf";
+import { localBooksPageData } from "@/server/v1-local-bridge";
 import { v1WebRead } from "@/server/v1-web-client";
 import { FirstBook, HeroBook, ShelfCard } from "./BooksShelf";
 
@@ -21,20 +20,16 @@ export async function generateMetadata(): Promise<Metadata> {
  */
 export default async function BooksPage() {
   const user = await requireUser("/books");
-  const [locale, m, agreement] = await Promise.all([getLocale(), getMessages(), container().ordering.orders.agreementFor(user.id)]);
-  const agreementBooks = agreement
-    ? await v1WebRead({
-        name: "shelf.agreementBooks",
-        section: "shelf",
-        locale,
-        local: async () =>
-          (await container().authoring.queries.userBooks(user.id)).map((r) => ({ id: r.book.id, status: r.book.status, theme: r.book.theme, answered: r.answered, total: r.total, words: r.words })),
-        viaApi: async (api) => (await api.booksList({})).books.map((b) => ({ id: b.id, status: b.status, theme: b.theme, answered: b.answered, total: b.total, words: b.words })),
-      })
-    : [];
+  const [locale, m] = await Promise.all([getLocale(), getMessages()]);
+  const { books, agreement, agreementBooks } = await v1WebRead({
+    name: "cabinet.booksPage",
+    section: "cabinet",
+    locale,
+    local: () => localBooksPageData(user.id, locale, m),
+    viaApi: (api) => api.webShelf({ locale }),
+  });
   const card = agreement ? <AgreementCard agreement={agreement} books={agreementBooks} /> : null;
   const t = m.books.list;
-  const books = await shelfBooks(user.id, locale, m);
 
   if (books.length === 0) {
     return (
@@ -61,7 +56,7 @@ export default async function BooksPage() {
       />
 
       <div className="md:mt-12">
-        <HeroBook b={hero} m={m} locale={locale} />
+        <HeroBook b={hero} m={m} />
       </div>
       <Link href="/books/new" className="btn btn-outline mt-4 w-full border-dashed md:hidden">
         <Plus className="size-4" aria-hidden /> {t.newBook}
@@ -74,7 +69,7 @@ export default async function BooksPage() {
           </h2>
           <ul className="mt-5 grid gap-4 md:grid-cols-2">
             {rest.map((b) => (
-              <ShelfCard key={b.row.book.id} b={b} m={m} locale={locale} />
+              <ShelfCard key={b.row.book.id} b={b} m={m} />
             ))}
           </ul>
         </section>

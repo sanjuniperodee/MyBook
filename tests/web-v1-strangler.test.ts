@@ -1,6 +1,6 @@
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ParityError } from "@/server/parity";
 import { apiInternalUrl, createWebApiClient, v1WebRead, webUseApiV1 } from "@/server/v1-web-client";
 
@@ -66,6 +66,14 @@ describe("храповик душителя web → API v1 (ADR 0012 §4)", () =
 });
 
 describe("серверный TS-клиент API v1 (src/server/v1-web-client.ts)", () => {
+  beforeEach(() => {
+    vi.stubEnv("DATABASE_URL", "postgres://test/mybook");
+    vi.stubEnv("WEB_API_ONLY", "");
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it("webUseApiV1: по умолчанию выключен, понимает 1/true/on и список разделов", () => {
     expect(webUseApiV1(undefined, undefined)).toBe(false);
     expect(webUseApiV1("cabinet", "0")).toBe(false);
@@ -101,6 +109,7 @@ describe("серверный TS-клиент API v1 (src/server/v1-web-client.ts
     expect(calls).toHaveLength(1);
     expect(calls[0].url).toBe("http://127.0.0.1:3044/api/v1/books");
     expect(calls[0].headers.get("cookie")).toBe("mb_session=tok_abc123");
+    expect(calls[0].headers.get("authorization")).toBe("Bearer tok_abc123");
     expect(calls[0].headers.get("accept-language")).toBe("kk");
   });
 
