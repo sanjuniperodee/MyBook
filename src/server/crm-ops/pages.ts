@@ -237,7 +237,12 @@ export const reads = {
     return { admins, google };
   }),
 
-  "pages.analytics": op(["analytics.view"], z.object({ p: text(10), from: text(10), to: text(10), pl: text(40) }), async (q, staff) => (await import("@/server/sales-analytics")).loadSalesAnalytics(staff, q)),
+  // Функции отчёта (подписи времени, долей, плана) через API не передаются — страница считает их сама из shift и plans.
+  "pages.analytics": op(["analytics.view"], z.object({ p: text(10), from: text(10), to: text(10), pl: text(40) }), async (q, staff) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- функции отчёта отбрасываются
+    const { workMins, share, planPct, ...data } = await (await import("@/server/sales-analytics")).loadSalesAnalytics(staff, q);
+    return data;
+  }),
 
   // Приложение CRM на телефон: есть ли APK, телефоны в сборке iOS и ссылка установки (подпись токена — секрет бэкенда).
   "pages.app": op([], none, async (_, staff) => {

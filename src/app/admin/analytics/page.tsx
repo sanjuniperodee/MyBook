@@ -29,7 +29,13 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
   await requireStaff("analytics.view");
   const q = query.parse(await searchParams);
   const a = await crmRead("pages.analytics", q);
-  const { pipelines, pipeline, period, profit, flow, showProfit, resp, sla, shift, workMins, share, t, p, channelRows, c, team, inWork, planPct, base, funnel, maxRevenue, maxTeamRevenue, lost, awaiting } = a;
+  const { pipelines, pipeline, period, profit, flow, showProfit, resp, sla, shift, plans, t, p, channelRows, c, team, inWork, base, funnel, maxRevenue, maxTeamRevenue, lost, awaiting } = a;
+  const workMins = (m: number | null) => (m === null ? "—" : waitLabel(Math.round(m), shift));
+  const share = (x: number | null) => (x === null ? "—" : `${Math.round(x * 100)}%`);
+  const planPct = (id: string) => {
+    const pl = plans.get(id);
+    return pl?.planAmount ? `${Math.round((pl.factAmount / pl.planAmount) * 100)}%` : "—";
+  };
   const pq = periodQuery(period);
   const pipeLink = (x: { id: string }) => `/admin/analytics?${periodQuery(period, { pl: x.id })}`;
 
