@@ -3,7 +3,7 @@ import { container } from "@/server/container";
 import { getSetting } from "@/modules/workspace";
 import { lostReasons, stageMilestones } from "@/modules/sales/domain/meta";
 import { AI_STAGES, aiManagerDecision, aiStageDecision, nameInText, parseAiStages, quoteIn, stageRoles, type AiStageOption } from "@/shared/domain/aiStages";
-import { aiFlagOn } from "@/shared/domain/aiCrm";
+import { AI_PROMISE_TITLES, AI_TASKS, aiFlagOn, aiPromiseTitle } from "@/shared/domain/aiCrm";
 import { aiNoteText } from "@/shared/domain/aiProposals";
 import type { AiProposalPayload } from "@/shared/domain/aiProposals";
 import type { StageMilestone } from "@/shared/domain/stageMilestones";
@@ -38,17 +38,30 @@ interface Candidate {
   order: { id: string; number: number; status: string } | null;
   /** Последнее сообщение клиента: «не отвечает» — не раньше, чем он молчит silentDays дней. */
   lastIn: Date;
+  /** Прошлый разбор ИИ: обещания — только из сообщений после него. */
+  reviewedAt?: Date | null;
 }
 
 interface ReviewMessage {
   id?: string;
   direction: "in" | "out";
   text: string;
+  at?: Date | string;
+}
+
+/** Открытая задача сделки (из досье): id, срок, когда поставлена, приоритет, кто поставил. */
+interface ReviewTaskRow {
+  id?: string;
+  title: string;
+  dueAt: Date | null;
+  createdAt?: Date;
+  priority?: string | null;
+  createdById?: string | null;
 }
 
 export interface AiStagesDeps {
   /** stages — «Двигает сделки по этапам», manager — «Определяет менеджера» (один разбор переписки на оба). */
-  config(): Promise<{ stages: boolean; manager: boolean }>;
+  config(): Promise<{ stages: boolean; manager: boolean; tasks?: boolean }>;
   /** Сотрудники, которые пишут с телефона магазина (активные), — модель называет одного из них. */
   staff(): Promise<{ id: string; name: string }[]>;
   aiReady(): Promise<boolean>;
@@ -57,7 +70,7 @@ export interface AiStagesDeps {
   funnel(): Promise<{ pipelineId: string; stages: AiStageOption[]; silentDays: number } | null>;
   candidates(f: { pipelineId: string; limit: number }): Promise<Candidate[]>;
   markReviewed(dealId: string): Promise<void>;
-  review(dealId: string, input: { stages: { n: number; name: string; about: string }[]; current: string; reasons: string[]; messages: number; staff: string[] }): Promise<{
+  review(dealId: string, input: { stages: { n: number; name: string; about: string }[]; current: string; reasons: string[]; messages: number; staff: string[]; tasks: boolean }): Promise<{
     review: {
       stage: number | null;
       confidence: number;
@@ -67,14 +80,22 @@ export interface AiStagesDeps {
       lostReason: string | null;
       delivered: { quote: string; message: number | null } | null;
       manager: { n: number; quote: string; message: number | null } | null;
+      promises?: { who: "client" | "manager"; what: string; due: string | null; quote: string; message: number | null }[];
+      done?: { task: number; quote: string; message: number | null }[];
     } | null;
     messages: ReviewMessage[];
+    tasks?: ReviewTaskRow[];
   }>;
   move(dealId: string, stageId: string, lostReason: string | null, ai: { reason: string; quote: string | null; messageId: string | null }): Promise<void>;
   propose(p: { dealId: string; kind: "stage" | "order_status" | "assignee"; payload: AiProposalPayload; reason: string; quote: string | null; messageId: string | null; confidence: number }): Promise<boolean>;
   /** Назначить ответственного по выводу ИИ (с записью в ленту) и приписать ему наши сообщения с телефона магазина. */
   assign(dealId: string, staffId: string, note: string): Promise<void>;
   attribute(messageIds: string[], staffId: string): Promise<number>;
+  /** Обещания и задачи: задача ответственному (одна такая открытая на сделку), закрыть сделанную, поднять просроченную. */
+  createTask(t: { dealId: string; title: string; kind: "task" | "call"; dueAt: Date; assigneeId: string | null }): Promise<boolean>;
+  completeTask(taskId: string, result: string): Promise<boolean>;
+  raiseTask(taskId: string): Promise<void>;
+  note(dealId: string, text: string): Promise<void>;
   logError(err: unknown): void;
 }
 
@@ -85,6 +106,8 @@ export interface AiStagesResult {
   /** Назначен ответственный и сколько сообщений с телефона магазина ему приписано. */
   assigned: number;
   attributed: number;
+  /** Обещания → задачи, закрытые по переписке и поднятые просроченные. */
+  tasks?: { created: number; closed: number; raised: number };
 }
 
 /** Причины отказа, из которых выбирает ИИ: «Не отвечает» ставит «Порядок в воронке» по молчанию, а не ИИ. */
@@ -100,20 +123,20 @@ const AI_REASONS = lostReasons.filter((r) => r !== "Не отвечает");
  */
 export async function aiStagesPass(d: AiStagesDeps, now = new Date()): Promise<AiStagesResult | null> {
   const cfg = await d.config();
-  if ((!cfg.stages && !cfg.manager) || !(await d.aiReady())) return null;
+  if ((!cfg.stages && !cfg.manager && !cfg.tasks) || !(await d.aiReady())) return null;
   const left = AI_STAGES.perDay - (await d.reviewedToday());
   if (left <= 0) return null;
   const funnel = await d.funnel();
   if (!funnel) return null;
   const list = funnel.stages.map((s, i) => ({ n: i + 1, name: s.name, about: stageAbout(s) }));
   const staff = cfg.manager ? await d.staff() : [];
-  const result: AiStagesResult = { reviewed: 0, applied: 0, proposed: 0, assigned: 0, attributed: 0 };
+  const result: AiStagesResult = { reviewed: 0, applied: 0, proposed: 0, assigned: 0, attributed: 0, ...(cfg.tasks ? { tasks: { created: 0, closed: 0, raised: 0 } } : {}) };
   for (const c of await d.candidates({ pipelineId: funnel.pipelineId, limit: Math.min(AI_STAGES.batch, left) })) {
     const current = funnel.stages.find((s) => s.id === c.stageId);
     if (!current) continue;
     try {
       await d.markReviewed(c.id);
-      const { review, messages } = await d.review(c.id, { stages: list, current: current.name, reasons: AI_REASONS, messages: AI_STAGES.messages, staff: staff.map((x) => x.name) });
+      const { review, messages, tasks } = await d.review(c.id, { stages: list, current: current.name, reasons: AI_REASONS, messages: AI_STAGES.messages, staff: staff.map((x) => x.name), tasks: !!cfg.tasks });
       result.reviewed++;
       if (!review) continue;
       const target = review.stage ? (funnel.stages[review.stage - 1] ?? null) : null;
@@ -124,6 +147,7 @@ export async function aiStagesPass(d: AiStagesDeps, now = new Date()): Promise<A
       const decision = aiStageDecision({ current, target, confidence: review.confidence, quoteOk: !!msg && quoteIn(review.quote, msg.text), quoteFromClient: msg?.direction === "in", lostReason, silentFor, silentDays: funnel.silentDays });
       const ai = { reason: review.reason || "по переписке", quote: review.quote || null, messageId: msg?.id ?? null };
       if (cfg.manager) await manager(d, c, review, messages, staff, result);
+      if (cfg.tasks && result.tasks) await promisesAndTasks(d, c, review, messages, tasks ?? [], result.tasks, now);
       if (!cfg.stages) continue;
       if (target && decision === "apply") {
         await d.move(c.id, target.id, lostReason, ai);
@@ -178,17 +202,82 @@ async function manager(
   if (decision !== "apply") return;
   if (who.id !== c.assigneeId) {
     await d.assign(c.id, who.id, aiNoteText(`Ответственный — ${who.name}`, "сотрудник представился в переписке", m.quote));
+    c.assigneeId = who.id;
     result.assigned++;
   }
   const ours = messages.slice(at).filter((x) => x.direction === "out" && x.id).map((x) => x.id!);
   result.attributed += await d.attribute(ours, who.id);
 }
 
+const time = (v: Date | string | undefined) => (v === undefined ? NaN : new Date(v).getTime());
+
+/**
+ * «Обещания и задачи»: обещание с дословной цитатой из сообщения после прошлого разбора — задача ответственному сделки на
+ * срок (без срока — на завтра; срок уже прошёл — не ставим); задача, которая по переписке сделана (цитата из сообщения после
+ * постановки задачи), — закрывается с цитатой; просроченная задача сотрудника или из обещания, по которой в переписке нет
+ * следов, — высокий приоритет и запись в ленту (один раз: уже высокий — не трогаем).
+ */
+async function promisesAndTasks(
+  d: AiStagesDeps,
+  c: Candidate,
+  review: NonNullable<Awaited<ReturnType<AiStagesDeps["review"]>>["review"]>,
+  messages: ReviewMessage[],
+  tasks: ReviewTaskRow[],
+  out: NonNullable<AiStagesResult["tasks"]>,
+  now: Date,
+) {
+  const today = zonedDay(now);
+  const since = c.reviewedAt ? c.reviewedAt.getTime() : -Infinity;
+  for (const p of review.promises ?? []) {
+    const m = p.message ? messages[p.message - 1] : undefined;
+    if (!m || !quoteIn(p.quote, m.text) || !(time(m.at) > since)) continue;
+    const day = p.due ?? zonedDay(new Date(now.getTime() + AI_TASKS.defaultDays * 86_400_000));
+    if (day < today) continue;
+    const dueAt = fromZonedTime(`${day}T${String(AI_TASKS.dueHour).padStart(2, "0")}:00`);
+    const title = aiPromiseTitle(p.who, p.what);
+    if (await d.createTask({ dealId: c.id, title, kind: /звон/i.test(p.what) ? "call" : "task", dueAt, assigneeId: c.assigneeId })) {
+      out.created++;
+      await d.note(c.id, aiNoteText(`задача «${title}» на ${day.split("-").reverse().join(".")}`, p.who === "client" ? "клиент пообещал" : "менеджер пообещал клиенту", p.quote));
+    }
+  }
+  const closed = new Set<string>();
+  for (const x of review.done ?? []) {
+    const t = tasks[x.task - 1];
+    const m = x.message ? messages[x.message - 1] : undefined;
+    if (!t?.id || !m || !quoteIn(x.quote, m.text) || !(time(m.at) > (t.createdAt?.getTime() ?? Infinity))) continue;
+    if (await d.completeTask(t.id, `ИИ: сделано — «${x.quote}»`)) {
+      closed.add(t.id);
+      out.closed++;
+      await d.note(c.id, aiNoteText(`задача «${t.title}» выполнена`, "по переписке", x.quote));
+    }
+  }
+  const promise = (title: string) => Object.values(AI_PROMISE_TITLES).some((p) => title.startsWith(p));
+  for (const t of tasks) {
+    if (!t.id || closed.has(t.id) || !t.dueAt || (!t.createdById && !promise(t.title))) continue;
+    const late = now.getTime() - t.dueAt.getTime();
+    if (late < AI_TASKS.overdueHours * 3_600_000 || late > AI_TASKS.raiseWithinDays * 86_400_000 || t.priority === "high" || t.priority === "urgent") continue;
+    await d.raiseTask(t.id);
+    out.raised++;
+    await d.note(c.id, aiNoteText(`просрочена задача «${t.title}» — приоритет высокий`, "в переписке не видно, что сделано", null));
+  }
+}
+
 /** Порты из контекстов: настройки, продажи (воронка, этапы, предложения), отчёты (выборка), помощник (модель). */
 export function aiStagesDeps(now = new Date()): AiStagesDeps {
   const c = container();
   return {
-    config: async () => ({ stages: parseAiStages(await getSetting("crm.aiStages")).on, manager: aiFlagOn("crm.aiManager", await getSetting("crm.aiManager")) }),
+    config: async () => ({
+      stages: parseAiStages(await getSetting("crm.aiStages")).on,
+      manager: aiFlagOn("crm.aiManager", await getSetting("crm.aiManager")),
+      tasks: aiFlagOn("crm.aiTasks", await getSetting("crm.aiTasks")),
+    }),
+    createTask: (t) => c.clients.tasks.createSystem({ ...t, once: true }),
+    completeTask: (id, result) => c.clients.tasks.completeByAi(id, result),
+    raiseTask: (id) => c.clients.tasks.raiseByAi(id),
+    note: async (dealId, text) => {
+      const deal = await c.sales.deals.findById(dealId);
+      if (deal) await c.sales.deals.note(deal, text, null);
+    },
     staff: async () => (await c.access.queries.allStaff()).filter((x) => !x.disabled && x.name.trim()).map((x) => ({ id: x.id, name: x.name.trim() })),
     assign: async (dealId, staffId, note) => {
       const deal = await c.sales.deals.assign(dealId, staffId);

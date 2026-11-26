@@ -248,6 +248,20 @@ export class TasksService {
     return { task: t, completed: true };
   }
 
+  /** «ИИ в CRM»: по переписке видно, что задача сделана — закрыть с итогом (цитатой). false — уже закрыта или нет такой. */
+  async completeByAi(taskId: string, result: string): Promise<boolean> {
+    const t = await this.tasks.find(taskId);
+    if (!t || t.doneAt) return false;
+    await this.tasks.setDone(t.id, this.clock.now(), null);
+    await this.tasks.update(t.id, { result: result.slice(0, 500) });
+    return true;
+  }
+
+  /** «ИИ в CRM»: срок прошёл, а в переписке не видно, что сделано, — высокий приоритет (задача поднимается в списках). */
+  async raiseByAi(taskId: string): Promise<void> {
+    await this.tasks.update(taskId, { priority: "high" });
+  }
+
   async delete(actor: Actor, taskId: string) {
     const t = await this.load(actor, taskId);
     if (t) await this.tasks.delete(t.id);

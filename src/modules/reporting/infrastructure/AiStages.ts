@@ -14,6 +14,8 @@ export interface AiStageCandidate {
   lastAt: Date;
   /** Последнее сообщение клиента. */
   lastIn: Date;
+  /** Прошлый разбор ИИ: обещания берём только из сообщений после него (иначе задачи повторялись бы). */
+  reviewedAt: Date | null;
 }
 
 /**
@@ -26,7 +28,7 @@ export async function aiStageCandidates(f: { pipelineId: string; quietMinutes: n
   const since = new Date(f.now.getTime() - f.lookbackDays * 86_400_000);
   const lostSince = new Date(f.now.getTime() - f.lostDays * 86_400_000);
   const r = await executor().execute<Row>(sql`
-    select d.id, d.number, d.stage_id, d.assignee_id, m.last_at, m.last_in, o.id as order_id, o.number as order_number, o.status as order_status
+    select d.id, d.number, d.stage_id, d.assignee_id, d.ai_stage_at, m.last_at, m.last_in, o.id as order_id, o.number as order_number, o.status as order_status
     from crm_deals d
     join crm_stages s on s.id = d.stage_id
     left join orders o on o.id = d.order_id
@@ -49,5 +51,6 @@ export async function aiStageCandidates(f: { pipelineId: string; quietMinutes: n
     order: x.order_id ? { id: String(x.order_id), number: Number(x.order_number), status: String(x.order_status) } : null,
     lastAt: x.last_at instanceof Date ? x.last_at : new Date(String(x.last_at)),
     lastIn: x.last_in instanceof Date ? x.last_in : new Date(String(x.last_in)),
+    reviewedAt: x.ai_stage_at ? (x.ai_stage_at instanceof Date ? x.ai_stage_at : new Date(String(x.ai_stage_at))) : null,
   }));
 }

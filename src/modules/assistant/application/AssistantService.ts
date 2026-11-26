@@ -1,5 +1,5 @@
 import type { Clock } from "@/shared/application";
-import { AssistantError, numberedTranscript, normalizeStageReview, stageReviewPrompt, stageReviewSchema, type ReviewStage, type StageReview, type AiMessage, dealVerdictPrompt, dealVerdictSchema, normalizeDealVerdict, type DealVerdict, parseTemplateDraft, substituteKnown, templateDraftPrompt, templateDraftSchema, titleFromText, type TemplateDraft, type TemplateFacts, botUnderstandPrompt, botUnderstandSchema, cleanReply, dossierText, extractableFields, extractionSource, extractSchema, extractSystemPrompt, normalizeExtracted, parseBotUnderstanding, parseSummary, replySystemPrompt, summarySchema, summarySystemPrompt, transcript, type AiField, type AiSummary, type BotUnderstanding } from "../domain";
+import { AssistantError, numberedTranscript, normalizeStageReview, stageReviewPrompt, stageReviewSchema, type ReviewStage, type StageReview, type AiMessage, type DealDossier, dealVerdictPrompt, dealVerdictSchema, normalizeDealVerdict, type DealVerdict, parseTemplateDraft, substituteKnown, templateDraftPrompt, templateDraftSchema, titleFromText, type TemplateDraft, type TemplateFacts, botUnderstandPrompt, botUnderstandSchema, cleanReply, dossierText, extractableFields, extractionSource, extractSchema, extractSystemPrompt, normalizeExtracted, parseBotUnderstanding, parseSummary, replySystemPrompt, summarySchema, summarySystemPrompt, transcript, type AiField, type AiSummary, type BotUnderstanding } from "../domain";
 import type { AssistantData, LanguageModel, Usage } from "./ports";
 
 function parseJson(text: string): unknown {
@@ -114,21 +114,26 @@ export class AssistantService {
    * задачи, звонки, заметки) и этапы воронки с ролями. Возвращает вывод модели и сообщения, которые она видела (по номеру
    * сервер проверяет цитату). Нет переписки или ответ не по схеме — review: null.
    */
-  async reviewStage(dealId: string, input: { stages: ReviewStage[]; current: string; reasons: string[]; messages: number; staff?: string[] }): Promise<{ review: StageReview | null; messages: AiMessage[] }> {
+  async reviewStage(
+    dealId: string,
+    input: { stages: ReviewStage[]; current: string; reasons: string[]; messages: number; staff?: string[]; tasks?: boolean },
+  ): Promise<{ review: StageReview | null; messages: AiMessage[]; tasks: DealDossier["tasks"] }> {
     const d = await this.dossier(dealId);
     const messages = d.messages.filter((m) => !m.internal && m.text.trim()).slice(-input.messages);
-    if (!messages.some((m) => m.direction === "in")) return { review: null, messages };
+    const tasks = d.tasks;
+    if (!messages.some((m) => m.direction === "in")) return { review: null, messages, tasks };
+    const day = (x: Date | null) => (x ? x.toISOString().slice(0, 10) : null);
     const today = this.clock.now().toISOString().slice(0, 10);
     const order = d.order ? `№${d.order.number}, статус ${d.order.status}, ${d.order.amount} ₸` : null;
     const facts = dossierText({ ...d, messages: [] }).replace(/\nПереписки нет\.$/, "");
     const { text } = await this.model.ask({
-      system: stageReviewPrompt(input.stages, input.current, input.reasons, today, order, input.staff ?? []),
+      system: stageReviewPrompt(input.stages, input.current, input.reasons, today, order, input.staff ?? [], input.tasks ? tasks.map((t, i) => ({ n: i + 1, title: t.title, due: day(t.dueAt) })) : null),
       user: `${facts}\n\nПереписка (последние сообщения, номер в скобках):\n${numberedTranscript(messages)}`,
       effort: "low",
       schema: stageReviewSchema(input.reasons),
       timeoutMs: 45_000,
     });
-    return { review: normalizeStageReview(parseJson(text), input.stages.length, messages.length, input.reasons, input.staff?.length ?? 0), messages };
+    return { review: normalizeStageReview(parseJson(text), input.stages.length, messages.length, input.reasons, input.staff?.length ?? 0, input.tasks ? tasks.length : 0), messages, tasks };
   }
 
   /**

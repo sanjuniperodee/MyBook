@@ -9,7 +9,8 @@ export interface DealDossier {
   /** Свои поля сделки «подпись → значение». */
   fieldValues: Record<string, string>;
   notes: { kind: string; text: string; at: Date }[];
-  tasks: { title: string; dueAt: Date | null }[];
+  /** Открытые задачи сделки; id, когда поставлена и приоритет — для «ИИ в CRM» → обещания и задачи. */
+  tasks: { id?: string; title: string; dueAt: Date | null; createdAt?: Date; priority?: string | null; createdById?: string | null }[];
   calls: { direction: string; status: string; durationSec: number; at: Date }[];
   order: { number: number; status: string; amount: number; plan: string } | null;
   books: { title: string; theme: string; author: string; recipient: string; recordedBy: string; status: string; answered: number; total: number; words: number }[];

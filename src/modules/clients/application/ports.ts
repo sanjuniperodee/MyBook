@@ -61,7 +61,7 @@ export interface TaskRepository {
    */
   reassignOpenOfDeal(t: { dealId: string; from: string | null; to: string }): Promise<number>;
   /** Правка задачи; смена срока, напоминания или ответственного снимает отметку «напоминание ушло» — придёт новое. */
-  update(id: string, patch: Partial<{ title: string; kind: TaskKind; dueAt: Date | null; remindBeforeMin: number | null; assigneeId: string; result: string | null }>): Promise<void>;
+  update(id: string, patch: Partial<{ title: string; kind: TaskKind; dueAt: Date | null; remindBeforeMin: number | null; assigneeId: string; result: string | null; priority: "urgent" | "high" | "normal" | "low" | null }>): Promise<void>;
   delete(id: string): Promise<void>;
 }
 

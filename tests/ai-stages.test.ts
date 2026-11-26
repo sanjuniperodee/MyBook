@@ -110,6 +110,8 @@ describe("ИИ ведёт этапы: цитата и ответ модели", 
       lostReason: "Дорого",
       delivered: null,
       manager: null,
+      promises: [],
+      done: [],
     });
     const r = normalizeStageReview({ stage: 9, confidence: "x", reason: "", quote: "", message: 99, lost_reason: "Иное", delivered: true, delivered_quote: "получила", delivered_message: 2 }, 7, 5, reasons);
     expect(r).toMatchObject({ stage: null, confidence: 0, message: null, lostReason: null, delivered: { quote: "получила", message: 2 } });
@@ -146,7 +148,7 @@ describe("ИИ ведёт этапы: проход", () => {
     { id: "m3", direction: "in" as const, text: "Все получила, спасибо!" },
   ];
   const deps = (review: Record<string, unknown> | null, over: Record<string, unknown> = {}) => {
-    const calls = { moved: [] as unknown[], proposed: [] as unknown[], reviewed: [] as string[], assigned: [] as unknown[], attributed: [] as unknown[] };
+    const calls = { moved: [] as unknown[], proposed: [] as unknown[], reviewed: [] as string[], assigned: [] as unknown[], attributed: [] as unknown[], tasks: [] as unknown[], notes: [] as string[] };
     const d = {
       config: async () => ({ stages: true, manager: true }),
       staff: async () => [
@@ -155,6 +157,10 @@ describe("ИИ ведёт этапы: проход", () => {
       ],
       assign: async (...a: unknown[]) => void calls.assigned.push(a),
       attribute: async (ids: string[], staffId: string) => (calls.attributed.push([ids, staffId]), ids.length),
+      createTask: async (t: unknown) => (calls.tasks.push(["create", t]), true),
+      completeTask: async (id: string, r: string) => (calls.tasks.push(["done", id, r]), true),
+      raiseTask: async (id: string) => void calls.tasks.push(["raise", id]),
+      note: async (_id: string, text: string) => void calls.notes.push(text),
       aiReady: async () => true,
       reviewedToday: async () => 0,
       funnel: async () => ({ pipelineId: "p", stages, silentDays: 3 }),
@@ -226,6 +232,48 @@ describe("ИИ ведёт этапы: проход", () => {
     // Модель назвала не того: имени сотрудника в цитате нет («Марат» при «Расул») — ничего.
     const wrong = deps(null, { review: async () => ({ review: { ...base, stage: null, manager: { n: 2, quote: "Меня зовут Индира", message: 2 } }, messages: intro }) });
     expect(await aiStagesPass(wrong.d)).toMatchObject({ assigned: 0, proposed: 0, attributed: 0 });
+  });
+
+  it("обещания → задачи на срок, сделанная по переписке — закрыта, просроченная без следов — поднята", async () => {
+    const now = new Date("2026-11-27T06:00:00Z"); // 11:00 в Алматы
+    const at = (h: number) => new Date(now.getTime() - h * 3_600_000);
+    const msgs = [
+      { id: "m1", direction: "in" as const, text: "Фото пришлю к пятнице", at: at(1) },
+      { id: "m2", direction: "out" as const, text: "Хорошо, завтра перезвоню вам", at: at(1) },
+      { id: "m3", direction: "out" as const, text: "Отправила вам макет обложки", at: at(1) },
+      { id: "m4", direction: "in" as const, text: "Старое обещание: пришлю тексты", at: at(50) },
+    ];
+    const tasks = [
+      { id: "t1", title: "Отправить макет обложки", dueAt: at(30), createdAt: at(40), priority: null, createdById: "s-rasul" },
+      { id: "t2", title: "Перезвонить клиенту", dueAt: at(5), createdAt: at(40), priority: null, createdById: "s-rasul" },
+      { id: "t3", title: "Напомнить о себе: клиент молчит", dueAt: at(5), createdAt: at(40), priority: null, createdById: null },
+      { id: "t4", title: "Обещали клиенту: рассчитать доставку", dueAt: at(10), createdAt: at(40), priority: "high", createdById: null },
+    ];
+    const review = {
+      ...base,
+      stage: null,
+      promises: [
+        { who: "client" as const, what: "прислать фото", due: "2026-11-28", quote: "Фото пришлю к пятнице", message: 1 },
+        { who: "manager" as const, what: "перезвонить клиенту", due: null, quote: "завтра перезвоню", message: 2 },
+        { who: "client" as const, what: "прислать тексты", due: "2026-11-30", quote: "пришлю тексты", message: 4 },
+        { who: "client" as const, what: "оплатить", due: "2026-11-20", quote: "Фото пришлю", message: 1 },
+      ],
+      done: [{ task: 1, quote: "Отправила вам макет обложки", message: 3 }],
+    };
+    const { d, calls } = deps(null, {
+      config: async () => ({ stages: false, manager: false, tasks: true }),
+      candidates: async () => [{ id: "d1", stageId: "work", assigneeId: "s-rasul", order: null, lastIn: at(1), reviewedAt: at(24) }],
+      review: async () => ({ review, messages: msgs, tasks }),
+    });
+    expect(await aiStagesPass(d, now)).toMatchObject({ reviewed: 1, tasks: { created: 2, closed: 1, raised: 1 } });
+    expect(calls.tasks).toEqual([
+      ["create", { dealId: "d1", title: "Клиент обещал: прислать фото", kind: "task", dueAt: new Date("2026-11-28T05:00:00Z"), assigneeId: "s-rasul" }],
+      ["create", { dealId: "d1", title: "Обещали клиенту: перезвонить клиенту", kind: "call", dueAt: new Date("2026-11-28T05:00:00Z"), assigneeId: "s-rasul" }],
+      ["done", "t1", "ИИ: сделано — «Отправила вам макет обложки»"],
+      // t2 — задача сотрудника, просрочена: поднята; t3 — задача правила, t4 — уже высокий: не трогаем.
+      ["raise", "t2"],
+    ]);
+    expect(calls.notes[0]).toBe("ИИ: задача «Клиент обещал: прислать фото» на 28.11.2026. клиент пообещал — «Фото пришлю к пятнице».");
   });
 
   it("ошибка модели по одной сделке не останавливает проход", async () => {

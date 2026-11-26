@@ -41,7 +41,7 @@ export const crmAssistantData = (settings: SettingsReader<"ai.knowledge">, field
       db.select({ name: crmStages.name }).from(crmStages).where(eq(crmStages.id, deal.stageId)).limit(1),
       fields.list("deal"),
       db.select({ kind: crmNotes.kind, text: crmNotes.text, at: crmNotes.createdAt }).from(crmNotes).where(eq(crmNotes.dealId, deal.id)).orderBy(desc(crmNotes.createdAt)).limit(30),
-      db.select({ title: crmTasks.title, dueAt: crmTasks.dueAt }).from(crmTasks).where(and(eq(crmTasks.dealId, deal.id), isNull(crmTasks.doneAt))).limit(10),
+      db.select({ id: crmTasks.id, title: crmTasks.title, dueAt: crmTasks.dueAt, createdAt: crmTasks.createdAt, priority: crmTasks.priority, createdById: crmTasks.createdById }).from(crmTasks).where(and(eq(crmTasks.dealId, deal.id), isNull(crmTasks.doneAt))).orderBy(crmTasks.dueAt).limit(10),
       db.select({ direction: crmCalls.direction, status: crmCalls.status, durationSec: crmCalls.durationSec, at: crmCalls.startedAt }).from(crmCalls).where(eq(crmCalls.dealId, deal.id)).orderBy(desc(crmCalls.startedAt)).limit(10),
       db.select({ id: crmConversations.id }).from(crmConversations).where(eq(crmConversations.dealId, deal.id)).orderBy(desc(crmConversations.lastMessageAt)).limit(1),
       deal.orderId ? db.select({ number: orders.number, status: orders.status, amount: orders.amount, plan: orders.plan }).from(orders).where(eq(orders.id, deal.orderId)).limit(1) : Promise.resolve([]),
