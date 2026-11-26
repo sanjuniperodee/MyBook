@@ -27,6 +27,7 @@ export interface LanguageModel {
 
 /** Сообщение диалога в том виде, как его отдаёт переписка (контекст Messaging). */
 export interface ConversationMessage {
+  id?: string;
   direction: "in" | "out";
   type: string;
   text: string;
@@ -37,6 +38,10 @@ export interface ConversationMessage {
   internal?: boolean;
   author: string | null;
   at: string;
+  /** Расшифровка голосового (если есть) — модель читает слова, а не «[audio]». */
+  transcript?: string | null;
+  /** Удалённое сообщение — модель его не видит. */
+  deleted?: boolean;
 }
 
 /** Переписка с клиентом (контекст Messaging): последние сообщения диалога по порядку. */

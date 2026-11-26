@@ -1,3 +1,4 @@
+import { aiNoteText } from "@/shared/domain/aiProposals";
 import { AggregateRoot } from "@/shared/domain";
 import { dealSourceLabels, type DealSource } from "@/shared/domain/dealSources";
 import type { CustomFieldValues } from "@/shared/domain/customFields";
@@ -55,6 +56,17 @@ export interface StageChange {
   fromStageId: string | null;
   toStageId: string;
   actorId: string | null;
+  /** Этап сменил ИИ по переписке (сам или менеджер применил его предложение): почему и по какому сообщению. */
+  byAi?: boolean;
+  aiReason?: string | null;
+  messageId?: string | null;
+}
+
+/** Смена этапа по выводу ИИ: причина, цитата и сообщение — в историю и ленту сделки. */
+export interface AiMove {
+  reason: string;
+  quote: string | null;
+  messageId: string | null;
 }
 
 const blank = (v: unknown) => v === null || v === undefined || v === "";
@@ -155,7 +167,7 @@ export class Deal extends AggregateRoot<DealProps> {
   }
 
   /** Смена этапа. Закрытые этапы (успех/отказ) ставят дату закрытия; возврат в работу её снимает. */
-  moveTo(stage: Stage, actorId: string | null, now: Date, lostReason?: string | null): boolean {
+  moveTo(stage: Stage, actorId: string | null, now: Date, lostReason?: string | null, ai?: AiMove): boolean {
     if (stage.id === this.props.stageId) return false;
     const from = this.props.stageId;
     this.props.stageId = stage.id;
@@ -163,8 +175,9 @@ export class Deal extends AggregateRoot<DealProps> {
     this.props.closedAt = stage.kind === "open" ? null : now;
     this.props.lostReason = stage.kind === "lost" ? (lostReason ?? this.props.lostReason) : null;
     this.props.unsorted = false;
-    this.#stageChanges.push({ fromStageId: from, toStageId: stage.id, actorId });
-    this.note(`Сделка Д${this.props.number}: этап «${stage.name}»${stage.kind === "lost" && lostReason ? ` — ${lostReason}` : ""}`, actorId);
+    this.#stageChanges.push({ fromStageId: from, toStageId: stage.id, actorId, ...(ai ? { byAi: true, aiReason: ai.reason, messageId: ai.messageId } : {}) });
+    const moved = `Сделка Д${this.props.number}: этап «${stage.name}»${stage.kind === "lost" && lostReason ? ` — ${lostReason}` : ""}`;
+    this.note(ai ? aiNoteText(moved, ai.reason, ai.quote) : moved, actorId);
     this.record(SalesEvents.dealStageChanged({ ...this.ref(), fromStageId: from, stageId: stage.id, source: this.props.source, at: now.toISOString() }));
     // Закрыта (успех или отказ) — платить по ней больше нельзя: её открытые счета отменит подписчик заказов.
     if (stage.kind !== "open") this.record(SalesEvents.dealClosed({ ...this.ref(), outcome: stage.kind, reason: stage.kind === "lost" ? this.props.lostReason : null }));

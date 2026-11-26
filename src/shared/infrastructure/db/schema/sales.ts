@@ -7,6 +7,7 @@ import {
   jsonb,
   pgTable,
   primaryKey,
+  real,
   serial,
   text,
   timestamp,
@@ -16,6 +17,7 @@ import {
 import type { CustomFieldValues } from "@/shared/domain/customFields";
 import type { DealSource } from "@/shared/domain/dealSources";
 import type { StageMilestone } from "@/shared/domain/stageMilestones";
+import type { AiProposalKind, AiProposalPayload, AiProposalStatus } from "@/shared/domain/aiProposals";
 import { timestamps } from "./columns";
 import { users } from "./identity";
 import { orders } from "./ordering";
@@ -95,6 +97,8 @@ export const crmDeals = pgTable(
     repeatCount: integer("repeat_count").notNull().default(0),
     stageChangedAt: timestamp("stage_changed_at", { withTimezone: true }).notNull().defaultNow(),
     closedAt: timestamp("closed_at", { withTimezone: true }),
+    /** Когда ИИ последний раз читал переписку сделки ради этапа (crm.aiStages): следующий разбор — после нового сообщения. */
+    aiStageAt: timestamp("ai_stage_at", { withTimezone: true }),
     ...timestamps,
   },
   (t) => [
@@ -258,6 +262,10 @@ export const crmStageHistory = pgTable(
       .notNull()
       .references(() => crmStages.id, { onDelete: "cascade" }),
     actorId: uuid("actor_id").references(() => users.id, { onDelete: "set null" }),
+    /** Этап сменил ИИ по переписке (crm.aiStages): почему и по какому сообщению. */
+    byAi: boolean("by_ai").notNull().default(false),
+    aiReason: text("ai_reason"),
+    messageId: uuid("message_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("crm_stage_hist_deal_idx").on(t.dealId, t.createdAt), index("crm_stage_hist_to_idx").on(t.toStageId, t.createdAt)],
@@ -293,4 +301,32 @@ export const crmPlans = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.userId, t.month] })],
+);
+
+/**
+ * Предложения ИИ по сделке, которые применяет человек одной кнопкой: сменить этап, отметить заказ выданным и т. п.
+ * Уверенные и безопасные изменения ИИ делает сам (история с пометкой «ИИ»), сомнительные — сюда. Решённые остаются
+ * для журнала (кто применил или отклонил).
+ */
+export const crmAiProposals = pgTable(
+  "crm_ai_proposals",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    dealId: uuid("deal_id")
+      .notNull()
+      .references(() => crmDeals.id, { onDelete: "cascade" }),
+    kind: text("kind").$type<AiProposalKind>().notNull(),
+    payload: jsonb("payload").$type<AiProposalPayload>().notNull(),
+    /** Почему — одной строкой для менеджера. */
+    reason: text("reason").notNull(),
+    /** Дословная цитата из переписки и сообщение, откуда она. */
+    quote: text("quote"),
+    messageId: uuid("message_id"),
+    confidence: real("confidence").notNull().default(0),
+    status: text("status").$type<AiProposalStatus>().notNull().default("pending"),
+    decidedById: uuid("decided_by_id").references(() => users.id, { onDelete: "set null" }),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("crm_ai_proposals_deal_idx").on(t.dealId, t.createdAt), index("crm_ai_proposals_pending_idx").on(t.createdAt).where(sql`${t.status} = 'pending'`)],
 );

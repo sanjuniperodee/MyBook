@@ -6,6 +6,8 @@ import { getAddons, getDeliveryOptions, getVisiblePlans } from "@/config/site";
 import { storeTimeZone } from "@/shared/domain/time";
 
 export interface AiMessage {
+  /** id сообщения в переписке — чтобы сослаться на него (цитата ИИ в ленте сделки). */
+  id?: string;
   direction: "in" | "out";
   text: string;
   internal?: boolean;
@@ -45,16 +47,21 @@ export function transcript(messages: AiMessage[], maxChars = 12_000): string {
   const lines: string[] = [];
   let size = 0;
   for (let i = messages.length - 1; i >= 0; i--) {
-    const m = messages[i];
-    const text = m.text.replace(/\s+/g, " ").trim();
-    if (!text) continue;
-    const who = m.internal ? `Заметка сотрудника${m.author ? ` (${m.author})` : ""}` : m.direction === "in" ? "Клиент" : `Менеджер${m.author ? ` (${m.author})` : ""}`;
-    const line = `[${stamp(m.at)}] ${who}: ${text}`;
+    const line = transcriptLine(messages[i]);
+    if (!line) continue;
     if (size + line.length > maxChars && lines.length) break;
     lines.push(line.length > maxChars ? `${line.slice(0, maxChars)}…` : line);
     size += line.length + 1;
   }
   return lines.reverse().join("\n");
+}
+
+/** Строка переписки для модели: «[дд.мм чч:мм] Клиент: текст»; пустое сообщение — пустая строка. */
+export function transcriptLine(m: AiMessage): string {
+  const text = m.text.replace(/\s+/g, " ").trim();
+  if (!text) return "";
+  const who = m.internal ? `Заметка сотрудника${m.author ? ` (${m.author})` : ""}` : m.direction === "in" ? "Клиент" : `Менеджер${m.author ? ` (${m.author})` : ""}`;
+  return `[${stamp(m.at)}] ${who}: ${text}`;
 }
 
 const kzt = (n: number) => `${n.toLocaleString("ru-RU")} ₸`;

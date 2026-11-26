@@ -10,7 +10,7 @@ import { clientBrief, dealById, dealCard } from "./infrastructure/DealCard";
 import { clientById, clientCard } from "./infrastructure/ClientCard";
 import { conversationContext, inbox } from "./infrastructure/Inbox";
 import { callJournal, taskById, taskList } from "./infrastructure/Lists";
-import { bookOwnership, orderCrm, orderExport, orderList, orderNotice, orderOwnership, productionBoard } from "./infrastructure/Orders";
+import { bookOwnership, orderCrm, orderExport, orderList, orderNotice, orderOwnership, orderStatusOf, productionBoard } from "./infrastructure/Orders";
 import { dealList, dealTotals, savedViews, stageCounts } from "./infrastructure/Deals";
 import { duplicateGroups } from "./infrastructure/Duplicates";
 import { bookList } from "./infrastructure/Books";
@@ -22,6 +22,7 @@ import { financeIssueData, financeReport } from "./infrastructure/Finance";
 import { expenseRows, profitReport } from "./infrastructure/Profit";
 import { leadStats, salesRegister } from "./infrastructure/LeadStats";
 import { stageOrderCandidates, stageOrderPaid } from "./infrastructure/StageOrder";
+import { aiStageCandidates } from "./infrastructure/AiStages";
 import { automationStats } from "./infrastructure/Automations";
 import { clientReferrals } from "./infrastructure/Referrals";
 import { designAiStats } from "./infrastructure/DesignAi";
@@ -72,6 +73,7 @@ export class ReportingModule {
   readonly orderExport = orderExport;
   readonly productionBoard = productionBoard;
   readonly orderOwnership = orderOwnership;
+  readonly orderStatusOf = orderStatusOf;
   readonly bookOwnership = bookOwnership;
   readonly orderCrm = orderCrm;
   readonly orderNotice = orderNotice;
@@ -100,6 +102,8 @@ export class ReportingModule {
   /** «Порядок в воронке»: заявки без оплаты с датами последних сообщений и сделки с оплатой не на своём этапе. */
   readonly stageOrderCandidates = stageOrderCandidates;
   readonly stageOrderPaid = stageOrderPaid;
+  /** «ИИ ведёт этапы»: сделки с новой затихшей перепиской для разбора моделью. */
+  readonly aiStageCandidates = aiStageCandidates;
   /** «Автоматизации»: повторные продажи правила — создано, выиграно, оплачено за 90 дней. */
   readonly automationStats = automationStats;
   /** Статистика ИИ-дизайнера для админки: просьбы, режимы, модели, стоимость, лимиты и покупки пакетов. */

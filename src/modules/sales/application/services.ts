@@ -3,7 +3,7 @@ import type { CustomFieldValues } from "@/shared/domain/customFields";
 import type { StageMilestone } from "@/shared/domain/stageMilestones";
 import { PAY_FORM_KEY } from "@/shared/domain/expenses";
 import { bookKind, progressOf } from "@/lib/content/kinds";
-import { checkDealPrice, Deal, Funnel, SalesError, type DealPrice, type DealRepository, type FunnelRepository, type NoteKind, type RejectionKind } from "../domain";
+import { checkDealPrice, Deal, Funnel, SalesError, type AiMove, type DealPrice, type DealRepository, type FunnelRepository, type NoteKind, type RejectionKind } from "../domain";
 import type { DealSource } from "@/shared/domain/dealSources";
 import { heldMoney, noAgreedPlans, noDealInvoices, type AgreedPlans, type BookProgress, type ClientDirectory, type DealInvoicesPort, type DealMoney, type OrderOrigin, type SalesSettings, type StaffRouter } from "./ports";
 
@@ -149,12 +149,12 @@ export class DealsService {
     return this.fresh(deal);
   }
 
-  async move(dealId: string, stageId: string, actorId: string | null, lostReason?: string | null): Promise<DealView | null> {
+  async move(dealId: string, stageId: string, actorId: string | null, lostReason?: string | null, ai?: AiMove): Promise<DealView | null> {
     const funnel = await this.funnels.load();
     const stage = funnel.stage(stageId);
     const deal = await this.deals.findById(dealId);
     if (!deal || !stage) return deal?.snapshot() ?? null;
-    if (!deal.moveTo(stage, actorId, this.clock.now(), lostReason)) return deal.snapshot();
+    if (!deal.moveTo(stage, actorId, this.clock.now(), lostReason, ai)) return deal.snapshot();
     await this.uow.run(async () => {
       await this.deals.save(deal);
       this.uow.track(deal);

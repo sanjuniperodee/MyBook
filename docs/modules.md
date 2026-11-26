@@ -11,7 +11,7 @@
 | Модуль | Что делает | Файлов / строк | Вызовов `container()` |
 |---|---|---:|---:|
 | [access](#access) | Access: сотрудники, роли и права, правила безопасности, журнал. | 16 / 852 | 50 |
-| [assistant](#assistant) | AI-помощник (Claude, ChatGPT, DeepSeek или свой OpenAI-совместимый сервер). | 24 / 2321 | 23 |
+| [assistant](#assistant) | AI-помощник (Claude, ChatGPT, DeepSeek или свой OpenAI-совместимый сервер). | 25 / 2464 | 23 |
 | [authoring](#authoring) | Authoring: книги, вопросы, оглавление своей книги, фото, письма близких. | 40 / 7857 | 52 |
 | [automation](#automation) | Автоматизации (цифровая воронка CRM). | 16 / 1987 | 9 |
 | [boards](#boards) | Доски задач: доски отделов, личные и проектные, колонки с лимитами, карточки (задачи CRM) с исполнителями, метками, чек-листами, комментариями и вложениями, правила досок, календарь, личная iCal-ссылка и Google Календарь сотрудника. | 15 / 3218 | 15 |
@@ -21,14 +21,14 @@
 | [marketing](#marketing) | Маркетинг: каналы привлечения, короткие ссылки, предложения из чата. | 10 / 577 | 12 |
 | [messaging](#messaging) | Переписка: единый инбокс, бот-квалификатор, виджет на сайте. | 60 / 16694 | 152 |
 | [notifications](#notifications) | Уведомления: автописьма, напоминания из CRM, отписка. | 10 / 707 | 6 |
-| [ordering](#ordering) | Заказы. Остальной код видит только его. | 48 / 5666 | 84 |
+| [ordering](#ordering) | Заказы. Остальной код видит только его. | 48 / 5666 | 85 |
 | [production](#production) | Производство: вёрстка PDF книги и сертификатов, предпросмотры полос и обложек, файлы для типографии, очередь сборки. В container — previews (BookPreviewService) и printFiles. | 43 / 5606 | 0 |
 | [referrals](#referrals) | Приглашения: код для друзей, награда за их заказы и покупки из чата. | 10 / 358 | 3 |
-| [reporting](#reporting) | Отчёты CRM — сторона чтения (CQRS): сводные выборки по нескольким контекстам для страниц (дашборд, аналитика, поиск, «Мой день»). Только чтение, без бизнес-правил: команды идут через модули контекстов. | 46 / 4510 | 59 |
-| [sales](#sales) | Продажи: сделки, воронки, этапы, дубли, воронка по действиям на сайте. | 28 / 2977 | 90 |
+| [reporting](#reporting) | Отчёты CRM — сторона чтения (CQRS): сводные выборки по нескольким контекстам для страниц (дашборд, аналитика, поиск, «Мой день»). Только чтение, без бизнес-правил: команды идут через модули контекстов. | 47 / 4569 | 60 |
+| [sales](#sales) | Продажи: сделки, воронки, этапы, дубли, воронка по действиям на сайте. | 29 / 3068 | 101 |
 | [support](#support) | Обращения: проблемы и просьбы с формы /support, расшифровка голосовых, статусы, уведомление и закрытие по выкатке. | 7 / 737 | 13 |
 | [telephony](#telephony) | Телефония: журнал звонков из АТС, звонки из CRM, веб-телефон, записи, звонки WhatsApp. | 14 / 1171 | 28 |
-| [workspace](#workspace) | Рабочее пространство CRM: свои поля, шаблоны ответов, уведомления и push сотрудников. | 23 / 1644 | 20 |
+| [workspace](#workspace) | Рабочее пространство CRM: свои поля, шаблоны ответов, уведомления и push сотрудников. | 23 / 1649 | 20 |
 
 ## access
 
@@ -48,7 +48,7 @@ AI-помощник (Claude, ChatGPT, DeepSeek или свой OpenAI-совме
 - Фасад: `AssistantModule` → `container().assistant`
 - Публичное: `service`, `proofreader`, `writer`, `seller`, `designSettings`, `designerFor`, `writerProvider`, `proofreadProvider`, `sellerProvider`, `sellerFallbacks`, `mediaProvider`, `transcribeSupport`, `dictate`, `briefly`, `mediaModel`
 - Таблицы: своих нет
-- Тесты (12): `ai-providers.test.ts`, `assistant.test.ts`, `crm-modes.integration.test.ts`, `crm-v4.test.ts`, `delivery-abroad.test.ts`, `llm-router.test.ts`, `proofread-ai.test.ts`, `rewrite.test.ts`, `stage-order.test.ts`, `system-blocks.test.ts`, `template-draft.test.ts`, `workspace-ports.test.ts`
+- Тесты (13): `ai-providers.test.ts`, `ai-stages.test.ts`, `assistant.test.ts`, `crm-modes.integration.test.ts`, `crm-v4.test.ts`, `delivery-abroad.test.ts`, `llm-router.test.ts`, `proofread-ai.test.ts`, `rewrite.test.ts`, `stage-order.test.ts`, `system-blocks.test.ts`, `template-draft.test.ts`, `workspace-ports.test.ts`
 
 ## authoring
 
@@ -175,7 +175,7 @@ Identity: учётные записи, вход, пароли, второй фа
 
 - Папка: `src/modules/reporting` (infrastructure, ui)
 - Фасад: `ReportingModule` → `container().reporting`
-- Публичное: `salesAnalytics`, `dashboard`, `attention`, `managerListCounts`, `morningDigest`, `vcardClients`, `paymentsExport`, `myDay`, `search`, `dealById`, `dealCard`, `clientBrief`, `clientById`, `clientCard`, `clientReferrals`, `inbox`, `conversationContext`, `taskList`, `taskById`, `callJournal`, `orderList`, `orderExport`, `productionBoard`, `orderOwnership`, `bookOwnership`, `orderCrm`, `orderNotice`, `dealList`, `dealTotals`, `savedViews`, `stageCounts`, `duplicateGroups`, `bookList`, `counters`, `live`, `clients`, `segmentCounts`, `finance`, `financeIssues`, `expenses`, `profit`, `leadStats`, `salesRegister`, `stageOrderCandidates`, `stageOrderPaid`, `automationStats`, `designAi`
+- Публичное: `salesAnalytics`, `dashboard`, `attention`, `managerListCounts`, `morningDigest`, `vcardClients`, `paymentsExport`, `myDay`, `search`, `dealById`, `dealCard`, `clientBrief`, `clientById`, `clientCard`, `clientReferrals`, `inbox`, `conversationContext`, `taskList`, `taskById`, `callJournal`, `orderList`, `orderExport`, `productionBoard`, `orderOwnership`, `orderStatusOf`, `bookOwnership`, `orderCrm`, `orderNotice`, `dealList`, `dealTotals`, `savedViews`, `stageCounts`, `duplicateGroups`, `bookList`, `counters`, `live`, `clients`, `segmentCounts`, `finance`, `financeIssues`, `expenses`, `profit`, `leadStats`, `salesRegister`, `stageOrderCandidates`, `stageOrderPaid`, `aiStageCandidates`, `automationStats`, `designAi`
 - Таблицы: своих нет
 - Тесты (27): `attention.integration.test.ts`, `automation-stats.integration.test.ts`, `book-modes.integration.test.ts`, `clients-filters.integration.test.ts`, `clients-filters.test.ts`, `crm-modes.integration.test.ts`, `dashboard-new-clients.integration.test.ts`, `deal-filters.test.ts`, `deal-lifecycle.integration.test.ts`, `finance-batch.integration.test.ts`, `finance-reports.test.ts`, `finance-screen.test.ts`, `finance.integration.test.ts`, `instrumentation-web-only.test.ts`, `invoice-crm.integration.test.ts`, `morning-digest.integration.test.ts`, `my-day.integration.test.ts`, `order-deal.integration.test.ts`, `phone-search.integration.test.ts`, `phone-search.test.ts`, `referral-chat.integration.test.ts`, `reporting-screens.test.ts`, `response-stats.test.ts`, `revenue-agreed.integration.test.ts`, `sales-analytics.integration.test.ts`, `time.test.ts`, `vcard.integration.test.ts`
 
@@ -185,8 +185,8 @@ Identity: учётные записи, вход, пароли, второй фа
 
 - Папка: `src/modules/sales` (domain, application, infrastructure)
 - Фасад: `SalesModule` → `container().sales`
-- Публичное: `deals`, `routing`, `funnel`, `queries`, `pipelines`, `savedViews`, `plans`, `receipts`, `payments`, `intake`, `agreementFor`, `attachAgreementOrder`, `money`, `refundAfterOrder`, `agreedPlan`, `agreedGifts`, `batch`, `setClientAttribution`, `changeAgreedGifts`, `splitIntoBatch`
-- Таблицы: `crm_pipelines`, `crm_stages`, `crm_deals`, `crm_payments`, `deal_invoices`, `crm_receipts`, `crm_stage_history`, `crm_saved_views`, `crm_plans`
+- Публичное: `deals`, `routing`, `funnel`, `queries`, `pipelines`, `savedViews`, `plans`, `receipts`, `payments`, `aiProposals`, `intake`, `agreementFor`, `attachAgreementOrder`, `money`, `refundAfterOrder`, `agreedPlan`, `agreedGifts`, `batch`, `setClientAttribution`, `changeAgreedGifts`, `splitIntoBatch`
+- Таблицы: `crm_pipelines`, `crm_stages`, `crm_deals`, `crm_payments`, `deal_invoices`, `crm_receipts`, `crm_stage_history`, `crm_saved_views`, `crm_plans`, `crm_ai_proposals`
 - Тесты (22): `automation-stats.integration.test.ts`, `book-modes.integration.test.ts`, `crm.test.ts`, `deal-invoice-payments.integration.test.ts`, `deal-lifecycle.integration.test.ts`, `deal-lifecycle.test.ts`, `deal-merge.test.ts`, `deal-money.integration.test.ts`, `deal-repeat.integration.test.ts`, `discount-limit.test.ts`, `errors.test.ts`, `finance-batch.integration.test.ts`, `finance.integration.test.ts`, `payments-settings.integration.test.ts`, `receipts.test.ts`, `revenue.integration.test.ts`, `routing.integration.test.ts`, `sales-intake.test.ts`, `sales.test.ts`, `server-routes-payments.test.ts`, `time.test.ts`, `workspace-ports.test.ts`
 
 ## support
@@ -217,4 +217,4 @@ Identity: учётные записи, вход, пароли, второй фа
 - Фасад: `WorkspaceModule` → `container().workspace`
 - Публичное: `fields`, `templates`, `personalTemplates`, `inbox`, `pinnedChats`, `financeResolutions`, `expenses`, `settings`, `notifier`, `live`, `fieldsReader`, `schedule`
 - Таблицы: `crm_notifications`, `crm_templates`, `crm_fields`, `crm_mobile_devices`, `crm_ios_devices`, `crm_pinned_chats`, `crm_push_subscriptions`, `crm_settings`, `finance_issue_resolutions`, `finance_expenses`
-- Тесты (30): `api-v1-crm-bot-kp-security.test.ts`, `api-v1-crm-finance.test.ts`, `api-v1-crm.test.ts`, `apns.test.ts`, `auto-shift.test.ts`, `chat-mark-read.test.ts`, `client-ai-limits.test.ts`, `client-push-events.test.ts`, `deal-lifecycle.test.ts`, `deal-merge.test.ts`, `design-ai-stats.integration.test.ts`, `discount-limit.test.ts`, `fcm.test.ts`, `invoice-crm-actions.test.ts`, `ios-app.test.ts`, `ios-sign.test.ts`, `kaspi-shared-session.test.ts`, `lead-grab.test.ts`, `marketing-whatsapp.test.ts`, `notify-prefs.test.ts`, `notify-thread.test.ts`, `notify.integration.test.ts`, `payments-settings.integration.test.ts`, `photo-limit.test.ts`, `sales-guards.test.ts`, `scheduler.test.ts`, `seller-details.test.ts`, `settings-actions.test.ts`, `stage-order.test.ts`, `workspace.test.ts`
+- Тесты (31): `ai-stages.test.ts`, `api-v1-crm-bot-kp-security.test.ts`, `api-v1-crm-finance.test.ts`, `api-v1-crm.test.ts`, `apns.test.ts`, `auto-shift.test.ts`, `chat-mark-read.test.ts`, `client-ai-limits.test.ts`, `client-push-events.test.ts`, `deal-lifecycle.test.ts`, `deal-merge.test.ts`, `design-ai-stats.integration.test.ts`, `discount-limit.test.ts`, `fcm.test.ts`, `invoice-crm-actions.test.ts`, `ios-app.test.ts`, `ios-sign.test.ts`, `kaspi-shared-session.test.ts`, `lead-grab.test.ts`, `marketing-whatsapp.test.ts`, `notify-prefs.test.ts`, `notify-thread.test.ts`, `notify.integration.test.ts`, `payments-settings.integration.test.ts`, `photo-limit.test.ts`, `sales-guards.test.ts`, `scheduler.test.ts`, `seller-details.test.ts`, `settings-actions.test.ts`, `stage-order.test.ts`, `workspace.test.ts`

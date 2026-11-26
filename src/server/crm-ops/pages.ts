@@ -187,12 +187,13 @@ export const reads = {
   "pages.stages": op(["settings.manage"], z.object({ p: text(60) }), async ({ p }) => {
     const { getSetting } = await import("@/modules/workspace");
     const { parseStageOrder } = await import("@/shared/domain/stageOrder");
+    const { parseAiStages } = await import("@/shared/domain/aiStages");
     const pipelines = await container().sales.queries.listPipelines();
     const pipeline = pipelines.find((x) => x.id === p) ?? pipelines[0];
     const [stages, counts, entryRaw] = await Promise.all([container().sales.queries.listStages(pipeline.id), container().reporting.stageCounts(), getSetting("crm.entryStages")]);
     const showEntry = pipeline.id === pipelines[0].id;
-    const [order, aiReady] = showEntry ? await Promise.all([getSetting("crm.stageOrder").then(parseStageOrder), container().assistant.service.configured()]) : [null, false];
-    return { pipelines, pipeline, stages, counts, entryRaw, showEntry, order, aiReady };
+    const [order, aiReady, aiStages] = showEntry ? await Promise.all([getSetting("crm.stageOrder").then(parseStageOrder), container().assistant.service.configured(), getSetting("crm.aiStages").then(parseAiStages)]) : [null, false, null];
+    return { pipelines, pipeline, stages, counts, entryRaw, showEntry, order, aiReady, aiStages };
   }),
 
   "pages.duplicates": op(["deals.view", "deals.edit"], z.object({ limit: z.number().int().min(1).max(200) }), async ({ limit }, staff) => {

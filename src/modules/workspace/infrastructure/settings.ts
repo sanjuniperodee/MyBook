@@ -93,6 +93,11 @@ export const settingDefs = {
    * silentDays, lostDays, lostReason } — см. shared/domain/stageOrder.
    */
   "crm.stageOrder": { default: "{}" },
+  /**
+   * «ИИ ведёт этапы»: JSON { on } — модель читает свежую переписку и сама двигает сделку между этапами разговора и в отказ
+   * (с пометкой «ИИ», причиной и цитатой), остальное предлагает менеджеру кнопкой. См. shared/domain/aiStages.
+   */
+  "crm.aiStages": { default: "{}" },
   /** Заявки с новых номеров сначала попадают в «Неразобранное»: on | off. */
   "crm.unsorted": { default: "on" },
   /** Максимальная персональная скидка, которую менеджер может дать из чата, %. */

@@ -9,9 +9,21 @@ import { executor } from "@/shared/infrastructure/database";
 import type { AssistantData, ConversationReader } from "../application";
 import type { AiMessage } from "../domain";
 
-/** Переписка глазами модели: вложение без подписи — «[тип]». */
+/** Подписи вложений, которые шлюз ставит вместо текста («🎤 Голосовое сообщение»): при расшифровке текстом идёт она. */
+const MEDIA_STUB = /^(?:🎤 Голосовое сообщение|📷 Фото|🎬 Видео|📎 Файл)$/;
+
+/** Переписка глазами модели: голосовое — его расшифровка, вложение без подписи — «[тип]», удалённое — не видно. */
 const transcriptOf = async (conversations: ConversationReader, conversationId: string, limit: number): Promise<AiMessage[]> =>
-  (await conversations.messages(conversationId, limit)).map((m) => ({ direction: m.direction, text: m.text || (m.mediaUrl || m.gateway ? `[${m.type}]` : ""), internal: m.internal, author: m.author, at: m.at }));
+  (await conversations.messages(conversationId, limit))
+    .filter((m) => !m.deleted)
+    .map((m) => ({
+      id: m.id,
+      direction: m.direction,
+      text: m.type === "audio" && m.transcript ? `(голосовое) ${m.transcript}` : m.text && !MEDIA_STUB.test(m.text.trim()) ? m.text : m.mediaUrl || m.gateway || m.type !== "text" ? `[${m.type}]` : m.text,
+      internal: m.internal,
+      author: m.author,
+      at: m.at,
+    }));
 
 /** Данные CRM для помощника; база знаний и свои поля сделки — из рабочего пространства, переписка — из Messaging. */
 export const crmAssistantData = (settings: SettingsReader<"ai.knowledge">, fields: CustomFieldsReader, conversations: ConversationReader): AssistantData => ({

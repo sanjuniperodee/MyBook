@@ -7,6 +7,7 @@ import { agreementForClient, attachAgreementOrder, dealMoney, dealRefundAfterOrd
 import { setClientDealsAttribution } from "./infrastructure/attribution";
 import { dealAgreedGifts, dealAgreedPlan, dealBatch, dealBatchMoney, markBatchMembers, setDealAgreedGifts, setDealAgreedPlan, setDealBatch } from "./infrastructure/agreedPlan";
 import { DealPayments } from "./infrastructure/payments";
+import { DealAiProposals } from "./infrastructure/aiProposals";
 import { DealReceipts } from "./infrastructure/receipts";
 import { DrizzleDealRepository, DrizzleFunnelRepository, DrizzlePipelineRepository, DrizzleSalesQueries, DrizzleSavedViews, drizzlePlans } from "./infrastructure/persistence";
 
@@ -34,6 +35,8 @@ export class SalesModule {
   readonly receipts = new DealReceipts();
   /** Принятые деньги по сделкам, оформленным вручную (предоплата, доплаты) — источник выручки наряду с заказами. */
   readonly payments = new DealPayments();
+  /** Предложения ИИ по сделке (сменить этап, отметить заказ выданным) и отметка разбора переписки ИИ. */
+  readonly aiProposals = new DealAiProposals();
   /** Принять платёж или возврат с чеком: деньги, чек, заметка, журнал, письмо клиенту. */
   readonly intake: PaymentIntakeService;
   /** Договорённая цена и предоплата клиента по ручной сделке — их применяет оформление заказа. */

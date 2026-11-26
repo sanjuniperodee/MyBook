@@ -9,6 +9,7 @@ import { sweepAbandonedUploads } from "@/server/answerFiles";
 import { kickAnswerFiles } from "@/server/answerFilesWorker";
 import { dedupWhatsappMedia } from "@/server/whatsapp-media";
 import { stageOrderDeps, stageOrderPass } from "@/server/stage-order";
+import { aiStagesDeps, aiStagesPass } from "@/server/ai-stages";
 import { tagKaspiPayForms } from "@/server/kaspi-pay-forms";
 import { purgeDeletedAccounts } from "@/server/account-deletion";
 
@@ -125,6 +126,9 @@ export async function crmTick() {
     // Порядок в воронке: оплата → свой этап, ответили → «в работе», клиент молчит → «не отвечает» → отказ (вывод — модель).
     const order = await step("stage order", () => stageOrderPass(stageOrderDeps()), null);
     if (order && order.paid + order.work + order.silent + order.lost) console.log(`[scheduler] stage order paid=${order.paid} work=${order.work} silent=${order.silent} lost=${order.lost} assessed=${order.assessed}`);
+    // ИИ ведёт этапы (crm.aiStages): свежая затихшая переписка → этап с пометкой «ИИ» или предложение менеджеру.
+    const aiStages = await step("ai stages", () => aiStagesPass(aiStagesDeps()), null);
+    if (aiStages?.reviewed) console.log(`[scheduler] ai stages reviewed=${aiStages.reviewed} applied=${aiStages.applied} proposed=${aiStages.proposed}`);
     // Бот-квалификатор: ходы, не сделанные таймером (перезапуск процесса), ожидание менеджера, брошенные опросы.
     const botTurns = await step("bot", () => container().messaging.bot.sweep(), 0);
     if (botTurns) console.log(`[scheduler] crm bot turns=${botTurns}`);

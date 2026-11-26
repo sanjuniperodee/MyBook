@@ -670,3 +670,17 @@ export async function saveStageOrderAction(input: z.input<typeof stageOrderSchem
   revalidatePath("/admin/deals/stages");
   return { ok: true };
 }
+
+/**
+ * «ИИ ведёт этапы» (настройка crm.aiStages): модель читает свежую переписку основной воронки — между этапами разговора и
+ * в отказ двигает сама (с пометкой «ИИ», причиной и цитатой), остальное предлагает менеджеру кнопкой в карточке сделки.
+ */
+export async function saveAiStagesAction(on: boolean): Promise<{ ok?: true; error?: string }> {
+  const staff = await assertStaff("settings.manage");
+  const next = { on: z.boolean().parse(on) };
+  const before = await getSetting("crm.aiStages");
+  await saveSettings({ "crm.aiStages": JSON.stringify(next) }, staff.user.id);
+  await audit(staff, "settings.update", "settings", "crm.aiStages", { from: before, to: next });
+  revalidatePath("/admin/deals/stages");
+  return { ok: true };
+}

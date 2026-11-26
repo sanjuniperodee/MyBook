@@ -5,7 +5,8 @@ import { ClientsError } from "@/modules/clients";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { uuid } from "@/server/input";
-import { assertStaff, assertVisible, audit } from "@/server/access";
+import { assertStaff, assertVisible, audit, can } from "@/server/access";
+import { aiNoteText, aiProposalTitle, type AiOrderStatusPayload, type AiStagePayload } from "@/shared/domain/aiProposals";
 import { staffLabel } from "@/shared/domain/staff";
 import { AssistantError, normalizeExtracted, type AiSummary } from "@/modules/assistant";
 import { listFields } from "@/modules/workspace";
@@ -144,4 +145,53 @@ export async function aiTemplateDraftAction(conversationId: string, messageId: s
     const d = await container().assistant.service.draftTemplate(msg.text, { name: vars.name, manager: vars.manager, order: vars.order, recipient: vars.recipient, link: vars.link }, fields.map((f) => f.label));
     return { title: d.title, text: d.text, replaced: d.replaced, ai: d.ai };
   });
+}
+
+/**
+ * Применить предложение ИИ одной кнопкой («ИИ ведёт этапы»): этап — с пометкой «ИИ» и цитатой в истории (подтвердил
+ * сотрудник), заказ «выдан» — обычной сменой статуса с записью в заказ. Сделку уже перевели или заказ сменил статус —
+ * предложение устарело, ничего не меняем.
+ */
+export async function aiProposalApplyAction(proposalId: string): Promise<{ ok: true } | { ok: false; message: string }> {
+  const staff = await assertStaff("deals.edit");
+  const p = await container().sales.aiProposals.find(uuid.parse(proposalId));
+  if (!p) return { ok: false, message: "Предложение не найдено" };
+  const deal = await loadDeal(p.dealId, staff);
+  if (p.status !== "pending") return { ok: false, message: "По этому предложению уже решили" };
+  const ai = { reason: p.reason, quote: p.quote, messageId: p.messageId };
+  if (p.kind === "stage") {
+    const s = p.payload as AiStagePayload;
+    if (deal.stageId !== s.fromStageId) {
+      await container().sales.aiProposals.decide(p.id, "stale", staff.user.id);
+      return { ok: false, message: "Сделку уже перевели на другой этап — предложение устарело" };
+    }
+    if (!(await container().sales.aiProposals.decide(p.id, "applied", staff.user.id))) return { ok: false, message: "По этому предложению уже решили" };
+    await container().sales.deals.move(deal.id, s.stageId, staff.user.id, s.lostReason, ai);
+    await container().sales.aiProposals.staleStage(deal.id);
+  } else {
+    const o = p.payload as AiOrderStatusPayload;
+    if (!can(staff, "orders.edit")) return { ok: false, message: "Нет прав менять заказы" };
+    if ((await container().reporting.orderStatusOf(o.orderId)) !== o.fromStatus) {
+      await container().sales.aiProposals.decide(p.id, "stale", staff.user.id);
+      return { ok: false, message: "Статус заказа уже сменили — предложение устарело" };
+    }
+    if (!(await container().sales.aiProposals.decide(p.id, "applied", staff.user.id))) return { ok: false, message: "По этому предложению уже решили" };
+    await container().ordering.orders.changeStatus({ orderId: o.orderId, to: o.status, note: aiNoteText(aiProposalTitle(p), p.reason, p.quote) }, { label: `admin:${staff.user.email}`, userId: staff.user.id });
+    await container().sales.deals.note({ id: deal.id, clientId: deal.clientId }, aiNoteText(aiProposalTitle(p), p.reason, p.quote), staff.user.id);
+  }
+  await audit(staff, "ai.proposal_apply", "deal", deal.id, { proposalId: p.id, kind: p.kind, payload: p.payload });
+  revalidatePath(`/admin/deals/${deal.id}`);
+  return { ok: true };
+}
+
+/** Отклонить предложение ИИ: остаётся в журнале с тем, кто отклонил. */
+export async function aiProposalDismissAction(proposalId: string): Promise<{ ok: true } | { ok: false; message: string }> {
+  const staff = await assertStaff("deals.edit");
+  const p = await container().sales.aiProposals.find(uuid.parse(proposalId));
+  if (!p) return { ok: false, message: "Предложение не найдено" };
+  const deal = await loadDeal(p.dealId, staff);
+  await container().sales.aiProposals.decide(p.id, "dismissed", staff.user.id);
+  await audit(staff, "ai.proposal_dismiss", "deal", deal.id, { proposalId: p.id, kind: p.kind, payload: p.payload });
+  revalidatePath(`/admin/deals/${deal.id}`);
+  return { ok: true };
 }

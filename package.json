@@ -19,6 +19,7 @@
     "db:studio": "drizzle-kit studio",
     "create-admin": "node --env-file-if-exists=.env scripts/create-admin.mjs",
     "sample-book": "tsx --import ./scripts/preload.mjs scripts/sample-book.ts",
+    "ai-stages:dry-run": "tsx --env-file-if-exists=.env --import ./scripts/preload.mjs scripts/ai-stages-dry-run.ts",
     "dedupe:deals": "tsx --env-file-if-exists=.env --import ./scripts/preload.mjs scripts/dedupe-deals.ts",
     "receipts:hash": "tsx --env-file-if-exists=.env --import ./scripts/preload.mjs scripts/receipt-hashes.ts",
     "payments:void": "tsx --env-file-if-exists=.env --import ./scripts/preload.mjs scripts/void-order-payments.ts",

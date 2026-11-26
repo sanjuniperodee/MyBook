@@ -148,3 +148,9 @@ export async function bookOwnership(bookId: string): Promise<{ managerId: string
   const [row] = await executor().select({ managerId: users.managerId }).from(books).innerJoin(users, eq(users.id, books.userId)).where(eq(books.id, bookId)).limit(1);
   return row ?? null;
 }
+
+/** Текущий статус заказа (предложение ИИ «заказ выдан» проверяет, что статус не сменили). null — заказа нет. */
+export async function orderStatusOf(orderId: string): Promise<string | null> {
+  const [row] = await executor().select({ status: orders.status }).from(orders).where(eq(orders.id, orderId)).limit(1);
+  return row?.status ?? null;
+}
