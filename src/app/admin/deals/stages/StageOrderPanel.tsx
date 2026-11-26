@@ -56,7 +56,7 @@ export function StageOrderPanel({ stages, value, ai }: { stages: { id: string; n
         <input type="checkbox" className="mt-0.5 size-4 accent-[var(--color-wine)]" checked={v.on} onChange={(e) => set({ on: e.target.checked })} />
         <span>
           <span className="font-medium">Двигать сделки по этапам автоматически</span>
-          <span className="block text-muted">Сделки с открытой задачей и с оформленным заказом не трогаются. Заявка, на которую ещё не ответили, остаётся на первом этапе.</span>
+          <span className="block text-muted">Сделки с открытой задачей сотрудника и с оформленным заказом не трогаются (задачи правил не в счёт). Заявка, на которую ещё не ответили, остаётся на первом этапе.</span>
         </span>
       </label>
       <div className="grid gap-3 sm:grid-cols-2">

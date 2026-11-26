@@ -16,6 +16,8 @@ export interface StageOrderCandidate extends StageOrderDeal {
 /**
  * «Порядок в воронке»: заявки воронки на этапах stageIds — с перепиской, без денег, заказа и «неразобранных», — и когда
  * в их чатах последний раз писал клиент и мы. Наш ответ — человек или бот; заметки и сообщения правил ответом не считаются.
+ * План менеджера — открытая задача, которую поставил сотрудник. Задачи правил («молчит после нашего ответа», «успеть к
+ * дате», «пропущенный звонок») ставятся сами и висят открытыми: если считать их, заявка навсегда застревает «в работе».
  * Свежие по последнему сообщению клиента — первыми.
  */
 export async function stageOrderCandidates(f: { pipelineId: string; stageIds: string[]; entryStageId: string }): Promise<StageOrderCandidate[]> {
@@ -23,7 +25,8 @@ export async function stageOrderCandidates(f: { pipelineId: string; stageIds: st
   const r = await executor().execute<Row>(sql`
     select d.id, d.number, d.client_id, d.stage_id, d.created_at, d.stage_changed_at, m.last_in, m.last_out,
       nullif(d.custom_fields->>'event_date', '') as event_date,
-      exists (select 1 from crm_tasks t where t.deal_id = d.id and t.done_at is null and (t.board_id is null or t.board_id in (select b.id from crm_boards b where b.is_default))) as has_task
+      exists (select 1 from crm_tasks t where t.deal_id = d.id and t.done_at is null and t.created_by_id is not null
+        and (t.board_id is null or t.board_id in (select b.id from crm_boards b where b.is_default))) as has_task
     from crm_deals d
     join crm_stages s on s.id = d.stage_id
     join lateral (
