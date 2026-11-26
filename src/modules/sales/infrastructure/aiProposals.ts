@@ -1,8 +1,8 @@
 import "server-only";
-import { and, count, desc, eq, gte, ne } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, ne } from "drizzle-orm";
 import { crmAiProposals, crmDeals } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
-import type { AiProposalKind, AiProposalPayload, AiProposalStatus, AiProposalView } from "@/shared/domain/aiProposals";
+import type { AiFieldPayload, AiProposalKind, AiProposalPayload, AiProposalStatus, AiProposalView } from "@/shared/domain/aiProposals";
 
 export interface NewAiProposal {
   dealId: string;
@@ -37,9 +37,11 @@ export class DealAiProposals {
   /** Завести предложение; false — такое уже ждёт решения. */
   async add(p: NewAiProposal): Promise<boolean> {
     const db = executor();
-    const waiting = await db.select().from(crmAiProposals).where(and(eq(crmAiProposals.dealId, p.dealId), eq(crmAiProposals.kind, p.kind), eq(crmAiProposals.status, "pending")));
+    // Одно ждущее предложение на «место»: этап, ответственного, заказ — по виду; поле — по виду и ключу поля.
+    const slot = (x: AiProposalPayload) => (p.kind === "field" ? (x as AiFieldPayload).key : "");
+    const waiting = (await db.select().from(crmAiProposals).where(and(eq(crmAiProposals.dealId, p.dealId), eq(crmAiProposals.kind, p.kind), eq(crmAiProposals.status, "pending")))).filter((w) => slot(w.payload) === slot(p.payload));
     if (waiting.some((w) => sameTarget(w.payload, p.payload))) return false;
-    if (waiting.length) await db.update(crmAiProposals).set({ status: "stale", decidedAt: new Date() }).where(and(eq(crmAiProposals.dealId, p.dealId), eq(crmAiProposals.kind, p.kind), eq(crmAiProposals.status, "pending")));
+    if (waiting.length) await db.update(crmAiProposals).set({ status: "stale", decidedAt: new Date() }).where(inArray(crmAiProposals.id, waiting.map((w) => w.id)));
     await db.insert(crmAiProposals).values({ dealId: p.dealId, kind: p.kind, payload: p.payload, reason: p.reason.slice(0, 300), quote: p.quote?.slice(0, 300) || null, messageId: p.messageId, confidence: p.confidence });
     return true;
   }

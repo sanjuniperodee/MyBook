@@ -1,4 +1,5 @@
 import { aiNoteText } from "@/shared/domain/aiProposals";
+import { placeholderName } from "@/shared/domain/aiCrm";
 import { AggregateRoot } from "@/shared/domain";
 import { dealSourceLabels, type DealSource } from "@/shared/domain/dealSources";
 import type { CustomFieldValues } from "@/shared/domain/customFields";
@@ -269,6 +270,14 @@ export class Deal extends AggregateRoot<DealProps> {
       ...(patch.contacts ? { contactPhone: patch.contacts.phone, contactEmail: patch.contacts.email, extraPhones: patch.contacts.extraPhones.slice(0, 5) } : {}),
     };
     if (before !== patch.amount) this.note(`Бюджет: ${formatPrice(before)} → ${formatPrice(patch.amount)}`, actorId);
+  }
+
+  /** Имя клиента вместо заглушки из мессенджера (см. placeholderName); настоящее имя не меняет. false — не сменилось. */
+  nameContact(name: string): boolean {
+    const next = name.trim().slice(0, 120);
+    if (!next || !placeholderName(this.props.contactName) || placeholderName(next)) return false;
+    this.props.contactName = next;
+    return true;
   }
 
   addTag(tag: string) {

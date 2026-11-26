@@ -2,7 +2,7 @@
  * Предложения ИИ по сделке (crm_ai_proposals): что ИИ увидел в переписке и предлагает сделать, а менеджер применяет
  * одной кнопкой. Здесь — виды, данные и подписи; общие для сервера, сайта и приложения.
  */
-export const AI_PROPOSAL_KINDS = ["stage", "order_status", "assignee"] as const;
+export const AI_PROPOSAL_KINDS = ["stage", "order_status", "assignee", "field"] as const;
 export type AiProposalKind = (typeof AI_PROPOSAL_KINDS)[number];
 
 /** pending — ждёт решения; applied — применили; dismissed — отклонили; stale — устарело (сделку уже перевели, заказ сменил статус). */
@@ -33,7 +33,15 @@ export interface AiAssigneePayload {
   staffName: string;
 }
 
-export type AiProposalPayload = AiStagePayload | AiOrderStatusPayload | AiAssigneePayload;
+export interface AiFieldPayload {
+  key: string;
+  label: string;
+  /** Что вписано сейчас (сменили — предложение устарело) и что предлагает ИИ. */
+  from: string;
+  to: string | number;
+}
+
+export type AiProposalPayload = AiStagePayload | AiOrderStatusPayload | AiAssigneePayload | AiFieldPayload;
 
 /** Предложение глазами карточки сделки. */
 export interface AiProposalView {
@@ -58,6 +66,10 @@ export function aiProposalTitle(p: Pick<AiProposalView, "kind" | "payload">): st
     return `Перевести на этап «${s.stageName}»${s.lostReason ? ` — ${s.lostReason}` : ""}`;
   }
   if (p.kind === "assignee") return `Назначить ответственным: ${(p.payload as AiAssigneePayload).staffName}`;
+  if (p.kind === "field") {
+    const f = p.payload as AiFieldPayload;
+    return `Поле «${f.label}»: «${f.from}» → «${f.to}»`;
+  }
   const o = p.payload as AiOrderStatusPayload;
   return `Отметить заказ №${o.orderNumber} ${ORDER_STATUS_ACTION[o.status]}`;
 }

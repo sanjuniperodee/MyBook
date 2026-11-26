@@ -76,8 +76,10 @@ export class AssistantService {
   }
 
   /** Значения своих полей сделки из переписки и заметок — только предложение, применяет менеджер. */
-  async extractDealFields(dealId: string) {
-    const [d, fields] = await Promise.all([this.dossier(dealId), this.data.dealFields()]);
+  async extractDealFields(dealId: string, opts: { extra?: AiField[] } = {}) {
+    const [d, own] = await Promise.all([this.dossier(dealId), this.data.dealFields()]);
+    // Дополнительные поля (имя клиента для «ИИ в CRM» → карточка) — рядом со своими полями сделки, в том же запросе.
+    const fields = [...own, ...(opts.extra ?? [])];
     if (!extractableFields(fields).length) throw new AssistantError("nothingToDo", "У сделок нет своих полей для заполнения.");
     const source = extractionSource(d);
     if (!source) throw new AssistantError("nothingToDo", "Нет переписки и заметок, из которых можно взять данные.");

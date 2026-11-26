@@ -381,6 +381,14 @@ export class DealsService {
   }
 
   /** Применить значения своих полей (предложения AI, которые выбрал менеджер). */
+  /** Имя клиента из переписки вместо заглушки из мессенджера; false — имя уже настоящее. */
+  async nameContact(dealId: string, name: string): Promise<boolean> {
+    const deal = await this.deals.findById(dealId);
+    if (!deal?.nameContact(name)) return false;
+    await this.deals.save(deal);
+    return true;
+  }
+
   async setFields(dealId: string, values: Record<string, string | number>) {
     const deal = await this.load(dealId);
     for (const [k, v] of Object.entries(values)) deal.setField(k, v);
