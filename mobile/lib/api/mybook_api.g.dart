@@ -1675,6 +1675,66 @@ class MybookApi {
     final json = await _send('GET', '/api/v1/books/${Uri.encodeComponent('$bookId')}/files/packs/${Uri.encodeComponent('$purchaseId')}/kaspi/${Uri.encodeComponent('$invoiceId')}');
     return AnswerFilePackKaspiStatus.fromJson(json as Map<String, dynamic>);
   }
+
+  /// Текущая сессия веба: полная безопасная проекция пользователя или null (без 401 на истёкшей cookie)
+  Future<WebSessionResponse> meWebSession() async {
+    final json = await _send('GET', '/api/v1/web/session');
+    return WebSessionResponse.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Регистрация клиента с сайта: проверка открытой регистрации, лимит и открытие сессии
+  Future<WebAuthSession> webAuthRegister({required WebAuthRegisterBody body}) async {
+    final json = await _send('POST', '/api/v1/web/auth/register', body: body.toJson());
+    return WebAuthSession.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Запрос письма со ссылкой сброса пароля (с лимитом по IP)
+  Future<Ok> webAuthForgot({required WebAuthForgotBody body}) async {
+    final json = await _send('POST', '/api/v1/web/auth/forgot', body: body.toJson());
+    return Ok.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Проверка ссылки сброса пароля или доступа в кабинет (без погашения) + номер WhatsApp поддержки
+  Future<WebResetInfo> webAuthResetInfo({required String token}) async {
+    final json = await _send('GET', '/api/v1/web/auth/reset/${Uri.encodeComponent('$token')}');
+    return WebResetInfo.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Задать новый пароль по ссылке сброса или доступа (с учётом 2FA сотрудника)
+  Future<WebResetCompleteResult> webAuthResetComplete({required WebResetCompleteBody body}) async {
+    final json = await _send('POST', '/api/v1/web/auth/reset', body: body.toJson());
+    return WebResetCompleteResult.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Полка «Мои книги» для веба: книги с полями обложки, договорённость-бронь и книги для карточки брони
+  Future<WebShelfData> webShelf({String? locale}) async {
+    final json = await _send('GET', '/api/v1/web/shelf', query: {if (locale != null) 'locale': '${locale}'});
+    return WebShelfData.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Создание новой книги с сайта (поддержка всех языков веба: ru, kk, uz, en)
+  Future<CreatedBook> webBookCreate({required WebBookCreateBody body}) async {
+    final json = await _send('POST', '/api/v1/web/books', body: body.toJson());
+    return CreatedBook.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Удаление книги клиента (черновик без заказов)
+  Future<Ok> webBookDelete({required String bookId}) async {
+    final json = await _send('DELETE', '/api/v1/web/books/${Uri.encodeComponent('$bookId')}');
+    return Ok.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Страница приглашений: персональный код, ссылка, проценты и список наград
+  Future<WebInviteData> webInvite({String? locale}) async {
+    final json = await _send('GET', '/api/v1/web/invite', query: {if (locale != null) 'locale': '${locale}'});
+    return WebInviteData.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Состояние инфраструктуры для /api/health веба (БД, хранилище, Redis, outbox)
+  Future<WebHealth> webHealth() async {
+    final json = await _send('GET', '/api/v1/web/health');
+    return WebHealth.fromJson(json as Map<String, dynamic>);
+  }
 }
 
 class ApiError {
@@ -11991,4 +12051,345 @@ class AnswerFilePackKaspiStatus {
   factory AnswerFilePackKaspiStatus.fromJson(Map<String, dynamic> json) => AnswerFilePackKaspiStatus(invoice: KaspiInvoice.fromJson(json['invoice'] as Map<String, dynamic>), quota: AnswerFileQuota.fromJson(json['quota'] as Map<String, dynamic>));
 
   Map<String, dynamic> toJson() => {'invoice': invoice.toJson(), 'quota': quota.toJson()};
+}
+
+class WebSessionUser {
+  final String id;
+  final String email;
+  final String name;
+  final String? phone;
+  /// user | admin
+  final String role;
+  final List<String> tags;
+  final String? lastSeenAt;
+  final String? remindedAt;
+  final bool emailOptOut;
+  /// ru | kk | uz | en
+  final String locale;
+  final Map<String, dynamic>? source;
+  final String? crmRoleId;
+  final String? managerId;
+  final String? sipExtension;
+  final Map<String, dynamic> notifyPrefs;
+  final bool onShift;
+  final List<String> extraPhones;
+  final Map<String, dynamic> customFields;
+  final bool staffDisabled;
+  final String? totpEnabledAt;
+  final bool hasTotpSecret;
+  final int totpBackupCount;
+  final String? deletedAt;
+  final String? purgedAt;
+  final String createdAt;
+  final String updatedAt;
+
+  const WebSessionUser({required this.id, required this.email, required this.name, this.phone, required this.role, required this.tags, this.lastSeenAt, this.remindedAt, required this.emailOptOut, required this.locale, this.source, this.crmRoleId, this.managerId, this.sipExtension, required this.notifyPrefs, required this.onShift, required this.extraPhones, required this.customFields, required this.staffDisabled, this.totpEnabledAt, required this.hasTotpSecret, required this.totpBackupCount, this.deletedAt, this.purgedAt, required this.createdAt, required this.updatedAt});
+
+  factory WebSessionUser.fromJson(Map<String, dynamic> json) => WebSessionUser(id: json['id'] as String, email: json['email'] as String, name: json['name'] as String, phone: json['phone'] == null ? null : json['phone'] as String, role: json['role'] as String, tags: (json['tags'] as List).map((e) => e as String).toList(), lastSeenAt: json['lastSeenAt'] == null ? null : json['lastSeenAt'] as String, remindedAt: json['remindedAt'] == null ? null : json['remindedAt'] as String, emailOptOut: json['emailOptOut'] as bool, locale: json['locale'] as String, source: json['source'] == null ? null : json['source'] as Map<String, dynamic>, crmRoleId: json['crmRoleId'] == null ? null : json['crmRoleId'] as String, managerId: json['managerId'] == null ? null : json['managerId'] as String, sipExtension: json['sipExtension'] == null ? null : json['sipExtension'] as String, notifyPrefs: json['notifyPrefs'] as Map<String, dynamic>, onShift: json['onShift'] as bool, extraPhones: (json['extraPhones'] as List).map((e) => e as String).toList(), customFields: json['customFields'] as Map<String, dynamic>, staffDisabled: json['staffDisabled'] as bool, totpEnabledAt: json['totpEnabledAt'] == null ? null : json['totpEnabledAt'] as String, hasTotpSecret: json['hasTotpSecret'] as bool, totpBackupCount: (json['totpBackupCount'] as num).toInt(), deletedAt: json['deletedAt'] == null ? null : json['deletedAt'] as String, purgedAt: json['purgedAt'] == null ? null : json['purgedAt'] as String, createdAt: json['createdAt'] as String, updatedAt: json['updatedAt'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'email': email, 'name': name, 'phone': phone, 'role': role, 'tags': tags.map((e) => e).toList(), 'lastSeenAt': lastSeenAt, 'remindedAt': remindedAt, 'emailOptOut': emailOptOut, 'locale': locale, 'source': source, 'crmRoleId': crmRoleId, 'managerId': managerId, 'sipExtension': sipExtension, 'notifyPrefs': notifyPrefs, 'onShift': onShift, 'extraPhones': extraPhones.map((e) => e).toList(), 'customFields': customFields, 'staffDisabled': staffDisabled, 'totpEnabledAt': totpEnabledAt, 'hasTotpSecret': hasTotpSecret, 'totpBackupCount': totpBackupCount, 'deletedAt': deletedAt, 'purgedAt': purgedAt, 'createdAt': createdAt, 'updatedAt': updatedAt};
+}
+
+class WebSessionResponse {
+  final WebSessionUser? user;
+
+  const WebSessionResponse({this.user});
+
+  factory WebSessionResponse.fromJson(Map<String, dynamic> json) => WebSessionResponse(user: json['user'] == null ? null : WebSessionUser.fromJson(json['user'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'user': user == null ? null : user!.toJson()};
+}
+
+class WebAuthRegisterBody {
+  final String name;
+  final String email;
+  final String password;
+  /// ru | kk | uz | en
+  final String? locale;
+  final Map<String, dynamic>? source;
+  /// Поля, которые отправить как null (иначе пустое необязательное поле не отправляется).
+  final Set<String> nulls;
+
+  const WebAuthRegisterBody({required this.name, required this.email, required this.password, this.locale, this.source, this.nulls = const {}});
+
+  factory WebAuthRegisterBody.fromJson(Map<String, dynamic> json) => WebAuthRegisterBody(name: json['name'] as String, email: json['email'] as String, password: json['password'] as String, locale: json['locale'] == null ? null : json['locale'] as String, source: json['source'] == null ? null : json['source'] as Map<String, dynamic>);
+
+  Map<String, dynamic> toJson() => {'name': name, 'email': email, 'password': password, if (locale != null) 'locale': locale!, if (source != null || nulls.contains('source')) 'source': source};
+}
+
+class WebAuthSession {
+  final String token;
+  final String expiresAt;
+
+  const WebAuthSession({required this.token, required this.expiresAt});
+
+  factory WebAuthSession.fromJson(Map<String, dynamic> json) => WebAuthSession(token: json['token'] as String, expiresAt: json['expiresAt'] as String);
+
+  Map<String, dynamic> toJson() => {'token': token, 'expiresAt': expiresAt};
+}
+
+class WebAuthForgotBody {
+  final String email;
+  /// ru | kk | uz | en
+  final String? locale;
+
+  const WebAuthForgotBody({required this.email, this.locale});
+
+  factory WebAuthForgotBody.fromJson(Map<String, dynamic> json) => WebAuthForgotBody(email: json['email'] as String, locale: json['locale'] == null ? null : json['locale'] as String);
+
+  Map<String, dynamic> toJson() => {'email': email, if (locale != null) 'locale': locale!};
+}
+
+class WebResetInfo {
+  final bool valid;
+  final String? purpose;
+  final String shopWhatsappDigits;
+
+  const WebResetInfo({required this.valid, this.purpose, required this.shopWhatsappDigits});
+
+  factory WebResetInfo.fromJson(Map<String, dynamic> json) => WebResetInfo(valid: json['valid'] as bool, purpose: json['purpose'] == null ? null : json['purpose'] as String, shopWhatsappDigits: json['shopWhatsappDigits'] as String);
+
+  Map<String, dynamic> toJson() => {'valid': valid, 'purpose': purpose, 'shopWhatsappDigits': shopWhatsappDigits};
+}
+
+class WebResetCompleteBody {
+  final String token;
+  final String password;
+
+  const WebResetCompleteBody({required this.token, required this.password});
+
+  factory WebResetCompleteBody.fromJson(Map<String, dynamic> json) => WebResetCompleteBody(token: json['token'] as String, password: json['password'] as String);
+
+  Map<String, dynamic> toJson() => {'token': token, 'password': password};
+}
+
+class WebResetCompleteResult {
+  /// session | second_factor
+  final String kind;
+  final String? token;
+  final String? expiresAt;
+  final String? secondFactorTicket;
+  final bool access;
+
+  const WebResetCompleteResult({required this.kind, this.token, this.expiresAt, this.secondFactorTicket, required this.access});
+
+  factory WebResetCompleteResult.fromJson(Map<String, dynamic> json) => WebResetCompleteResult(kind: json['kind'] as String, token: json['token'] == null ? null : json['token'] as String, expiresAt: json['expiresAt'] == null ? null : json['expiresAt'] as String, secondFactorTicket: json['secondFactorTicket'] == null ? null : json['secondFactorTicket'] as String, access: json['access'] as bool);
+
+  Map<String, dynamic> toJson() => {'kind': kind, 'token': token, 'expiresAt': expiresAt, 'secondFactorTicket': secondFactorTicket, 'access': access};
+}
+
+class WebShelfBookRowBook {
+  final String id;
+  final String title;
+  final String subtitle;
+  final String theme;
+  final String format;
+  final String coverTemplate;
+  final bool coverLines;
+  final String? coverPhotoId;
+  final List<String>? coverPhotoExtra;
+  final Map<String, dynamic>? coverDesign;
+  final String authorName;
+  final String recipientName;
+  final bool hideRecipientOnCover;
+  final String namesOnCover;
+
+  const WebShelfBookRowBook({required this.id, required this.title, required this.subtitle, required this.theme, required this.format, required this.coverTemplate, required this.coverLines, this.coverPhotoId, this.coverPhotoExtra, this.coverDesign, required this.authorName, required this.recipientName, required this.hideRecipientOnCover, required this.namesOnCover});
+
+  factory WebShelfBookRowBook.fromJson(Map<String, dynamic> json) => WebShelfBookRowBook(id: json['id'] as String, title: json['title'] as String, subtitle: json['subtitle'] as String, theme: json['theme'] as String, format: json['format'] as String, coverTemplate: json['coverTemplate'] as String, coverLines: json['coverLines'] as bool, coverPhotoId: json['coverPhotoId'] == null ? null : json['coverPhotoId'] as String, coverPhotoExtra: json['coverPhotoExtra'] == null ? null : (json['coverPhotoExtra'] as List).map((e) => e as String).toList(), coverDesign: json['coverDesign'] == null ? null : json['coverDesign'] as Map<String, dynamic>, authorName: json['authorName'] as String, recipientName: json['recipientName'] as String, hideRecipientOnCover: json['hideRecipientOnCover'] as bool, namesOnCover: json['namesOnCover'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'title': title, 'subtitle': subtitle, 'theme': theme, 'format': format, 'coverTemplate': coverTemplate, 'coverLines': coverLines, 'coverPhotoId': coverPhotoId, 'coverPhotoExtra': coverPhotoExtra == null ? null : coverPhotoExtra!.map((e) => e).toList(), 'coverDesign': coverDesign, 'authorName': authorName, 'recipientName': recipientName, 'hideRecipientOnCover': hideRecipientOnCover, 'namesOnCover': namesOnCover};
+}
+
+class WebShelfBookRow {
+  final WebShelfBookRowBook book;
+  final int answered;
+  final int total;
+  final int words;
+  final int photos;
+
+  const WebShelfBookRow({required this.book, required this.answered, required this.total, required this.words, required this.photos});
+
+  factory WebShelfBookRow.fromJson(Map<String, dynamic> json) => WebShelfBookRow(book: WebShelfBookRowBook.fromJson(json['book'] as Map<String, dynamic>), answered: (json['answered'] as num).toInt(), total: (json['total'] as num).toInt(), words: (json['words'] as num).toInt(), photos: (json['photos'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'book': book.toJson(), 'answered': answered, 'total': total, 'words': words, 'photos': photos};
+}
+
+class WebShelfOrder {
+  final String id;
+  final int number;
+  /// pending_payment | paid | in_production | shipped | delivered | cancelled
+  final String status;
+  final bool printed;
+  final String statusLabel;
+  /// warning | success | info | accent | neutral | danger
+  final String statusTone;
+
+  const WebShelfOrder({required this.id, required this.number, required this.status, required this.printed, required this.statusLabel, required this.statusTone});
+
+  factory WebShelfOrder.fromJson(Map<String, dynamic> json) => WebShelfOrder(id: json['id'] as String, number: (json['number'] as num).toInt(), status: json['status'] as String, printed: json['printed'] as bool, statusLabel: json['statusLabel'] as String, statusTone: json['statusTone'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'number': number, 'status': status, 'printed': printed, 'statusLabel': statusLabel, 'statusTone': statusTone};
+}
+
+class WebShelfBook {
+  final WebShelfBookRow row;
+  final String kind;
+  final bool blank;
+  final int progress;
+  final WebShelfOrder? order;
+  final bool ordered;
+  final String writeHref;
+  final String? writeSection;
+  final ShelfDeadline? deadline;
+  final String updated;
+
+  const WebShelfBook({required this.row, required this.kind, required this.blank, required this.progress, this.order, required this.ordered, required this.writeHref, this.writeSection, this.deadline, required this.updated});
+
+  factory WebShelfBook.fromJson(Map<String, dynamic> json) => WebShelfBook(row: WebShelfBookRow.fromJson(json['row'] as Map<String, dynamic>), kind: json['kind'] as String, blank: json['blank'] as bool, progress: (json['progress'] as num).toInt(), order: json['order'] == null ? null : WebShelfOrder.fromJson(json['order'] as Map<String, dynamic>), ordered: json['ordered'] as bool, writeHref: json['writeHref'] as String, writeSection: json['writeSection'] == null ? null : json['writeSection'] as String, deadline: json['deadline'] == null ? null : ShelfDeadline.fromJson(json['deadline'] as Map<String, dynamic>), updated: json['updated'] as String);
+
+  Map<String, dynamic> toJson() => {'row': row.toJson(), 'kind': kind, 'blank': blank, 'progress': progress, 'order': order == null ? null : order!.toJson(), 'ordered': ordered, 'writeHref': writeHref, 'writeSection': writeSection, 'deadline': deadline == null ? null : deadline!.toJson(), 'updated': updated};
+}
+
+class WebDealAgreementBatch {
+  final int index;
+  final int size;
+  final int left;
+  final int agreedLeft;
+  final int prepaidLeft;
+  final bool? implicit;
+
+  const WebDealAgreementBatch({required this.index, required this.size, required this.left, required this.agreedLeft, required this.prepaidLeft, this.implicit});
+
+  factory WebDealAgreementBatch.fromJson(Map<String, dynamic> json) => WebDealAgreementBatch(index: (json['index'] as num).toInt(), size: (json['size'] as num).toInt(), left: (json['left'] as num).toInt(), agreedLeft: (json['agreedLeft'] as num).toInt(), prepaidLeft: (json['prepaidLeft'] as num).toInt(), implicit: json['implicit'] == null ? null : json['implicit'] as bool);
+
+  Map<String, dynamic> toJson() => {'index': index, 'size': size, 'left': left, 'agreedLeft': agreedLeft, 'prepaidLeft': prepaidLeft, if (implicit != null) 'implicit': implicit!};
+}
+
+class WebDealAgreement {
+  final String dealId;
+  final int dealNumber;
+  final int agreedTotal;
+  final int prepaid;
+  final String? plan;
+  final List<String>? gifts;
+  final String? deadline;
+  final WebDealAgreementBatch? batch;
+  final String? recipient;
+  /// Поля, которые отправить как null (иначе пустое необязательное поле не отправляется).
+  final Set<String> nulls;
+
+  const WebDealAgreement({required this.dealId, required this.dealNumber, required this.agreedTotal, required this.prepaid, this.plan, this.gifts, this.deadline, this.batch, this.recipient, this.nulls = const {}});
+
+  factory WebDealAgreement.fromJson(Map<String, dynamic> json) => WebDealAgreement(dealId: json['dealId'] as String, dealNumber: (json['dealNumber'] as num).toInt(), agreedTotal: (json['agreedTotal'] as num).toInt(), prepaid: (json['prepaid'] as num).toInt(), plan: json['plan'] == null ? null : json['plan'] as String, gifts: json['gifts'] == null ? null : (json['gifts'] as List).map((e) => e as String).toList(), deadline: json['deadline'] == null ? null : json['deadline'] as String, batch: json['batch'] == null ? null : WebDealAgreementBatch.fromJson(json['batch'] as Map<String, dynamic>), recipient: json['recipient'] == null ? null : json['recipient'] as String);
+
+  Map<String, dynamic> toJson() => {'dealId': dealId, 'dealNumber': dealNumber, 'agreedTotal': agreedTotal, 'prepaid': prepaid, 'plan': plan, if (gifts != null) 'gifts': gifts!.map((e) => e).toList(), 'deadline': deadline, if (batch != null || nulls.contains('batch')) 'batch': batch == null ? null : batch!.toJson(), if (recipient != null || nulls.contains('recipient')) 'recipient': recipient};
+}
+
+class WebAgreementBook {
+  final String id;
+  final String status;
+  final String theme;
+  final int answered;
+  final int total;
+  final int words;
+
+  const WebAgreementBook({required this.id, required this.status, required this.theme, required this.answered, required this.total, required this.words});
+
+  factory WebAgreementBook.fromJson(Map<String, dynamic> json) => WebAgreementBook(id: json['id'] as String, status: json['status'] as String, theme: json['theme'] as String, answered: (json['answered'] as num).toInt(), total: (json['total'] as num).toInt(), words: (json['words'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'id': id, 'status': status, 'theme': theme, 'answered': answered, 'total': total, 'words': words};
+}
+
+class WebShelfData {
+  final List<WebShelfBook> books;
+  final WebDealAgreement? agreement;
+  final List<WebAgreementBook> agreementBooks;
+
+  const WebShelfData({required this.books, this.agreement, required this.agreementBooks});
+
+  factory WebShelfData.fromJson(Map<String, dynamic> json) => WebShelfData(books: (json['books'] as List).map((e) => WebShelfBook.fromJson(e as Map<String, dynamic>)).toList(), agreement: json['agreement'] == null ? null : WebDealAgreement.fromJson(json['agreement'] as Map<String, dynamic>), agreementBooks: (json['agreementBooks'] as List).map((e) => WebAgreementBook.fromJson(e as Map<String, dynamic>)).toList());
+
+  Map<String, dynamic> toJson() => {'books': books.map((e) => e.toJson()).toList(), 'agreement': agreement == null ? null : agreement!.toJson(), 'agreementBooks': agreementBooks.map((e) => e.toJson()).toList()};
+}
+
+class WebBookCreateBody {
+  final String theme;
+  /// ru | kk | uz | en
+  final String language;
+  final String authorName;
+  /// m | f
+  final String authorGender;
+  final String? recipientName;
+  /// m | f
+  final String? recipientGender;
+  final String? recordedBy;
+  final String? firstChapterTitle;
+  final String? dedication;
+  final String? title;
+  final String? occasion;
+  final String? occasionDate;
+
+  const WebBookCreateBody({required this.theme, required this.language, required this.authorName, required this.authorGender, this.recipientName, this.recipientGender, this.recordedBy, this.firstChapterTitle, this.dedication, this.title, this.occasion, this.occasionDate});
+
+  factory WebBookCreateBody.fromJson(Map<String, dynamic> json) => WebBookCreateBody(theme: json['theme'] as String, language: json['language'] as String, authorName: json['authorName'] as String, authorGender: json['authorGender'] as String, recipientName: json['recipientName'] == null ? null : json['recipientName'] as String, recipientGender: json['recipientGender'] == null ? null : json['recipientGender'] as String, recordedBy: json['recordedBy'] == null ? null : json['recordedBy'] as String, firstChapterTitle: json['firstChapterTitle'] == null ? null : json['firstChapterTitle'] as String, dedication: json['dedication'] == null ? null : json['dedication'] as String, title: json['title'] == null ? null : json['title'] as String, occasion: json['occasion'] == null ? null : json['occasion'] as String, occasionDate: json['occasionDate'] == null ? null : json['occasionDate'] as String);
+
+  Map<String, dynamic> toJson() => {'theme': theme, 'language': language, 'authorName': authorName, 'authorGender': authorGender, if (recipientName != null) 'recipientName': recipientName!, if (recipientGender != null) 'recipientGender': recipientGender!, if (recordedBy != null) 'recordedBy': recordedBy!, if (firstChapterTitle != null) 'firstChapterTitle': firstChapterTitle!, if (dedication != null) 'dedication': dedication!, if (title != null) 'title': title!, if (occasion != null) 'occasion': occasion!, if (occasionDate != null) 'occasionDate': occasionDate!};
+}
+
+class WebInviteReward {
+  final String code;
+  final int orderNumber;
+  final bool chat;
+  final String createdAt;
+  final bool used;
+  final String? expiresAt;
+
+  const WebInviteReward({required this.code, required this.orderNumber, required this.chat, required this.createdAt, required this.used, this.expiresAt});
+
+  factory WebInviteReward.fromJson(Map<String, dynamic> json) => WebInviteReward(code: json['code'] as String, orderNumber: (json['orderNumber'] as num).toInt(), chat: json['chat'] as bool, createdAt: json['createdAt'] as String, used: json['used'] as bool, expiresAt: json['expiresAt'] == null ? null : json['expiresAt'] as String);
+
+  Map<String, dynamic> toJson() => {'code': code, 'orderNumber': orderNumber, 'chat': chat, 'createdAt': createdAt, 'used': used, 'expiresAt': expiresAt};
+}
+
+class WebInviteData {
+  final String code;
+  final String link;
+  final int friendPercent;
+  final int rewardPercent;
+  final int friends;
+  final List<WebInviteReward> rewards;
+
+  const WebInviteData({required this.code, required this.link, required this.friendPercent, required this.rewardPercent, required this.friends, required this.rewards});
+
+  factory WebInviteData.fromJson(Map<String, dynamic> json) => WebInviteData(code: json['code'] as String, link: json['link'] as String, friendPercent: (json['friendPercent'] as num).toInt(), rewardPercent: (json['rewardPercent'] as num).toInt(), friends: (json['friends'] as num).toInt(), rewards: (json['rewards'] as List).map((e) => WebInviteReward.fromJson(e as Map<String, dynamic>)).toList());
+
+  Map<String, dynamic> toJson() => {'code': code, 'link': link, 'friendPercent': friendPercent, 'rewardPercent': rewardPercent, 'friends': friends, 'rewards': rewards.map((e) => e.toJson()).toList()};
+}
+
+class WebHealthOutbox {
+  final int pending;
+  final int failed;
+  final int? oldestPendingSec;
+
+  const WebHealthOutbox({required this.pending, required this.failed, this.oldestPendingSec});
+
+  factory WebHealthOutbox.fromJson(Map<String, dynamic> json) => WebHealthOutbox(pending: (json['pending'] as num).toInt(), failed: (json['failed'] as num).toInt(), oldestPendingSec: json['oldestPendingSec'] == null ? null : (json['oldestPendingSec'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'pending': pending, 'failed': failed, 'oldestPendingSec': oldestPendingSec};
+}
+
+class WebHealth {
+  final bool ok;
+  final bool db;
+  final bool storage;
+  final bool? redis;
+  final WebHealthOutbox? outbox;
+  final String time;
+
+  const WebHealth({required this.ok, required this.db, required this.storage, this.redis, this.outbox, required this.time});
+
+  factory WebHealth.fromJson(Map<String, dynamic> json) => WebHealth(ok: json['ok'] as bool, db: json['db'] as bool, storage: json['storage'] as bool, redis: json['redis'] == null ? null : json['redis'] as bool, outbox: json['outbox'] == null ? null : WebHealthOutbox.fromJson(json['outbox'] as Map<String, dynamic>), time: json['time'] as String);
+
+  Map<String, dynamic> toJson() => {'ok': ok, 'db': db, 'storage': storage, 'redis': redis, 'outbox': outbox == null ? null : outbox!.toJson(), 'time': time};
 }

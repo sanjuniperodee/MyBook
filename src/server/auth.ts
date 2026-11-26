@@ -5,11 +5,12 @@ import { lredirect } from "@/i18n/server";
 import { isSecureCookie } from "@/config/env";
 import { signValue, verifySigned } from "@/shared/crypto";
 import type { CurrentUser } from "@/modules/identity";
-import { container } from "./container";
+import { fromWebSessionUser, localLogout, localSessionUserDto } from "./v1-local-bridge";
+import { v1WebAction, v1WebRead, webUseApiV1 } from "./v1-web-client";
 
 /**
  * Веб-адаптер аутентификации: cookie сессии и «билета» второго фактора, текущий пользователь.
- * Бизнес-логика входа — в IdentityModule; здесь только HTTP.
+ * Бизнес-логика входа — в IdentityModule; в режиме API v1 ходит в `meWebSession` / `authLogout`.
  */
 const SESSION_COOKIE = "mb_session";
 const TICKET_COOKIE = "mb_2fa";
@@ -31,7 +32,17 @@ export async function startSession(token: string, expiresAt: Date) {
 
 export async function destroySession() {
   const jar = await cookies();
-  await container().identity.auth.logout(jar.get(SESSION_COOKIE)?.value);
+  const token = jar.get(SESSION_COOKIE)?.value;
+  if (token) {
+    await v1WebAction({
+      section: "cabinet",
+      sessionCookie: token,
+      viaApi: async (api) => {
+        await api.authLogout({}).catch(() => {});
+      },
+      local: () => localLogout(token),
+    });
+  }
   jar.delete(SESSION_COOKIE);
 }
 
@@ -39,11 +50,14 @@ export async function destroySession() {
 export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   const token = await sessionToken();
   if (!token) return null;
-  const identity = container().identity;
-  const now = new Date();
-  const user = await identity.queries.userBySession(identity.tokens.hash(token), now);
-  if (user && (!user.lastSeenAt || now.getTime() - user.lastSeenAt.getTime() > 10 * 60_000)) void identity.queries.touch(user.id, now).catch(() => {});
-  return user;
+  const dto = await v1WebRead({
+    name: "cabinet.session",
+    section: "cabinet",
+    sessionCookie: token,
+    local: () => localSessionUserDto(token),
+    viaApi: async (api) => (await api.meWebSession({})).user,
+  });
+  return dto ? fromWebSessionUser(dto) : null;
 });
 
 export async function requireUser(next?: string): Promise<CurrentUser> {
@@ -61,18 +75,34 @@ export { safeNextPath } from "@/modules/identity/domain/redirects";
 
 // ─── билет второго фактора ─────────────────────────────────────────────────
 
+/** Положить готовый подписанный «билет» второго фактора (из API v1 или локально) в httpOnly cookie на 5 минут. */
+export async function setTwoFactorTicket(signed: string) {
+  (await cookies()).set(TICKET_COOKIE, signed, { httpOnly: true, sameSite: "lax", secure: isSecureCookie, path: "/", maxAge: TICKET_TTL_MS / 1000 });
+}
+
 /** После верного пароля: «билет» на 5 минут, чтобы ввести код 2FA. Без него сессия не создаётся. */
 export async function issueTwoFactorTicket(userId: string) {
   const exp = Date.now() + TICKET_TTL_MS;
-  (await cookies()).set(TICKET_COOKIE, signValue(`${userId}.${exp}`), { httpOnly: true, sameSite: "lax", secure: isSecureCookie, path: "/", maxAge: TICKET_TTL_MS / 1000 });
+  await setTwoFactorTicket(signValue(`${userId}.${exp}`));
+}
+
+/** Исходная строка подписанного билета из cookie (для отправки в `authSecondFactor` API v1). */
+export async function rawTwoFactorTicket(): Promise<string | null> {
+  return (await cookies()).get(TICKET_COOKIE)?.value ?? null;
 }
 
 export async function readTwoFactorTicket(): Promise<string | null> {
-  const raw = (await cookies()).get(TICKET_COOKIE)?.value;
+  const raw = await rawTwoFactorTicket();
   const data = raw ? verifySigned(raw) : null;
   if (!data) return null;
   const [userId, exp] = data.split(".");
   return Number(exp) > Date.now() ? userId : null;
+}
+
+/** Есть ли билет 2FA: в API-режиме (в т.ч. Vercel без APP_SECRET/DATABASE_URL) проверяем наличие cookie (подпись проверит mybook-api). */
+export async function hasTwoFactorTicket(): Promise<boolean> {
+  if (webUseApiV1("cabinet")) return Boolean(await rawTwoFactorTicket());
+  return Boolean(await readTwoFactorTicket());
 }
 
 export async function clearTwoFactorTicket() {

@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { Link } from "@/i18n/client";
 import { getMessages, lredirect } from "@/i18n/server";
-import { getCurrentUser, safeNextPath } from "@/server/auth";
-import { readTwoFactorTicket as readTicket } from "@/server/auth";
+import { getCurrentUser, hasTwoFactorTicket, safeNextPath } from "@/server/auth";
 import { AuthHead } from "../../AuthHead";
 import { TwoFactorForm } from "./TwoFactorForm";
 
@@ -13,7 +12,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function TwoFactorPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
   const { next } = await searchParams;
   if (await getCurrentUser()) return lredirect(safeNextPath(next));
-  if (!(await readTicket())) return lredirect(next ? `/login?next=${encodeURIComponent(next)}` : "/login");
+  if (!(await hasTwoFactorTicket())) return lredirect(next ? `/login?next=${encodeURIComponent(next)}` : "/login");
   const t = (await getMessages()).auth.twoFactor;
   return (
     <>

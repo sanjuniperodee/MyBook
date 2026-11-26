@@ -12,16 +12,16 @@
 |---|---|---:|---:|
 | [access](#access) | Access: сотрудники, роли и права, правила безопасности, журнал. | 16 / 866 | 48 |
 | [assistant](#assistant) | AI-помощник (Claude, ChatGPT, DeepSeek или свой OpenAI-совместимый сервер). | 24 / 2314 | 25 |
-| [authoring](#authoring) | Authoring: книги, вопросы, оглавление своей книги, фото, письма близких. | 29 / 3882 | 75 |
+| [authoring](#authoring) | Authoring: книги, вопросы, оглавление своей книги, фото, письма близких. | 29 / 3882 | 72 |
 | [automation](#automation) | Автоматизации (цифровая воронка CRM). | 16 / 1987 | 9 |
 | [boards](#boards) | Доски задач: доски отделов, личные и проектные, колонки с лимитами, карточки (задачи CRM) с исполнителями, метками, чек-листами, комментариями и вложениями, правила досок, календарь, личная iCal-ссылка и Google Календарь сотрудника. | 15 / 3218 | 15 |
 | [clients](#clients) | Клиенты CRM: профиль клиента, задачи и заметки менеджеров. | 10 / 1167 | 29 |
 | [feedback](#feedback) | Отзывы: отзыв клиента о книге, благодарность автору, модерация и витрина. | 13 / 693 | 7 |
-| [identity](#identity) | Identity: учётные записи, вход, пароли, второй фактор. | 18 / 1126 | 20 |
+| [identity](#identity) | Identity: учётные записи, вход, пароли, второй фактор. | 18 / 1126 | 19 |
 | [marketing](#marketing) | Маркетинг: каналы привлечения, короткие ссылки, предложения из чата. | 10 / 596 | 13 |
 | [messaging](#messaging) | Переписка: единый инбокс, бот-квалификатор, виджет на сайте. | 60 / 16694 | 152 |
 | [notifications](#notifications) | Уведомления: автописьма, напоминания из CRM, отписка. | 10 / 707 | 6 |
-| [ordering](#ordering) | Заказы. Остальной код видит только его. | 48 / 5792 | 96 |
+| [ordering](#ordering) | Заказы. Остальной код видит только его. | 48 / 5792 | 94 |
 | [production](#production) | Производство: вёрстка PDF книги и сертификатов, предпросмотры полос и обложек, файлы для типографии, очередь сборки. В container — previews (BookPreviewService) и printFiles. | 43 / 5606 | 0 |
 | [referrals](#referrals) | Приглашения: код для друзей, награда за их заказы и покупки из чата. | 10 / 358 | 3 |
 | [reporting](#reporting) | Отчёты CRM — сторона чтения (CQRS): сводные выборки по нескольким контекстам для страниц (дашборд, аналитика, поиск, «Мой день»). Только чтение, без бизнес-правил: команды идут через модули контекстов. | 44 / 4494 | 57 |
@@ -108,7 +108,7 @@ Identity: учётные записи, вход, пароли, второй фа
 - Фасад: `IdentityModule` → `container().identity`
 - Публичное: `auth`, `accounts`, `queries`, `tokens`, `passwords`
 - Таблицы: `users`, `sessions`, `password_resets`
-- Тесты (7): `crm-v4.test.ts`, `errors.test.ts`, `identity-access.test.ts`, `identity-phone.integration.test.ts`, `security.test.ts`, `server-adapters-access.test.ts`, `server-adapters-actions.test.ts`
+- Тесты (8): `api-v1-web-cabinet.test.ts`, `crm-v4.test.ts`, `errors.test.ts`, `identity-access.test.ts`, `identity-phone.integration.test.ts`, `security.test.ts`, `server-adapters-access.test.ts`, `server-adapters-actions.test.ts`
 
 ## marketing
 

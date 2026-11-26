@@ -5,11 +5,14 @@
  */
 import { startPerfSampler } from "@/shared/infrastructure/perfLog";
 import { configureSharpMemory } from "@/shared/infrastructure/sharpMemory";
+import { markApiProcess } from "@/server/v1-web-client";
 import { createApp } from "./app";
 import { siteAuthenticator } from "./auth";
 import { serve } from "./http/server";
 import { handlers } from "./routes";
 import { handleSiteRoute } from "./site-routes";
+
+markApiProcess();
 
 const port = Number(process.env.API_PORT) || 3044;
 const host = process.env.API_HOST || "127.0.0.1";
