@@ -8,6 +8,7 @@ import { StaffContext } from "@/modules/access/domain/StaffContext";
 import { isPhoneEmail } from "@/modules/identity/domain/Login";
 import type { Permission, RoleScope } from "@/shared/domain/permissions";
 import { getCurrentUser, type User } from "./auth";
+import { legacyRequestContext } from "./request-context";
 import { crmStaffAccess, type StaffAccessDto } from "./v1-local-bridge-crm";
 
 /**
@@ -58,6 +59,8 @@ export async function localStaffAccess(user: User): Promise<StaffAccessDto> {
 }
 
 const access = cache(async () => {
+  const ctx = legacyRequestContext();
+  if (ctx) return ctx.staff ? { staff: ctx.staff, gate: ctx.gate } : null;
   const user = await getCurrentUser();
   if (!user) return null;
   const dto = await crmStaffAccess(() => localStaffAccess(user));

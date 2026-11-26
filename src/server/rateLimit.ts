@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import type { RequestOrigin } from "@/modules/access";
 import { clientIpFrom } from "@/shared/clientIp";
+import { legacyRequestContext } from "./request-context";
 
 /**
  * Ограничение частоты через порт RateLimiter: Redis при REDIS_URL (общий для всех экземпляров),
@@ -13,6 +14,8 @@ export async function rateLimit(key: string, limit: number, windowMs: number): P
 
 /** Адрес клиента текущего запроса (правило — clientIpFrom в src/shared/clientIp.ts). */
 export async function trustedClientIp(): Promise<string> {
+  const ctx = legacyRequestContext();
+  if (ctx) return ctx.ip;
   const h = await headers();
   return clientIpFrom((name) => h.get(name), process.env.EDGE_IP_SECRET);
 }

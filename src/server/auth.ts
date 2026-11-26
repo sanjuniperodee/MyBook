@@ -7,6 +7,7 @@ import { signValue, verifySigned } from "@/shared/crypto";
 import type { CurrentUser } from "@/modules/identity";
 import { fromWebSessionUser, localLogout, localSessionUserDto } from "./v1-local-bridge";
 import { v1WebAction, v1WebRead, webUseApiV1 } from "./v1-web-client";
+import { legacyRequestContext } from "./request-context";
 
 /**
  * Веб-адаптер аутентификации: cookie сессии и «билета» второго фактора, текущий пользователь.
@@ -20,6 +21,8 @@ export type { CurrentUser as User } from "@/modules/identity";
 
 /** Токен сессии: cookie браузера, а у мобильного приложения — заголовок Authorization: Bearer (тот же токен из таблицы sessions). */
 export async function sessionToken(): Promise<string | null> {
+  const ctx = legacyRequestContext();
+  if (ctx) return ctx.token;
   const cookie = (await cookies()).get(SESSION_COOKIE)?.value;
   if (cookie) return cookie;
   const bearer = (await headers()).get("authorization")?.match(/^Bearer ([A-Za-z0-9_-]{20,200})$/);
@@ -48,6 +51,8 @@ export async function destroySession() {
 
 /** Текущий пользователь (кэш на запрос). Активность для CRM отмечаем не чаще раза в 10 минут. */
 export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
+  const ctx = legacyRequestContext();
+  if (ctx) return ctx.user;
   const token = await sessionToken();
   if (!token) return null;
   const dto = await v1WebRead({
