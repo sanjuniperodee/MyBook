@@ -13,5 +13,6 @@ import { WebCabinetController } from "./web-cabinet.controller";
 @Module({
   controllers: [AuthController, MeController, WebCabinetController, CabinetController],
   providers: [BookAccessService, BookAccessGuard],
+  exports: [BookAccessService, BookAccessGuard],
 })
 export class IdentityApiModule {}

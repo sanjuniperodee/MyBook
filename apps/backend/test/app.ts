@@ -21,6 +21,12 @@ import {
   AUTHORING_PHOTO_RENDERER,
   AUTHORING_PREVIEWS,
 } from "../src/modules/authoring/authoring.tokens";
+import {
+  ANSWER_FILES_PORTS,
+  PAGES_PORTS,
+  type AnswerFilesPorts,
+  type PagesPorts,
+} from "../src/modules/authoring-studio/authoring-studio.tokens";
 import { FEEDBACK_PORTS } from "../src/modules/feedback/feedback.tokens";
 import {
   CABINET_BOOK_PORTS,
@@ -70,6 +76,51 @@ const defaultStaffAccess: StaffAccessPort = {
   async resolve(user) {
     if (user.role !== "admin" || user.staffDisabled) return null;
     return { context: new StaffContext(user.id, "Руководитель", "owner", "all", new Set(allPermissions), true, { isPhoneEmail }), gate: null };
+  },
+};
+
+const defaultPagesPorts: PagesPorts = {
+  book: async () => null,
+  sampleMeta: async () => null,
+  studioChapters: async () => [],
+  chapterCandidates: async () => [],
+  updateSettings: async () => {},
+  moveChapter: async () => {},
+  aiInfo: async () => ({ allowance: { remaining: 5, limit: 5, credits: 0 }, hasPhotos: false }),
+  runAi: async () => {
+    throw new Error("PAGES_PORTS.runAi не подменён в тесте");
+  },
+  storePreview: async () => "preview-stub",
+};
+
+const defaultAnswerFilesPorts: AnswerFilesPorts = {
+  questions: async () => [],
+  editQuestionMedia: async () => {},
+  bookFileQuota: async () => ({ minutes: 30, usedSec: 0, leftSec: 1800, files: 0, maxFiles: 40 }),
+  listBookFiles: async () => [],
+  findBookFile: async () => null,
+  mediaPackOffers: async () => [],
+  kaspiAvailable: async () => false,
+  startUpload: async () => {
+    throw new Error("ANSWER_FILES_PORTS.startUpload не подменён в тесте");
+  },
+  appendChunk: async () => 0,
+  finishUpload: async () => {
+    throw new Error("ANSWER_FILES_PORTS.finishUpload не подменён в тесте");
+  },
+  kickWorker: () => {},
+  removeFile: async () => {},
+  ensureCatalog: async () => {},
+  createMediaPurchase: async () => {
+    throw new Error("ANSWER_FILES_PORTS.createMediaPurchase не подменён в тесте");
+  },
+  findMediaPurchase: async () => null,
+  kaspiPaymentProps: async () => null,
+  payMediaPack: async () => {
+    throw new Error("ANSWER_FILES_PORTS.payMediaPack не подменён в тесте");
+  },
+  kaspiStatus: async () => {
+    throw new Error("ANSWER_FILES_PORTS.kaspiStatus не подменён в тесте");
   },
 };
 
@@ -216,6 +267,8 @@ export async function bootTestApp(opts: { users: CurrentUser[]; overrides?: [tok
       helpThread: async () => ({ enabled: false, whatsapp: "", messages: [], hints: [] }),
       helpAsk: async () => ({ outcome: "answered", suggestions: [], messages: [] }),
     })
+    .overrideProvider(PAGES_PORTS).useValue(defaultPagesPorts)
+    .overrideProvider(ANSWER_FILES_PORTS).useValue(defaultAnswerFilesPorts)
     .overrideProvider(PUBLIC_PORTS).useValue(defaultPublicPorts)
     .overrideProvider(AUTHORING).useValue(defaultAuthoringStub)
     .overrideProvider(AUTHORING_BOOK_OWNERSHIP).useValue({ bookOwnership: async () => null })

@@ -4,6 +4,7 @@ import { CLOCK, RATE_LIMITER, UNIT_OF_WORK } from "../core/kernel/tokens";
 import { FEEDBACK_PORTS } from "../modules/feedback/feedback.tokens";
 import { PUBLIC_PORTS } from "../modules/public/public.tokens";
 import { legacyAuthoringExports, legacyAuthoringProviders } from "./authoring.ports";
+import { LEGACY_AUTHORING_STUDIO_TOKENS, legacyAuthoringStudioPorts } from "./authoring-studio.ports";
 import { legacyFeedbackPorts } from "./feedback.ports";
 import { LEGACY_IDENTITY_TOKENS, legacyIdentityPorts } from "./identity.ports";
 import { LEGACY_CONTAINER } from "./legacy.tokens";
@@ -22,11 +23,22 @@ import { legacyPublicPorts } from "./public.ports";
     { provide: UNIT_OF_WORK, useFactory: (c: Container) => c.uow, inject: [LEGACY_CONTAINER] },
     { provide: CLOCK, useFactory: (c: Container) => c.clock, inject: [LEGACY_CONTAINER] },
     { provide: RATE_LIMITER, useFactory: (c: Container) => c.rateLimiter, inject: [LEGACY_CONTAINER] },
+    ...legacyAuthoringStudioPorts,
     legacyFeedbackPorts,
     ...legacyIdentityPorts,
     legacyPublicPorts,
     ...legacyAuthoringProviders,
   ],
-  exports: [LEGACY_CONTAINER, UNIT_OF_WORK, CLOCK, RATE_LIMITER, FEEDBACK_PORTS, ...LEGACY_IDENTITY_TOKENS, PUBLIC_PORTS, ...legacyAuthoringExports],
+  exports: [
+    LEGACY_CONTAINER,
+    UNIT_OF_WORK,
+    CLOCK,
+    RATE_LIMITER,
+    FEEDBACK_PORTS,
+    ...LEGACY_IDENTITY_TOKENS,
+    PUBLIC_PORTS,
+    ...legacyAuthoringExports,
+    ...LEGACY_AUTHORING_STUDIO_TOKENS,
+  ],
 })
 export class LegacyModule {}

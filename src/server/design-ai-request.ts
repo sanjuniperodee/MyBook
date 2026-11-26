@@ -39,7 +39,9 @@ import {
 } from "@/lib/book/interiors";
 import { getCoverTemplate, isKnownCover } from "@/lib/book/covers";
 import { bookKind } from "@/lib/content/kinds";
-import { getLocale, getMessages } from "@/i18n/server";
+import { getLocale } from "@/i18n/server";
+import type { Locale } from "@/i18n/config";
+import { messagesFor } from "@/i18n/messages";
 import type { BookRow } from "@/modules/authoring";
 
 /**
@@ -126,6 +128,7 @@ export async function runDesignAiRequest(
   user: { id: string },
   book: BookRow,
   input: DesignAiBody,
+  locale?: Locale,
 ) {
   if (input.mode === "edit" && input.prompt.length < 2)
     throw new HttpError(400, "badRequest");
@@ -144,7 +147,8 @@ export async function runDesignAiRequest(
     throw new HttpError(429, "writeAiRate");
 
   const format = getFormat(book.format);
-  const [ui, m] = await Promise.all([getLocale(), getMessages()]);
+  const ui = locale ?? (await getLocale());
+  const m = messagesFor(ui);
   const allPhotos = await container().authoring.queries.photos(book.id);
   const ordered = [
     ...allPhotos.filter((p) => p.id === book.coverPhotoId),
