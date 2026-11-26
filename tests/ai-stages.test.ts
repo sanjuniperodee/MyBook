@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { AI_STAGES, aiStageDecision, parseAiStages, quoteIn, stageRoles } from "@/shared/domain/aiStages";
 import { aiNoteText, aiProposalTitle } from "@/shared/domain/aiProposals";
-import { normalizeStageReview, numberedTranscript, stageReviewSchema } from "@/modules/assistant/domain/stageReview";
+import { cleanReason, normalizeStageReview, numberedTranscript, stageReviewSchema } from "@/modules/assistant/domain/stageReview";
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/server/container", () => ({ container: () => ({}) }));
@@ -110,6 +110,12 @@ describe("ИИ ведёт этапы: цитата и ответ модели", 
     expect(r).toMatchObject({ stage: null, confidence: 0, message: null, lostReason: null, delivered: { quote: "получила", message: 2 } });
     expect(normalizeStageReview("нет", 7, 5, reasons)).toBeNull();
     expect(stageReviewSchema(reasons).properties.lost_reason.enum).toEqual(["Дорого", "Передумал", ""]);
+  });
+
+  it("причина для ленты — без рассуждений модели о полях ответа (живой разбор 27.11)", () => {
+    expect(cleanReason("Клиентка прямо отказалась от заказа 26.11 вечером; причина не названа, поэтому lost_reason пустой.")).toBe("Клиентка прямо отказалась от заказа 26.11 вечером");
+    expect(cleanReason("Клиент передумал. Поле quote заполнено.")).toBe("Клиент передумал.");
+    expect(cleanReason("Клиент сказал «подумаю» и молчит 3 дня.")).toBe("Клиент сказал «подумаю» и молчит 3 дня.");
   });
 
   it("сообщения пронумерованы по порядку — номер в ответе модели указывает на то же сообщение", () => {

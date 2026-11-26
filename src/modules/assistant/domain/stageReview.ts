@@ -45,7 +45,7 @@ export function stageReviewPrompt(stages: ReviewStage[], current: string, reason
     "stage — номер этапа, где сделка должна быть сейчас; 0 — если текущий этап верный или по переписке не понять. Опирайся только на то, что прямо сказано в переписке; не меняй этап по догадке.",
     "Клиент сказал «подумаю», «посоветуюсь», «напишу позже» — это не отказ. Отказ — только если клиент ясно отказался.",
     `lost_reason — только для этапа отказа, строго одно из: ${reasons.map((r) => `«${r}»`).join(", ")}. Иначе пустая строка.`,
-    "confidence — насколько ты уверен, от 0 до 1. reason — коротко по-русски, почему (до 120 знаков).",
+    "confidence — насколько ты уверен, от 0 до 1. reason — коротко по-русски для менеджера, почему (до 120 знаков), обычными словами: без названий полей ответа и без рассуждений о схеме.",
     "quote — дословная цитата из одного сообщения переписки (как написано, без пересказа, до 200 знаков), на которой основан вывод; message — номер этого сообщения в квадратных скобках. Без смены этапа — пустая строка и 0.",
     "delivered — true, только если по переписке клиент уже получил книгу на руки (забрал, доставили, «получила»); delivered_quote и delivered_message — цитата и номер сообщения. Иначе false, пустая строка и 0.",
   ]
@@ -76,6 +76,15 @@ const int = (v: unknown, max: number) => {
   return Number.isFinite(n) && n >= 1 && n <= max ? n : null;
 };
 
+/** Служебные слова ответа модели (названия полей), которые не должны попасть в ленту сделки. */
+const SCHEMA_WORDS = /\b(?:lost_reason|delivered(?:_quote|_message)?|quote|message|stage|confidence)\b/i;
+
+/** Причина для ленты: без частей, где модель рассуждает о полях ответа («поэтому lost_reason пустой»). */
+export function cleanReason(reason: string): string {
+  const parts = reason.split(/(?<=[.;!?])\s+|;\s*/).filter((p) => p.trim() && !SCHEMA_WORDS.test(p));
+  return parts.join(" ").replace(/[;,\s]+$/, "").trim();
+}
+
 /** Ответ модели → разбор: номер этапа и сообщения — в пределах списков, причина отказа — из списка, уверенность 0–1. */
 export function normalizeStageReview(raw: unknown, stageCount: number, messageCount: number, reasons: string[]): StageReview | null {
   if (!raw || typeof raw !== "object") return null;
@@ -86,7 +95,7 @@ export function normalizeStageReview(raw: unknown, stageCount: number, messageCo
   return {
     stage: int(r.stage, stageCount),
     confidence: Number.isFinite(c) ? Math.min(1, Math.max(0, c)) : 0,
-    reason: text(r.reason, 200).replace(/["']?\s*}+$/, ""),
+    reason: cleanReason(text(r.reason, 200).replace(/["']?\s*}+$/, "")),
     quote: text(r.quote, 300),
     message: int(r.message, messageCount),
     lostReason: named,
