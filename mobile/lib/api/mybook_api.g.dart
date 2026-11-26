@@ -13451,7 +13451,7 @@ class WebFlipbookCover {
 
   factory WebFlipbookCover.fromJson(Map<String, dynamic> json) => WebFlipbookCover(template: json['template'] as String, lines: json['lines'] == null ? null : json['lines'] as bool, format: json['format'] as String, title: json['title'] as String, subtitle: json['subtitle'] as String, names: json['names'] as String, photos: (json['photos'] as List).map((e) => e == null ? null : WebFlipbookPhotoSpec.fromJson(e as Map<String, dynamic>)).toList(), design: json['design'] == null ? null : json['design'] as Map<String, dynamic>, back: json['back'] == null ? null : json['back'] as Map<String, dynamic>);
 
-  Map<String, dynamic> toJson() => {'template': template, if (lines != null) 'lines': lines!, 'format': format, 'title': title, 'subtitle': subtitle, 'names': names, 'photos': photos.map((e) => e == null ? null : e!.toJson()).toList(), if (design != null) 'design': design!, if (back != null) 'back': back!};
+  Map<String, dynamic> toJson() => {'template': template, if (lines != null) 'lines': lines!, 'format': format, 'title': title, 'subtitle': subtitle, 'names': names, 'photos': photos.map((e) => e == null ? null : e.toJson()).toList(), if (design != null) 'design': design!, if (back != null) 'back': back!};
 }
 
 class WebBackPhotoDims {
