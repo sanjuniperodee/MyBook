@@ -15,7 +15,7 @@ function apps(env: Record<string, string>): string[] {
   const out = execFileSync(
     process.execPath,
     ["-e", 'console.log(JSON.stringify(require("./deploy/ecosystem.config.cjs").apps.map((a) => a.name)))'],
-    { env: { PATH: process.env.PATH ?? "", MYBOOK_RELEASES_DIR: path.join(dir, "no-releases"), MYBOOK_FLAGS_DIR: dir, ...env }, encoding: "utf8" },
+    { env: { NODE_ENV: "test", PATH: process.env.PATH ?? "", MYBOOK_RELEASES_DIR: path.join(dir, "no-releases"), MYBOOK_FLAGS_DIR: dir, ...env }, encoding: "utf8" },
   );
   return JSON.parse(out) as string[];
 }
