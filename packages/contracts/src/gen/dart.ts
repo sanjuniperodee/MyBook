@@ -1,7 +1,7 @@
 /**
  * Dart-клиент API v1 из OpenAPI (openapi.ts): классы моделей с fromJson/toJson и класс MybookApi с методом на каждый
- * маршрут. Без build_runner и сторонних генераторов — только package:http, который уже есть в mobile/pubspec.yaml.
- * Результат — mobile/lib/api/mybook_api.g.dart (scripts/contracts/generate.ts); руками не править.
+ * маршрут. Без build_runner и сторонних генераторов — только package:http, который уже есть в pubspec.yaml приложения.
+ * Результат — lib/api/mybook_api.g.dart в репозитории mybook-mobile (scripts/contracts/generate.ts --dart); руками не править.
  */
 type Json = Record<string, unknown>;
 type Schema = Json & { $ref?: string; type?: string | string[]; anyOf?: Schema[]; items?: Schema; properties?: Record<string, Schema>; required?: string[]; enum?: unknown[]; const?: unknown; description?: string };

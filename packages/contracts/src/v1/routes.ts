@@ -1,7 +1,7 @@
 /**
  * API v1 (ADR 0012): единственный путь к данным для веба и мобильного приложения. Здесь только сборка маршрутов
  * доменов; схемы и маршруты — в файлах доменов (auth.ts, books.ts, …), общее — core.ts. Из v1 — OpenAPI
- * (/api/v1/openapi.json), TS-клиент (../client.ts) и Dart-клиент (mobile/lib/api/mybook_api.g.dart,
+ * (/api/v1/openapi.json), TS-клиент (../client.ts) и Dart-клиент (mybook-mobile: lib/api/mybook_api.g.dart,
  * scripts/contracts/generate.ts). Сервер — apps/api.
  *
  * Новый домен: v1/<домен>.ts с объектом <домен>Routes → строка здесь → обработчики в apps/api/src/routes/<домен>.ts →

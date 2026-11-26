@@ -23,3 +23,8 @@ tests/visual/.auth/
 tests/visual/.seed.json
 tests/visual/.artifacts/
 tests/visual/.report/
+
+# Приложение переехало в mybook-mobile (ADR 0013): в старых checkout здесь остаются сборки и ключи подписи Android —
+# в git их не брать.
+/mobile/*
+!/mobile/MOVED.md

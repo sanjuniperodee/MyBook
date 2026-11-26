@@ -25,7 +25,7 @@ export function mobileLayout(has: (p: Permission) => boolean, isOwner: boolean):
 }
 
 /**
- * Вкладки нижней панели по раскладке — те же в приложении (mobile/lib/core/layouts.dart) и в установленной CRM (PWA).
+ * Вкладки нижней панели по раскладке — те же в приложении (mybook-mobile: lib/core/layouts.dart) и в установленной CRM (PWA).
  * Недоступные по правам отбрасываются; последней всегда идёт «Ещё» (руководитель) или «Профиль».
  */
 export type MobileTabKey = "overview" | "chats" | "tasks" | "deals" | "clients" | "orders" | "calls";

@@ -1,5 +1,5 @@
 /**
- * Контракты API (ADR 0012): схемы v1, OpenAPI и TS-клиент. Сервер — apps/api, Dart-клиент — mobile/lib/api.
+ * Контракты API (ADR 0012): схемы v1, OpenAPI и TS-клиент. Сервер — apps/api, Dart-клиент — lib/api в репозитории mybook-mobile (ADR 0013).
  */
 export const contractsVersion = 1;
 export * from "./v1/routes";

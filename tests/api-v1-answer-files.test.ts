@@ -1,5 +1,3 @@
-import { existsSync, readFileSync } from "node:fs";
-import path from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ANSWER_MEDIA_LIMITS } from "@mybook/contracts/limits";
 import { FILE_CHUNK_BYTES, MAX_FILES_PER_BOOK, MAX_SECONDS, MAX_SOURCE_BYTES } from "@/lib/book/answer-files";
@@ -193,18 +191,6 @@ describe("лимиты и архитектура", () => {
       maxAudioSec: MAX_SECONDS.audio,
       maxFilesPerBook: MAX_FILES_PER_BOOK,
     });
-  });
-
-  // Экран приложения — пока mobile/ ещё в этом репозитории (ADR 0013: приложение в mybook-mobile).
-  const answerSheet = path.join(__dirname, "..", "mobile/lib/client/screens/answer_media_sheet.dart");
-  it.skipIf(!existsSync(answerSheet))("в Flutter экране answer_media_sheet.dart нет захардкоженных пользовательских строк на кириллице", () => {
-    const src = readFileSync(answerSheet, "utf8");
-    const offenders: string[] = [];
-    src.split(/\r?\n/).forEach((raw, idx) => {
-      const code = raw.replace(/\/\/.*$/, "");
-      if (/[А-Яа-яЁёӘәҒғҚқҢңӨөҰұҮүҺһІі]/.test(code)) offenders.push(`L${idx + 1}: ${raw.trim()}`);
-    });
-    expect(offenders).toEqual([]);
   });
 });
 

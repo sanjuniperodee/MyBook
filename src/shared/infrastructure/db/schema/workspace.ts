@@ -78,7 +78,7 @@ export const crmMobileDevices = pgTable(
 
 /**
  * iPhone сотрудников для установки приложения CRM без App Store (Ad Hoc): сотрудник ставит в CRM профиль, телефон сообщает
- * свой UDID; затем телефон регистрируется в Apple и входит в следующую сборку (scripts/mobile/ios-adhoc.sh).
+ * свой UDID; затем телефон регистрируется в Apple и входит в следующую сборку (scripts/ios-adhoc.sh в репозитории mybook-mobile).
  */
 export const crmIosDevices = pgTable(
   "crm_ios_devices",

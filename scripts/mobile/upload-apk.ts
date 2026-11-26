@@ -2,7 +2,7 @@
  * Выложить APK приложения продажника туда же, куда его кладёт форма CRM «Сайт» → «Приложение для Android»
  * (хранилище, ключ mobile/mybooks-crm.apk; сотрудники скачивают по /api/admin/mobile-apk). Запуск на сервере:
  *   npx tsx --env-file-if-exists=.env --import ./scripts/preload.mjs scripts/mobile/upload-apk.ts /путь/MyBooks-CRM.apk
- * (обёртка с копированием файла — scripts/mobile/upload-apk.sh).
+ * (обёртка с копированием файла — scripts/upload-apk.sh в репозитории mybook-mobile).
  */
 import { readFile } from "node:fs/promises";
 import { looksLikeApk, MOBILE_APK_KEY, MOBILE_APK_MAX_BYTES, saveMobileApk } from "@/server/mobile-apk";

@@ -1,14 +1,17 @@
 /**
  * Совпадает ли Dart-клиент в checkout приложения (репозиторий mybook-mobile, ADR 0013) с текущим контрактом API v1.
  *   npx tsx scripts/contracts/check-dart.ts ../mybook-mobile      — путь к корню checkout приложения
- *   npx tsx scripts/contracts/check-dart.ts                       — mobile/ этого репозитория (пока папка есть)
  * Код выхода 1 и подсказка, если клиент устарел или его нет: перегенерировать (generate.ts --dart …) и сделать PR в приложение.
  */
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { DART_CLIENT_IN_APP, dartClient } from "./files";
 
-const root = process.argv[2] ?? "mobile";
+const root = process.argv[2];
+if (!root) {
+  console.error("check-dart: укажите путь к checkout mybook-mobile");
+  process.exit(1);
+}
 const file = path.join(root, DART_CLIENT_IN_APP);
 if (!existsSync(file)) {
   console.error(`check-dart: нет ${file} — укажите путь к checkout mybook-mobile`);

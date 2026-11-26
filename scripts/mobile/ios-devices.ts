@@ -1,5 +1,5 @@
 /**
- * Сервер: телефоны для сборки iPhone-версии и выкладка готовой сборки (вызывает scripts/mobile/ios-adhoc.sh по ssh).
+ * Сервер: телефоны для сборки iPhone-версии и выкладка готовой сборки (по ssh её вызывает scripts/ios-adhoc.sh из репозитория mybook-mobile).
  *   … scripts/mobile/ios-devices.ts list                       — JSON [{udid, name}] всех зарегистрированных iPhone
  *   … scripts/mobile/ios-devices.ts publish <ipa> <build.json>  — положить сборку туда, откуда её ставит страница CRM
  */

@@ -107,24 +107,29 @@ jobs:
           go test ./...
 
   # Dart-клиент API v1 (генерирует scripts/contracts/generate.ts): маршруты добавляют разные сессии — генератор не должен
-  # выдать код, который приложение не соберёт. Приложение переехало в mybook-mobile (ADR 0013): пока mobile/ ещё здесь,
-  # анализ идёт по нему; после удаления папки шаги пропускаются, а клиент проверяет CI приложения. Условие — у шагов,
-  # не у задачи: пропущенная задача остановила бы выкатку, которая её ждёт.
+  # выдать код, который приложение не соберёт. Само приложение — в mybook-mobile (ADR 0013), поэтому клиент собирается в
+  # маленький пакет с той же зависимостью (package:http) и анализируется строго, как в CI приложения.
   dart-client:
     name: Dart-клиент
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci --no-audit --no-fund
       - uses: subosito/flutter-action@v2
-        if: hashFiles('mobile/pubspec.yaml') != ''
-        with: { channel: stable, cache: true }
+        with: { channel: stable, flutter-version: 3.44.1, cache: true }
       - name: dart analyze
-        if: hashFiles('mobile/pubspec.yaml') != ''
-        working-directory: mobile
         run: |
-          flutter pub get
-          dart analyze --fatal-infos lib/api
+          mkdir -p /tmp/dart-client/lib/api
+          npx tsx scripts/contracts/generate.ts --dart /tmp/dart-client/lib/api/mybook_api.g.dart
+          git diff --exit-code packages/contracts/openapi.json
+          cd /tmp/dart-client
+          printf 'name: dart_client\npublish_to: none\nenvironment:\n  sdk: ^3.12.1\ndependencies:\n  http: ^1.6.0\ndev_dependencies:\n  lints: any\n' > pubspec.yaml
+          printf 'include: package:lints/recommended.yaml\n' > analysis_options.yaml
+          dart pub get
+          dart analyze --fatal-infos lib
 
   # Новый Dart-клиент — пулл-реквестом в mybook-mobile (ADR 0013). Работает только при секрете MOBILE_REPO_TOKEN
   # (fine-grained токен владельца: mybook-mobile, Contents и Pull requests — запись; как завести — README mybook-mobile).

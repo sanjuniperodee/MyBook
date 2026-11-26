@@ -17,7 +17,7 @@ const NOTICE: Record<string, { tone: "ok" | "warn"; text: string }> = {
 
 /**
  * Приложение CRM на телефон — для любого сотрудника: Android — APK, iPhone — без App Store: регистрация телефона профилем
- * и установка по ссылке, когда телефон вошёл в сборку (src/server/ios-app.ts, scripts/mobile/ios-adhoc.sh).
+ * и установка по ссылке, когда телефон вошёл в сборку (src/server/ios-app.ts, scripts/ios-adhoc.sh в репозитории mybook-mobile).
  */
 export default async function AppPage({ searchParams }: { searchParams: Promise<{ ios?: string }> }) {
   const staff = await requireStaff();

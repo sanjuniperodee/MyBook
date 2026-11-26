@@ -8,7 +8,7 @@ import { safeEqual } from "@/shared/crypto";
 /**
  * iPhone-версия приложения CRM без App Store и TestFlight (Ad Hoc): сборка подписана для зарегистрированных телефонов.
  * 1) Сотрудник в CRM ставит профиль регистрации — телефон сам присылает UDID (Profile Service, POST на /api/ios-app/udid).
- * 2) На Mac `scripts/mobile/ios-adhoc.sh` регистрирует новые телефоны в Apple, собирает и выкладывает сборку (publish).
+ * 2) На Mac `scripts/ios-adhoc.sh` (репозиторий mybook-mobile) регистрирует новые телефоны в Apple, собирает и выкладывает сборку (publish).
  * 3) Телефон, вошедший в сборку, ставит приложение по ссылке itms-services (манифест и IPA — по подписанной ссылке:
  *    установщик iOS ходит без cookie).
  */
