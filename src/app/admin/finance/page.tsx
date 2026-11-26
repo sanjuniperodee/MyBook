@@ -1,11 +1,9 @@
 import { AutoApply } from "@/components/admin/AutoApply";
 import { MoneyFlow } from "@/components/admin/MoneyFlow";
 import { periodQuery } from "@/components/admin/PeriodBar";
-import { loadProfit } from "@/server/money-flow";
 import Link from "next/link";
 import { z } from "zod";
 import { CircleCheck, Download, FileText, HandCoins, ShieldCheck, Wallet } from "lucide-react";
-import { container } from "@/server/container";
 import { can, canWork, requireStaff } from "@/server/access";
 import { storeTimeZone } from "@/shared/domain/time";
 import { formatPrice } from "@/config/site";
@@ -23,6 +21,7 @@ import { financePeriod, financeScreen, REFUND_WINDOW_DAYS, RESOLVED_DAYS, type F
 import { FinanceColumns } from "./FinanceColumns";
 import { ReviewButton } from "./ReviewButton";
 import { IssueActions, UndoResolution, type IssuePerms } from "./IssueActions";
+import { crmRead } from "@/server/v1-local-bridge-crm";
 
 export const metadata = { title: "Финансы" };
 
@@ -58,9 +57,8 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
   const tz = storeTimeZone();
   const now = new Date();
   const period = financePeriod({ preset: q.p, from: q.from, to: q.to, now, tz });
-  // Строка «Деньги за период» (как в «Прибыли»): руководству с правом финансов; «только свои» видят свои поступления.
-  const showFlow = staff.scope === "all" && can(staff, "finance.view");
-  const [data, admins, profit] = await Promise.all([container().reporting.finance({ from: period.prev.from, to: period.to }), container().access.queries.allStaff(), showFlow ? loadProfit(period, tz) : null]);
+  // Строка «Деньги за период» (как в «Прибыли»): руководству с правом финансов; «только свои» видят свои поступления (money.finance).
+  const { data, admins, profit } = await crmRead("money.finance", { p: q.p, from: q.from, to: q.to });
   // Роль «только свои» — строго свои деньги: ничьи заказы, сертификаты и пакеты с сайта — деньги магазина, их видит руководство.
   const s = financeScreen({ period, ...data, staff: admins, visible: (id) => canWork(staff, id), viewerId: staff.context.isOwner ? null : staff.user.id, tz, now });
   const badPeriod = q.p === "custom" && period.preset !== "custom";

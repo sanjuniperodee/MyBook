@@ -1,9 +1,7 @@
 import Link from "next/link";
 import { z } from "zod";
 import { Download, ScrollText } from "lucide-react";
-import { container } from "@/server/container";
 import { can, canWork, contactView, requireStaff } from "@/server/access";
-import { getSetting, listFields } from "@/modules/workspace";
 import { PAY_FORM_KEY, PAY_FORM_OPTIONS, parseFeeRates } from "@/shared/domain/expenses";
 import { PayFormSelect } from "./PayFormSelect";
 import { storeTimeZone } from "@/shared/domain/time";
@@ -17,6 +15,7 @@ import { Panel } from "@/components/ui/Panel";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { financePeriod } from "@/modules/reporting/ui/finance-screen";
 import { salesRegisterScreen } from "@/modules/reporting/ui/lead-stats";
+import { crmRead } from "@/server/v1-local-bridge-crm";
 
 export const metadata = { title: "Реестр продаж" };
 
@@ -36,8 +35,7 @@ export default async function SalesRegisterPage({ searchParams }: { searchParams
   const q = query.parse(await searchParams);
   const tz = storeTimeZone();
   const period = financePeriod({ preset: q.p, from: q.from, to: q.to, now: new Date(), tz });
-  const c = container();
-  const [rows, admins, feeSetting, dealFields] = await Promise.all([c.reporting.salesRegister({ from: period.from, to: period.to }), c.access.queries.allStaff(), getSetting("finance.fees"), listFields("deal")]);
+  const { rows, admins, feeSetting, dealFields } = await crmRead("money.sales", { p: q.p, from: q.from, to: q.to });
   // Комиссии банка видит тот, кому открыты расходы и прибыль; остальным — только форма оплаты.
   const showFees = can(staff, "finance.view");
   const s = salesRegisterScreen({ rows, staff: admins, visible: (id) => canWork(staff, id), contact: (phone) => (phone ? contactView(staff, { phone: formatPhone(phone) }).phone : ""), tz, feeRates: showFees ? parseFeeRates(feeSetting) : {} });

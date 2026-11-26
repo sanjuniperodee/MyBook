@@ -10,6 +10,9 @@ import type { z } from "zod";
  */
 const areas = {
   pages: () => import("./pages"),
+  money: () => import("./money"),
+  shell: () => import("./shell"),
+  orders: () => import("./orders"),
 } as const;
 
 type Areas = { [K in keyof typeof areas]: Awaited<ReturnType<(typeof areas)[K]>> };

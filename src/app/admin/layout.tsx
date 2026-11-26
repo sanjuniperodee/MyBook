@@ -1,4 +1,3 @@
-import { container } from "@/server/container";
 import { Search } from "lucide-react";
 import { requireStaffShell } from "@/server/access";
 import { logoutAction } from "@/app/(auth)/actions";
@@ -10,7 +9,7 @@ import { CrmLiveProvider, IncomingCall, NotificationBell } from "@/components/ad
 import { PushPrompt } from "@/components/admin/PushPrompt";
 import { Webphone } from "@/components/admin/Webphone";
 import { can } from "@/server/access";
-import { autoShiftOnVisit } from "@/server/shift";
+import { autoShiftOnVisitAction } from "./shell-actions";
 import { THEME_SCRIPT, ThemeSync } from "@/components/admin/Theme";
 import { CommandPalette, CreateMenu, PaletteTrigger } from "@/components/admin/CommandPalette";
 import { WhatsappCallProvider } from "@/components/admin/WhatsappCall";
@@ -18,6 +17,7 @@ import { NavMotion } from "@/components/admin/NavMotion";
 import { MobileTabBar } from "@/components/admin/MobileTabBar";
 import { PullToRefresh } from "@/components/admin/PullToRefresh";
 import { layoutTabs, mobileLayout } from "@/shared/domain/mobileLayout";
+import { crmRead } from "@/server/v1-local-bridge-crm";
 
 export const metadata = {
   title: { default: "CRM", template: "%s · CRM" },
@@ -52,16 +52,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     );
   }
   // Зашёл в рабочее время — сразу «в сети».
-  const onShift = await autoShiftOnVisit(staff);
-  const calls = can(staff, "calls.make");
+  const onShift = await autoShiftOnVisitAction(staff.user.lastSeenAt ?? null);
   // Звонки WhatsApp из CRM — кнопки «WhatsApp», ответ на входящие и панель звонка (если включены в «Интеграциях»).
-  const [live, phone, waCalls, pbx] = await Promise.all([
-    container().reporting.live(staff.context),
-    calls ? container().telephony.phone.webphoneAvailable(staff.user.sipExtension) : false,
-    calls ? container().telephony.whatsapp.enabled() : false,
-    // Звонок через АТС есть только с Zadarma и внутренним номером; нет — «Позвонить» звонит в WhatsApp.
-    calls && staff.user.sipExtension ? container().telephony.phone.currentProvider().then((p) => p === "zadarma") : false,
-  ]);
+  const { live, phone, waCalls, pbx } = await crmRead("shell.layout", {});
   const nav = { adminName: staffLabel(staff.user), roleName: staff.roleName, perms: [...staff.permissions], onShift };
   // Режим боковой панели: выбор человека (cookie ставит сама панель) или авто — по ширине окна.
   const navView = navMode((await cookies()).get(NAV_RAIL_COOKIE)?.value);

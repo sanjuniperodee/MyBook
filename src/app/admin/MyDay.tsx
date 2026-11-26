@@ -1,21 +1,19 @@
-import { container } from "@/server/container";
 import Link from "next/link";
-import { currentMonth } from "@/modules/sales";
 import { CircleCheck, PhoneMissed } from "lucide-react";
 import { can, canWork, contactView, type Staff } from "@/server/access";
 import { formatPrice } from "@/config/site";
 import { formatPhone } from "@/shared/domain/phone";
-import { channelLabel } from "@/modules/messaging";
+import { channelLabel } from "@/modules/messaging/domain/conversation";
 import { cn } from "@/lib/class-names";
 import { Panel } from "@/components/ui/Panel";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { formatDate } from "@/lib/dates";
-import { getSetting } from "@/modules/workspace";
 import { parseWorkHours } from "@/shared/domain/schedule";
 import { responseWait, slaMinutes } from "@/modules/reporting/ui/response-wait";
 import { TaskRows, type TaskRow } from "./tasks/TaskRows";
 import { taskContact, taskRow, type Reacher } from "@/lib/crm/task-row";
 import { MANAGER_LISTS, MANAGER_LIST_KEYS } from "@/modules/reporting/ui/managerLists";
+import { crmRead } from "@/server/v1-local-bridge-crm";
 
 /**
  * «Мой день» — рабочее место менеджера: что горит прямо сейчас. Данные одни, а блоков четыре, чтобы страница сама решала,
@@ -25,16 +23,14 @@ import { MANAGER_LISTS, MANAGER_LIST_KEYS } from "@/modules/reporting/ui/manager
  */
 export async function myDayParts(staff: Staff) {
   const me = staff.user.id;
-  const viewer = { userId: me, seesAll: staff.scope === "all" };
-  const [{ tasks, waiting, missed, deals, unsorted, counts }, plans, slaRaw, hoursRaw, provider, lists] = await Promise.all([
-    container().reporting.myDay(viewer, { chats: can(staff, "chats.view"), calls: can(staff, "calls.view"), deals: can(staff, "deals.view") }),
-    container().sales.queries.planProgress(currentMonth(), [me]),
-    getSetting("crm.slaMinutes"),
-    getSetting("crm.workHours"),
-    can(staff, "calls.make") ? container().telephony.phone.currentProvider() : null,
-    can(staff, "deals.view") ? container().reporting.managerListCounts(viewer) : null,
-  ]);
-  const plan = plans.get(me);
+  const {
+    day: { tasks, waiting, missed, deals, unsorted, counts },
+    plan,
+    slaRaw,
+    hoursRaw,
+    provider,
+    lists,
+  } = await crmRead("shell.myDay", {});
   const now = new Date();
   const sla = slaMinutes(slaRaw);
   const hours = parseWorkHours(hoursRaw);

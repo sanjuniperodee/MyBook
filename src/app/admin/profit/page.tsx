@@ -1,10 +1,8 @@
 import Link from "next/link";
 import { MoneyFlow } from "@/components/admin/MoneyFlow";
-import { loadProfit } from "@/server/money-flow";
 import { z } from "zod";
 import { Download } from "lucide-react";
 import { can, requireStaff } from "@/server/access";
-import { listFields } from "@/modules/workspace";
 import { storeTimeZone } from "@/shared/domain/time";
 import { formatPrice } from "@/config/site";
 import { StatRow, StatTile } from "@/components/admin/charts";
@@ -17,6 +15,7 @@ import { Alert } from "@/components/ui/Alert";
 import { financePeriod } from "@/modules/reporting/ui/finance-screen";
 import { expenseGroupKeys, expenseGroups, PAY_FORM_KEY, PAY_FORM_OPTIONS } from "@/shared/domain/expenses";
 import { FeeSettingsButton } from "./FeeSettings";
+import { crmRead } from "@/server/v1-local-bridge-crm";
 
 export const metadata = { title: "Прибыль" };
 
@@ -39,7 +38,10 @@ export default async function ProfitPage({ searchParams }: { searchParams: Promi
   const q = query.parse(await searchParams);
   const tz = storeTimeZone();
   const period = financePeriod({ preset: q.p, from: q.from, to: q.to, now: new Date(), tz });
-  const [{ screen: s, feeRates, taxRate }, dealFields] = await Promise.all([loadProfit(period, tz), listFields("deal")]);
+  const {
+    profit: { screen: s, feeRates, taxRate },
+    dealFields,
+  } = await crmRead("money.profit", { p: q.p, from: q.from, to: q.to });
   const feeMoney = s.fees.byForm.reduce((n, f) => n + f.money, 0);
   // Формы оплаты — варианты поля сделки; до миграции поля — стандартный набор.
   const payForms = dealFields.find((f) => f.key === PAY_FORM_KEY)?.options ?? [...PAY_FORM_OPTIONS];

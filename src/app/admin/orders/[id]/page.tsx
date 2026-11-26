@@ -8,9 +8,8 @@ import { Badge } from "@/components/ui/Badge";
 import { Alert } from "@/components/ui/Alert";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Facts } from "@/components/ui/Facts";
-import { localDay } from "@/modules/reporting/time";
+import { localDay } from "@/modules/reporting/ui/time";
 import { notFound } from "next/navigation";
-import { container } from "@/server/container";
 import { formatPrice, getPlan, isQuotedDelivery } from "@/config/site";
 import { deliveryAddress } from "@/modules/ordering/ui/labels";
 import { orderStatusLabel, orderStatusTone, isPrintedPlan } from "@/modules/ordering/ui/status";
@@ -23,36 +22,20 @@ import { DetailsForm, LockButton, NextStep, NoteForm, OrderMoney, PrintFileActio
 import { OrderMenu } from "./OrderMenu";
 import { ProductionRuler } from "./ProductionRuler";
 import { Disclosure } from "./Disclosure";
-import { discountLimit } from "@/server/discount";
 import { getPlans } from "@/config/site";
 import { AssigneeSelect, NotesTimeline, TaskList, type NoteItem, type TaskItem } from "@/components/admin/CrmWidgets";
 import { staffOptions } from "@/modules/access/ui";
 import { staffLabel } from "@/shared/domain/staff";
 import { CalendarClock, CircleDollarSign, Gift, History } from "lucide-react";
-import { can, canSeeOrder, contactView, requireStaff } from "@/server/access";
+import { can, contactView, requireStaff } from "@/server/access";
 import { ContactActions } from "@/components/admin/ContactActions";
 import { formatPhone } from "@/shared/domain/phone";
 import { pageId } from "@/server/input";
-import { payFormOptions } from "@/server/pay-form";
-import { isPhoneEmail } from "@/modules/identity/domain";
 import type { OrderNoticeFacts } from "@/modules/ordering/ui/notice";
+import { crmRead } from "@/server/v1-local-bridge-crm";
 
 /** Способ оплаты заказа — по-человечески, а не код платёжной системы. */
 const PROVIDER_LABEL: Record<string, string> = { manual: "перевод или вручную", kaspi: "Kaspi", cloudpayments: "карта (CloudPayments)" };
-
-/**
- * Что получит клиент при смене статуса: настоящая ли почта, правила WhatsApp о заказе (о чём уже писали), переписка,
- * стоп-лист, рабочее ли время и открыты ли окно и суточный лимит сообщений от правил.
- */
-async function noticeFacts(order: { id: string; userId: string; contactEmail: string; contactPhone: string; trackingNumber: string | null }): Promise<OrderNoticeFacts> {
-  const n = await container().reporting.orderNotice(order);
-  const [noMarketing, pause, workTime] = await Promise.all([
-    container().messaging.chats.noMarketingFor({ dealId: n.dealId, clientId: order.userId, phones: [order.contactPhone] }),
-    n.rules.length ? container().messaging.chats.ruleSendPause() : null,
-    n.rules.some((r) => r.hours) ? container().workspace.schedule.isWorkTime(new Date()) : true,
-  ]);
-  return { realEmail: !isPhoneEmail(order.contactEmail), rules: n.rules, whatsappChat: n.whatsappChat, noMarketing, workTime, pause };
-}
 
 /** Статусы счетов Kaspi в карточке заказа. */
 const invoiceStatusLabels = { pending: "ждёт оплаты", paid: "оплачен", failed: "не прошёл", cancelled: "отменён", expired: "истёк" } as const;
@@ -66,21 +49,13 @@ const invoiceStatusLabels = { pending: "ждёт оплаты", paid: "опла�
 export default async function AdminOrderPage({ params }: { params: Promise<{ id: string }> }) {
   const staff = await requireStaff("orders.view");
   const id = pageId((await params).id);
-  const order = await container().ordering.queries.orderDetails(id);
+  const card = await crmRead("orders.card", { id });
   // Чужой заказ у роли «только свои» — как будто его нет.
-  if (!order || !(await canSeeOrder(staff, order.id))) notFound();
+  if (!card) notFound();
+  const { order, stats, admins, crm, kaspiInvoices, moneyRows, built, payForms } = card;
+  const { taskRows, noteRows, clientStats, deal: orderDeal } = crm;
   const plan = getPlan(order.plan);
   const book = order.book;
-  const [stats, admins, { taskRows, noteRows, clientStats, deal: orderDeal }, kaspiInvoices, moneyRows, built, payForms] = await Promise.all([
-    container().authoring.queries.stats(book),
-    container().access.queries.allStaff(),
-    container().reporting.orderCrm(order),
-    container().ordering.queries.paymentInvoices("order", order.id),
-    container().ordering.payments.list(order.id),
-    // Макет, который видит клиент (экранная сборка текущей книги), — если собран.
-    container().previews.current(book.id).catch(() => null),
-    payFormOptions(),
-  ]);
   const adminOptions = staffOptions(admins);
   const adminName = new Map(admins.map((a) => [a.id, staffLabel(a)]));
   const now = new Date();
@@ -104,7 +79,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
   const contact = contactView(staff, { phone: order.contactPhone, email: order.contactEmail });
   const accountEmail = contactView(staff, { email: order.user.email }).email;
   const canEdit = can(staff, "orders.edit");
-  const notice = canEdit ? await noticeFacts(order) : null;
+  const notice: OrderNoticeFacts | null = card.notice;
   const canClients = can(staff, "clients.view");
   // Тариф и цену меняют, пока заказ не оплачен. Оплаченный — только цену и только руководитель (право «Менять цену
   // оплаченного заказа»), с причиной; менеджер без права просит руководителя (а не закрывает разницу платежом без денег).
@@ -112,7 +87,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
   const canRepricePaid = can(staff, "orders.reprice_paid");
   const termsOpen = canEdit && order.status !== "cancelled" && (!order.paidAt || canRepricePaid);
   const repriceRequest = canEdit && settled && !canRepricePaid;
-  const maxDiscount = termsOpen ? await discountLimit(staff) : null;
+  const maxDiscount = termsOpen ? card.maxDiscount : null;
   // Договорённая цена первого экземпляра: скидка заказа без промокода — это и есть договорённость.
   const agreedNow = order.discountAmount > 0 && !order.promoCode && plan ? order.itemsAmount - order.discountAmount - (order.itemsAmount - plan.price) : null;
   const printed = isPrintedPlan(order.plan);

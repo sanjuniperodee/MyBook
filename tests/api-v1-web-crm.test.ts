@@ -234,3 +234,41 @@ describe("API v1 Раздел 5.2 (crm): сборщики страниц — str
     await expect(strictOp(owner, "toString.call", {})).rejects.toMatchObject({ status: 404 });
   });
 });
+
+describe("API v1 Раздел 5.3 (crm): деньги, каркас и «Мой день»", () => {
+  beforeEach(() => {
+    resetRequest();
+    resetContainer();
+    vi.stubEnv("WEB_API_ONLY", "");
+    vi.stubEnv("WEB_USE_API_V1", "");
+  });
+  afterEach(() => vi.unstubAllEnvs());
+
+  const strictOp = (user: typeof owner, op: string, args: unknown) =>
+    v1WebRead({
+      name: `crm.${op}`,
+      section: "crm",
+      flag: "crm",
+      parity: "strict",
+      client: createWebApiClient({ baseUrl: "http://127.0.0.1:3044", sessionCookie: user.id, fetch: fetchViaApp }),
+      local: () => runCrmOp(op, args),
+      viaApi: async (api) => decodeWire((await api.webCrmRead({ op, body: { args: await encodeWire(args) } })).data),
+    });
+
+  it("каркас: значки и телефония; расходы за период — одинаково локально и через API", async () => {
+    let expensesArgs: unknown[] = [];
+    fake.reporting = {
+      live: async () => ({ chats: 2, at }),
+      expenses: async (...a: unknown[]) => ((expensesArgs = a), [{ id: "e1", amount: 500, day: "2026-11-02", createdAt: at }]),
+    };
+    fake.access.queries = { allStaff: async () => [{ id: "boss", name: "Руководитель", email: "boss@mybooks.kz" }] };
+    fake.telephony = { phone: { webphoneAvailable: async () => true, currentProvider: async () => "zadarma" }, whatsapp: { enabled: async () => false } };
+    signIn(owner);
+    expect(await strictOp(owner, "shell.layout", {})).toEqual({ live: { chats: 2, at }, phone: true, waCalls: false, pbx: false });
+    const { rows } = (await strictOp(owner, "money.expenses", { p: "month" })) as { rows: { createdAt: Date }[] };
+    expect(rows[0].createdAt).toEqual(at);
+    expect(expensesArgs).toHaveLength(2);
+    signIn(anna);
+    await expect(strictOp(anna, "money.expenses", {})).rejects.toMatchObject({ status: 403 });
+  });
+});

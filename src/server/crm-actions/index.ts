@@ -38,6 +38,7 @@ export const actionModules = {
   settingsTransfer: () => import("./settings-transfer"),
   settingsWazzup: () => import("./settings-wazzup"),
   settingsWhatsapp: () => import("./settings-whatsapp"),
+  shell: () => import("./shell"),
   site: () => import("./site"),
   support: () => import("./support"),
   team: () => import("./team"),

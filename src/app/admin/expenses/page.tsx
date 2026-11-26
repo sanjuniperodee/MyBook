@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { z } from "zod";
 import { Download, ReceiptText } from "lucide-react";
-import { container } from "@/server/container";
 import { can, requireStaff } from "@/server/access";
 import { storeTimeZone } from "@/shared/domain/time";
 import { channels } from "@/shared/domain/channels";
@@ -16,6 +15,7 @@ import { financePeriod } from "@/modules/reporting/ui/finance-screen";
 import { expensesScreen } from "@/modules/reporting/ui/profit-screen";
 import { expenseGroupKeys, expenseGroupOf, expenseGroups } from "@/shared/domain/expenses";
 import { AddExpenseButton, ExpenseRowActions, PasteExpensesButton } from "./ExpenseControls";
+import { crmRead } from "@/server/v1-local-bridge-crm";
 
 export const metadata = { title: "Расходы" };
 
@@ -35,8 +35,7 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
   const staff = await requireStaff("finance.view");
   const q = query.parse(await searchParams);
   const period = financePeriod({ preset: q.p, from: q.from, to: q.to, now: new Date(), tz: storeTimeZone() });
-  const c = container();
-  const [rows, admins] = await Promise.all([c.reporting.expenses(period.first, period.last), c.access.queries.allStaff()]);
+  const { rows, admins } = await crmRead("money.expenses", { p: q.p, from: q.from, to: q.to });
   const s = expensesScreen({ period, expenses: rows, staff: admins });
   const manage = can(staff, "finance.manage");
   const channelList = Object.entries(channels).map(([key, label]) => ({ key, label }));

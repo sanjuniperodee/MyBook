@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { z } from "zod";
 import { Download, Users } from "lucide-react";
-import { container } from "@/server/container";
 import { can, canWork, requireStaff } from "@/server/access";
 import { storeTimeZone } from "@/shared/domain/time";
 import { formatPrice } from "@/config/site";
@@ -15,6 +14,7 @@ import { Panel } from "@/components/ui/Panel";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { financePeriod } from "@/modules/reporting/ui/finance-screen";
 import { leadStatsScreen } from "@/modules/reporting/ui/lead-stats";
+import { crmRead } from "@/server/v1-local-bridge-crm";
 
 export const metadata = { title: "Статистика лидов" };
 
@@ -79,8 +79,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
   const tz = storeTimeZone();
   const now = new Date();
   const period = financePeriod({ preset: q.p, from: q.from, to: q.to, now, tz });
-  const c = container();
-  const [data, admins] = await Promise.all([c.reporting.leadStats({ from: period.prev.from, to: period.to, first: period.first, last: period.last }), c.access.queries.allStaff()]);
+  const { data, admins } = await crmRead("money.leads", { p: q.p, from: q.from, to: q.to });
   const all = staff.scope === "all";
   const managers = admins.filter((a) => canWork(staff, a.id) && data.deals.some((d) => d.assigneeId === a.id));
   const managerId = q.m && managers.some((m) => m.id === q.m) ? q.m : null;

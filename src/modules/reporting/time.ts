@@ -1,2 +1,2 @@
 /** Границы дней по времени магазина — общие для отчётов и страниц (без серверных зависимостей). */
-export { iso, localDay } from "./infrastructure/time";
+export { iso, localDay } from "./ui/time";

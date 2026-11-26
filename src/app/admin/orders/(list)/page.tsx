@@ -1,19 +1,19 @@
 import { planName } from "@/i18n/labels";
 import { Download } from "lucide-react";
-import { container } from "@/server/container";
 import { ORDER_STATUSES as orderStatuses } from "@/shared/domain/orders";
-import { contactView, requireStaff, staffViewer } from "@/server/access";
+import { contactView, requireStaff } from "@/server/access";
 import { formatPrice, getPlans } from "@/config/site";
 import { isPrintedPlan, orderStatusDot, orderStatusLabel } from "@/modules/ordering/ui/status";
 import { orderMoney } from "@/modules/ordering/ui/money";
 import { staffLabel } from "@/shared/domain/staff";
 import { storeTimeZone } from "@/shared/domain/time";
 import type { OrderFilters } from "@/modules/reporting";
-import { iso, localDay } from "@/modules/reporting/time";
+import { iso, localDay } from "@/modules/reporting/ui/time";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { OrdersViews } from "../OrdersViews";
 import { OrdersTable, type OrderDue, type OrderRow } from "../OrdersTable";
 import { OrdersToolbar, type StatusChip } from "../OrdersToolbar";
+import { crmRead } from "@/server/v1-local-bridge-crm";
 
 export const metadata = { title: "Заказы" };
 const PAGE = 50;
@@ -41,14 +41,12 @@ export default async function AdminOrders({ searchParams }: { searchParams: Prom
   const staff = await requireStaff("orders.view");
   const params = await searchParams;
   const p = Math.max(1, Number(params.page) || 1);
-  const viewer = staffViewer(staff);
-  const reporting = container().reporting;
   // Числа на чипах — по тем же фильтрам, но без выбранного статуса (иначе у остальных чипов стояли бы нули).
-  const [{ list, n, sum }, admins, counts] = await Promise.all([
-    reporting.orderList(params, viewer, p, PAGE),
-    container().access.queries.allStaff(),
-    Promise.all(orderStatuses.map((s) => reporting.orderList({ ...params, status: s }, viewer, 1, 1).then((r) => r.n))),
-  ]);
+  const { list, n, sum, admins, counts } = await crmRead("orders.list", {
+    filters: { status: params.status, q: params.q, plan: params.plan, assignee: params.assignee, from: params.from, to: params.to },
+    page: Math.min(p, 10_000),
+    size: PAGE,
+  });
   const names = new Map(admins.map((a) => [a.id, staffLabel(a)]));
   const today = localDay(0).getTime();
   const rows: OrderRow[] = list.map((o) => {

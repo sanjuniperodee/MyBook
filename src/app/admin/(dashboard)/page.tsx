@@ -1,17 +1,15 @@
-import { container } from "@/server/container";
-import { localDay } from "@/modules/reporting/time";
+import { localDay } from "@/modules/reporting/ui/time";
 import { storeTimeZone, zonedDay } from "@/shared/domain/time";
 import { z } from "zod";
 import { MoneyFlow } from "@/components/admin/MoneyFlow";
 import { PeriodBar, periodQuery } from "@/components/admin/PeriodBar";
-import { loadProfit } from "@/server/money-flow";
 import { financePeriod } from "@/modules/reporting/ui/finance-screen";
 import { planName } from "@/i18n/labels";
 import Link from "next/link";
 import { CalendarClock, CircleCheck, History, Link2, type LucideIcon } from "lucide-react";
 import { formatPrice, getPlans } from "@/config/site";
 import { orderStatusLabel } from "@/modules/ordering/ui/status";
-import { can, requireStaff, staffViewer } from "@/server/access";
+import { can, requireStaff } from "@/server/access";
 import { redirect } from "next/navigation";
 import { layoutTabs, mobileLayout } from "@/shared/domain/mobileLayout";
 import { MyDay, myDayParts } from "../MyDay";
@@ -21,8 +19,8 @@ import { Panel } from "@/components/ui/Panel";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { cn } from "@/lib/class-names";
 import { formatDate, nowMs } from "@/lib/dates";
-import { getSetting } from "@/modules/workspace";
 import type { AttentionRow } from "@/modules/reporting";
+import { crmRead } from "@/server/v1-local-bridge-crm";
 
 export const metadata = { title: "Обзор" };
 
@@ -70,16 +68,13 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
   const period = financePeriod({ preset: q.p, from: q.from, to: q.to, now: new Date(), tz });
   const pq = periodQuery(period);
   const showFlow = staff.scope === "all" && can(staff, "finance.view");
-  const [channelsReport, profit] = await Promise.all([container().marketing.service.report({ from: period.from, to: period.to, first: period.first, last: period.last }), loadProfit(period, tz)]);
+  const { channelsReport, profit, dashboard, dealAttention } = await crmRead("shell.dashboard", { p: q.p, from: q.from, to: q.to });
   const flow = profit.screen.flow;
   const unit = profit.screen.unit;
   const sources = {
     rows: channelsReport.channels.filter((c) => c.registrations || c.leads || c.sales).slice(0, 8),
   };
-  const [{ newUsers, funnelRows, byPlan, deadlines, dealDeadlines, attention, events }, dealAttention] = await Promise.all([
-    container().reporting.dashboard({ from: period.from, to: period.to, prev: period.prev }, staffViewer(staff)),
-    getSetting("crm.slaMinutes").then((sla) => container().reporting.attention(staffViewer(staff), Number(sla) || 15)),
-  ]);
+  const { newUsers, funnelRows, byPlan, deadlines, dealDeadlines, attention, events } = dashboard;
 
   // Деньги по дням — те же поступления минус возвраты, что в «Финансах», по дню магазина.
   const byDay = new Map<string, { sum: number; n: number }>();
