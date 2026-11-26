@@ -81,8 +81,12 @@ const SCHEMA_WORDS = /\b(?:lost_reason|delivered(?:_quote|_message)?|quote|messa
 
 /** Причина для ленты: без частей, где модель рассуждает о полях ответа («поэтому lost_reason пустой»). */
 export function cleanReason(reason: string): string {
-  // Части — по «;» и по концу предложения (знак остаётся у своей части; без lookbehind — его нет в старом Safari).
-  const parts = (reason.match(/[^.;!?]+[.!?]*/g) ?? []).filter((p) => p.trim() && !SCHEMA_WORDS.test(p)).map((p) => p.trim());
+  // Части — по «;» и по концу предложения перед заглавной (точка в «26.11» не делит; знак остаётся у своей части).
+  const parts = reason
+    .replace(/([.!?])\s+(?=[А-ЯЁA-Z«"])/g, "$1\n")
+    .split(/\n|;\s*/)
+    .map((p) => p.trim())
+    .filter((p) => p && !SCHEMA_WORDS.test(p));
   return parts.join(" ").replace(/[;,\s]+$/, "").trim();
 }
 
