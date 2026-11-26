@@ -71,6 +71,19 @@ describe("бэкенд на Nest: ядро", () => {
     expect(res.json()).toEqual({ ok: true });
   });
 
+  it("список адресов для теневой сверки: маршруты контекстов без служебных; с X-Real-IP снаружи — 404", async () => {
+    const res = await call({ method: "GET", url: "/api/v1/__nest/routes" });
+    expect(res.statusCode).toBe(200);
+    const routes = res.json().routes as { method: string; path: string }[];
+    expect(routes).toContainEqual({ method: "GET", path: "/api/v1/orders/:orderId/review" });
+    expect(routes).toContainEqual({ method: "DELETE", path: "/api/v1/orders/:orderId/review/photo" });
+    expect(routes.some((r) => r.path === "/api/v1/health" || r.method === "HEAD")).toBe(false);
+
+    const proxied = await call({ method: "GET", url: "/api/v1/__nest/routes", headers: { "x-real-ip": "1.2.3.4" } });
+    expect(proxied.statusCode).toBe(404);
+    expect(proxied.json().code).toBe("notFound");
+  });
+
   it("неизвестный адрес — 404, путь контракта с другим методом — 405 с Allow (как у mybook-api)", async () => {
     const res = await call({ method: "GET", url: "/api/v1/nope" });
     expect(res.statusCode).toBe(404);

@@ -10,6 +10,7 @@ import { createApp } from "./app";
 import { siteAuthenticator } from "./auth";
 import { serve } from "./http/server";
 import { handlers } from "./routes";
+import { withShadow } from "./shadow";
 import { handleSiteRoute } from "./site-routes";
 
 markApiProcess();
@@ -25,7 +26,15 @@ if (process.env.SKIP_AUTO_MIGRATE !== "1") {
   console.log("[api] database migrations applied");
 }
 startPerfSampler();
-const server = serve(createApp(handlers, siteAuthenticator, handleSiteRoute), { port, host });
+// Теневая сверка с бэкендом на Nest (ADR 0014): только GET уже перенесённых адресов, ответ клиенту не меняется.
+const rawShadowRate = process.env.MYBOOK_NEST_SHADOW_RATE?.trim();
+const parsedShadowRate = rawShadowRate ? Number(rawShadowRate) : 0.25;
+const shadow = {
+  enabled: process.env.MYBOOK_NEST_SHADOW === "on",
+  rate: Number.isFinite(parsedShadowRate) ? parsedShadowRate : 0.25,
+  backendUrl: `http://127.0.0.1:${process.env.MYBOOK_BACKEND_PORT || "3046"}`,
+};
+const server = serve(withShadow(createApp(handlers, siteAuthenticator, handleSiteRoute), shadow), { port, host });
 server.on("listening", () => console.log(`[api] v1 на ${host}:${port} (pid ${process.pid})`));
 
 const stop = (signal: string) => {
