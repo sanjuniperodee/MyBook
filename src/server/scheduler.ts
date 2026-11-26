@@ -132,7 +132,10 @@ export async function crmTick() {
     if (voices && voices.done + voices.failed) console.log(`[scheduler] ai transcribe done=${voices.done} failed=${voices.failed}`);
     // ИИ ведёт этапы (crm.aiStages): свежая затихшая переписка → этап с пометкой «ИИ» или предложение менеджеру.
     const aiStages = await step("ai stages", () => aiStagesPass(aiStagesDeps()), null);
-    if (aiStages?.reviewed) console.log(`[scheduler] ai stages reviewed=${aiStages.reviewed} applied=${aiStages.applied} proposed=${aiStages.proposed}`);
+    if (aiStages?.reviewed)
+      console.log(
+        `[scheduler] ai stages reviewed=${aiStages.reviewed} applied=${aiStages.applied} proposed=${aiStages.proposed} assigned=${aiStages.assigned} attributed=${aiStages.attributed}${aiStages.tasks ? ` tasks=${aiStages.tasks.created}/${aiStages.tasks.closed}/${aiStages.tasks.raised}` : ""}`,
+      );
     // Бот-квалификатор: ходы, не сделанные таймером (перезапуск процесса), ожидание менеджера, брошенные опросы.
     const botTurns = await step("bot", () => container().messaging.bot.sweep(), 0);
     if (botTurns) console.log(`[scheduler] crm bot turns=${botTurns}`);
