@@ -1,15 +1,12 @@
-import { NextResponse } from "next/server";
-import { markReadAction } from "@/app/admin/chats/actions";
-import { apiStaff } from "@/server/api";
-import { idParams } from "@/server/input";
-import { mobile } from "@/server/mobile-api";
+import { v1SiteProxy } from "@/server/v1-proxy";
 
 export const dynamic = "force-dynamic";
 
-/** Диалог прочитан (сбрасывает счётчик; чужой ничей диалог менеджер только смотрит). */
-export const POST = mobile(async (req, { params }: { params: Promise<{ id: string }> }) => {
-  await apiStaff(req, "chats.view");
-  const { id } = idParams(await params, "id");
-  await markReadAction(id);
-  return NextResponse.json({ ok: true });
-});
+type Ctx = { params: Promise<{ id: string }> };
+type Handler = (req: Request, ctx: Ctx) => Response | Promise<Response>;
+
+const handler = async (method: "POST") => (await import("@/server/site-handlers/mobile/chats-id-read"))[method] as Handler;
+
+export function POST(req: Request, ctx: Ctx) {
+  return v1SiteProxy("crm", req, async () => (await handler("POST"))(req, ctx));
+}

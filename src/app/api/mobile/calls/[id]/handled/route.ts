@@ -1,15 +1,12 @@
-import { NextResponse } from "next/server";
-import { apiStaff } from "@/server/api";
-import { idParams } from "@/server/input";
-import { mobile } from "@/server/mobile-api";
-import { markCallHandledAction } from "@/app/admin/crm-actions";
+import { v1SiteProxy } from "@/server/v1-proxy";
 
 export const dynamic = "force-dynamic";
 
-/** Пропущенный звонок обработан (перезвонили, написали). */
-export const POST = mobile(async (req, { params }: { params: Promise<{ id: string }> }) => {
-  await apiStaff(req, "calls.view");
-  const { id } = idParams(await params, "id");
-  const r = await markCallHandledAction(id);
-  return NextResponse.json(r, { status: r.ok ? 200 : 400 });
-});
+type Ctx = { params: Promise<{ id: string }> };
+type Handler = (req: Request, ctx: Ctx) => Response | Promise<Response>;
+
+const handler = async (method: "POST") => (await import("@/server/site-handlers/mobile/calls-id-handled"))[method] as Handler;
+
+export function POST(req: Request, ctx: Ctx) {
+  return v1SiteProxy("crm", req, async () => (await handler("POST"))(req, ctx));
+}

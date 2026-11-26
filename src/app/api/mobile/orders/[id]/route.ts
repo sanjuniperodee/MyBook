@@ -1,14 +1,12 @@
-import { NextResponse } from "next/server";
-import { apiStaff } from "@/server/api";
-import { idParams } from "@/server/input";
-import { mobile } from "@/server/mobile-api";
-import { mobileOrder } from "@/server/crm-lists/orders";
+import { v1SiteProxy } from "@/server/v1-proxy";
 
 export const dynamic = "force-dynamic";
 
-/** Карточка заказа для производства — та же выборка, что crmOrder в API v1. */
-export const GET = mobile(async (req, { params }: { params: Promise<{ id: string }> }) => {
-  const staff = await apiStaff(req, "orders.view");
-  const { id } = idParams(await params, "id");
-  return NextResponse.json(await mobileOrder(staff, id));
-});
+type Ctx = { params: Promise<{ id: string }> };
+type Handler = (req: Request, ctx: Ctx) => Response | Promise<Response>;
+
+const handler = async (method: "GET") => (await import("@/server/site-handlers/mobile/orders-id"))[method] as Handler;
+
+export function GET(req: Request, ctx: Ctx) {
+  return v1SiteProxy("crm", req, async () => (await handler("GET"))(req, ctx));
+}

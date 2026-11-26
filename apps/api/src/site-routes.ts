@@ -61,6 +61,61 @@ import * as writeAi from "@/server/site-handlers/books/write-ai";
 import * as mediaPhoto from "@/server/site-handlers/media/photo";
 import * as mediaCover from "@/server/site-handlers/media/cover";
 import * as mediaCoverPhoto from "@/server/site-handlers/media/cover-photo";
+import * as adminBoards from "@/server/site-handlers/admin/boards";
+import * as adminMobileApk from "@/server/site-handlers/admin/mobile-apk";
+import * as adminIosAppEnroll from "@/server/site-handlers/admin/ios-app-enroll";
+import * as adminIosAppStatus from "@/server/site-handlers/admin/ios-app-status";
+import * as iosAppIpa from "@/server/site-handlers/ios-app/ipa";
+import * as iosAppManifest from "@/server/site-handlers/ios-app/manifest";
+import * as iosAppUdid from "@/server/site-handlers/ios-app/udid";
+import * as mobileCalls from "@/server/site-handlers/mobile/calls";
+import * as mobileClients from "@/server/site-handlers/mobile/clients";
+import * as mobileTasks from "@/server/site-handlers/mobile/tasks";
+import * as mobileInvoices from "@/server/site-handlers/mobile/invoices";
+import * as mobileToday from "@/server/site-handlers/mobile/today";
+import * as mobileCatalog from "@/server/site-handlers/mobile/catalog";
+import * as mobileDeals from "@/server/site-handlers/mobile/deals";
+import * as mobileChats from "@/server/site-handlers/mobile/chats";
+import * as mobileStaff from "@/server/site-handlers/mobile/staff";
+import * as mobileOrders from "@/server/site-handlers/mobile/orders";
+import * as mobileTemplatesReorder from "@/server/site-handlers/mobile/templates-reorder";
+import * as mobileTemplatesId from "@/server/site-handlers/mobile/templates-id";
+import * as mobileChatsTargets from "@/server/site-handlers/mobile/chats-targets";
+import * as mobileChatsId from "@/server/site-handlers/mobile/chats-id";
+import * as mobileChatsOpen from "@/server/site-handlers/mobile/chats-open";
+import * as mobileOrdersId from "@/server/site-handlers/mobile/orders-id";
+import * as mobileOrdersIdStatus from "@/server/site-handlers/mobile/orders-id-status";
+import * as mobileCallsDial from "@/server/site-handlers/mobile/calls-dial";
+import * as mobileClientsId from "@/server/site-handlers/mobile/clients-id";
+import * as mobileTasksId from "@/server/site-handlers/mobile/tasks-id";
+import * as mobileInvoicesInfo from "@/server/site-handlers/mobile/invoices-info";
+import * as mobileInvoicesId from "@/server/site-handlers/mobile/invoices-id";
+import * as mobileDealsId from "@/server/site-handlers/mobile/deals-id";
+import * as mobileMeShift from "@/server/site-handlers/mobile/me-shift";
+import * as mobileTemplatesDraft from "@/server/site-handlers/mobile/templates-draft";
+import * as mobileCallsIdHandled from "@/server/site-handlers/mobile/calls-id-handled";
+import * as mobileTasksIdComplete from "@/server/site-handlers/mobile/tasks-id-complete";
+import * as mobileTasksIdToggle from "@/server/site-handlers/mobile/tasks-id-toggle";
+import * as mobileTasksIdSnooze from "@/server/site-handlers/mobile/tasks-id-snooze";
+import * as mobileDealsIdMove from "@/server/site-handlers/mobile/deals-id-move";
+import * as mobileDealsIdTasks from "@/server/site-handlers/mobile/deals-id-tasks";
+import * as mobileDealsIdAccept from "@/server/site-handlers/mobile/deals-id-accept";
+import * as mobileDealsIdReject from "@/server/site-handlers/mobile/deals-id-reject";
+import * as mobileDealsIdNotes from "@/server/site-handlers/mobile/deals-id-notes";
+import * as mobileDealsIdAssign from "@/server/site-handlers/mobile/deals-id-assign";
+import * as mobileTemplatesIdDuplicate from "@/server/site-handlers/mobile/templates-id-duplicate";
+import * as mobileChatsIdNote from "@/server/site-handlers/mobile/chats-id-note";
+import * as mobileChatsIdDeal from "@/server/site-handlers/mobile/chats-id-deal";
+import * as mobileChatsIdPin from "@/server/site-handlers/mobile/chats-id-pin";
+import * as mobileChatsIdCatalog from "@/server/site-handlers/mobile/chats-id-catalog";
+import * as mobileChatsIdRead from "@/server/site-handlers/mobile/chats-id-read";
+import * as mobileChatsIdStatus from "@/server/site-handlers/mobile/chats-id-status";
+import * as mobileChatsIdAssign from "@/server/site-handlers/mobile/chats-id-assign";
+import * as mobileChatsIdForward from "@/server/site-handlers/mobile/chats-id-forward";
+import * as mobileChatsMessagesMidOrder from "@/server/site-handlers/mobile/chats-messages-mid-order";
+import * as mobileChatsIdMessagesMid from "@/server/site-handlers/mobile/chats-id-messages-mid";
+import * as mobileChatsIdMessagesMidTranscribe from "@/server/site-handlers/mobile/chats-id-messages-mid-transcribe";
+import * as mobileChatsIdMessagesMidResend from "@/server/site-handlers/mobile/chats-id-messages-mid-resend";
 import * as adminBotMaterialsId from "@/server/site-handlers/admin/bot-materials-id";
 import * as adminBotMaterials from "@/server/site-handlers/admin/bot-materials";
 import * as adminCallsIdRecording from "@/server/site-handlers/admin/calls-id-recording";
@@ -192,8 +247,64 @@ const table: [string, RouteModule][] = [
   ["/api/cover-photos/{key}", mediaCoverPhoto as RouteModule],
   // Частые JSON-маршруты CRM.
   ["/api/admin/chats/inbox", chatsInbox as RouteModule],
+  // Доски задач: всё под /api/admin/boards (путь разбирает server/boards-api.ts).
+  ["/api/admin/boards/{path*}", adminBoards as RouteModule],
   // CRM (Раздел 5): маршруты /api/admin, старое приложение /api/mobile, вебхуки интеграций — обработчики в
   // src/server/site-handlers/{admin,mobile,integrations,support}; статические адреса раньше параметрических.
+  ["/api/admin/mobile-apk", adminMobileApk as RouteModule],
+  ["/api/admin/ios-app/enroll", adminIosAppEnroll as RouteModule],
+  ["/api/admin/ios-app/status", adminIosAppStatus as RouteModule],
+  ["/api/ios-app/ipa", iosAppIpa as RouteModule],
+  ["/api/ios-app/manifest", iosAppManifest as RouteModule],
+  ["/api/ios-app/udid", iosAppUdid as RouteModule],
+  ["/api/mobile/calls", mobileCalls as RouteModule],
+  ["/api/mobile/clients", mobileClients as RouteModule],
+  ["/api/mobile/tasks", mobileTasks as RouteModule],
+  ["/api/mobile/invoices", mobileInvoices as RouteModule],
+  ["/api/mobile/today", mobileToday as RouteModule],
+  ["/api/mobile/catalog", mobileCatalog as RouteModule],
+  ["/api/mobile/deals", mobileDeals as RouteModule],
+  ["/api/mobile/chats", mobileChats as RouteModule],
+  ["/api/mobile/staff", mobileStaff as RouteModule],
+  ["/api/mobile/orders", mobileOrders as RouteModule],
+  ["/api/mobile/templates/reorder", mobileTemplatesReorder as RouteModule],
+  ["/api/mobile/chats/targets", mobileChatsTargets as RouteModule],
+  ["/api/mobile/chats/open", mobileChatsOpen as RouteModule],
+  ["/api/mobile/calls/dial", mobileCallsDial as RouteModule],
+  ["/api/mobile/invoices/info", mobileInvoicesInfo as RouteModule],
+  ["/api/mobile/me/shift", mobileMeShift as RouteModule],
+  ["/api/mobile/templates/draft", mobileTemplatesDraft as RouteModule],
+  ["/api/mobile/calls/{id}/handled", mobileCallsIdHandled as RouteModule],
+  ["/api/mobile/chats/messages/{mid}/order", mobileChatsMessagesMidOrder as RouteModule],
+  ["/api/mobile/chats/{id}", mobileChatsId as RouteModule],
+  ["/api/mobile/chats/{id}/assign", mobileChatsIdAssign as RouteModule],
+  ["/api/mobile/chats/{id}/catalog", mobileChatsIdCatalog as RouteModule],
+  ["/api/mobile/chats/{id}/deal", mobileChatsIdDeal as RouteModule],
+  ["/api/mobile/chats/{id}/forward", mobileChatsIdForward as RouteModule],
+  ["/api/mobile/chats/{id}/note", mobileChatsIdNote as RouteModule],
+  ["/api/mobile/chats/{id}/pin", mobileChatsIdPin as RouteModule],
+  ["/api/mobile/chats/{id}/read", mobileChatsIdRead as RouteModule],
+  ["/api/mobile/chats/{id}/status", mobileChatsIdStatus as RouteModule],
+  ["/api/mobile/clients/{id}", mobileClientsId as RouteModule],
+  ["/api/mobile/deals/{id}", mobileDealsId as RouteModule],
+  ["/api/mobile/deals/{id}/accept", mobileDealsIdAccept as RouteModule],
+  ["/api/mobile/deals/{id}/assign", mobileDealsIdAssign as RouteModule],
+  ["/api/mobile/deals/{id}/move", mobileDealsIdMove as RouteModule],
+  ["/api/mobile/deals/{id}/notes", mobileDealsIdNotes as RouteModule],
+  ["/api/mobile/deals/{id}/reject", mobileDealsIdReject as RouteModule],
+  ["/api/mobile/deals/{id}/tasks", mobileDealsIdTasks as RouteModule],
+  ["/api/mobile/invoices/{id}", mobileInvoicesId as RouteModule],
+  ["/api/mobile/orders/{id}", mobileOrdersId as RouteModule],
+  ["/api/mobile/orders/{id}/status", mobileOrdersIdStatus as RouteModule],
+  ["/api/mobile/tasks/{id}", mobileTasksId as RouteModule],
+  ["/api/mobile/tasks/{id}/complete", mobileTasksIdComplete as RouteModule],
+  ["/api/mobile/tasks/{id}/snooze", mobileTasksIdSnooze as RouteModule],
+  ["/api/mobile/tasks/{id}/toggle", mobileTasksIdToggle as RouteModule],
+  ["/api/mobile/templates/{id}", mobileTemplatesId as RouteModule],
+  ["/api/mobile/templates/{id}/duplicate", mobileTemplatesIdDuplicate as RouteModule],
+  ["/api/mobile/chats/{id}/messages/{mid}", mobileChatsIdMessagesMid as RouteModule],
+  ["/api/mobile/chats/{id}/messages/{mid}/resend", mobileChatsIdMessagesMidResend as RouteModule],
+  ["/api/mobile/chats/{id}/messages/{mid}/transcribe", mobileChatsIdMessagesMidTranscribe as RouteModule],
   ["/api/admin/bot/materials", adminBotMaterials as RouteModule],
   ["/api/admin/calls/whatsapp/audio-auth", adminCallsWhatsappAudioAuth as RouteModule],
   ["/api/admin/calls/whatsapp/listen-auth", adminCallsWhatsappListenAuth as RouteModule],
@@ -257,7 +368,8 @@ const table: [string, RouteModule][] = [
   ["/api/admin/tasks/{id}/files/{att}", adminTasksIdFilesAtt as RouteModule],
 ];
 
-const compiled = table.map(([path, module]) => ({ path, module, re: new RegExp(`^${path.replace(/\{(\w+)\}/g, "(?<$1>[^/]+)")}$`) }));
+// {имя} — один сегмент, /{имя*} — остаток пути (может отсутствовать).
+const compiled = table.map(([path, module]) => ({ path, module, re: new RegExp(`^${path.replace(/\/\{(\w+)\*\}/g, "(?:/(?<$1>.*))?").replace(/\{(\w+)\}/g, "(?<$1>[^/]+)")}$`) }));
 
 function isNotFoundError(err: unknown): boolean {
   if (!err || typeof err !== "object") return false;

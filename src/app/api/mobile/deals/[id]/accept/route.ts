@@ -1,15 +1,12 @@
-import { NextResponse } from "next/server";
-import { apiStaff } from "@/server/api";
-import { idParams } from "@/server/input";
-import { mobile } from "@/server/mobile-api";
-import { acceptDealAction } from "@/app/admin/deals/actions";
+import { v1SiteProxy } from "@/server/v1-proxy";
 
 export const dynamic = "force-dynamic";
 
-/** Принять неразобранную заявку в работу (вместе с её диалогами). */
-export const POST = mobile(async (req, { params }: { params: Promise<{ id: string }> }) => {
-  await apiStaff(req, "deals.edit");
-  const { id } = idParams(await params, "id");
-  const r = await acceptDealAction(id);
-  return r.ok ? NextResponse.json({ ok: true }) : NextResponse.json({ error: r.message }, { status: 400 });
-});
+type Ctx = { params: Promise<{ id: string }> };
+type Handler = (req: Request, ctx: Ctx) => Response | Promise<Response>;
+
+const handler = async (method: "POST") => (await import("@/server/site-handlers/mobile/deals-id-accept"))[method] as Handler;
+
+export function POST(req: Request, ctx: Ctx) {
+  return v1SiteProxy("crm", req, async () => (await handler("POST"))(req, ctx));
+}

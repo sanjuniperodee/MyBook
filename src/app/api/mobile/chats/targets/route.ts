@@ -1,13 +1,11 @@
-import { NextResponse } from "next/server";
-import { forwardTargetsAction } from "@/app/admin/chats/actions";
-import { apiStaff } from "@/server/api";
-import { mobile } from "@/server/mobile-api";
+import { v1SiteProxy } from "@/server/v1-proxy";
 
 export const dynamic = "force-dynamic";
 
-/** Куда переслать сообщение: диалоги, которые сотрудник ведёт (поиск по имени и номеру). */
-export const GET = mobile(async (req) => {
-  await apiStaff(req, "chats.view", "chats.send");
-  const q = new URL(req.url).searchParams.get("q") ?? "";
-  return NextResponse.json({ targets: await forwardTargetsAction(q) });
-});
+type Handler = (req: Request) => Response | Promise<Response>;
+
+const handler = async (method: "GET") => (await import("@/server/site-handlers/mobile/chats-targets"))[method] as Handler;
+
+export function GET(req: Request) {
+  return v1SiteProxy("crm", req, async () => (await handler("GET"))(req));
+}

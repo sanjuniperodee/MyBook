@@ -1,17 +1,12 @@
-import { NextResponse } from "next/server";
-import { z } from "zod";
-import { apiStaff } from "@/server/api";
-import { idParams } from "@/server/input";
-import { mobile } from "@/server/mobile-api";
-import { snoozeTaskAction } from "@/app/admin/actions";
+import { v1SiteProxy } from "@/server/v1-proxy";
 
 export const dynamic = "force-dynamic";
 
-/** Отложить задачу одной кнопкой: { by: "hour" | "tomorrow" } — срок считает сервер. */
-export const POST = mobile(async (req, { params }: { params: Promise<{ id: string }> }) => {
-  await apiStaff(req);
-  const { id } = idParams(await params, "id");
-  const { by } = z.object({ by: z.enum(["hour", "tomorrow"]) }).parse(await req.json());
-  const r = await snoozeTaskAction(id, by);
-  return NextResponse.json(r, { status: r.error ? 400 : 200 });
-});
+type Ctx = { params: Promise<{ id: string }> };
+type Handler = (req: Request, ctx: Ctx) => Response | Promise<Response>;
+
+const handler = async (method: "POST") => (await import("@/server/site-handlers/mobile/tasks-id-snooze"))[method] as Handler;
+
+export function POST(req: Request, ctx: Ctx) {
+  return v1SiteProxy("crm", req, async () => (await handler("POST"))(req, ctx));
+}

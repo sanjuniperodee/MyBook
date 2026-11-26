@@ -93,6 +93,24 @@ describe("архитектура Раздела 5 (crm)", () => {
     expect(siteRoutePaths.indexOf("/api/admin/calls/whatsapp/audio-auth")).toBeLessThan(siteRoutePaths.indexOf("/api/admin/calls/whatsapp/{id}"));
     expect(new Set(siteRoutePaths).size).toBe(siteRoutePaths.length);
   });
+
+  it("параметрический адрес не перехватывает статический, стоящий ниже; доски — остаток пути", () => {
+    const re = (p: string) => new RegExp(`^${p.replace(/\/\{(\w+)\*\}/g, "(?:/.*)?").replace(/\{(\w+)\}/g, "[^/]+")}$`);
+    const shadowed = siteRoutePaths.flatMap((s, j) => (s.includes("{") ? [] : siteRoutePaths.slice(0, j).filter((p) => p.includes("{") && re(p).test(s)).map((p) => `${p} → ${s}`)));
+    expect(shadowed).toEqual([]);
+    for (const p of ["/api/mobile/tasks", "/api/mobile/deals/{id}", "/api/admin/ios-app/status", "/api/ios-app/manifest", "/api/admin/boards/{path*}"]) expect(siteRoutePaths).toContain(p);
+  });
+
+  it("доски через mybook-api получают путь после /api/admin/boards", async () => {
+    const seen: string[][] = [];
+    vi.doMock("@/server/boards-api", () => ({ boardsApi: async (_req: Request, path: string[]) => (seen.push(path), Response.json({ ok: true })) }));
+    vi.resetModules();
+    const { GET } = await import("@/server/site-handlers/admin/boards");
+    await GET(new Request("http://x/api/v1/site/admin/boards/b1/cards/%D0%B0"));
+    await GET(new Request("http://x/api/admin/boards"));
+    expect(seen).toEqual([["b1", "cards", "а"], []]);
+    vi.doUnmock("@/server/boards-api");
+  });
 });
 
 describe("API v1 Раздел 5 (crm): права сотрудника и server actions — strict parity", () => {

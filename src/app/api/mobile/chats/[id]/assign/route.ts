@@ -1,17 +1,12 @@
-import { NextResponse } from "next/server";
-import { z } from "zod";
-import { apiStaff } from "@/server/api";
-import { idParams } from "@/server/input";
-import { mobile } from "@/server/mobile-api";
-import { assignConversationAction } from "@/app/admin/chats/actions";
+import { v1SiteProxy } from "@/server/v1-proxy";
 
 export const dynamic = "force-dynamic";
 
-/** Передать диалог сотруднику ({ userId }) или снять ответственного ({ userId: null }). */
-export const POST = mobile(async (req, { params }: { params: Promise<{ id: string }> }) => {
-  await apiStaff(req, "chats.view", "chats.send");
-  const { id } = idParams(await params, "id");
-  const { userId } = z.object({ userId: z.string().uuid().nullable() }).parse(await req.json());
-  await assignConversationAction(id, userId);
-  return NextResponse.json({ ok: true });
-});
+type Ctx = { params: Promise<{ id: string }> };
+type Handler = (req: Request, ctx: Ctx) => Response | Promise<Response>;
+
+const handler = async (method: "POST") => (await import("@/server/site-handlers/mobile/chats-id-assign"))[method] as Handler;
+
+export function POST(req: Request, ctx: Ctx) {
+  return v1SiteProxy("crm", req, async () => (await handler("POST"))(req, ctx));
+}

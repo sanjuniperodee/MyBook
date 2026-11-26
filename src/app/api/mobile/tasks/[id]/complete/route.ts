@@ -1,18 +1,12 @@
-import { NextResponse } from "next/server";
-import { z } from "zod";
-import { completeTaskAction } from "@/app/admin/actions";
-import { apiStaff } from "@/server/api";
-import { idParams } from "@/server/input";
-import { mobile } from "@/server/mobile-api";
+import { v1SiteProxy } from "@/server/v1-proxy";
 
 export const dynamic = "force-dynamic";
 
-const body = z.object({ result: z.string().max(500).optional(), nextTitle: z.string().max(300).optional(), nextDue: z.string().max(20).optional() });
+type Ctx = { params: Promise<{ id: string }> };
+type Handler = (req: Request, ctx: Ctx) => Response | Promise<Response>;
 
-/** «Что сделали?» — выполнить задачу с итогом (в ленту сделки/клиента) и сразу следующий шаг, как в CRM. */
-export const POST = mobile(async (req, { params }: { params: Promise<{ id: string }> }) => {
-  await apiStaff(req);
-  const { id } = idParams(await params, "id");
-  const r = await completeTaskAction(id, body.parse(await req.json()));
-  return r.error ? NextResponse.json({ error: r.error }, { status: 400 }) : NextResponse.json({ ok: true });
-});
+const handler = async (method: "POST") => (await import("@/server/site-handlers/mobile/tasks-id-complete"))[method] as Handler;
+
+export function POST(req: Request, ctx: Ctx) {
+  return v1SiteProxy("crm", req, async () => (await handler("POST"))(req, ctx));
+}

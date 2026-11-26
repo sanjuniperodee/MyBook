@@ -1,17 +1,12 @@
-import { NextResponse } from "next/server";
-import { z } from "zod";
-import { cancelInvoiceAction, resendInvoiceAction } from "@/app/admin/invoices/actions";
-import { apiStaff } from "@/server/api";
-import { idParams } from "@/server/input";
-import { mobile } from "@/server/mobile-api";
+import { v1SiteProxy } from "@/server/v1-proxy";
 
 export const dynamic = "force-dynamic";
 
-/** Действие над счётом: { action: "cancel" | "resend" } — отменить или отправить клиенту ещё раз. */
-export const POST = mobile(async (req, { params }: { params: Promise<{ id: string }> }) => {
-  await apiStaff(req, "deals.edit");
-  const { id } = idParams(await params, "id");
-  const { action } = z.object({ action: z.enum(["cancel", "resend"]) }).parse(await req.json());
-  const r = action === "cancel" ? await cancelInvoiceAction(id) : await resendInvoiceAction(id);
-  return NextResponse.json(r, { status: r.ok ? 200 : 400 });
-});
+type Ctx = { params: Promise<{ id: string }> };
+type Handler = (req: Request, ctx: Ctx) => Response | Promise<Response>;
+
+const handler = async (method: "POST") => (await import("@/server/site-handlers/mobile/invoices-id"))[method] as Handler;
+
+export function POST(req: Request, ctx: Ctx) {
+  return v1SiteProxy("crm", req, async () => (await handler("POST"))(req, ctx));
+}

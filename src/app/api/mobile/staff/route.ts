@@ -1,12 +1,11 @@
-import { NextResponse } from "next/server";
-import { apiStaff } from "@/server/api";
-import { mobile } from "@/server/mobile-api";
-import { mobileStaff } from "@/server/crm-lists/work";
+import { v1SiteProxy } from "@/server/v1-proxy";
 
 export const dynamic = "force-dynamic";
 
-/** Сотрудники для выбора ответственного; «только свои» видят только себя. */
-export const GET = mobile(async (req) => {
-  const staff = await apiStaff(req);
-  return NextResponse.json(await mobileStaff(staff));
-});
+type Handler = (req: Request) => Response | Promise<Response>;
+
+const handler = async (method: "GET") => (await import("@/server/site-handlers/mobile/staff"))[method] as Handler;
+
+export function GET(req: Request) {
+  return v1SiteProxy("crm", req, async () => (await handler("GET"))(req));
+}

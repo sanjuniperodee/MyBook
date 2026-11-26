@@ -1,17 +1,12 @@
-import { NextResponse } from "next/server";
-import { z } from "zod";
-import { setConversationStatusAction } from "@/app/admin/chats/actions";
-import { apiStaff } from "@/server/api";
-import { idParams } from "@/server/input";
-import { mobile } from "@/server/mobile-api";
+import { v1SiteProxy } from "@/server/v1-proxy";
 
 export const dynamic = "force-dynamic";
 
-/** Закрыть диалог (вопрос решён) или открыть снова. */
-export const POST = mobile(async (req, { params }: { params: Promise<{ id: string }> }) => {
-  await apiStaff(req, "chats.view", "chats.send");
-  const { id } = idParams(await params, "id");
-  const { status } = z.object({ status: z.enum(["open", "closed"]) }).parse(await req.json());
-  await setConversationStatusAction(id, status);
-  return NextResponse.json({ ok: true });
-});
+type Ctx = { params: Promise<{ id: string }> };
+type Handler = (req: Request, ctx: Ctx) => Response | Promise<Response>;
+
+const handler = async (method: "POST") => (await import("@/server/site-handlers/mobile/chats-id-status"))[method] as Handler;
+
+export function POST(req: Request, ctx: Ctx) {
+  return v1SiteProxy("crm", req, async () => (await handler("POST"))(req, ctx));
+}

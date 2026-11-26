@@ -1,11 +1,11 @@
-import { NextResponse } from "next/server";
-import { api, apiStaff } from "@/server/api";
-import { iosStatus } from "@/server/ios-app";
+import { v1SiteProxy } from "@/server/v1-proxy";
 
 export const dynamic = "force-dynamic";
 
-/** Телефоны сотрудника и готова ли для них сборка — страница «Приложение для телефона» спрашивает, пока ждёт регистрацию. */
-export const GET = api(async (req) => {
-  const staff = await apiStaff(req);
-  return NextResponse.json(await iosStatus(staff.user.id), { headers: { "Cache-Control": "no-store" } });
-});
+type Handler = (req: Request) => Response | Promise<Response>;
+
+const handler = async (method: "GET") => (await import("@/server/site-handlers/admin/ios-app-status"))[method] as Handler;
+
+export function GET(req: Request) {
+  return v1SiteProxy("crm", req, async () => (await handler("GET"))(req));
+}
