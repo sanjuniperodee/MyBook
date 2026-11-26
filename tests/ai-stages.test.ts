@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { AI_STAGES, aiStageDecision, parseAiStages, quoteIn, stageRoles } from "@/shared/domain/aiStages";
 import { aiNoteText, aiProposalTitle } from "@/shared/domain/aiProposals";
+import { AI_CRM_FLAGS, aiFlagOn, aiFlagValue, isAiCrmFlag } from "@/shared/domain/aiCrm";
 import { cleanReason, normalizeStageReview, numberedTranscript, stageReviewSchema } from "@/modules/assistant/domain/stageReview";
 
 vi.mock("server-only", () => ({}));
@@ -202,5 +203,17 @@ describe("ИИ ведёт этапы: проход", () => {
   it("ошибка модели по одной сделке не останавливает проход", async () => {
     const { d } = deps(null, { review: async () => Promise.reject(new Error("429")) });
     expect(await aiStagesPass(d)).toEqual({ reviewed: 0, applied: 0, proposed: 0 });
+  });
+});
+
+describe("ИИ в CRM: выключатели", () => {
+  it("всё выключено по умолчанию; этапы — JSON { on }, остальные — on/off", () => {
+    for (const f of AI_CRM_FLAGS) expect(aiFlagOn(f.key, null)).toBe(false);
+    expect(aiFlagOn("crm.aiStages", aiFlagValue("crm.aiStages", true))).toBe(true);
+    expect(aiFlagOn("crm.aiTranscribe", aiFlagValue("crm.aiTranscribe", true))).toBe(true);
+    expect(aiFlagOn("crm.aiTranscribe", aiFlagValue("crm.aiTranscribe", false))).toBe(false);
+    expect(parseAiStages(aiFlagValue("crm.aiStages", true))).toEqual({ on: true });
+    expect(isAiCrmFlag("crm.aiTranscribe")).toBe(true);
+    expect(isAiCrmFlag("ai.apiKey")).toBe(false);
   });
 });

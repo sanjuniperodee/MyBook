@@ -305,6 +305,26 @@ export class MessagingModule {
     return { sent, failed };
   }
 
+  /**
+   * Все голосовые сразу в текст («ИИ в CRM» → crm.aiTranscribe): нерасшифрованные голосовые с since, новые первыми, до
+   * limit за раз. Не вышло (файла нет, модель не слушает, сбой) — пустая расшифровка: второй раз сама не пробует, а кнопка
+   * «расшифровать» в чате остаётся. Модель не подключена — ничего не трогает. Возвращает, сколько расшифровано.
+   */
+  async autoTranscribe(since: Date, limit: number): Promise<{ done: number; failed: number }> {
+    if (!this.deps.sellerModel?.media) return { done: 0, failed: 0 };
+    const result = { done: 0, failed: 0 };
+    for (const id of await this.messages.untranscribedAudio(since, limit)) {
+      try {
+        await this.transcribe(id);
+        result.done++;
+      } catch {
+        await this.messages.setTranscript(id, "");
+        result.failed++;
+      }
+    }
+    return result;
+  }
+
   /** Расшифровка голосового (по кнопке в чате): модель «Голосовые и фото»; готовая — из базы. */
   async transcribe(messageId: string): Promise<string> {
     const m = await this.messages.findOne(messageId);

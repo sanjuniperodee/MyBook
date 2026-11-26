@@ -324,6 +324,17 @@ export class DrizzleMessageRepository implements MessageRepository, MessageMedia
     await executor().update(crmMessages).set({ deletedAt: at }).where(eq(crmMessages.id, id));
   }
 
+  /** Голосовые без расшифровки (ни разу не пробовали) с этого момента, новые — первыми; удалённые не берём. */
+  async untranscribedAudio(since: Date, limit: number): Promise<string[]> {
+    const rows = await executor()
+      .select({ id: crmMessages.id })
+      .from(crmMessages)
+      .where(and(eq(crmMessages.type, "audio"), isNull(crmMessages.transcript), isNull(crmMessages.deletedAt), gte(crmMessages.createdAt, since)))
+      .orderBy(desc(crmMessages.createdAt))
+      .limit(limit);
+    return rows.map((r) => r.id);
+  }
+
   async setTranscript(id: string, text: string) {
     await executor().update(crmMessages).set({ transcript: text }).where(eq(crmMessages.id, id));
   }

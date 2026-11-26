@@ -4,18 +4,14 @@
  * Без базы и сети — для сервера, страницы настроек и тестов.
  */
 import { parseStageOrder, type StageOrderConfig } from "./stageOrder";
+import { aiFlagOn } from "./aiCrm";
 
 export interface AiStagesConfig {
   on: boolean;
 }
 
 export function parseAiStages(raw: string | null | undefined): AiStagesConfig {
-  try {
-    const v: unknown = JSON.parse(raw || "{}");
-    return { on: !!v && typeof v === "object" && (v as Record<string, unknown>).on === true };
-  } catch {
-    return { on: false };
-  }
+  return { on: aiFlagOn("crm.aiStages", raw) };
 }
 
 /** Пороги и лимиты прохода. Уверенность — то, что вернула модель (0–1). */

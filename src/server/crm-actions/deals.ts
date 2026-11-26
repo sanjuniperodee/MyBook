@@ -10,6 +10,7 @@ import { STAGE_ORDER_DEFAULTS, STAGE_ORDER_LIMITS } from "@/shared/domain/stageO
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { aiFlagValue, isAiCrmFlag } from "@/shared/domain/aiCrm";
 import { uuid } from "@/server/input";
 import { assertStaff, assertWorkable, audit, can, canAssignOthers, canSeeAssigned, ForbiddenError, type Staff } from "@/server/access";
 import { notify, staffNotifier } from "@/modules/workspace";
@@ -676,11 +677,17 @@ export async function saveStageOrderAction(input: z.input<typeof stageOrderSchem
  * в отказ двигает сама (с пометкой «ИИ», причиной и цитатой), остальное предлагает менеджеру кнопкой в карточке сделки.
  */
 export async function saveAiStagesAction(on: boolean): Promise<{ ok?: true; error?: string }> {
+  return saveAiFlagAction("crm.aiStages", on);
+}
+
+/** Выключатель «ИИ в CRM» (shared/domain/aiCrm): что ИИ делает за менеджеров — этапы, голосовые и т. д. */
+export async function saveAiFlagAction(key: string, on: boolean): Promise<{ ok?: true; error?: string }> {
   const staff = await assertStaff("settings.manage");
-  const next = { on: z.boolean().parse(on) };
-  const before = await getSetting("crm.aiStages");
-  await saveSettings({ "crm.aiStages": JSON.stringify(next) }, staff.user.id);
-  await audit(staff, "settings.update", "settings", "crm.aiStages", { from: before, to: next });
+  if (!isAiCrmFlag(key)) return { error: "Нет такой настройки" };
+  const value = aiFlagValue(key, z.boolean().parse(on));
+  const before = await getSetting(key);
+  await saveSettings({ [key]: value }, staff.user.id);
+  await audit(staff, "settings.update", "settings", key, { from: before, to: value });
   revalidatePath("/admin/deals/stages");
   return { ok: true };
 }
