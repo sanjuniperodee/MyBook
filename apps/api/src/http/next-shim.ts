@@ -4,6 +4,7 @@
  * (http/context.ts), поэтому вход, права и язык работают так же, как в Next. Ставить cookie API не умеет: сессия
  * отдаётся токеном в теле ответа (Authorization: Bearer).
  */
+import { ResponseCookies } from "next/dist/compiled/@edge-runtime/cookies";
 import { currentContext } from "./context";
 
 function cookieMap(): Map<string, string> {
@@ -63,8 +64,25 @@ export const userAgent = unavailable("userAgent");
 export const RedirectType = { push: "push", replace: "replace" };
 
 export class NextRequest extends Request {}
+/**
+ * Как NextResponse из Next: `cookies` пишет Set-Cookie в заголовки ответа, `redirect` принимает статус или ResponseInit.
+ * Response.redirect из undici понимает только число (ResponseInit давал «Invalid status code 0») и отдаёт неизменяемые
+ * заголовки, поэтому ответ собирается конструктором.
+ */
 export class NextResponse extends Response {
+  readonly cookies: ResponseCookies;
+  constructor(body?: BodyInit | null, init?: ResponseInit) {
+    super(body, init);
+    this.cookies = new ResponseCookies(this.headers);
+  }
   static json(data: unknown, init?: ResponseInit) {
-    return Response.json(data, init);
+    const res = Response.json(data, init);
+    return new NextResponse(res.body, { status: res.status, statusText: res.statusText, headers: res.headers });
+  }
+  static redirect(url: string | URL, init?: number | ResponseInit) {
+    const base: ResponseInit = typeof init === "number" ? { status: init } : (init ?? {});
+    const headers = new Headers(base.headers);
+    headers.set("Location", new URL(String(url)).toString());
+    return new NextResponse(null, { ...base, status: base.status ?? 307, headers });
   }
 }
