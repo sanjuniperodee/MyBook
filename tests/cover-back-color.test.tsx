@@ -5,7 +5,7 @@ import { spawnSync } from "node:child_process";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import sharp from "sharp";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GET } from "@/app/api/covers/[file]/route";
 import { CoverBackPreview, PREVIEW_PAGES } from "@/components/cover/CoverBackPreview";
 import { backContent } from "@/lib/book/cover-back";
@@ -128,6 +128,15 @@ const gradient = (from: string, to: string, angle: number): CoverDesign => parse
 const asRow = (v: unknown) => v as Book["coverDesign"];
 
 describe("цвет оборота: превью = печать", () => {
+  beforeEach(() => {
+    vi.stubEnv("DATABASE_URL", "postgres://test/mybook");
+    vi.stubEnv("WEB_API_ONLY", "");
+    vi.stubEnv("WEB_USE_API_V1", "");
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it("обложка из конструктора со своим цветом (как у Анжелы): оборот в превью — цвет конструктора, а не оборот шаблона", async () => {
     const b = book({ coverTemplate: "photo", coverDesign: asRow(color("#1F1A17")) });
     const [p, v] = await Promise.all([printed(b), previewed(b)]);

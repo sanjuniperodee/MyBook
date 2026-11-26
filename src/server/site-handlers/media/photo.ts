@@ -1,0 +1,28 @@
+import "server-only";
+import { createHash } from "node:crypto";
+import { api, apiViewer, HttpError } from "@/server/api";
+import { container } from "@/server/container";
+import { idParams } from "@/server/input";
+import { fileRoute } from "@/server/file-route";
+import { serveStorageFile } from "@/server/range-file";
+
+export const GET = fileRoute("photo", api(async (req, { params }: { params: Promise<{ id: string }> }) => {
+  const { id } = idParams(await params, "id");
+  const { viewer } = await apiViewer(req, await container().authoring.queries.photoBookId(id));
+  const photo = await container().authoring.queries.photoFor(id, viewer);
+  if (!photo) throw new HttpError(404, "notFound");
+  const param = new URL(req.url).searchParams.get("size");
+  const size = param === "full" || param === "view" || param === "original" ? param : "thumb";
+  // «original» — исходный снимок для редактора фото: у правленого фото файл уже с правкой.
+  const key = size === "thumb" ? photo.thumbKey : size === "original" ? await container().authoring.photos.originalKey(photo) : photo.storageKey;
+  // Файл может смениться (поворот), поэтому кэш проверяется по ключу хранилища.
+  const etag = `"${createHash("sha1").update(`${size}:${key}`).digest("hex").slice(0, 16)}"`;
+  // «view» запрашивается пачкой (3D-книга снимает одно фото на несколько сторон) — минуты кэша убирают повторные загрузки.
+  const headers = { "Content-Type": "image/jpeg", "Cache-Control": size === "view" ? "private, max-age=60, must-revalidate" : "private, no-cache", ETag: etag };
+  if (req.headers.get("if-none-match") === etag) return new Response(null, { status: 304, headers });
+  // Копия для просмотра собирается sharp и лежит в кэше; снимок и миниатюра — потоком из хранилища, не целиком в память.
+  if (size === "view") return new Response(new Uint8Array(await container().authoring.photoViewFile(key)), { headers });
+  const res = await serveStorageFile(key, headers["Content-Type"], req, headers, (r) => container().authoring.photoStream(key, r));
+  if (!res) throw new HttpError(404, "notFound");
+  return res;
+}));

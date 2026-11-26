@@ -1,13 +1,7 @@
-import { NextResponse } from "next/server";
-import { z } from "zod";
-import { idParams, uuid } from "@/server/input";
-import { api, apiViewer } from "@/server/api";
-import { container } from "@/server/container";
+import { v1SiteProxy } from "@/server/v1-proxy";
 
-export const PUT = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
-  const { id } = idParams(await params, "id");
-  const { viewer } = await apiViewer(req, id);
-  const { ids } = z.object({ ids: z.array(uuid).max(500) }).parse(await req.json());
-  await container().authoring.photos.reorder(id, viewer, ids);
-  return NextResponse.json({ ok: true });
-});
+type Ctx = { params: Promise<{ id: string }> };
+
+export function PUT(req: Request, ctx: Ctx) {
+  return v1SiteProxy("book", req, async () => (await import("@/server/site-handlers/books/photos-order")).PUT(req, ctx));
+}

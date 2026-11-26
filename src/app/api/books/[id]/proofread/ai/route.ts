@@ -1,34 +1,9 @@
-import { NextResponse } from "next/server";
-import { z } from "zod";
-import { api, apiBook, HttpError } from "@/server/api";
-import { hitClientAi } from "@/server/clientAiLimits";
-import { container } from "@/server/container";
-import { AssistantError } from "@/modules/assistant";
-import { isLocale } from "@/i18n/config";
-import { bookKind } from "@/lib/content/kinds";
-import { idParams } from "@/server/input";
+import { v1SiteProxy } from "@/server/v1-proxy";
 
 export const maxDuration = 120;
 
-const schema = z.object({ text: z.string().min(1).max(20_000), ui: z.string().optional() });
+type Ctx = { params: Promise<{ id: string }> };
 
-/**
- * AI-корректор: запятые, грамматика, опечатки в ответе. Модель и лимиты — «Интеграции» → AI → «AI-корректор у клиента».
- * Лимиты на пользователя: у бесплатных моделей общий дневной лимит запросов.
- */
-export const POST = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
-  const { id } = idParams(await params, "id");
-  const { user, book } = await apiBook(req, id);
-  const { text, ui } = schema.parse(await req.json());
-  const proofreader = container().assistant.proofreader;
-  if (!(await proofreader.configured())) throw new HttpError(503, "proofreadOff");
-  if ((await hitClientAi("proofread", user.id)) !== "ok") throw new HttpError(429, "proofreadRate");
-  try {
-    const issues = await proofreader.check(text, book.language, isLocale(ui) ? ui : book.language, { kind: bookKind(book.theme) });
-    return NextResponse.json({ issues });
-  } catch (err) {
-    if (!AssistantError.is(err)) throw err;
-    console.error("[proofread]", err.message);
-    throw new HttpError(err.code === "notConfigured" ? 503 : 502, err.code === "notConfigured" ? "proofreadOff" : "proofreadBusy");
-  }
-});
+export function POST(req: Request, ctx: Ctx) {
+  return v1SiteProxy("book", req, async () => (await import("@/server/site-handlers/books/proofread-ai")).POST(req, ctx));
+}

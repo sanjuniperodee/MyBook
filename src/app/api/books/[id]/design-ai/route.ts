@@ -1,34 +1,13 @@
-import { NextResponse } from "next/server";
-import { api, apiBook } from "@/server/api";
-import { idParams } from "@/server/input";
-import {
-  designAiBody,
-  designAiInfo,
-  runDesignAiRequest,
-} from "@/server/design-ai-request";
+import { v1SiteProxy } from "@/server/v1-proxy";
 
 export const maxDuration = 120;
 
-/** Остаток лимита ИИ-дизайнера, пакеты и подсказки под книгу (src/server/design-ai-request.ts — общий с API v1). */
-export const GET = api(
-  async (req, { params }: { params: Promise<{ id: string }> }) => {
-    const { id } = idParams(await params, "id");
-    const { user, book } = await apiBook(req, id);
-    return NextResponse.json(await designAiInfo(user.id, book));
-  },
-);
+type Ctx = { params: Promise<{ id: string }> };
 
-/** Просьба к ИИ-дизайнеру (правка, с нуля, варианты, оценка) — для страниц или обложки. */
-export const POST = api(
-  async (req, { params }: { params: Promise<{ id: string }> }) => {
-    const { id } = idParams(await params, "id");
-    const { user, book } = await apiBook(req, id, { editable: true });
-    return NextResponse.json(
-      await runDesignAiRequest(
-        user,
-        book,
-        designAiBody.parse(await req.json()),
-      ),
-    );
-  },
-);
+export function GET(req: Request, ctx: Ctx) {
+  return v1SiteProxy("book", req, async () => (await import("@/server/site-handlers/books/design-ai")).GET(req, ctx));
+}
+
+export function POST(req: Request, ctx: Ctx) {
+  return v1SiteProxy("book", req, async () => (await import("@/server/site-handlers/books/design-ai")).POST(req, ctx));
+}

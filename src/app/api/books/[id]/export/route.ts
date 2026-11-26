@@ -1,19 +1,7 @@
-import { api, apiBook, HttpError } from "@/server/api";
-import { container } from "@/server/container";
-import { idParams } from "@/server/input";
+import { v1SiteProxy } from "@/server/v1-proxy";
 
-/** Текст книги одним файлом — резервная копия для клиента. */
-export const GET = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
-  const { id } = idParams(await params, "id");
-  await apiBook(req, id);
-  const doc = await container().previews.manuscript(id);
-  if (!doc) throw new HttpError(404, "bookNotFound");
-  const filename = encodeURIComponent(`${doc.title}.txt`);
-  return new Response("﻿" + doc.text, {
-    headers: {
-      "Content-Type": "text/plain; charset=utf-8",
-      "Content-Disposition": `attachment; filename="book.txt"; filename*=UTF-8''${filename}`,
-      "Cache-Control": "private, no-store",
-    },
-  });
-});
+type Ctx = { params: Promise<{ id: string }> };
+
+export function GET(req: Request, ctx: Ctx) {
+  return v1SiteProxy("book", req, async () => (await import("@/server/site-handlers/books/export")).GET(req, ctx));
+}

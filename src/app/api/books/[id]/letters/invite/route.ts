@@ -1,13 +1,7 @@
-import { NextResponse } from "next/server";
-import { z } from "zod";
-import { api, apiViewer } from "@/server/api";
-import { container } from "@/server/container";
-import { idParams } from "@/server/input";
+import { v1SiteProxy } from "@/server/v1-proxy";
 
-/** Включает/выключает приём писем от близких по публичной ссылке. */
-export const POST = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
-  const { id } = idParams(await params, "id");
-  const { viewer } = await apiViewer(req, id);
-  const { enabled, regenerate } = z.object({ enabled: z.boolean(), regenerate: z.boolean().optional() }).parse(await req.json());
-  return NextResponse.json({ token: await container().authoring.books.setLetterInvite(id, viewer, enabled, !!regenerate) });
-});
+type Ctx = { params: Promise<{ id: string }> };
+
+export function POST(req: Request, ctx: Ctx) {
+  return v1SiteProxy("book", req, async () => (await import("@/server/site-handlers/books/letters-invite")).POST(req, ctx));
+}

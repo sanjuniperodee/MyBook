@@ -50,7 +50,10 @@ export function redirect(url: string): never {
   throw Object.assign(new Error("NEXT_REDIRECT"), { digest: `NEXT_REDIRECT;replace;${url};307;` });
 }
 export const permanentRedirect = redirect;
-export const notFound = unavailable("notFound");
+/** Совместимо с Next notFound(): файловые site-маршруты (обложки и др.) завершаются 404. */
+export function notFound(): never {
+  throw Object.assign(new Error("NEXT_NOT_FOUND"), { digest: "NEXT_HTTP_ERROR_FALLBACK;404" });
+}
 export const forbidden = unavailable("forbidden");
 export const unauthorized = unavailable("unauthorized");
 export const useRouter = unavailable("useRouter");

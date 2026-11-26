@@ -1,5 +1,5 @@
 import sharp from "sharp";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { allCoverTemplates, coverMoods, coverTemplates, getCoverTemplate, isKnownCover, pickerCovers, renderCoverSvg } from "@/lib/book/covers";
 import { photoPlacement } from "@/lib/book/photo-cover";
 import { messagesFor } from "@/i18n/messages";
@@ -112,6 +112,15 @@ describe("обложки с фото клиента", () => {
 });
 
 describe("фон обложки отдельным файлом", () => {
+  beforeEach(() => {
+    vi.stubEnv("DATABASE_URL", "postgres://test/mybook");
+    vi.stubEnv("WEB_API_ONLY", "");
+    vi.stubEnv("WEB_USE_API_V1", "");
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   const get = async (file: string, encoding = "") => {
     const { GET } = await import("@/app/api/covers/[file]/route");
     return GET(new Request(`http://x/api/covers/${file}`, { headers: { "accept-encoding": encoding } }), { params: Promise.resolve({ file }) });
