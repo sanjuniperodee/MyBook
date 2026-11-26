@@ -22,6 +22,10 @@ pm2 delete mybook >/dev/null 2>&1 || true
 STORAGE_DIR="$({ sed -n 's/^STORAGE_DIR=//p' "$ROOT/.env" 2>/dev/null || true; } | tail -n 1 | tr -d "\"'\r")"
 case "$STORAGE_DIR" in /*) rm -rf "$STORAGE_DIR/cache/preview" "$STORAGE_DIR/cache/pages" && echo "  кэш предпросмотров удалён" ;; esac
 pm2 start "$ROOT/deploy/ecosystem.config.cjs" --only mybook
+# Бэкенд того же релиза: сайт ходит в БД только через mybook-api (ADR 0013), фон — в mybook-worker.
+for app in mybook-api mybook-worker; do
+  if pm2 describe "$app" >/dev/null 2>&1; then pm2 delete "$app" >/dev/null 2>&1 || true; pm2 start "$ROOT/deploy/ecosystem.config.cjs" --only "$app"; fi
+done
 pm2 save
 
 for i in $(seq 1 30); do

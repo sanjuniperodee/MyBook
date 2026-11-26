@@ -21,7 +21,7 @@ cd "$ROOT"
 
 PORT="${MYBOOK_PORT:-3040}"
 SMOKE_PORT="${MYBOOK_SMOKE_PORT:-3041}"
-KEEP="${MYBOOK_KEEP_RELEASES:-1}"
+KEEP="${MYBOOK_KEEP_RELEASES:-3}"
 # Релизы лежат рядом с репозиторием, а не внутри: иначе TypeScript и ESLint видят чужие копии исходников
 BASE="${MYBOOK_RELEASES_DIR:-$(dirname "$ROOT")/mybook-releases}"
 RELEASES="$BASE/releases"
@@ -195,7 +195,16 @@ check_app() {
   return 1
 }
 
-echo "→ Проверка новой версии на порту $SMOKE_PORT (миграции БД применятся здесь, фоновые задачи выключены)"
+# Процессы бэкенда из нового релиза находят все свои пакеты (26.11 mybook-api дважды не стартовал: нет pg, нет
+# зависимости hunspell-asm). Не находят — ничего не переключаем и PM2 не трогаем.
+echo "→ Проверка бэкенда нового релиза: mybook-api и mybook-worker запускаются (без БД)"
+if [ -f "$REL/api.mjs" ] && ! node "$ROOT/scripts/smoke-bundles.mjs" "$REL"; then
+  echo "✗ Бэкенд нового релиза не запускается — текущая версия продолжает работать, ничего не переключено."
+  rm -rf "$REL"
+  exit 1
+fi
+
+echo "→ Проверка новой версии на порту $SMOKE_PORT (фоновые задачи выключены; миграции БД применяет mybook-api при старте)"
 (
   cd "$REL"
   SCHEDULER=off NODE_ENV=production PORT="$SMOKE_PORT" HOSTNAME=localhost TZ=Asia/Almaty \
@@ -247,10 +256,22 @@ fi
 if has_files; then
   if curl -fsS -m 3 "http://127.0.0.1:${FILES_PORT:-3050}/healthz" >/dev/null 2>&1; then echo "✓ mybook-files отвечает"; else echo "⚠ mybook-files не отвечает — файлы отдаёт сайт. Логи: pm2 logs mybook-files --nostream --lines 50"; fi
 fi
-# mybook-api не ответил — выкатку не ломает: сайт работает без него, его маршруты (/api/v1) — пока только у приложения.
+# Сайт ходит в БД только через mybook-api (ADR 0013): не ответил новый api — откат сайта и api на прежний релиз.
 if has_api; then
-  ok=""; for _ in $(seq 1 20); do curl -fsS -m 3 "http://127.0.0.1:${MYBOOK_API_PORT:-3044}/api/v1/health" 2>/dev/null | grep -q "\"ok\":true" && { ok=1; break; }; sleep 1; done
-  if [ -n "$ok" ]; then echo "✓ mybook-api отвечает"; else echo "⚠ mybook-api не отвечает. Логи: pm2 logs mybook-api --nostream --lines 50"; fi
+  ok=""; for _ in $(seq 1 40); do curl -fsS -m 3 "http://127.0.0.1:${MYBOOK_API_PORT:-3044}/api/v1/health" 2>/dev/null | grep -q "\"ok\":true" && { ok=1; break; }; sleep 1; done
+  if [ -n "$ok" ]; then
+    echo "✓ mybook-api отвечает"
+  else
+    echo "✗ mybook-api не отвечает. Логи: pm2 logs mybook-api --nostream --lines 50"
+    if [ -n "$PREV" ] && [ -d "$PREV" ]; then
+      echo "→ Откат на $(basename "$PREV")"
+      ln -sfn "$PREV" "$CURRENT"
+      purge_previews
+      pm2_apply
+      api_apply
+    fi
+    exit 1
+  fi
 fi
 # Основная версия отвечает — запасная больше не нужна.
 kill "$SMOKE_PID" 2>/dev/null || true
@@ -284,9 +305,8 @@ if pm2 describe mybook-gowa >/dev/null 2>&1 && ! command -v ffmpeg >/dev/null; t
   fi
 fi
 
-# Историю релизов не храним (диск сервера общий и небольшой): после удачной выкатки остаются последние $KEEP — по
-# умолчанию только текущий. Предыдущий нужен лишь до проверки нового (автооткат выше) и удаляется вместе с остальными;
-# вернуть старую версию — выкатить её коммит заново.
+# После удачной выкатки остаются последние $KEEP релизов (по умолчанию 3: текущий и два прежних) — откат
+# deploy/rollback.sh без новой сборки. Места на диске хватает (26.11: свободно 189 ГБ из 217).
 ls -1dt "$RELEASES"/*/ 2>/dev/null | sed 's:/$::' | tail -n +"$((KEEP + 1))" | while read -r old; do
   [ "$old" = "$(readlink -f "$CURRENT")" ] || { rm -rf "$old" && echo "  удалён старый релиз $(basename "$old")"; }
 done
