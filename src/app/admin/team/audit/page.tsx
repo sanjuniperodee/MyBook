@@ -1,4 +1,3 @@
-import { container } from "@/server/container";
 import Link from "next/link";
 import { requireStaff } from "@/server/access";
 import { staffLabel } from "@/shared/domain/staff";
@@ -8,6 +7,7 @@ import { History } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { AuditFilters } from "./AuditFilters";
 import { actions, detailsText, entityLabels } from "./phrases";
+import { crmRead } from "@/server/v1-local-bridge-crm";
 
 export const metadata = { title: "Журнал действий" };
 
@@ -18,7 +18,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
   const sp = await searchParams;
   const actor = sp.actor && /^[0-9a-f-]{36}$/.test(sp.actor) ? sp.actor : undefined;
   const entity = sp.entity ? sp.entity.slice(0, 30) : undefined;
-  const [rows, team] = await Promise.all([container().access.queries.auditLog({ actorId: actor, entity }), container().access.queries.allStaff()]);
+  const { rows, team } = await crmRead("pages.audit", { actor, entity });
 
   // Области, которые встречаются в выборке, — чипами; выбранная остаётся в списке, даже если в выборке только она.
   const counts = new Map<string, number>();

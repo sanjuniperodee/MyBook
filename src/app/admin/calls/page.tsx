@@ -1,4 +1,3 @@
-import { container } from "@/server/container";
 import Link from "next/link";
 import { PhoneCall, PhoneIncoming, PhoneMissed, PhoneOutgoing, Settings } from "lucide-react";
 import { can, contactView, requireStaff } from "@/server/access";
@@ -14,6 +13,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { CallRowActions } from "./CallActions";
 import { RecordingPlayer } from "./RecordingPlayer";
 import { LiveCalls } from "./LiveCalls";
+import { crmRead } from "@/server/v1-local-bridge-crm";
 
 export const metadata = { title: "Звонки" };
 
@@ -46,11 +46,11 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
   const sp = await searchParams;
   const f: Filter = sp.f && sp.f in filters ? (sp.f as Filter) : "all";
   const days = Math.min(90, Math.max(1, Number(sp.days) || 14));
-  const [{ rows, stats }, admins, provider] = await Promise.all([
-    container().reporting.callJournal({ userId: staff.user.id, seesAll: staff.scope === "all" }, f, days),
-    container().access.queries.allStaff(),
-    container().telephony.phone.currentProvider(),
-  ]);
+  const {
+    journal: { rows, stats },
+    admins,
+    provider,
+  } = await crmRead("pages.calls", { f, days });
   const names = new Map(admins.map((a) => [a.id, staffLabel(a)]));
   const recordings = can(staff, "calls.recordings");
   const period = days === 1 ? "сегодня" : `за ${days} дн.`;

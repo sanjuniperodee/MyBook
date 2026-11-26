@@ -11,7 +11,9 @@ import { messagesFor } from "@/i18n/messages";
 import { CLIENT_OCCASIONS, monthAfter, type ClientFilters } from "../ui/clientFilters";
 import { extraPhoneMatch, phoneMatch, tagMatch } from "./phoneSearch";
 
-export const STALLED_DAYS = 14;
+import { STALLED_DAYS } from "../ui/books";
+
+export { STALLED_DAYS };
 
 // Деньги клиента — из единого журнала revenue_events: оплаченные заказы и платежи по ручным сделкам.
 const ltv = sql<number>`coalesce((select sum(e.amount) from revenue_events e where e.client_id = ${usersId}), 0)::int`;

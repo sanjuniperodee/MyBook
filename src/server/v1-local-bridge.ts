@@ -110,8 +110,12 @@ export function fromWebSessionUser(dto: WebSessionUserDto): CurrentUser {
   };
 }
 
+// Один общий промис: одновременные первые вызовы (strict-сверка зовёт local и API разом) получают один экземпляр модуля.
+let containerModule: Promise<typeof import("./container")> | undefined;
+const loadContainer = () => (containerModule ??= import("./container"));
+
 export async function localCurrentUserByToken(token: string): Promise<CurrentUser | null> {
-  const { container } = await import("./container");
+  const { container } = await loadContainer();
   const identity = container().identity;
   const now = new Date();
   const user = await identity.queries.userBySession(identity.tokens.hash(token), now);

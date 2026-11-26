@@ -1,9 +1,9 @@
 import { PageHeader } from "@/components/admin/PageHeader";
-import { can, canSeeAssigned, requireStaff } from "@/server/access";
-import { container } from "@/server/container";
-import { FILE_MAX_BYTES, FILES_MAX } from "@/modules/support";
+import { can, requireStaff } from "@/server/access";
+import { FILE_MAX_BYTES, FILES_MAX } from "@/modules/support/domain";
 import type { ChatHit } from "../actions";
 import { SupportForm } from "./SupportForm";
+import { crmRead } from "@/server/v1-local-bridge-crm";
 
 export const metadata = { title: "Новое обращение" };
 
@@ -18,9 +18,8 @@ export default async function NewTicketPage({ searchParams }: { searchParams: Pr
   const sp = await searchParams;
   const canPickChat = can(staff, "chats.view");
   const c = param(sp.c, 40);
-  const conv = canPickChat && /^[0-9a-f-]{36}$/i.test(c) ? await container().messaging.queries.conversation(c) : null;
-  const chat: ChatHit | null =
-    conv && canSeeAssigned(staff, conv.assigneeId) ? { id: conv.id, contact: conv.contactName, chatId: conv.chatId, channel: conv.channel, last: "", lastAt: null } : null;
+  const conv = canPickChat && /^[0-9a-f-]{36}$/i.test(c) ? await crmRead("pages.supportChat", { id: c }) : null;
+  const chat: ChatHit | null = conv ? { ...conv, last: "", lastAt: null } : null;
   return (
     <div className="flex flex-col gap-5">
       <PageHeader back={{ href: "/admin/support", label: "Обращения" }} title="Новое обращение">

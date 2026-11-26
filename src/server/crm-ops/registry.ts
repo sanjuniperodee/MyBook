@@ -9,6 +9,7 @@ import type { z } from "zod";
  * грузится по требованию. Операции не меняют данные (при PARITY_MODE=shadow их зовут дважды).
  */
 const areas = {
+  pages: () => import("./pages"),
 } as const;
 
 type Areas = { [K in keyof typeof areas]: Awaited<ReturnType<(typeof areas)[K]>> };

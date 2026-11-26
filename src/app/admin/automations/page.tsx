@@ -1,6 +1,4 @@
-import { container } from "@/server/container";
 import { requireStaff } from "@/server/access";
-import { boardViewer } from "@/server/boards-api";
 import { staffOptions } from "@/modules/access/ui";
 import { formatDate } from "@/lib/dates";
 import { Zap } from "lucide-react";
@@ -9,22 +7,15 @@ import { PageHeader } from "@/components/admin/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { AutomationRow, NewRuleButton } from "./AutomationEditor";
 import { InlineStats } from "@/components/admin/bars";
-import { getSetting } from "@/modules/workspace";
-import { RULE_STATS_DAYS } from "@/modules/reporting";
 import { formatPrice } from "@/config/site";
 import { parseHolidays } from "@/modules/automation/domain";
+import { crmRead } from "@/server/v1-local-bridge-crm";
 
 export const metadata = { title: "Автоматизации" };
 
 export default async function AutomationsPage() {
-  const staff = await requireStaff("settings.manage");
-  const [rules, stages, admins, holidays, sales] = await Promise.all([
-    container().automation.rules.list(),
-    container().sales.queries.listStages(),
-    container().access.queries.allStaff(),
-    getSetting("automation.holidays"),
-    container().reporting.automationStats(),
-  ]);
+  await requireStaff("settings.manage");
+  const { rules, stages, admins, holidays, sales, pipelines, boards, statsDays: RULE_STATS_DAYS } = await crmRead("pages.automations", {});
   // Повторные продажи правила (contacts-16): у правила, которое создаёт сделки, — даже если за период их нет.
   const salesLabel = (r: (typeof rules)[number]) => {
     const s = sales.get(r.id);
@@ -32,13 +23,12 @@ export default async function AutomationsPage() {
     const { created, won, amount } = s ?? { created: 0, won: 0, amount: 0 };
     return `за ${RULE_STATS_DAYS} дней: создано сделок ${created}, выиграно ${won}, оплачено ${formatPrice(amount)}`;
   };
-  const pipelines = await container().sales.queries.listPipelines();
   const pname = new Map(pipelines.map((p) => [p.id, p.name]));
   const ctx = {
     stages: stages.map((s) => ({ id: s.id, name: pipelines.length > 1 ? `${pname.get(s.pipelineId)} · ${s.name}` : s.name, open: s.kind === "open" })),
     staff: staffOptions(admins),
     holidays: parseHolidays(holidays).map((h) => ({ id: h.id, label: `${h.ru} (${h.date.slice(3)}.${h.date.slice(0, 2)})` })),
-    boards: await container().boards.boards.outline(boardViewer(staff)),
+    boards,
   };
   const row = (r: (typeof rules)[number]) => (
     <AutomationRow

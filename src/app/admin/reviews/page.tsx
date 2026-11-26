@@ -8,14 +8,15 @@ import { Alert } from "@/components/ui/Alert";
 import { Facts } from "@/components/ui/Facts";
 import { Panel } from "@/components/ui/Panel";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { container } from "@/server/container";
 import { requireStaff } from "@/server/access";
-import { PUBLIC_TEXT_MIN, LOW_RATING, type StaffReview } from "@/modules/feedback";
+import { PUBLIC_TEXT_MIN, LOW_RATING } from "@/modules/feedback/domain/rules";
+import type { StaffReview } from "@/modules/feedback";
 import type { ReviewStatus } from "@/shared/domain/reviews";
 import { messagesFor } from "@/i18n/messages";
 import { cn } from "@/lib/class-names";
 import { formatDate } from "@/lib/dates";
 import { ReviewActions } from "./ReviewActions";
+import { crmRead } from "@/server/v1-local-bridge-crm";
 
 export const metadata = { title: "Отзывы" };
 
@@ -41,8 +42,7 @@ export default async function AdminReviews({ searchParams }: { searchParams: Pro
   await requireStaff("reviews.manage");
   const { s } = await searchParams;
   const filter = filters.find((f) => f.key === s)?.key ?? "new";
-  const feedback = container().feedback;
-  const [list, counts, summary] = await Promise.all([feedback.queries.list(filter), feedback.queries.counts(), feedback.queries.summary()]);
+  const { list, counts, summary } = await crmRead("pages.reviews", { filter });
   const total = (counts.new ?? 0) + (counts.published ?? 0) + (counts.hidden ?? 0);
   const average = summary.count ? `${summary.average.toFixed(1)} из 5` : "—";
 

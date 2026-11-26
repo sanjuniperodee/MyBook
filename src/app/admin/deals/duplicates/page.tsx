@@ -1,4 +1,3 @@
-import { container } from "@/server/container";
 import Link from "next/link";
 import { CopyCheck, Mail, Phone } from "lucide-react";
 import { PageHeader } from "@/components/admin/PageHeader";
@@ -10,9 +9,10 @@ import { can, canSeeAssigned, contactView, requireStaff } from "@/server/access"
 import { formatPhone } from "@/shared/domain/phone";
 import { formatPrice } from "@/config/site";
 import { staffLabel } from "@/shared/domain/staff";
-import { mergeCancels } from "@/modules/ordering";
+import { mergeCancels } from "@/shared/domain/orders";
 import { formatDate } from "@/lib/dates";
 import { DuplicateCompare, type CompareDeal } from "./DuplicateCompare";
+import { crmRead } from "@/server/v1-local-bridge-crm";
 
 export const metadata = { title: "Дубли сделок" };
 
@@ -23,7 +23,7 @@ const LIMIT = 30;
 /** Группы открытых сделок одного человека (по телефону или e-mail): сделки рядом, расходящееся выделено, действие — «Объединить». */
 export default async function DuplicatesPage() {
   const staff = await requireStaff("deals.view", "deals.edit");
-  const [found, admins] = await Promise.all([container().reporting.duplicateGroups(), container().access.queries.allStaff()]);
+  const { found, admins, details } = await crmRead("pages.duplicates", { limit: LIMIT });
   const rows: Row[] = found;
   const names = new Map(admins.map((a) => [a.id, staffLabel(a)]));
   const all = rows.map((r) => ({ ...r, deals: r.deals.filter((d) => canSeeAssigned(staff, d.assignee)) })).filter((r) => r.deals.length > 1);
@@ -31,15 +31,6 @@ export default async function DuplicatesPage() {
   const allowed = can(staff, "deals.edit", "deals.delete");
 
   // Подробности каждой сделки (бюджет, контакт, теги) и её счета — для сравнения и перечня отменяемых счетов.
-  const ids = [...new Set(visible.flatMap((g) => g.deals.map((d) => d.id)))];
-  const details = new Map(
-    await Promise.all(
-      ids.map(async (id) => {
-        const [deal, invoices] = await Promise.all([container().reporting.dealById(id), container().ordering.invoices.listFor(id)]);
-        return [id, { deal, invoices }] as const;
-      }),
-    ),
-  );
 
   const groups = visible.map((g) => {
     const deals: CompareDeal[] = g.deals.map((d) => {

@@ -1,14 +1,14 @@
 import { PageHeader } from "@/components/admin/PageHeader";
-import { container } from "@/server/container";
 import { requireStaff } from "@/server/access";
 import { staffLabel } from "@/shared/domain/staff";
 import { TemplatesManager } from "./TemplatesManager";
+import { crmRead } from "@/server/v1-local-bridge-crm";
 
 export const metadata = { title: "Шаблоны ответов" };
 
 export default async function TemplatesPage() {
   const staff = await requireStaff("chats.view");
-  const all = await container().messaging.view.templates(staff.user.id);
+  const all = await crmRead("pages.templates", {});
   return (
     <div className="flex flex-col gap-5">
       <PageHeader title="Шаблоны ответов">

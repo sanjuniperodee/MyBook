@@ -3,15 +3,15 @@ import { notFound } from "next/navigation";
 import { History } from "lucide-react";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { container } from "@/server/container";
 import { requireStaff } from "@/server/access";
 import { uuid } from "@/server/input";
 import { formatDate, nowMs } from "@/lib/dates";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { InlineStats } from "@/components/admin/bars";
 import { automationActions, automationTriggers } from "@/modules/automation/domain/meta";
-import { runStatusLabels, stepResultLabels, RUNS_LIST_LIMIT, type RunStatus } from "@/modules/automation";
+import { runStatusLabels, stepResultLabels, RUNS_LIST_LIMIT, type RunStatus } from "@/modules/automation/domain/runs";
 import { RetryRun } from "./RetryRun";
+import { crmRead } from "@/server/v1-local-bridge-crm";
 
 export const metadata = { title: "Журнал правила" };
 
@@ -37,9 +37,9 @@ export default async function AutomationRunsPage({ params }: { params: Promise<{
   await requireStaff("settings.manage");
   const id = uuid.safeParse((await params).id);
   if (!id.success) notFound();
-  const rule = await container().automation.rules.find(id.data);
-  if (!rule) notFound();
-  const runs = await container().automation.rules.runs(rule.id);
+  const found = await crmRead("pages.automationRuns", { id: id.data });
+  if (!found) notFound();
+  const { rule, runs } = found;
   const now = nowMs();
   const counts = runs.reduce<Partial<Record<RunStatus, number>>>((acc, r) => ((acc[r.status] = (acc[r.status] ?? 0) + 1), acc), {});
   const trigger = automationTriggers[rule.trigger as keyof typeof automationTriggers]?.label ?? rule.trigger;

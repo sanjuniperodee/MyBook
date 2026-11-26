@@ -1,11 +1,10 @@
-import { container } from "@/server/container";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { notFound } from "next/navigation";
 import { canAssignOthers, canSeeAssigned, contactView, requireStaff } from "@/server/access";
 import { uuid } from "@/server/input";
 import { staffOptions } from "@/modules/access/ui";
 import { NewDealForm } from "./NewDealForm";
-import { discountLimit } from "@/server/discount";
+import { crmRead } from "@/server/v1-local-bridge-crm";
 
 export const metadata = { title: "Новая сделка" };
 
@@ -14,13 +13,7 @@ export default async function NewDealPage({ searchParams }: { searchParams: Prom
   const { client: clientParam, p } = await searchParams;
   const clientId = clientParam ? uuid.safeParse(clientParam) : null;
   if (clientId && !clientId.success) notFound();
-  const [stages, admins, client, pipelines, maxDiscount] = await Promise.all([
-    container().sales.queries.listStages(),
-    container().access.queries.allStaff(),
-    clientId?.success ? container().reporting.clientById(clientId.data) : null,
-    container().sales.queries.listPipelines(),
-    discountLimit(staff),
-  ]);
+  const { stages, admins, client, pipelines, maxDiscount } = await crmRead("pages.newDeal", { clientId: clientId?.success ? clientId.data : null });
   // Клиент сайта (не сотрудник), которого сотрудник видит: чужой клиент у роли «только свои» — как будто его нет.
   if (clientId && (!client || client.role !== "user" || !canSeeAssigned(staff, client.managerId))) notFound();
   // Номер — как везде в CRM: без права на контакты маской; тогда поля телефона в форме нет и номер сервер берёт у клиента.

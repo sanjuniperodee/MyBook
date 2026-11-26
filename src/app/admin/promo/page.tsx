@@ -1,5 +1,4 @@
 import { Plus, TicketPercent } from "lucide-react";
-import { container } from "@/server/container";
 import { formatPrice } from "@/config/site";
 import { formatDate } from "@/lib/dates";
 import { PromoForm, PromoToggle } from "./PromoForm";
@@ -8,6 +7,7 @@ import { PageHeader } from "@/components/admin/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { DrawerButton } from "@/components/admin/Drawer";
 import { InlineStats, ShareBar } from "@/components/admin/bars";
+import { crmRead } from "@/server/v1-local-bridge-crm";
 
 export const metadata = { title: "Промокоды" };
 
@@ -18,7 +18,7 @@ export const metadata = { title: "Промокоды" };
  */
 export default async function AdminPromo() {
   await requireStaff("promo.manage");
-  const list = await container().ordering.queries.promoStats();
+  const list = await crmRead("pages.promo", {});
   const discount = (p: { kind: string; value: number }) => (p.kind === "percent" ? `${p.value}%` : formatPrice(p.value));
   const until = (p: { expiresAt: Date | null }) => (p.expiresAt ? `до ${formatDate(p.expiresAt)}` : "бессрочно");
   const active = list.filter((x) => x.promo.active).length;

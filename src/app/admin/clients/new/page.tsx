@@ -1,15 +1,14 @@
 import { PageHeader } from "@/components/admin/PageHeader";
 import { canAssignOthers, requireStaff, can } from "@/server/access";
 import { staffOptions } from "@/modules/access/ui";
-import { container } from "@/server/container";
 import { NewClientForm } from "./NewClientForm";
-import { discountLimit } from "@/server/discount";
+import { crmRead } from "@/server/v1-local-bridge-crm";
 
 export const metadata = { title: "Новый клиент" };
 
 export default async function NewClientPage() {
   const staff = await requireStaff("clients.create");
-  const [stages, pipelines, admins, maxDiscount] = await Promise.all([container().sales.queries.listStages(), container().sales.queries.listPipelines(), container().access.queries.allStaff(), discountLimit(staff)]);
+  const { stages, pipelines, admins, maxDiscount } = await crmRead("pages.newClient", {});
   const open = stages.filter((s) => s.kind === "open");
   const options = canAssignOthers(staff) ? staffOptions(admins) : staffOptions(admins).filter((a) => a.id === staff.user.id);
   return (

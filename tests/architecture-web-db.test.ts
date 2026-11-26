@@ -1,13 +1,15 @@
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { isPureModuleImport } from "./pure-imports";
 
 /**
  * ADR 0012, A5 «веб без БД»: страницы и компоненты сайта (src/app без src/app/api, src/components) не должны ходить в
  * базу и модули напрямую — только через API v1. Пока переезд не закончен, такие файлы перечислены в списке
  * tests/architecture-web-db-allowlist.json; он только сокращается: новый файл с доступом к БД роняет тест, а файл,
  * который больше не ходит в БД, надо из списка убрать. Пересобрать список: UPDATE_WEB_DB_ALLOWLIST=1 npx vitest run
- * tests/architecture-web-db.test.ts (только если он стал короче).
+ * tests/architecture-web-db.test.ts (только если он стал короче). Чистые `domain`/`ui` модулей (транзитивно без БД, сервера и
+ * инфраструктуры — tests/pure-imports.ts) — можно: так и велит слой представления в eslint.config.
  */
 const ROOTS = ["src/app", "src/components"];
 const SKIP = new Set(["src/app/api"]);
@@ -25,7 +27,7 @@ function files(dir: string): string[] {
 /** Импорты значений (не `import type`) из базы и модулей. */
 export function dbImports(source: string): string[] {
   const found: string[] = [];
-  for (const m of source.matchAll(/^import\s+(type\s+)?[^;]*?\s+from\s+"([^"]+)";?/gm)) if (!m[1] && FORBIDDEN.test(m[2])) found.push(m[2]);
+  for (const m of source.matchAll(/^import\s+(type\s+)?[^;]*?\s+from\s+"([^"]+)";?/gm)) if (!m[1] && FORBIDDEN.test(m[2]) && !isPureModuleImport(m[2])) found.push(m[2]);
   return found;
 }
 
@@ -47,5 +49,6 @@ describe("веб без БД (ADR 0012, A5)", () => {
   it("импорт типов не считается", () => {
     expect(dbImports('import type { BookRow } from "@/modules/authoring";\nimport { x } from "@/lib/y";')).toEqual([]);
     expect(dbImports('import { container } from "@/server/container";')).toEqual(["@/server/container"]);
+    expect(dbImports('import { orderStatusLabel } from "@/modules/ordering/ui/status";')).toEqual([]);
   });
 });

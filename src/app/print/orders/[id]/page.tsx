@@ -1,21 +1,21 @@
 import { planName, deliveryName } from "@/i18n/labels";
 import { notFound } from "next/navigation";
-import { canSeeOrder, requireStaff } from "@/server/access";
-import { container } from "@/server/container";
+import { requireStaff } from "@/server/access";
 import { site } from "@/config/site";
 import { deliveryAddress } from "@/modules/ordering/ui/labels";
 import { formatDate } from "@/lib/dates";
 import { PrintButton } from "./PrintButton";
 import { pageId } from "@/server/input";
+import { crmRead } from "@/server/v1-local-bridge-crm";
 
 export const metadata = { title: "Упаковочный лист", robots: { index: false } };
 
 /** Упаковочный лист / накладная для курьера. Печатается на A4 (две одинаковые половины — одна в коробку, одна курьеру). */
 export default async function PackingSlip({ params }: { params: Promise<{ id: string }> }) {
-  const staff = await requireStaff("orders.view");
+  await requireStaff("orders.view");
   const id = pageId((await params).id);
-  const order = await container().ordering.queries.orderDetails(id);
-  if (!order || !(await canSeeOrder(staff, order.id))) notFound();
+  const order = await crmRead("pages.packingSlip", { id });
+  if (!order) notFound();
 
   const half = (copy: string) => (
     <section className="flex h-[138mm] flex-col border-b border-dashed border-ink/30 p-[10mm] last:border-b-0">

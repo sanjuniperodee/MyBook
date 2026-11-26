@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { Lock, Plus } from "lucide-react";
-import { container } from "@/server/container";
 import { requireStaff } from "@/server/access";
 import { allPermissions, type Permission } from "@/shared/domain/permissions";
 import { Intro } from "@/components/admin/Intro";
 import { cn } from "@/lib/class-names";
 import { RoleEditor } from "./RoleEditor";
+import { crmRead } from "@/server/v1-local-bridge-crm";
 
 export const metadata = { title: "Роли и права" };
 
@@ -13,7 +13,7 @@ export const metadata = { title: "Роли и права" };
 export default async function RolesPage({ searchParams }: { searchParams: Promise<{ role?: string }> }) {
   const staff = await requireStaff("team.manage");
   const { role: want } = await searchParams;
-  const roles = await container().access.queries.rolesWithMembers();
+  const roles = await crmRead("pages.roles", {});
   const creating = want === "new";
   const current = creating ? null : (roles.find((r) => r.role.id === want) ?? roles.find((r) => r.role.id === staff.user.crmRoleId) ?? roles[0]);
   const item = (href: string, active: boolean, children: React.ReactNode) => (

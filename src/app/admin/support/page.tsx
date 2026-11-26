@@ -6,10 +6,10 @@ import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { formatDate } from "@/lib/dates";
 import { requireStaff } from "@/server/access";
-import { container } from "@/server/container";
 import { SUPPORT_KIND_LABELS, SUPPORT_STATUS_LABELS, SUPPORT_STATUSES, type SupportStatus } from "@/shared/domain/support";
 import { phoneLabel, STATUS_TONE } from "./labels";
 import { seesAllTickets } from "@/server/support-access";
+import { crmRead } from "@/server/v1-local-bridge-crm";
 
 export const metadata = { title: "Обращения" };
 
@@ -24,12 +24,10 @@ const FILTERS: { key: Filter; label: string }[] = [
 export default async function SupportPage({ searchParams }: { searchParams: Promise<{ s?: string; q?: string }> }) {
   const staff = await requireStaff();
   const all = seesAllTickets(staff);
-  const mine = all ? undefined : staff.user.id;
   const sp = await searchParams;
   const filter: Filter = FILTERS.some((f) => f.key === sp.s) ? (sp.s as Filter) : "open";
   const q = sp.q?.trim().slice(0, 100) ?? "";
-  const tickets = container().support.tickets;
-  const [list, counts] = await Promise.all([tickets.list({ status: filter, q, createdBy: mine, limit: 200 }), tickets.counts(mine)]);
+  const { list, counts } = await crmRead("pages.supportList", { status: filter, q });
   const open = counts.new + counts.in_progress + counts.waiting;
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
   const href = (s: Filter) => `/admin/support${s === "open" ? "" : `?s=${s}`}`;

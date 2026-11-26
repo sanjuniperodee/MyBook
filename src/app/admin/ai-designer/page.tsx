@@ -12,11 +12,8 @@ import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { formatDate } from "@/lib/dates";
 import { can, requireStaff } from "@/server/access";
-import { designAiFreeLimit } from "@/server/designAiStore";
-import { container } from "@/server/container";
-import { fromEnv, getSetting } from "@/modules/workspace";
-import { designAiStats } from "@/server/designAiStats";
 import { DesignerSettingsForm, FreeLimitForm, GrantForm } from "./Forms";
+import { crmRead } from "@/server/v1-local-bridge-crm";
 
 export const metadata = { title: "ИИ-дизайнер" };
 
@@ -40,8 +37,7 @@ export default async function AiDesignerPage({ searchParams }: { searchParams: P
   const staff = await requireStaff("analytics.view");
   const { days: raw } = await searchParams;
   const days = PERIODS.find(([d]) => String(d) === raw)?.[0] ?? 30;
-  const limit = await designAiFreeLimit();
-  const [s, settings, apiKey] = await Promise.all([designAiStats(days, limit), container().assistant.designSettings(), getSetting("ai.apiKey")]);
+  const { limit, s, settings, keyReady } = await crmRead("pages.aiDesigner", { days });
   const canEdit = can(staff, "settings.manage");
   const t = s.totals;
   const perRequest = t.ok ? t.costUsd / t.ok : 0;
@@ -290,7 +286,7 @@ export default async function AiDesignerPage({ searchParams }: { searchParams: P
             <SectionHead id="ai-settings-h" title="Настройки" meta={canEdit ? undefined : "Менять настройки может руководитель"} />
             <div id="models" className="scroll-mt-[calc(var(--topbar-h)+1rem)]">
               <Section title="Модели и включение" defaultOpen={false} badge={<Badge tone={settings.enabled ? "success" : "neutral"} dot>{settings.enabled ? "включён" : "выключен"}</Badge>} description="Какая модель отвечает на какую просьбу и осмотр картинкой">
-                <DesignerSettingsForm settings={settings} hints={modeHints} keyReady={!!apiKey || fromEnv("ai.apiKey")} canEdit={canEdit} />
+                <DesignerSettingsForm settings={settings} hints={modeHints} keyReady={keyReady} canEdit={canEdit} />
               </Section>
             </div>
             <div id="limit" className="scroll-mt-[calc(var(--topbar-h)+1rem)]">

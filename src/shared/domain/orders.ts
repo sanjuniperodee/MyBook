@@ -64,3 +64,12 @@ export function isLinkPreviewAgent(ua: string | null | undefined): boolean {
 
 /** Комментарий к платежу в Kaspi по счёту из чата («MyBooks P12»): по нему счёт находят в выписке. */
 export const payComment = (label: string) => `MyBooks ${label}`;
+
+/**
+ * Какие счета отменит слияние сделок from → to (правило moveAll; карточка сделки называет их в подтверждении): closeOpen
+ * (целевая закрыта или по ней заказ) — все открытые обеих; иначе открыт у обеих — открытый счёт from; иначе — никакие.
+ */
+export function mergeCancels<T extends { dealId: string; status: string }>(invoices: readonly T[], from: string, closeOpen: boolean): T[] {
+  const open = invoices.filter((i) => i.status === "pending_payment");
+  return closeOpen ? open : open.length > 1 ? open.filter((i) => i.dealId === from) : [];
+}

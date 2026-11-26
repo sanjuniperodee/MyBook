@@ -6,15 +6,15 @@ import { PageHeader } from "@/components/admin/PageHeader";
 import { SectionHead } from "@/components/admin/SectionHead";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { container } from "@/server/container";
 import { formatPrice } from "@/config/site";
 import { orderStatusLabel, orderStatusTone, isPrintedPlan } from "@/modules/ordering/ui/status";
 import { formatDate } from "@/lib/dates";
 import { getTheme } from "@/lib/content/themes";
 import { bookLine } from "@/lib/content/crm-labels";
-import { can, contactView, requireStaff } from "@/server/access";
+import { contactView, requireStaff } from "@/server/access";
 import { formatPhone } from "@/shared/domain/phone";
-import { channelLabel } from "@/modules/messaging";
+import { channelLabel } from "@/modules/messaging/domain/conversation";
+import { crmRead } from "@/server/v1-local-bridge-crm";
 
 export const metadata = { title: "Поиск" };
 
@@ -33,13 +33,7 @@ export default async function AdminSearch({ searchParams }: { searchParams: Prom
         </div>
       </div>
     );
-  const viewer = { userId: staff.user.id, seesAll: staff.scope === "all" };
-  const { orderRows, clientRows, bookRows, dealRows, chatRows } = await container().reporting.search(term, viewer, {
-    orders: can(staff, "orders.view"),
-    clients: can(staff, "clients.view"),
-    deals: can(staff, "deals.view"),
-    chats: can(staff, "chats.view"),
-  });
+  const { orderRows, clientRows, bookRows, dealRows, chatRows } = await crmRead("pages.search", { term: term.slice(0, 200) });
   const mask = (v: { phone?: string | null; email?: string | null }) => contactView(staff, v);
   const sections = [
     { id: "deals", title: "Сделки", n: dealRows.length },

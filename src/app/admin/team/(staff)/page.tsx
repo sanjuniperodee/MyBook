@@ -1,13 +1,13 @@
-import { container } from "@/server/container";
 import { requireStaff } from "@/server/access";
 import { formatDate } from "@/lib/dates";
 import { StaffBoard, type Member } from "../TeamControls";
+import { crmRead } from "@/server/v1-local-bridge-crm";
 
 export const metadata = { title: "Команда" };
 
 export default async function AdminTeam() {
   const staff = await requireStaff("team.manage");
-  const [roles, members] = await Promise.all([container().access.queries.roles(), container().access.queries.team()]);
+  const { roles, members } = await crmRead("pages.team", {});
   const ownerRole = roles.find((r) => r.key === "owner");
   const roleName = new Map(roles.map((r) => [r.id, r.name]));
   const inviteRoles = roles.filter((r) => r.key !== "owner" || staff.isOwner).map((r) => ({ id: r.id, name: r.name }));

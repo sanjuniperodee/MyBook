@@ -7,14 +7,14 @@ import { Badge } from "@/components/ui/Badge";
 import { Facts } from "@/components/ui/Facts";
 import { formatDate } from "@/lib/dates";
 import { can, requireStaff } from "@/server/access";
-import { container } from "@/server/container";
 import { env } from "@/config/env";
-import { chatMessageText, notificationText, ticketLabel } from "@/modules/support";
+import { chatMessageText, notificationText, ticketLabel } from "@/modules/support/domain";
 import { SUPPORT_KIND_LABELS, SUPPORT_STATUS_LABELS, SUPPORT_STATUSES, type SupportAttachment, type SupportStatus } from "@/shared/domain/support";
 import { phoneLabel, RESOLUTION_SLOT, STATUS_TONE } from "../labels";
 import { canOpenTicket, seesAllTickets } from "@/server/support-access";
 import { CopyButton, TicketControls } from "./TicketControls";
 import { TicketChatPicker } from "../ChatPicker";
+import { crmRead } from "@/server/v1-local-bridge-crm";
 
 export async function generateMetadata({ params }: { params: Promise<{ number: string }> }) {
   return { title: `Обращение №${(await params).number}` };
@@ -67,7 +67,7 @@ function Attachment({ ticketId, a, index }: { ticketId: string; a: SupportAttach
 export default async function TicketPage({ params }: { params: Promise<{ number: string }> }) {
   const staff = await requireStaff();
   const n = Number((await params).number);
-  const t = Number.isSafeInteger(n) ? await container().support.tickets.byNumber(n) : null;
+  const t = Number.isSafeInteger(n) && n > 0 ? await crmRead("pages.supportTicket", { number: n }) : null;
   if (!t || !canOpenTicket(staff, t)) notFound();
   const canEdit = seesAllTickets(staff);
   const notifyPreview = Object.fromEntries(SUPPORT_STATUSES.map((s) => [s, notificationText({ ...t, status: s, resolution: RESOLUTION_SLOT }, env.appUrl)])) as Record<SupportStatus, string>;

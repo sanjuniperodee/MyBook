@@ -17,6 +17,7 @@ const { handleSiteRoute, siteRoutePaths } = await import("../apps/api/src/site-r
 const { localStaffAccess } = await import("@/server/access");
 const { crmStaffAccess } = await import("@/server/v1-local-bridge-crm");
 const { Redirect } = await import("./doubles/web");
+const { runCrmOp } = await import("@/server/crm-ops/registry");
 
 const app = createApp(handlers, siteAuthenticator, handleSiteRoute);
 const fetchViaApp: typeof fetch = (input, init) => app(new Request(String(input), init));
@@ -179,5 +180,57 @@ describe("API v1 Раздел 5 (crm): права сотрудника и server
     expect(err).toBeInstanceOf(Redirect);
     expect((err as InstanceType<typeof Redirect>).url).toBe("/admin/deals");
     expect(audited).toEqual(["deal.delete"]);
+  });
+});
+
+describe("API v1 Раздел 5.2 (crm): сборщики страниц — strict parity и права", () => {
+  beforeEach(() => {
+    resetRequest();
+    resetContainer();
+    vi.stubEnv("WEB_API_ONLY", "");
+    vi.stubEnv("WEB_USE_API_V1", "");
+  });
+  afterEach(() => vi.unstubAllEnvs());
+
+  const strictOp = (user: typeof owner, op: string, args: unknown) =>
+    v1WebRead({
+      name: `crm.${op}`,
+      section: "crm",
+      flag: "crm",
+      parity: "strict",
+      client: createWebApiClient({ baseUrl: "http://127.0.0.1:3044", sessionCookie: user.id, fetch: fetchViaApp }),
+      local: () => runCrmOp(op, args),
+      viaApi: async (api) => decodeWire((await api.webCrmRead({ op, body: { args: await encodeWire(args) } })).data),
+    });
+
+  it("промокоды, отзывы, задачи-доски и упаковочный лист — одинаково локально и через API (даты, Map)", async () => {
+    fake.ordering = {
+      queries: {
+        promoStats: async () => [{ promo: { code: "MAMA10", active: true, usedCount: 2, expiresAt: at, kind: "percent", value: 10 }, paid: 1, revenue: 29000 }],
+        orderDetails: async (id: string) => ({ id, number: 12, createdAt: at, desiredDate: null, addons: [], book: { title: "Мама" } }),
+      },
+    };
+    fake.feedback = { queries: { list: async () => [{ id: "r1", createdAt: at }], counts: async () => ({ new: 1 }), summary: async () => ({ count: 1, average: 5 }) } };
+    fake.marketing = {
+      service: { report: async () => ({ total: {}, channels: [] }), shopWhatsapp: async () => "77010000000", target: async (l: { slug: string }) => `https://mybooks.kz/?utm=${l.slug}` },
+      links: { all: async () => [{ id: "l1", slug: "ig", archived: false, createdAt: at }] },
+      spend: { recent: async () => [] },
+    };
+    signIn(owner);
+    expect(await strictOp(owner, "pages.promo", {})).toMatchObject([{ promo: { expiresAt: at } }]);
+    expect(await strictOp(owner, "pages.reviews", { filter: "new" })).toMatchObject({ counts: { new: 1 } });
+    const m = (await strictOp(owner, "pages.marketing", { period: 30, archived: false })) as { targets: Map<string, string> };
+    expect(m.targets.get("l1")).toBe("https://mybooks.kz/?utm=ig");
+    expect(await strictOp(owner, "pages.packingSlip", { id: "4a1b2c3d-1111-4222-8333-444444444444" })).toMatchObject({ number: 12, createdAt: at });
+  });
+
+  it("нет права страницы — 403 и локально, и через API; кривой вход — 400; неизвестная операция — 404", async () => {
+    signIn(anna);
+    await expect(runCrmOp("pages.promo", {})).rejects.toThrow();
+    await expect(strictOp(anna, "pages.promo", {})).rejects.toMatchObject({ status: 403 });
+    signIn(owner);
+    await expect(strictOp(owner, "pages.reviews", { filter: "drop table" })).rejects.toMatchObject({ status: 400 });
+    await expect(strictOp(owner, "pages.nothing", {})).rejects.toMatchObject({ status: 404 });
+    await expect(strictOp(owner, "toString.call", {})).rejects.toMatchObject({ status: 404 });
   });
 });

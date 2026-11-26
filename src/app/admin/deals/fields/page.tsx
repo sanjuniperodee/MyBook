@@ -1,18 +1,18 @@
 import { requireStaff } from "@/server/access";
-import { listFields } from "@/modules/workspace";
 import { ListPlus } from "lucide-react";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Segmented } from "@/components/admin/Segmented";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Panel } from "@/components/ui/Panel";
 import { FieldEditor } from "./FieldEditor";
+import { crmRead } from "@/server/v1-local-bridge-crm";
 
 export const metadata = { title: "Свои поля" };
 
 export default async function FieldsPage({ searchParams }: { searchParams: Promise<{ e?: string }> }) {
   await requireStaff("settings.manage");
   const entity = (await searchParams).e === "client" ? "client" : "deal";
-  const fields = await listFields(entity);
+  const fields = await crmRead("pages.dealFields", { entity });
   return (
     <div className="flex w-full max-w-[44rem] flex-col gap-5">
       <PageHeader back={{ href: "/admin/deals", label: "Сделки" }} title="Свои поля">

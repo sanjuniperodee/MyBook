@@ -1,4 +1,3 @@
-import { container } from "@/server/container";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Segmented } from "@/components/admin/Segmented";
 import { Panel } from "@/components/ui/Panel";
@@ -6,26 +5,21 @@ import { requireStaff } from "@/server/access";
 import { NewPipeline, NewStage, PipelineHeader, StageRow } from "./StageEditor";
 import { RoutingPanel } from "./RoutingPanel";
 import { StageOrderPanel } from "./StageOrderPanel";
-import { parseStageOrder } from "@/shared/domain/stageOrder";
-import { getSetting } from "@/modules/workspace";
+import { crmRead } from "@/server/v1-local-bridge-crm";
 
 export const metadata = { title: "Этапы воронки" };
 
 export default async function StagesPage({ searchParams }: { searchParams: Promise<{ p?: string }> }) {
   await requireStaff("settings.manage");
   const { p } = await searchParams;
-  const pipelines = await container().sales.queries.listPipelines();
-  const pipeline = pipelines.find((x) => x.id === p) ?? pipelines[0];
-  const [stages, counts] = await Promise.all([container().sales.queries.listStages(pipeline.id), container().reporting.stageCounts()]);
+  const { pipelines, pipeline, stages, counts, entryRaw, showEntry, order, aiReady } = await crmRead("pages.stages", { p: p?.slice(0, 60) });
   const byStage = new Map(counts.map((c) => [c.stageId, c.n]));
   let entry: Record<string, string> = {};
   try {
-    entry = JSON.parse((await getSetting("crm.entryStages")) || "{}") as Record<string, string>;
+    entry = JSON.parse(entryRaw || "{}") as Record<string, string>;
   } catch {
     entry = {};
   }
-  const showEntry = pipeline.id === pipelines[0].id;
-  const [order, aiReady] = showEntry ? await Promise.all([getSetting("crm.stageOrder").then(parseStageOrder), container().assistant.service.configured()]) : [null, false];
   const anchors = [
     ["pipelines", "Воронки"],
     ["stages", "Этапы"],

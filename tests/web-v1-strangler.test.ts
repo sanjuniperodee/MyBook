@@ -3,10 +3,12 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ParityError } from "@/server/parity";
 import { apiInternalUrl, createWebApiClient, v1WebRead, webUseApiV1 } from "@/server/v1-web-client";
+import { isPureModuleImport } from "./pure-imports";
 
 /**
  * ADR 0012 §4 (A5, душитель): ни один НОВЫЙ файл в `src/app/**` не должен импортировать `@/server/container`
  * или `@/modules/*` напрямую — новые страницы, действия и маршруты работают через API v1.
+ * Чистые `domain`/`ui` модулей (транзитивно без БД, сервера и инфраструктуры — tests/pure-imports.ts) — можно.
  * Существующие файлы зафиксированы в `tests/web-v1-strangler-allowlist.json` — список только сокращается.
  * Обновить после переноса файла на API v1:
  *   UPDATE_V1_STRANGLER_ALLOWLIST=1 npx vitest run tests/web-v1-strangler.test.ts
@@ -28,7 +30,7 @@ function walkTs(dir: string): string[] {
 export function directBackendImports(source: string): string[] {
   const found: string[] = [];
   for (const m of source.matchAll(/^import\s+(type\s+)?([^;]*?)\s+from\s+["']([^"']+)["']/gm)) {
-    if (!m[1] && DIRECT_BACKEND.test(m[3])) found.push(m[3]);
+    if (!m[1] && DIRECT_BACKEND.test(m[3]) && !isPureModuleImport(m[3])) found.push(m[3]);
   }
   for (const m of source.matchAll(/\bimport\(\s*["']([^"']+)["']\s*\)/g)) {
     if (DIRECT_BACKEND.test(m[1])) found.push(m[1]);
@@ -62,6 +64,8 @@ describe("храповик душителя web → API v1 (ADR 0012 §4)", () =
     expect(directBackendImports('import { container } from "@/server/container";')).toEqual(["@/server/container"]);
     expect(directBackendImports('import {\n  isBookEditableBy,\n} from "@/modules/authoring";')).toEqual(["@/modules/authoring"]);
     expect(directBackendImports('const mod = await import("@/server/container");')).toEqual(["@/server/container"]);
+    expect(directBackendImports('import { orderStatusLabel } from "@/modules/ordering/ui/status";')).toEqual([]);
+    expect(directBackendImports('import { x } from "@/modules/ordering/infrastructure/repo";')).toEqual(["@/modules/ordering/infrastructure/repo"]);
   });
 });
 

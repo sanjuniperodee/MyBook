@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { ShoppingBag } from "lucide-react";
-import { container } from "@/server/container";
 import { requireStaff } from "@/server/access";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Alert } from "@/components/ui/Alert";
-import { catalogLink } from "@/modules/messaging";
+import { catalogLink } from "@/modules/messaging/domain/catalog";
+import { syncCatalogIfStaleAction } from "./actions";
 import { Collections, NewProductButton, ProductCard, SyncButton } from "./CatalogBoard";
+import { crmRead } from "@/server/v1-local-bridge-crm";
 
 export const metadata = { title: "Каталог WhatsApp" };
 
@@ -17,14 +18,9 @@ export const metadata = { title: "Каталог WhatsApp" };
  */
 export default async function AdminCatalog() {
   await requireStaff("catalog.manage");
-  const catalog = container().messaging.catalog;
-  const problem = await catalog.syncIfStale(5 * 60_000);
-  const [products, settings, synced, status] = await Promise.all([catalog.list(), catalog.settings(), catalog.lastSyncedAt(), container().messaging.gowa.cachedStatus()]);
+  const problem = await syncCatalogIfStaleAction();
+  const { products, settings, synced, status, collections } = await crmRead("pages.catalog", {});
   const link = status.phone ? catalogLink(status.phone) : null;
-  const collections = await catalog.collections().then(
-    (list) => ({ list, error: null as string | null }),
-    (err: unknown) => ({ list: [], error: err instanceof Error ? err.message : String(err) }),
-  );
   return (
     <div className="flex flex-col gap-5">
       <PageHeader

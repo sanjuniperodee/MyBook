@@ -21,3 +21,4 @@ export const orderItemsAction = crmAction<typeof impl.orderItemsAction>("catalog
 export const saveCatalogSettingsAction = crmAction<typeof impl.saveCatalogSettingsAction>("catalog", "saveCatalogSettingsAction");
 export const saveCatalogDocsAction = crmAction<typeof impl.saveCatalogDocsAction>("catalog", "saveCatalogDocsAction");
 export const checkCatalogAccessAction = crmAction<typeof impl.checkCatalogAccessAction>("catalog", "checkCatalogAccessAction");
+export const syncCatalogIfStaleAction = crmAction<typeof impl.syncCatalogIfStaleAction>("catalog", "syncCatalogIfStaleAction");

@@ -6,13 +6,7 @@ import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { formatDate } from "@/lib/dates";
 import { requireStaff } from "@/server/access";
-import { container } from "@/server/container";
-import {
-  CLIENT_AI_TOOLS,
-  clientAiLimits,
-  clientAiUsage,
-  userAiOverrides,
-} from "@/server/clientAiLimits";
+import { CLIENT_AI_TOOLS } from "@/server/clientAiLimits";
 import {
   GlobalLimitsForm,
   UserLimitsForm,
@@ -20,6 +14,7 @@ import {
   type UserToolRow,
 } from "./Forms";
 import { CLIENT_AI_TOOL_LABELS, hoursLabel, minutesLabel } from "./labels";
+import { crmRead } from "@/server/v1-local-bridge-crm";
 
 export const metadata = { title: "Лимиты AI" };
 
@@ -40,10 +35,7 @@ export default async function AiLimitsPage({
   const selectedId =
     sp.user && /^[0-9a-f-]{36}$/i.test(sp.user) ? sp.user : null;
 
-  const [base, overrides] = await Promise.all([
-    clientAiLimits(),
-    userAiOverrides(),
-  ]);
+  const { base, overrides, found, selected, ownUsers, usage } = await crmRead("pages.aiLimits", { q, selectedId });
   const rows: ToolRow[] = CLIENT_AI_TOOLS.map((tool) => ({
     tool,
     ...CLIENT_AI_TOOL_LABELS[tool],
@@ -51,13 +43,6 @@ export default async function AiLimitsPage({
   }));
   const overrideIds = Object.keys(overrides);
 
-  const reporting = container().reporting;
-  const [found, selected, ownUsers] = await Promise.all([
-    q ? reporting.clients({ segment: "all", q, limit: 10, offset: 0 }) : null,
-    selectedId ? reporting.clientById(selectedId) : null,
-    Promise.all(overrideIds.map((id) => reporting.clientById(id))),
-  ]);
-  const usage = selected ? await clientAiUsage(selected.id) : null;
   const resetLabel = (at: number | null) =>
     at ? `· обнулится ${formatDate(new Date(at), true)}` : "";
   const own = selected ? overrides[selected.id] : undefined;

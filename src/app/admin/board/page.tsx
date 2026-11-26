@@ -2,13 +2,13 @@ import { planName } from "@/i18n/labels";
 import { nowMs } from "@/lib/dates";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { OrdersViews } from "../orders/OrdersViews";
-import { container } from "@/server/container";
-import { requireStaff, staffViewer } from "@/server/access";
+import { requireStaff } from "@/server/access";
 import { staffOptions } from "@/modules/access/ui";
 import { staffLabel } from "@/shared/domain/staff";
 import { formatPrice, getPlan } from "@/config/site";
 import { Board, type BoardCard } from "./Board";
 import { OrdersMobile } from "./OrdersMobile";
+import { crmRead } from "@/server/v1-local-bridge-crm";
 
 export const metadata = { title: "Производство" };
 
@@ -16,10 +16,7 @@ export default async function BoardPage() {
   const staff = await requireStaff("orders.view");
   const admin = staff.user;
   const monthAgo = new Date(nowMs() - 30 * 86_400_000);
-  const [rows, admins] = await Promise.all([
-    container().reporting.productionBoard(monthAgo, staffViewer(staff)),
-    container().access.queries.allStaff(),
-  ]);
+  const { rows, admins } = await crmRead("pages.productionBoard", { since: monthAgo });
   const byId = new Map(admins.map((a) => [a.id, staffLabel(a)]));
   const today = new Date();
   today.setHours(0, 0, 0, 0);

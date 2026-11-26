@@ -261,3 +261,9 @@ export async function checkCatalogAccessAction(): Promise<Result<{ lid: string }
     return fail(err);
   }
 }
+
+/** Каталог старше 5 минут — забрать из WhatsApp перед показом страницы (ошибка WhatsApp не мешает показать копию). */
+export async function syncCatalogIfStaleAction(): Promise<string | null> {
+  await assertStaff("catalog.manage");
+  return container().messaging.catalog.syncIfStale(5 * 60_000);
+}

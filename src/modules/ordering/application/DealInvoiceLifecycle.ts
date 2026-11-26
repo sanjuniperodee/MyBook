@@ -26,14 +26,9 @@ export const DEAL_INVOICE_CLOSE_REASONS = {
   mergedIntoClosed: "сделки объединены, а сделка закрыта или по ней заказ",
 } as const;
 
-/**
- * Какие счета отменит слияние сделок from → to (правило moveAll; карточка сделки называет их в подтверждении): closeOpen
- * (целевая закрыта или по ней заказ) — все открытые обеих; иначе открыт у обеих — открытый счёт from; иначе — никакие.
- */
-export function mergeCancels<T extends { dealId: string; status: string }>(invoices: readonly T[], from: string, closeOpen: boolean): T[] {
-  const open = invoices.filter((i) => i.status === "pending_payment");
-  return closeOpen ? open : open.length > 1 ? open.filter((i) => i.dealId === from) : [];
-}
+import { mergeCancels } from "@/shared/domain/orders";
+
+export { mergeCancels };
 
 /** Запись в ленту сделки об отменённом счёте (для CRM). */
 export const dealInvoiceCancelledNote = (invoice: DealInvoice) => {

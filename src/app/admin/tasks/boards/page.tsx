@@ -1,13 +1,12 @@
 import Link from "next/link";
 import { Archive, CalendarDays, ChevronRight, Lock, Users } from "lucide-react";
-import { container } from "@/server/container";
 import { can, requireStaff } from "@/server/access";
-import { boardViewer } from "@/server/boards-api";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { BOARD_COLORS, isBoardColor } from "@/shared/domain/boards";
 import { NewBoard } from "./NewBoard";
 import { RestoreBoard } from "./RestoreBoard";
+import { crmRead } from "@/server/v1-local-bridge-crm";
 
 export const metadata = { title: "Доски" };
 
@@ -20,10 +19,8 @@ const GROUPS = [
 /** Доски задач — список по группам (отделы, проекты, личные): открыть, создать по шаблону, архив. */
 export default async function BoardsPage({ searchParams }: { searchParams: Promise<{ archived?: string }> }) {
   const staff = await requireStaff();
-  const v = boardViewer(staff);
   const archived = (await searchParams).archived === "1";
-  const c = container().boards;
-  const [boards, templates] = [await c.boards.list(v, { archived }), c.boards.templates()];
+  const { boards, templates } = await crmRead("pages.boards", { archived });
   return (
     <div className="flex flex-col gap-5">
       <PageHeader

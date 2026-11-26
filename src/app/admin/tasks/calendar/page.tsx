@@ -2,20 +2,19 @@ import Link from "next/link";
 import { Columns3 } from "lucide-react";
 import { staffOptions } from "@/modules/access/ui";
 import { can, requireStaff } from "@/server/access";
-import { boardViewer } from "@/server/boards-api";
 import { GoogleCalendar } from "./GoogleCalendar";
-import { container } from "@/server/container";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Panel } from "@/components/ui/Panel";
 import { CalendarPage } from "./CalendarPage";
 import { IcalFeed } from "./IcalFeed";
+import { crmRead } from "@/server/v1-local-bridge-crm";
 
 export const metadata = { title: "Календарь задач" };
 
 /** Календарь задач со всех досок: месяц, неделя, день, перенос сроков перетаскиванием; подписка в своём календаре. */
 export default async function TasksCalendarPage({ searchParams }: { searchParams: Promise<{ google?: string }> }) {
   const staff = await requireStaff();
-  const [admins, google, sp] = await Promise.all([container().access.queries.allStaff(), container().boards.google.status(boardViewer(staff)), searchParams]);
+  const [{ admins, google }, sp] = await Promise.all([crmRead("pages.calendar", {}), searchParams]);
   return (
     <div className="flex flex-col gap-5">
       <PageHeader

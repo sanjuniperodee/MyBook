@@ -1,6 +1,6 @@
-import { container } from "@/server/container";
+import { notFound } from "next/navigation";
 import { can, requireStaff } from "@/server/access";
-import { conversion, costPerLead, romi } from "@/modules/marketing";
+import { conversion, costPerLead, romi } from "@/modules/marketing/domain/report";
 import { SpendForm } from "./SpendForm";
 import { channels as channelLabels } from "@/shared/domain/channels";
 import { channelLabel } from "@/shared/domain/channels";
@@ -20,6 +20,7 @@ import { cn } from "@/lib/class-names";
 import { formatPhone } from "@/shared/domain/phone";
 import { formatDate } from "@/lib/dates";
 import { LinkBuilder, LinkRowActions, WhatsappNumberForm } from "./MarketingControls";
+import { crmRead } from "@/server/v1-local-bridge-crm";
 
 export const metadata = { title: "Ссылки и каналы" };
 
@@ -33,17 +34,17 @@ const pct = (v: number | null) => (v === null ? "—" : `${Math.round(v * 1000) 
 
 export default async function MarketingPage({ searchParams }: { searchParams: Promise<{ period?: string; archived?: string }> }) {
   const staff = await requireStaff();
-  if (!can(staff, "analytics.view") && !can(staff, "promo.manage")) (await import("next/navigation")).notFound();
+  if (!can(staff, "analytics.view") && !can(staff, "promo.manage")) notFound();
   const sp = await searchParams;
   const period = periods.find(([d]) => String(d) === sp.period)?.[0] ?? 30;
-  const marketing = container().marketing;
-  const [report, links, waNumber, spendRows] = await Promise.all([marketing.service.report(period || null), marketing.links.all(), marketing.service.shopWhatsapp(), can(staff, "promo.manage") ? marketing.spend.recent(15) : Promise.resolve([])]);
+  const data = await crmRead("pages.marketing", { period, archived: sp.archived === "1" });
+  if (!data) notFound();
+  const { report, links, waNumber, spendRows, targets } = data;
   const romiLabel = (m: Parameters<typeof romi>[0]) => {
     const r = romi(m);
     return r === null ? "—" : `${r >= 0 ? "+" : ""}${Math.round(r * 100)}%`;
   };
   const visibleLinks = links.filter((l) => (sp.archived === "1" ? l.archived : !l.archived));
-  const targets = new Map(await Promise.all(visibleLinks.map(async (l) => [l.id, await marketing.service.target(l)] as const)));
   const showAnalytics = can(staff, "analytics.view");
   const pages = [
     { path: "/", label: "Главная" },
@@ -256,7 +257,7 @@ export default async function MarketingPage({ searchParams }: { searchParams: Pr
                             <td className="num">{m?.sales ?? 0}</td>
                             <td className="num font-medium whitespace-nowrap">{formatPrice(m?.revenue ?? 0)}</td>
                             <td className="num">
-                              <LinkRowActions id={l.id} short={marketing.service.shortUrl(l.slug)} full={targets.get(l.id) ?? ""} archived={l.archived} canManage={manage} />
+                              <LinkRowActions id={l.id} short={`${env.appUrl}/go/${l.slug}`} full={targets.get(l.id) ?? ""} archived={l.archived} canManage={manage} />
                             </td>
                           </tr>
                         );
@@ -281,7 +282,7 @@ export default async function MarketingPage({ searchParams }: { searchParams: Pr
                           <Cell label="Продажи" value={m?.sales ?? 0} />
                           <Cell label="Выручка" value={formatPrice(m?.revenue ?? 0)} />
                         </dl>
-                        <LinkRowActions id={l.id} short={marketing.service.shortUrl(l.slug)} full={targets.get(l.id) ?? ""} archived={l.archived} canManage={manage} />
+                        <LinkRowActions id={l.id} short={`${env.appUrl}/go/${l.slug}`} full={targets.get(l.id) ?? ""} archived={l.archived} canManage={manage} />
                       </li>
                     );
                   })}

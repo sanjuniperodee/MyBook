@@ -5,7 +5,6 @@ import { PageHeader } from "@/components/admin/PageHeader";
 import { StatRow, StatTile } from "@/components/admin/charts";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { container } from "@/server/container";
 import { formatPrice } from "@/config/site";
 import { formatDate } from "@/lib/dates";
 import { parseDay } from "@/lib/occasions";
@@ -13,6 +12,7 @@ import { messagesFor } from "@/i18n/messages";
 
 import { GiftActions } from "./GiftActions";
 import { requireStaff } from "@/server/access";
+import { crmRead } from "@/server/v1-local-bridge-crm";
 
 const ru = messagesFor("ru").common;
 
@@ -27,7 +27,7 @@ export const metadata = { title: "Сертификаты" };
  */
 export default async function AdminGifts() {
   await requireStaff("gifts.manage");
-  const list = await container().ordering.queries.recentGifts();
+  const list = await crmRead("pages.gifts", {});
   const paid = list.filter((g) => g.status === "paid");
   const redeemed = paid.filter((g) => g.promo && g.promo.usedCount > 0);
   const revenue = paid.reduce((s, g) => s + g.amount, 0);

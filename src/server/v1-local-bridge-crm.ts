@@ -61,7 +61,10 @@ export function crmAction<F extends ActionFn>(module: string, fn: string): F {
       local: async () => (await loadActions()).runCrmAction(`${module}.${fn}`, args),
       viaApi: async (api) => {
         const reply = await api.webCrmAct({ op: `${module}.${fn}`, body: { args: await encodeWire(args) } });
-        revalidatePath("/admin", "layout");
+        // Действие, вызванное при отрисовке страницы (свежесть каталога), кэш не сбрасывает — Next это запрещает.
+        try {
+          revalidatePath("/admin", "layout");
+        } catch {}
         if (reply.redirect) redirect(reply.redirect);
         if (reply.notFound) notFound();
         return decodeWire(reply.data);

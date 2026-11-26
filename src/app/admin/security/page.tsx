@@ -3,23 +3,21 @@ import { PageHeader } from "@/components/admin/PageHeader";
 import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/lib/class-names";
-import { container } from "@/server/container";
 import { can, requireStaffShell } from "@/server/access";
-import { getSetting } from "@/modules/workspace";
 import { staffLabel } from "@/shared/domain/staff";
-import { trustedClientIp } from "@/server/rateLimit";
 import { formatDate } from "@/lib/dates";
 import { SettingsFrame } from "../settings/frame";
 import { Section } from "../settings/ui";
 import { IpAllowlistForm, RecoveryNote, ResetStaffButton, TwoFactorCard } from "./SecurityControls";
+import { crmRead } from "@/server/v1-local-bridge-crm";
 
 export const metadata = { title: "Безопасность" };
 
 export default async function SecurityPage() {
   const { staff, gate } = await requireStaffShell();
   const manage = can(staff, "settings.manage", "team.manage") && gate !== "2fa";
-  const [require2fa, allowlist, ip, team] = await Promise.all([getSetting("security.require2fa"), getSetting("security.ipAllowlist"), trustedClientIp(), manage ? container().access.queries.twoFactorStatus() : Promise.resolve([])]);
-  const has2fa = !!staff.user.totpEnabledAt;
+  const { require2fa, allowlist, ip, team, me } = await crmRead("pages.security", { manage });
+  const has2fa = !!me.totpEnabledAt;
   const restricted = !!allowlist.trim();
   const covered = team.filter((u) => u.totpEnabledAt).length;
   const everyone = team.every((u) => u.totpEnabledAt || u.staffDisabled);
@@ -87,7 +85,7 @@ export default async function SecurityPage() {
       </section>
 
       <SettingsFrame anchors={anchors}>
-        <TwoFactorCard enabled={has2fa} since={staff.user.totpEnabledAt ? formatDate(staff.user.totpEnabledAt) : null} backupLeft={staff.user.totpBackup.length} canDisable={require2fa !== "on" || staff.isOwner} />
+        <TwoFactorCard enabled={has2fa} since={me.totpEnabledAt ? formatDate(me.totpEnabledAt) : null} backupLeft={me.backupLeft} canDisable={require2fa !== "on" || staff.isOwner} />
         {manage ? (
           <>
             <IpAllowlistForm require2fa={require2fa === "on"} allowlist={allowlist} currentIp={ip} ownerHas2fa={has2fa} />
