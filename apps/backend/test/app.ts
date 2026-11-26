@@ -12,6 +12,15 @@ import { SESSION_USERS, type SessionUsers } from "../src/core/auth/session";
 import { STAFF_ACCESS, type StaffAccessPort } from "../src/core/auth/staff";
 import { CLOCK, RATE_LIMITER, UNIT_OF_WORK } from "../src/core/kernel/tokens";
 import { LEGACY_CONTAINER } from "../src/legacy/legacy.tokens";
+import {
+  AUTHORING,
+  AUTHORING_ASSISTANT,
+  AUTHORING_BOOK_OWNERSHIP,
+  AUTHORING_ORDERING,
+  AUTHORING_PHOTO_LIMIT,
+  AUTHORING_PHOTO_RENDERER,
+  AUTHORING_PREVIEWS,
+} from "../src/modules/authoring/authoring.tokens";
 import { FEEDBACK_PORTS } from "../src/modules/feedback/feedback.tokens";
 import {
   CABINET_BOOK_PORTS,
@@ -97,6 +106,29 @@ const defaultPublicPorts: PublicPorts = {
   requestCallback: async () => {},
   calendarFeed: async () => null,
   chatAvatarFile: async () => null,
+};
+
+const defaultAuthoringStub = {
+  books: {},
+  questions: {},
+  photos: {},
+  letters: {},
+  photoRepository: {},
+  photoFile: async () => Buffer.alloc(0),
+  queries: {
+    book: async () => null,
+    visibleBook: async () => null,
+    userBooks: async () => [],
+    questions: async () => [],
+    chapters: async () => [],
+    photos: async () => [],
+    editedPhotoIds: async () => new Set<string>(),
+    letters: async () => [],
+    approvedLetters: async () => [],
+    stats: async () => ({ answered: 0, total: 0, words: 0, photos: 0, estimatedPages: 32, printedPages: 32, emptyChapters: 0 }),
+    bundle: async () => null,
+    photoFor: async () => null,
+  },
 };
 
 /** Лимитер в памяти: сколько раз звали с каким ключом; `deny` — следующий вызов вернёт «лимит исчерпан». */
@@ -185,6 +217,13 @@ export async function bootTestApp(opts: { users: CurrentUser[]; overrides?: [tok
       helpAsk: async () => ({ outcome: "answered", suggestions: [], messages: [] }),
     })
     .overrideProvider(PUBLIC_PORTS).useValue(defaultPublicPorts)
+    .overrideProvider(AUTHORING).useValue(defaultAuthoringStub)
+    .overrideProvider(AUTHORING_BOOK_OWNERSHIP).useValue({ bookOwnership: async () => null })
+    .overrideProvider(AUTHORING_ORDERING).useValue({ userOrders: async () => [], lastOrderOfBook: async () => null, agreementFor: async () => null })
+    .overrideProvider(AUTHORING_PREVIEWS).useValue({ current: async () => null, build: async () => null, progressOf: () => null })
+    .overrideProvider(AUTHORING_ASSISTANT).useValue({ dictate: async () => ({ text: "", by: "stub" }), proofreadConfigured: async () => false, writerConfigured: async () => false })
+    .overrideProvider(AUTHORING_PHOTO_LIMIT).useValue({ maxPhotos: async () => 100 })
+    .overrideProvider(AUTHORING_PHOTO_RENDERER).useValue({ probeOriginal: async () => ({ width: 1000, height: 800, suggestedLevels: { black: 0, white: 1, gamma: 1 } }), renderEdit: async () => Buffer.alloc(0) })
     .overrideProvider(SESSION_USERS).useValue(sessions)
     .overrideProvider(STAFF_ACCESS).useValue(defaultStaffAccess);
   if (opts.env) builder = builder.overrideProvider(APP_CONFIG).useValue(loadConfig(opts.env));

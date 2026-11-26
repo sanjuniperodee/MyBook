@@ -4,15 +4,13 @@
  * (R6): ключи глав здесь не сравниваются.
  */
 import type { ClientMessages } from "@/i18n/messages";
-import type { BookFormat } from "@/lib/book/formats";
-import type { InteriorDesign } from "@/lib/book/interiors";
-import { gridCellFrame, openerFrame, pageFrame, type PlaceFrame } from "@/lib/book/photo-pages";
+import { cropFrameOf, onPhotoPages } from "@/lib/book/photo-pages";
 import type { PhotoPlace } from "@/lib/book/photo-place";
 import { filterCounts, isLossy, isPhotoFilter, lossOf, matchesFilter, PHOTO_FILTERS, placeTotals, visibleFilters, type PhotoFilter } from "@/lib/book/photo-tab-model";
 import type { PlaceAnswer, PlaceBook, PlaceChapter, SheetPhoto } from "@/components/editor/photos/model";
 import type { TocLines } from "@/lib/book/toc";
 
-export { filterCounts, isLossy, isPhotoFilter, lossOf, matchesFilter, PHOTO_FILTERS, placeTotals, visibleFilters, type PhotoFilter };
+export { cropFrameOf, filterCounts, isLossy, isPhotoFilter, lossOf, matchesFilter, onPhotoPages, PHOTO_FILTERS, placeTotals, visibleFilters, type PhotoFilter };
 
 export type PhotoLayout = NonNullable<SheetPhoto["layout"]>;
 
@@ -43,9 +41,6 @@ export interface PhotosTabData {
 
 // ─── место на странице ─────────────────────────────────────────────────────
 
-/** Фото на страницах фото — после главы или в альбоме: у него есть вид на странице, подпись и «Кадр». */
-export const onPhotoPages = (place: PhotoPlace | undefined) => place?.kind === "after" || place?.kind === "album";
-
 /** «Показать целиком» — у фото «До краёв» на страницах фото с заметной обрезкой: оно станет «Целиком, с полями». */
 export const canShowWhole = (photo: Pick<SheetPhoto, "layout">, place: PhotoPlace | undefined, loss: number) => photo.layout === "bleed" && onPhotoPages(place) && isLossy(loss);
 
@@ -54,18 +49,6 @@ export function wideBleedIds(photos: readonly Pick<SheetPhoto, "id" | "layout">[
   return photos.filter((p) => canShowWhole(p, places.get(p.id), loss(p.id))).map((p) => p.id);
 }
 export const BANNER_MIN = 2;
-
-/**
- * Рамка «Кадра» — форма места фото в книге (R4): фото главы — по оформлению; на страницах фото — лист под обрез
- * или клетка сетки. Где кадр на печать не влияет (вписано целиком, в ответе — там свой кадр, не печатается), — null.
- */
-export function cropFrameOf(place: PhotoPlace | undefined, layout: PhotoLayout, format: BookFormat, design: InteriorDesign): PlaceFrame | null {
-  if (place?.kind === "opener") return openerFrame(format, design);
-  if (!onPhotoPages(place)) return null;
-  if (layout === "bleed") return pageFrame(format);
-  if (layout === "grid") return gridCellFrame(format, design);
-  return null;
-}
 
 // ─── удаление ──────────────────────────────────────────────────────────────
 

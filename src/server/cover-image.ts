@@ -7,8 +7,8 @@ import { coverPhotoSlots, getCoverTemplate, isKnownCover, renderCoverSvg } from 
 import { coverFrontGeometry, getFormat } from "@/lib/book/formats";
 import { getFile, putFile } from "@/shared/infrastructure/storage";
 
-export { COVER_IMAGE_WIDTHS, coverBackVersion, coverImagePath, coverImageVersion, coverVersion, type CoverImageOptions, type CoverImageWidth } from "@/lib/book/cover-image-version";
-import { coverBackVersion, coverVersion, type CoverBook, type CoverImageOptions, type CoverImageWidth } from "@/lib/book/cover-image-version";
+export { COVER_IMAGE_WIDTHS, coverBackImagePath, coverBackVersion, coverImagePath, coverImageVersion, coverVersion, type CoverImageOptions, type CoverImageWidth } from "@/lib/book/cover-image-version";
+import { coverVersion, type CoverBook, type CoverImageOptions, type CoverImageWidth } from "@/lib/book/cover-image-version";
 
 /**
  * Лицевая крышка картинкой (WebP) — для приложения: та же обложка, что в печати (renderCoverPreview, PDF → растр).
@@ -81,6 +81,3 @@ export async function coverTemplateThumb(
   await putFile(key, webp).catch(() => undefined);
   return webp;
 }
-
-/** Адрес картинки оборота (ширину ?w= подставляет клиент): версия оборота в адресе. */
-export const coverBackImagePath = (b: CoverBook) => `/api/books/${b.id}/cover-image?side=back&v=${coverBackVersion(b)}`;

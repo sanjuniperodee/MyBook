@@ -3,6 +3,7 @@ import { container, type Container } from "@/server/container";
 import { CLOCK, RATE_LIMITER, UNIT_OF_WORK } from "../core/kernel/tokens";
 import { FEEDBACK_PORTS } from "../modules/feedback/feedback.tokens";
 import { PUBLIC_PORTS } from "../modules/public/public.tokens";
+import { legacyAuthoringExports, legacyAuthoringProviders } from "./authoring.ports";
 import { legacyFeedbackPorts } from "./feedback.ports";
 import { LEGACY_IDENTITY_TOKENS, legacyIdentityPorts } from "./identity.ports";
 import { LEGACY_CONTAINER } from "./legacy.tokens";
@@ -11,7 +12,7 @@ import { legacyPublicPorts } from "./public.ports";
 /**
  * Антикоррупционный слой переходного периода (ADR 0014, правило 9): единственное место, где бэкенд на Nest касается
  * старого корня композиции. Отсюда — общее ядро процесса (единица работы с outbox, часы, лимиты), чтобы события и лимиты
- * не раздваивались между mybook-api и бэкендом, и порты контекстов, которые ещё не переехали (feedback.adapters.ts).
+ * не раздваивались между mybook-api и бэкендом, и порты контекстов, которые ещё не переехали.
  * Когда переедут все контексты, модуль удаляется вместе с src/server/container.ts.
  */
 @Global()
@@ -24,7 +25,8 @@ import { legacyPublicPorts } from "./public.ports";
     legacyFeedbackPorts,
     ...legacyIdentityPorts,
     legacyPublicPorts,
+    ...legacyAuthoringProviders,
   ],
-  exports: [LEGACY_CONTAINER, UNIT_OF_WORK, CLOCK, RATE_LIMITER, FEEDBACK_PORTS, ...LEGACY_IDENTITY_TOKENS, PUBLIC_PORTS],
+  exports: [LEGACY_CONTAINER, UNIT_OF_WORK, CLOCK, RATE_LIMITER, FEEDBACK_PORTS, ...LEGACY_IDENTITY_TOKENS, PUBLIC_PORTS, ...legacyAuthoringExports],
 })
 export class LegacyModule {}

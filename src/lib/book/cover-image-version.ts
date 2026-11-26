@@ -59,3 +59,6 @@ export const coverVersion = (b: CoverBook, o: CoverImageOptions) =>
 
 /** Адрес картинки обложки для ответов API: версия в адресе — кэш не устаревает. */
 export const coverImagePath = (b: CoverBook, width: CoverImageWidth) => `/api/books/${b.id}/cover-image?w=${width}&v=${coverImageVersion(b)}`;
+
+/** Адрес картинки оборота (ширину ?w= подставляет клиент): версия оборота в адресе. */
+export const coverBackImagePath = (b: CoverBook) => `/api/books/${b.id}/cover-image?side=back&v=${coverBackVersion(b)}`;

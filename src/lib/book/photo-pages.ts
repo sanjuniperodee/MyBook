@@ -10,6 +10,7 @@ import { interiorSizes, photoCaptionFace, photoCaptionSize, type InteriorSizes }
 import type { Shape } from "./interior-art";
 import { n } from "./covers/svg-kit";
 import { interiorMetrics, pageSide, textArea } from "./page-geometry";
+import type { PhotoPlace } from "./photo-place";
 
 /**
  * Оформление снимка: без рамки, тонкая линия, двойная рамка, полароид, уголки старого альбома, скотч,
@@ -400,4 +401,19 @@ export function gridCellFrame(format: BookFormat, design: InteriorDesign): Place
   const group = [0, 1, 2, 3].map((i) => ({ id: String(i), width: 1, height: 1, caption: "", layout: "grid" }));
   const { img } = photoPagePlan(group, photoArea(format), design, interiorSizes(design, interiorMetrics[format.id].scale)).cells[0];
   return { kind: "grid", ratio: img.w / img.h, mask: null, card: design.photos.frame === "polaroid", w: img.w, h: img.h };
+}
+
+/** Фото на страницах фото — после главы или в альбоме: у него есть вид на странице, подпись и «Кадр». */
+export const onPhotoPages = (place: PhotoPlace | undefined) => place?.kind === "after" || place?.kind === "album";
+
+/**
+ * Рамка «Кадра» — форма места фото в книге (R4): фото главы — по оформлению; на страницах фото — лист под обрез
+ * или клетка сетки. Где кадр на печать не влияет (вписано целиком, в ответе — там свой кадр, не печатается), — null.
+ */
+export function cropFrameOf(place: PhotoPlace | undefined, layout: "full" | "bleed" | "half" | "grid", format: BookFormat, design: InteriorDesign): PlaceFrame | null {
+  if (place?.kind === "opener") return openerFrame(format, design);
+  if (!onPhotoPages(place)) return null;
+  if (layout === "bleed") return pageFrame(format);
+  if (layout === "grid") return gridCellFrame(format, design);
+  return null;
 }

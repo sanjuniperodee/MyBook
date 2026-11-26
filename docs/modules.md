@@ -12,7 +12,7 @@
 |---|---|---:|---:|
 | [access](#access) | Access: сотрудники, роли и права, правила безопасности, журнал. | 16 / 852 | 50 |
 | [assistant](#assistant) | AI-помощник (Claude, ChatGPT, DeepSeek или свой OpenAI-совместимый сервер). | 24 / 2314 | 23 |
-| [authoring](#authoring) | Authoring: книги, вопросы, оглавление своей книги, фото, письма близких. | 29 / 3881 | 52 |
+| [authoring](#authoring) | Authoring: книги, вопросы, оглавление своей книги, фото, письма близких. | 37 / 5793 | 52 |
 | [automation](#automation) | Автоматизации (цифровая воронка CRM). | 16 / 1987 | 9 |
 | [boards](#boards) | Доски задач: доски отделов, личные и проектные, колонки с лимитами, карточки (задачи CRM) с исполнителями, метками, чек-листами, комментариями и вложениями, правила досок, календарь, личная iCal-ссылка и Google Календарь сотрудника. | 15 / 3218 | 15 |
 | [clients](#clients) | Клиенты CRM: профиль клиента, задачи и заметки менеджеров. | 10 / 1164 | 29 |
@@ -54,7 +54,7 @@ AI-помощник (Claude, ChatGPT, DeepSeek или свой OpenAI-совме
 
 Authoring: книги, вопросы, оглавление своей книги, фото, письма близких.
 
-- Папка: `src/modules/authoring` (domain, application, infrastructure)
+- Папка: `src/modules/authoring` (domain, application, infrastructure, ui)
 - Фасад: `AuthoringModule` → `container().authoring`
 - Публичное: `books`, `questions`, `outline`, `photos`, `letters`, `ordering`, `layoutRev`, `queries`, `photoRepository`, `themes`, `designAi`, `photoFile`, `photoStream`, `photoViewFile`
 - Таблицы: `books`, `book_questions`, `book_chapters`, `photos`, `photo_edits`, `book_letters`, `design_ai_requests`, `design_ai_credits`, `design_ai_purchases`, `answer_files`, `answer_file_purchases`
