@@ -7,7 +7,7 @@ import { staffLabel } from "@/shared/domain/staff";
 import { mergeCancels } from "@/shared/domain/orders";
 import { container } from "@/server/container";
 import { op } from "./op";
-import type { AiStagePayload } from "@/shared/domain/aiProposals";
+import type { AiAssigneePayload, AiStagePayload } from "@/shared/domain/aiProposals";
 
 /**
  * Сборщики страниц сделок CRM (ADR 0012, A5 — Раздел 5): доска и список, карточка сделки. Видимость по роли — по
@@ -98,7 +98,7 @@ export const reads = {
     );
     const [gifts, refundAfterOrder, proposals] = await Promise.all([container().sales.agreedGifts.get(deal.id), deal.orderId ? container().sales.refundAfterOrder(deal.id) : null, container().sales.aiProposals.pending(deal.id)]);
     // Предложения ИИ: этап — пока сделка там же, где была при разборе (перевели иначе — предложение устарело).
-    const aiProposals = proposals.filter((p) => p.kind !== "stage" || (p.payload as AiStagePayload).fromStageId === deal.stageId);
+    const aiProposals = proposals.filter((p) => (p.kind === "stage" ? (p.payload as AiStagePayload).fromStageId === deal.stageId : p.kind === "assignee" ? (p.payload as AiAssigneePayload).fromAssigneeId === deal.assigneeId : true));
     return {
       deal,
       batch,

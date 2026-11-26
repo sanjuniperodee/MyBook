@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { uuid } from "@/server/input";
 import { assertStaff, assertVisible, audit, can } from "@/server/access";
-import { aiNoteText, aiProposalTitle, type AiOrderStatusPayload, type AiStagePayload } from "@/shared/domain/aiProposals";
+import { aiNoteText, aiProposalTitle, type AiAssigneePayload, type AiOrderStatusPayload, type AiStagePayload } from "@/shared/domain/aiProposals";
 import { staffLabel } from "@/shared/domain/staff";
 import { AssistantError, normalizeExtracted, type AiSummary } from "@/modules/assistant";
 import { listFields } from "@/modules/workspace";
@@ -168,6 +168,15 @@ export async function aiProposalApplyAction(proposalId: string): Promise<{ ok: t
     if (!(await container().sales.aiProposals.decide(p.id, "applied", staff.user.id))) return { ok: false, message: "По этому предложению уже решили" };
     await container().sales.deals.move(deal.id, s.stageId, staff.user.id, s.lostReason, ai);
     await container().sales.aiProposals.staleStage(deal.id);
+  } else if (p.kind === "assignee") {
+    const a = p.payload as AiAssigneePayload;
+    if (deal.assigneeId !== a.fromAssigneeId) {
+      await container().sales.aiProposals.decide(p.id, "stale", staff.user.id);
+      return { ok: false, message: "Ответственного уже сменили — предложение устарело" };
+    }
+    if (!(await container().sales.aiProposals.decide(p.id, "applied", staff.user.id))) return { ok: false, message: "По этому предложению уже решили" };
+    await container().sales.deals.assign(deal.id, a.staffId);
+    await container().sales.deals.note({ id: deal.id, clientId: deal.clientId }, aiNoteText(aiProposalTitle(p), p.reason, p.quote), staff.user.id);
   } else {
     const o = p.payload as AiOrderStatusPayload;
     if (!can(staff, "orders.edit")) return { ok: false, message: "Нет прав менять заказы" };

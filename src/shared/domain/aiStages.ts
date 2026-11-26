@@ -130,3 +130,30 @@ export function quoteIn(quote: string | null | undefined, text: string | null | 
   const q = normalizeQuote(quote ?? "").replace(/[.…]+$/, "");
   return q.length >= 3 && normalizeQuote(text ?? "").includes(q);
 }
+
+/**
+ * Имя сотрудника в тексте: слово, начинающееся с первых 4 букв любой части имени (части — по пробелам и по смене
+ * регистра: «ИндираОП» → «Индира», «ОП»; короче 3 букв не в счёт). Падежи и суффиксы («Индирага», «Маратқа») совпадают,
+ * чужое имя («Марат» при «Margo») — нет.
+ */
+export function nameInText(name: string, text: string): boolean {
+  const parts = name
+    .replace(/([a-zа-яё])([A-ZА-ЯЁ])/g, "$1 $2")
+    .split(/[\s._-]+/)
+    .map((p) => normalizeQuote(p))
+    .filter((p) => p.length >= 3);
+  const words = normalizeQuote(text).split(/[^a-zа-яёәғқңөұүһі]+/i);
+  return parts.some((p) => words.some((w) => w.startsWith(p.slice(0, 4))));
+}
+
+/**
+ * Кто ведёт переписку от магазина («ИИ в CRM» → «Определяет менеджера»): apply — назначить его ответственным и приписать
+ * ему сообщения с телефона магазина, propose — предложить менеджеру, null — ничего. Доказательство — дословная цитата с
+ * именем сотрудника в названном сообщении: сотрудник представился сам (наше сообщение) — сам; клиент обратился по
+ * имени — предложением (клиент мог назвать прежнего менеджера).
+ */
+export function aiManagerDecision(d: { staffId: string; assigneeId: string | null; quoteOk: boolean; nameOk: boolean; fromManager: boolean }): "apply" | "propose" | null {
+  if (!d.quoteOk || !d.nameOk) return null;
+  if (d.staffId === d.assigneeId) return d.fromManager ? "apply" : null;
+  return d.fromManager ? "apply" : "propose";
+}

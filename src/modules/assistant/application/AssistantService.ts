@@ -112,7 +112,7 @@ export class AssistantService {
    * задачи, звонки, заметки) и этапы воронки с ролями. Возвращает вывод модели и сообщения, которые она видела (по номеру
    * сервер проверяет цитату). Нет переписки или ответ не по схеме — review: null.
    */
-  async reviewStage(dealId: string, input: { stages: ReviewStage[]; current: string; reasons: string[]; messages: number }): Promise<{ review: StageReview | null; messages: AiMessage[] }> {
+  async reviewStage(dealId: string, input: { stages: ReviewStage[]; current: string; reasons: string[]; messages: number; staff?: string[] }): Promise<{ review: StageReview | null; messages: AiMessage[] }> {
     const d = await this.dossier(dealId);
     const messages = d.messages.filter((m) => !m.internal && m.text.trim()).slice(-input.messages);
     if (!messages.some((m) => m.direction === "in")) return { review: null, messages };
@@ -120,13 +120,13 @@ export class AssistantService {
     const order = d.order ? `№${d.order.number}, статус ${d.order.status}, ${d.order.amount} ₸` : null;
     const facts = dossierText({ ...d, messages: [] }).replace(/\nПереписки нет\.$/, "");
     const { text } = await this.model.ask({
-      system: stageReviewPrompt(input.stages, input.current, input.reasons, today, order),
+      system: stageReviewPrompt(input.stages, input.current, input.reasons, today, order, input.staff ?? []),
       user: `${facts}\n\nПереписка (последние сообщения, номер в скобках):\n${numberedTranscript(messages)}`,
       effort: "low",
       schema: stageReviewSchema(input.reasons),
       timeoutMs: 45_000,
     });
-    return { review: normalizeStageReview(parseJson(text), input.stages.length, messages.length, input.reasons), messages };
+    return { review: normalizeStageReview(parseJson(text), input.stages.length, messages.length, input.reasons, input.staff?.length ?? 0), messages };
   }
 
   /**

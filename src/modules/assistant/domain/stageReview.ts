@@ -22,6 +22,8 @@ export interface StageReview {
   lostReason: string | null;
   /** Клиент получил заказ (книгу на руки) — цитата и номер сообщения. */
   delivered: { quote: string; message: number | null } | null;
+  /** Кто из сотрудников ведёт переписку от магазина (номер из списка), с цитатой, где он назван. */
+  manager: { n: number; quote: string; message: number | null } | null;
 }
 
 /** Переписка с номерами сообщений [n] — модель ссылается на номер, а сервер проверяет цитату в этом сообщении. */
@@ -35,7 +37,7 @@ export function numberedTranscript(messages: AiMessage[]): string {
     .join("\n");
 }
 
-export function stageReviewPrompt(stages: ReviewStage[], current: string, reasons: string[], today: string, order: string | null): string {
+export function stageReviewPrompt(stages: ReviewStage[], current: string, reasons: string[], today: string, order: string | null, staff: string[] = []): string {
   return [
     `Ты ведёшь воронку продаж магазина персональных книг MyBooks (Казахстан). Сегодня ${today}. Менеджеры забывают двигать сделки — по переписке определи, на каком этапе сделка на самом деле.`,
     `Этапы воронки по порядку:\n${stages.map((s) => `${s.n}. «${s.name}» — ${s.about}`).join("\n")}`,
@@ -48,6 +50,9 @@ export function stageReviewPrompt(stages: ReviewStage[], current: string, reason
     "confidence — насколько ты уверен, от 0 до 1. reason — коротко по-русски для менеджера, почему (до 120 знаков), обычными словами: без названий полей ответа и без рассуждений о схеме.",
     "quote — дословная цитата из одного сообщения переписки (как написано, без пересказа, до 200 знаков), на которой основан вывод; message — номер этого сообщения в квадратных скобках. Без смены этапа — пустая строка и 0.",
     "delivered — true, только если по переписке клиент уже получил книгу на руки (забрал, доставили, «получила»); delivered_quote и delivered_message — цитата и номер сообщения. Иначе false, пустая строка и 0.",
+    staff.length
+      ? `С телефона магазина пишут разные сотрудники: ${staff.map((n, i) => `${i + 1}. ${n}`).join("; ")}. manager — номер сотрудника, который ведёт эту переписку сейчас, только если в переписке он прямо назван по имени: представился («меня зовут …», «менеджер …», подпись) или клиент обратился к нему по имени. manager_quote — дословная цитата с этим именем, manager_message — номер сообщения. Имени из списка в переписке нет — 0, пустая строка и 0; не угадывай по стилю.`
+      : "",
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -65,8 +70,11 @@ export const stageReviewSchema = (reasons: string[]) => ({
     delivered: { type: "boolean" },
     delivered_quote: { type: "string" },
     delivered_message: { type: "integer" },
+    manager: { type: "integer" },
+    manager_quote: { type: "string" },
+    manager_message: { type: "integer" },
   },
-  required: ["stage", "confidence", "reason", "quote", "message", "lost_reason", "delivered", "delivered_quote", "delivered_message"],
+  required: ["stage", "confidence", "reason", "quote", "message", "lost_reason", "delivered", "delivered_quote", "delivered_message", "manager", "manager_quote", "manager_message"],
   additionalProperties: false,
 });
 
@@ -77,7 +85,7 @@ const int = (v: unknown, max: number) => {
 };
 
 /** Служебные слова ответа модели (названия полей), которые не должны попасть в ленту сделки. */
-const SCHEMA_WORDS = /\b(?:lost_reason|delivered(?:_quote|_message)?|quote|message|stage|confidence)\b/i;
+const SCHEMA_WORDS = /\b(?:lost_reason|delivered(?:_quote|_message)?|manager(?:_quote|_message)?|quote|message|stage|confidence)\b/i;
 
 /** Причина для ленты: без частей, где модель рассуждает о полях ответа («поэтому lost_reason пустой»). */
 export function cleanReason(reason: string): string {
@@ -91,7 +99,7 @@ export function cleanReason(reason: string): string {
 }
 
 /** Ответ модели → разбор: номер этапа и сообщения — в пределах списков, причина отказа — из списка, уверенность 0–1. */
-export function normalizeStageReview(raw: unknown, stageCount: number, messageCount: number, reasons: string[]): StageReview | null {
+export function normalizeStageReview(raw: unknown, stageCount: number, messageCount: number, reasons: string[], staffCount = 0): StageReview | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
   const c = Number(r.confidence);
@@ -105,5 +113,12 @@ export function normalizeStageReview(raw: unknown, stageCount: number, messageCo
     message: int(r.message, messageCount),
     lostReason: named,
     delivered: r.delivered === true && deliveredQuote ? { quote: deliveredQuote, message: int(r.delivered_message, messageCount) } : null,
+    manager: managerOf(r, staffCount, messageCount),
   };
+}
+
+function managerOf(r: Record<string, unknown>, staffCount: number, messageCount: number): StageReview["manager"] {
+  const n = int(r.manager, staffCount);
+  const quote = text(r.manager_quote, 300);
+  return n && quote ? { n, quote, message: int(r.manager_message, messageCount) } : null;
 }

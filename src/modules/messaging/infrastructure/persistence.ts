@@ -335,6 +335,20 @@ export class DrizzleMessageRepository implements MessageRepository, MessageMedia
     return rows.map((r) => r.id);
   }
 
+  /**
+   * Приписать сотруднику наши сообщения с телефона магазина (без автора, не бот, не правило, не системное) — «ИИ в CRM» →
+   * «Определяет менеджера». Возвращает, сколько сообщений приписано.
+   */
+  async attributeShop(ids: string[], staffId: string): Promise<number> {
+    if (!ids.length) return 0;
+    const rows = await executor()
+      .update(crmMessages)
+      .set({ attributedTo: staffId })
+      .where(and(inArray(crmMessages.id, ids), eq(crmMessages.direction, "out"), isNull(crmMessages.authorId), isNull(crmMessages.source), eq(crmMessages.internal, false)))
+      .returning({ id: crmMessages.id });
+    return rows.length;
+  }
+
   async setTranscript(id: string, text: string) {
     await executor().update(crmMessages).set({ transcript: text }).where(eq(crmMessages.id, id));
   }

@@ -2,7 +2,7 @@
  * Предложения ИИ по сделке (crm_ai_proposals): что ИИ увидел в переписке и предлагает сделать, а менеджер применяет
  * одной кнопкой. Здесь — виды, данные и подписи; общие для сервера, сайта и приложения.
  */
-export const AI_PROPOSAL_KINDS = ["stage", "order_status"] as const;
+export const AI_PROPOSAL_KINDS = ["stage", "order_status", "assignee"] as const;
 export type AiProposalKind = (typeof AI_PROPOSAL_KINDS)[number];
 
 /** pending — ждёт решения; applied — применили; dismissed — отклонили; stale — устарело (сделку уже перевели, заказ сменил статус). */
@@ -26,7 +26,14 @@ export interface AiOrderStatusPayload {
   status: "delivered";
 }
 
-export type AiProposalPayload = AiStagePayload | AiOrderStatusPayload;
+export interface AiAssigneePayload {
+  /** Ответственный при разборе (сменили — предложение устарело). */
+  fromAssigneeId: string | null;
+  staffId: string;
+  staffName: string;
+}
+
+export type AiProposalPayload = AiStagePayload | AiOrderStatusPayload | AiAssigneePayload;
 
 /** Предложение глазами карточки сделки. */
 export interface AiProposalView {
@@ -50,6 +57,7 @@ export function aiProposalTitle(p: Pick<AiProposalView, "kind" | "payload">): st
     const s = p.payload as AiStagePayload;
     return `Перевести на этап «${s.stageName}»${s.lostReason ? ` — ${s.lostReason}` : ""}`;
   }
+  if (p.kind === "assignee") return `Назначить ответственным: ${(p.payload as AiAssigneePayload).staffName}`;
   const o = p.payload as AiOrderStatusPayload;
   return `Отметить заказ №${o.orderNumber} ${ORDER_STATUS_ACTION[o.status]}`;
 }

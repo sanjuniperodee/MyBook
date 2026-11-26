@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { AI_STAGES, aiStageDecision, parseAiStages, quoteIn, stageRoles } from "@/shared/domain/aiStages";
+import { AI_STAGES, aiManagerDecision, aiStageDecision, nameInText, parseAiStages, quoteIn, stageRoles } from "@/shared/domain/aiStages";
 import { aiNoteText, aiProposalTitle } from "@/shared/domain/aiProposals";
 import { AI_CRM_FLAGS, aiFlagOn, aiFlagValue, isAiCrmFlag } from "@/shared/domain/aiCrm";
 import { cleanReason, normalizeStageReview, numberedTranscript, stageReviewSchema } from "@/modules/assistant/domain/stageReview";
@@ -109,6 +109,7 @@ describe("ИИ ведёт этапы: цитата и ответ модели", 
       message: 3,
       lostReason: "Дорого",
       delivered: null,
+      manager: null,
     });
     const r = normalizeStageReview({ stage: 9, confidence: "x", reason: "", quote: "", message: 99, lost_reason: "Иное", delivered: true, delivered_quote: "получила", delivered_message: 2 }, 7, 5, reasons);
     expect(r).toMatchObject({ stage: null, confidence: 0, message: null, lostReason: null, delivered: { quote: "получила", message: 2 } });
@@ -145,13 +146,19 @@ describe("ИИ ведёт этапы: проход", () => {
     { id: "m3", direction: "in" as const, text: "Все получила, спасибо!" },
   ];
   const deps = (review: Record<string, unknown> | null, over: Record<string, unknown> = {}) => {
-    const calls = { moved: [] as unknown[], proposed: [] as unknown[], reviewed: [] as string[] };
+    const calls = { moved: [] as unknown[], proposed: [] as unknown[], reviewed: [] as string[], assigned: [] as unknown[], attributed: [] as unknown[] };
     const d = {
-      config: async () => ({ on: true }),
+      config: async () => ({ stages: true, manager: true }),
+      staff: async () => [
+        { id: "s-indira", name: "ИндираОП" },
+        { id: "s-rasul", name: "Расул" },
+      ],
+      assign: async (...a: unknown[]) => void calls.assigned.push(a),
+      attribute: async (ids: string[], staffId: string) => (calls.attributed.push([ids, staffId]), ids.length),
       aiReady: async () => true,
       reviewedToday: async () => 0,
       funnel: async () => ({ pipelineId: "p", stages, silentDays: 3 }),
-      candidates: async () => [{ id: "d1", stageId: "work", order: null, lastIn: new Date() }],
+      candidates: async () => [{ id: "d1", stageId: "work", assigneeId: "s-rasul", order: null, lastIn: new Date() }],
       markReviewed: async (id: string) => void calls.reviewed.push(id),
       review: async () => ({ review: review as never, messages }),
       move: async (...a: unknown[]) => void calls.moved.push(a),
@@ -161,17 +168,17 @@ describe("ИИ ведёт этапы: проход", () => {
     };
     return { d, calls };
   };
-  const base = { stage: 7, confidence: 0.95, reason: "клиенту дорого", quote: "Для меня это дороговато", message: 2, lostReason: "Дорого", delivered: null };
+  const base = { stage: 7, confidence: 0.95, reason: "клиенту дорого", quote: "Для меня это дороговато", message: 2, lostReason: "Дорого", delivered: null, manager: null };
 
   it("выключено или модель не подключена — ничего не читает", async () => {
-    expect(await aiStagesPass(deps(base, { config: async () => ({ on: false }) }).d)).toBeNull();
+    expect(await aiStagesPass(deps(base, { config: async () => ({ stages: false, manager: false }) }).d)).toBeNull();
     expect(await aiStagesPass(deps(base, { aiReady: async () => false }).d)).toBeNull();
     expect(await aiStagesPass(deps(base, { reviewedToday: async () => AI_STAGES.perDay }).d)).toBeNull();
   });
 
   it("ясный отказ клиента с цитатой — сделка уходит в отказ сама, с причиной, цитатой и сообщением", async () => {
     const { d, calls } = deps(base);
-    expect(await aiStagesPass(d)).toEqual({ reviewed: 1, applied: 1, proposed: 0 });
+    expect(await aiStagesPass(d)).toEqual({ reviewed: 1, applied: 1, proposed: 0, assigned: 0, attributed: 0 });
     expect(calls.reviewed).toEqual(["d1"]);
     expect(calls.moved).toEqual([["d1", "lost", "Дорого", { reason: "клиенту дорого", quote: "Для меня это дороговато", messageId: "m2" }]]);
   });
@@ -184,25 +191,66 @@ describe("ИИ ведёт этапы: проход", () => {
 
   it("цитаты нет в названном сообщении — вывод не принимается", async () => {
     const { d, calls } = deps({ ...base, message: 1 });
-    expect(await aiStagesPass(d)).toEqual({ reviewed: 1, applied: 0, proposed: 0 });
+    expect(await aiStagesPass(d)).toEqual({ reviewed: 1, applied: 0, proposed: 0, assigned: 0, attributed: 0 });
     expect(calls.moved).toEqual([]);
   });
 
   it("книга на сайте — предложение; клиент получил заказ «в печати» — предложение отметить выданным", async () => {
     const { d, calls } = deps(
       { ...base, stage: 4, lostReason: null, confidence: 0.9, quote: "дороговато", delivered: { quote: "Все получила", message: 3 } },
-      { candidates: async () => [{ id: "d1", stageId: "work", order: { id: "o1", number: 110, status: "in_production" }, lastIn: new Date() }] },
+      { candidates: async () => [{ id: "d1", stageId: "work", assigneeId: null, order: { id: "o1", number: 110, status: "in_production" }, lastIn: new Date() }] },
     );
-    expect(await aiStagesPass(d)).toEqual({ reviewed: 1, applied: 0, proposed: 2 });
+    expect(await aiStagesPass(d)).toEqual({ reviewed: 1, applied: 0, proposed: 2, assigned: 0, attributed: 0 });
     expect(calls.proposed).toEqual([
       { dealId: "d1", kind: "stage", payload: { fromStageId: "work", stageId: "book", stageName: "Пишет книгу", lostReason: null }, reason: "клиенту дорого", quote: "дороговато", messageId: "m2", confidence: 0.9 },
       { dealId: "d1", kind: "order_status", payload: { orderId: "o1", orderNumber: 110, fromStatus: "in_production", status: "delivered" }, reason: "клиент получил книгу", quote: "Все получила", messageId: "m3", confidence: 0.9 },
     ]);
   });
 
+  it("сотрудник представился — он ответственный, и ему приписаны наши сообщения с этого места; назвал клиент — предложение", async () => {
+    const intro = [
+      { id: "m1", direction: "in" as const, text: "Здравствуйте" },
+      { id: "m2", direction: "out" as const, text: "Добрый день! Меня зовут Индира, менеджер MyBooks" },
+      { id: "m3", direction: "out" as const, text: "Цена 34 000 ₸" },
+      { id: "m4", direction: "in" as const, text: "Индира, спасибо" },
+    ];
+    const self = deps({ ...base, stage: null, manager: { n: 1, quote: "Меня зовут Индира", message: 2 } }, { review: async () => ({ review: { ...base, stage: null, manager: { n: 1, quote: "Меня зовут Индира", message: 2 } }, messages: intro }) });
+    expect(await aiStagesPass(self.d)).toMatchObject({ assigned: 1, attributed: 2 });
+    expect(self.calls.assigned).toEqual([["d1", "s-indira", "ИИ: Ответственный — ИндираОП. сотрудник представился в переписке — «Меня зовут Индира»."]]);
+    expect(self.calls.attributed).toEqual([[["m2", "m3"], "s-indira"]]);
+
+    const client = deps(null, { review: async () => ({ review: { ...base, stage: null, manager: { n: 1, quote: "Индира, спасибо", message: 4 } }, messages: intro }) });
+    expect(await aiStagesPass(client.d)).toMatchObject({ assigned: 0, proposed: 1 });
+    expect(client.calls.proposed).toMatchObject([{ kind: "assignee", payload: { fromAssigneeId: "s-rasul", staffId: "s-indira", staffName: "ИндираОП" } }]);
+
+    // Модель назвала не того: имени сотрудника в цитате нет («Марат» при «Расул») — ничего.
+    const wrong = deps(null, { review: async () => ({ review: { ...base, stage: null, manager: { n: 2, quote: "Меня зовут Индира", message: 2 } }, messages: intro }) });
+    expect(await aiStagesPass(wrong.d)).toMatchObject({ assigned: 0, proposed: 0, attributed: 0 });
+  });
+
   it("ошибка модели по одной сделке не останавливает проход", async () => {
     const { d } = deps(null, { review: async () => Promise.reject(new Error("429")) });
-    expect(await aiStagesPass(d)).toEqual({ reviewed: 0, applied: 0, proposed: 0 });
+    expect(await aiStagesPass(d)).toEqual({ reviewed: 0, applied: 0, proposed: 0, assigned: 0, attributed: 0 });
+  });
+});
+
+describe("ИИ в CRM: кто менеджер", () => {
+  it("имя в тексте — по первым буквам любой части имени, с падежами; чужое имя — нет", () => {
+    expect(nameInText("ИндираОП", "Меня зовут Индира")).toBe(true);
+    expect(nameInText("ИндираОП", "Индирага рахмет")).toBe(true);
+    expect(nameInText("Расул", "менеджер Расул, здравствуйте")).toBe(true);
+    expect(nameInText("Margo", "Марат, добрый день")).toBe(false);
+    expect(nameInText("Салауат", "Здравствуйте")).toBe(false);
+  });
+
+  it("решение: представился сам — сам; клиент назвал — предложение; без имени в цитате — ничего", () => {
+    const base = { staffId: "a", assigneeId: "b", quoteOk: true, nameOk: true, fromManager: true };
+    expect(aiManagerDecision(base)).toBe("apply");
+    expect(aiManagerDecision({ ...base, fromManager: false })).toBe("propose");
+    expect(aiManagerDecision({ ...base, nameOk: false })).toBeNull();
+    expect(aiManagerDecision({ ...base, quoteOk: false })).toBeNull();
+    expect(aiManagerDecision({ ...base, assigneeId: "a", fromManager: false })).toBeNull();
+    expect(aiManagerDecision({ ...base, assigneeId: "a" })).toBe("apply");
   });
 });
 

@@ -8,6 +8,7 @@ export interface AiStageCandidate {
   id: string;
   number: number;
   stageId: string;
+  assigneeId: string | null;
   /** Заказ сделки — для предложения «заказ выдан». */
   order: { id: string; number: number; status: string } | null;
   lastAt: Date;
@@ -25,7 +26,7 @@ export async function aiStageCandidates(f: { pipelineId: string; quietMinutes: n
   const since = new Date(f.now.getTime() - f.lookbackDays * 86_400_000);
   const lostSince = new Date(f.now.getTime() - f.lostDays * 86_400_000);
   const r = await executor().execute<Row>(sql`
-    select d.id, d.number, d.stage_id, m.last_at, m.last_in, o.id as order_id, o.number as order_number, o.status as order_status
+    select d.id, d.number, d.stage_id, d.assignee_id, m.last_at, m.last_in, o.id as order_id, o.number as order_number, o.status as order_status
     from crm_deals d
     join crm_stages s on s.id = d.stage_id
     left join orders o on o.id = d.order_id
@@ -44,6 +45,7 @@ export async function aiStageCandidates(f: { pipelineId: string; quietMinutes: n
     id: String(x.id),
     number: Number(x.number),
     stageId: String(x.stage_id),
+    assigneeId: x.assignee_id ? String(x.assignee_id) : null,
     order: x.order_id ? { id: String(x.order_id), number: Number(x.order_number), status: String(x.order_status) } : null,
     lastAt: x.last_at instanceof Date ? x.last_at : new Date(String(x.last_at)),
     lastIn: x.last_in instanceof Date ? x.last_in : new Date(String(x.last_in)),

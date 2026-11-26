@@ -325,6 +325,11 @@ export class MessagingModule {
     return result;
   }
 
+  /** Наши сообщения с телефона магазина — этому сотруднику (кто вёл переписку, по выводу ИИ). */
+  attributeShopMessages(ids: string[], staffId: string) {
+    return this.messages.attributeShop(ids, staffId);
+  }
+
   /** Расшифровка голосового (по кнопке в чате): модель «Голосовые и фото»; готовая — из базы. */
   async transcribe(messageId: string): Promise<string> {
     const m = await this.messages.findOne(messageId);

@@ -22,7 +22,7 @@ const label = new Map<string, string>();
 async function candidates(pipelineId: string) {
   const since = new Date(Date.now() - AI_STAGES.lookbackDays * 86_400_000);
   const r = await executor().execute<Record<string, unknown>>(sql`
-    select d.id, d.number, d.title, d.stage_id, m.last_in, o.id as order_id, o.number as order_number, o.status as order_status
+    select d.id, d.number, d.title, d.stage_id, d.assignee_id, m.last_in, o.id as order_id, o.number as order_number, o.status as order_status
     from crm_deals d join crm_stages s on s.id = d.stage_id left join orders o on o.id = d.order_id
     join lateral (select max(x.created_at) as last_at, max(x.created_at) filter (where x.direction = 'in') as last_in from crm_messages x join crm_conversations cv on cv.id = x.conversation_id
       where cv.deal_id = d.id and x.internal = false and x.deleted_at is null) m on m.last_at is not null
@@ -30,13 +30,13 @@ async function candidates(pipelineId: string) {
       and ${numbers.length ? sql`d.number in (${sql.join(numbers.map((n) => sql`${n}`), sql`, `)})` : sql`m.last_at >= ${since} and (s.kind <> 'won' or o.status in ('in_production', 'shipped'))`}
     order by m.last_at desc limit ${limit}`);
   for (const x of r.rows) label.set(String(x.id), `Д${x.number} «${String(x.title).slice(0, 40)}»`);
-  return r.rows.map((x) => ({ id: String(x.id), stageId: String(x.stage_id), lastIn: new Date(String(x.last_in instanceof Date ? x.last_in.toISOString() : x.last_in)), order: x.order_id ? { id: String(x.order_id), number: Number(x.order_number), status: String(x.order_status) } : null }));
+  return r.rows.map((x) => ({ id: String(x.id), stageId: String(x.stage_id), assigneeId: x.assignee_id ? String(x.assignee_id) : null, lastIn: new Date(String(x.last_in instanceof Date ? x.last_in.toISOString() : x.last_in)), order: x.order_id ? { id: String(x.order_id), number: Number(x.order_number), status: String(x.order_status) } : null }));
 }
 
 const counts = { apply: 0, propose: 0, none: 0 };
 const dry: AiStagesDeps = {
   ...real,
-  config: async () => ({ on: true }),
+  config: async () => ({ stages: true, manager: true }),
   reviewedToday: async () => 0,
   async funnel() {
     const f = await real.funnel();
@@ -53,6 +53,7 @@ const dry: AiStagesDeps = {
     console.log(v ? `  модель: этап ${v.stage ? `«${input.stages[v.stage - 1]?.name}»` : "без изменений"}${v.lostReason ? ` (${v.lostReason})` : ""}, уверенность ${v.confidence}, «${v.reason}»` : "  модель: нет ответа или переписки");
     if (v?.quote) console.log(`  цитата [${v.message}] ${m ? (m.direction === "in" ? "клиент" : "менеджер") : "нет такого сообщения"}: «${v.quote}»`);
     if (v?.delivered) console.log(`  выдан заказ: «${v.delivered.quote}»`);
+    if (v?.manager) console.log(`  менеджер: ${input.staff[v.manager.n - 1]} — [${v.manager.message}] «${v.manager.quote}»`);
     counts.none++;
     return r;
   },
@@ -60,6 +61,13 @@ const dry: AiStagesDeps = {
     counts.none--;
     counts.apply++;
     console.log(`  → СДЕЛАЛ БЫ САМ: «${stageName.get(stageId)}»${lostReason ? ` (${lostReason})` : ""} — ${ai.reason}`);
+  },
+  assign: async (_dealId, _staffId, note) => {
+    console.log(`  → НАЗНАЧИЛ БЫ САМ: ${note}`);
+  },
+  attribute: async (ids) => {
+    console.log(`  → ПРИПИСАЛ БЫ сообщений с телефона магазина: до ${ids.length}`);
+    return ids.length;
   },
   propose: async (p) => {
     if (p.kind === "stage") {

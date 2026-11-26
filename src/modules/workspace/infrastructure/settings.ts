@@ -100,6 +100,8 @@ export const settingDefs = {
   "crm.aiStages": { default: "{}" },
   /** «ИИ в CRM»: все голосовые WhatsApp сразу в текст (модель «Голосовые и фото»): on | off. См. shared/domain/aiCrm. */
   "crm.aiTranscribe": { default: "off" },
+  /** «ИИ в CRM»: кто из сотрудников ведёт переписку с телефона магазина → ответственный и автор сообщений: on | off. */
+  "crm.aiManager": { default: "off" },
   /** Заявки с новых номеров сначала попадают в «Неразобранное»: on | off. */
   "crm.unsorted": { default: "on" },
   /** Максимальная персональная скидка, которую менеджер может дать из чата, %. */
