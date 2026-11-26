@@ -24,3 +24,9 @@ export function widgetCode(campaign: string | null | undefined, path: string): s
 
 /** Кампания визита по ссылке-приглашению /r/<код> (contacts-d7): так виджет сайта передаёт код в первом сообщении. */
 export const INVITE_CAMPAIGN_PREFIX = "invite-";
+
+/** Первое касание: откуда пришёл посетитель (UTM и реферер). Храним 60 дней, при регистрации сохраняем в профиль. */
+export const SOURCE_COOKIE = "mb_src";
+
+/** Cookie посетителя для чата на сайте. */
+export const VISITOR_COOKIE = "mb_chat";

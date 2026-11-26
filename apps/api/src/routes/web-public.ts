@@ -22,6 +22,8 @@ import {
   localUnsubscribe,
   localUnsubscribeLink,
 } from "@/server/v1-local-bridge-public";
+import { FILE_TOKEN } from "@/lib/book/answer-files";
+import { toPublicAnswerFileDto } from "@/shared/public-routes";
 import type { Handlers } from "../app";
 
 async function resolveLocale(raw?: string): Promise<Locale> {
@@ -47,19 +49,9 @@ export const webPublicHandlers: Pick<
   | "webAnswerFilePage"
 > = {
   async webAnswerFilePage({ input }) {
-    const { FILE_TOKEN } = await import("@/lib/book/answer-files");
     if (!FILE_TOKEN.test(input.token)) return { found: null };
     const found = await (await import("@/server/answerFiles")).publicFile(input.token);
-    if (!found) return { found: null };
-    const f = found.file;
-    return {
-      found: {
-        file: { kind: f.kind as "video" | "audio", status: f.status, hasPoster: !!f.hasPoster, width: f.width ?? null, height: f.height ?? null, durationSec: f.durationSec ?? null },
-        bookTitle: found.bookTitle,
-        authorName: found.authorName,
-        caption: found.caption,
-      },
-    };
+    return toPublicAnswerFileDto(found);
   },
 
   webSiteCatalog: () => localSiteCatalog(),

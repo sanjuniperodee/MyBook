@@ -88,7 +88,7 @@ export function fileKind(mime: string, name: string): "image" | "video" | "audio
 }
 
 /** Cookie посетителя для чата на сайте. */
-export const VISITOR_COOKIE = "mb_chat";
+export { VISITOR_COOKIE } from "@/shared/domain/links";
 
 /** Удаление аккаунта клиента: стереть персональные данные этого контекста (оркеструет src/server/account-deletion). */
 export { messagingPrivacy } from "./infrastructure/privacy";

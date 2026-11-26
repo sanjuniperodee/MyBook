@@ -1,15 +1,10 @@
 /** Правила отзывов: кто может оставить отзыв, что можно показывать на сайте, благодарность автору. */
 
-export const RATING_MIN = 1;
-export const RATING_MAX = 5;
-export const TEXT_MAX = 2000;
-export const NAME_MAX = 40;
-export const CITY_MAX = 40;
+export { CITY_MAX, NAME_MAX, RATING_MAX, RATING_MIN, TEXT_MAX, THANK_YOU } from "@/shared/domain/reviews";
 /** Короче — в оценку идёт, но на сайте не показывается: «Супер!» ничего не рассказывает покупателю. */
 export const PUBLIC_TEXT_MIN = 20;
 /** Оценка, при которой отзыв сразу уходит поддержке: клиента нужно услышать, пока он не ушёл расстроенным. */
 export const LOW_RATING = 3;
-export { THANK_YOU } from "@/shared/domain/reviews";
 /** Сводная оценка на сайте — только когда отзывов достаточно, чтобы она что-то значила. */
 export const AGGREGATE_MIN_COUNT = 5;
 

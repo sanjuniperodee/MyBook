@@ -1,8 +1,8 @@
 import { NextResponse, userAgent, type NextRequest } from "next/server";
 import { LOCALE_COOKIE, LOCALE_HEADER, localizePath, splitLocale } from "@/i18n/config";
+import { SOURCE_COOKIE } from "@/shared/domain/links";
 
-/** Первое касание: откуда пришёл посетитель (UTM и реферер). Храним 60 дней, при регистрации сохраняем в профиль. */
-export const SOURCE_COOKIE = "mb_src";
+export { SOURCE_COOKIE };
 
 /** Первый язык в Accept-Language — казахский или узбекский; иначе русский (null). */
 function preferred(header: string | null): "kk" | "uz" | null {

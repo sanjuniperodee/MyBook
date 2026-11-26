@@ -20,6 +20,7 @@ import {
   IDENTITY_AUTH,
   MOBILE_DEVICES,
 } from "../src/modules/identity/identity.tokens";
+import { PUBLIC_PORTS, type PublicPorts } from "../src/modules/public/public.tokens";
 
 /** Токен сессии в тестах (формат как у настоящего: base64url, 20+ символов). */
 export const sessionOf = (user: Pick<CurrentUser, "id">) => `test-session-${user.id}`.padEnd(24, "x");
@@ -61,6 +62,41 @@ const defaultStaffAccess: StaffAccessPort = {
     if (user.role !== "admin" || user.staffDisabled) return null;
     return { context: new StaffContext(user.id, "Руководитель", "owner", "all", new Set(allPermissions), true, { isPhoneEmail }), gate: null };
   },
+};
+
+const defaultPublicPorts: PublicPorts = {
+  readCatalogSettings: async () => ({ overrides: null, registration: true, giftNote: true, seller: {} }),
+  ensureCatalog: async () => {},
+  widgetConfig: async () => ({ enabled: false, chat: false, whatsapp: "" }),
+  shopWhatsapp: async () => "",
+  reviewsShowcase: async () => [],
+  reviewsSummary: async () => ({ count: 0, average: 0 }),
+  reviewPhoto: async () => null,
+  reviewPhotoFile: async () => new Uint8Array(),
+  orderDetails: async () => null,
+  isOrderOwner: async () => false,
+  openReview: async () => ({ order: { name: "" }, review: null }),
+  submitReview: async () => ({ status: "new", thankYouCode: null, hasPhoto: false }),
+  inviteWelcome: async () => null,
+  followShortLink: async () => null,
+  giftByToken: async () => null,
+  giftPaymentProps: async () => ({ online: null, manual: null, kaspi: null }),
+  redeemUrl: (code, locale) => `http://localhost:3000/${locale}/redeem?code=${code}`,
+  purchaseGift: async () => ({ token: "", amount: 0 }),
+  claimGiftPayment: async () => null,
+  checkPromo: async () => ({ ok: false, error: "notFound" }),
+  giftByPromo: async () => null,
+  giftPdf: async () => null,
+  bookByInviteToken: async () => null,
+  submitLetter: async () => {},
+  isValidUnsubscribeLink: () => false,
+  unsubscribe: async () => {},
+  publicAnswerFile: async () => null,
+  siteMessages: async () => [],
+  postSiteChat: async () => {},
+  requestCallback: async () => {},
+  calendarFeed: async () => null,
+  chatAvatarFile: async () => null,
 };
 
 /** Лимитер в памяти: сколько раз звали с каким ключом; `deny` — следующий вызов вернёт «лимит исчерпан». */
@@ -148,6 +184,7 @@ export async function bootTestApp(opts: { users: CurrentUser[]; overrides?: [tok
       helpThread: async () => ({ enabled: false, whatsapp: "", messages: [], hints: [] }),
       helpAsk: async () => ({ outcome: "answered", suggestions: [], messages: [] }),
     })
+    .overrideProvider(PUBLIC_PORTS).useValue(defaultPublicPorts)
     .overrideProvider(SESSION_USERS).useValue(sessions)
     .overrideProvider(STAFF_ACCESS).useValue(defaultStaffAccess);
   if (opts.env) builder = builder.overrideProvider(APP_CONFIG).useValue(loadConfig(opts.env));

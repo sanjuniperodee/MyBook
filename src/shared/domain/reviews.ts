@@ -15,3 +15,9 @@ export interface ReviewPhoto {
 
 /** Благодарность за любой отзыв (не только за хороший): персональная скидка на следующую книгу. */
 export const THANK_YOU = { percent: 10, validDays: 60 } as const;
+
+export const RATING_MIN = 1;
+export const RATING_MAX = 5;
+export const TEXT_MAX = 2000;
+export const NAME_MAX = 40;
+export const CITY_MAX = 40;

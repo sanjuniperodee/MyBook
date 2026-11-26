@@ -15,6 +15,16 @@ import type {
 import { env } from "@/config/env";
 import { site } from "@/config/site";
 import type { Messages } from "@/i18n/messages";
+import {
+  GIFT_CLAIM_TOKEN_RE,
+  INVITE_CODE_RE,
+  LETTER_INVITE_TOKEN_RE,
+  toGiftStatusDto,
+  toLetterInviteDto,
+  toRedeemCheckDto,
+  toReviewPageDto,
+  toReviewsShowcaseDto,
+} from "@/shared/public-routes";
 
 /**
  * Публичные страницы сайта (ADR 0012, A5 — Раздел 4, section: "public"): одни сборщики данных для страниц Next (local)
@@ -34,7 +44,6 @@ const loadKaspiView = () => (kaspiViewModule ??= import("./kaspi-view"));
 const loadReviews = () => (reviewsModule ??= import("./reviews"));
 
 type Dto<T extends z.ZodType> = z.output<T>;
-const iso = (d: Date | string | null | undefined): string | null => (d instanceof Date ? d.toISOString() : typeof d === "string" ? d : null);
 
 // ─── Каталог, подвал, отзывы, приглашение ──────────────────────────────────────────────────────────────────
 
@@ -54,14 +63,11 @@ export async function localSiteChrome(): Promise<Dto<typeof WebSiteChrome>> {
 
 export async function localReviewsShowcase(limit: number, theme?: string): Promise<Dto<typeof WebReviewsShowcase>> {
   const { reviews, summary } = await (await loadReviews()).siteReviewsLocal(limit, theme);
-  return {
-    reviews: reviews.map((r) => ({ id: r.id, rating: r.rating, text: r.text, authorName: r.authorName, city: r.city, theme: r.theme, locale: r.locale, photo: r.photo, publishedAt: iso(r.publishedAt) })),
-    summary: summary ? { count: summary.count, average: summary.average } : null,
-  };
+  return toReviewsShowcaseDto(reviews, summary);
 }
 
 export async function localInviteWelcome(code: string): Promise<Dto<typeof WebInviteWelcome>> {
-  if (!/^[A-Za-z0-9_-]{3,40}$/.test(code)) return { welcome: null };
+  if (!INVITE_CODE_RE.test(code)) return { welcome: null };
   const { container } = await loadContainer();
   return { welcome: await container().referrals.service.welcome(code) };
 }
@@ -79,27 +85,7 @@ export async function localGiftStatus(token: string, m: Messages): Promise<Dto<t
     const [kaspi, manual] = await Promise.all([kaspiPaymentProps({ kind: "gift", id: gift.id }, gift.buyerPhone), manualPaymentProps(m)]);
     payment = { online: isOnlinePayment() ? { publicId: env.cloudpayments.publicId } : null, manual, kaspi };
   }
-  return {
-    id: gift.id,
-    number: gift.number,
-    token: gift.token,
-    status: gift.status,
-    plan: gift.plan as Dto<typeof WebGiftStatus>["plan"],
-    amount: gift.amount,
-    currency: gift.currency,
-    locale: gift.locale,
-    buyerName: gift.buyerName,
-    buyerEmail: gift.buyerEmail,
-    recipientName: gift.recipientName,
-    recipientEmail: gift.recipientEmail,
-    message: gift.message,
-    sendAt: gift.sendAt,
-    sentAt: iso(gift.sentAt),
-    paymentClaimedAt: iso(gift.paymentClaimedAt),
-    promo: paid ? { code: gift.promo!.code, usedCount: gift.promo!.usedCount, expiresAt: iso(gift.promo!.expiresAt) } : null,
-    redeemUrl: paid ? redeemUrl(gift.promo!.code, gift.locale) : null,
-    payment,
-  };
+  return toGiftStatusDto(gift, payment, paid ? redeemUrl(gift.promo!.code, gift.locale) : null);
 }
 
 export async function localGiftCreate(input: Dto<typeof WebGiftCreateBody>, buyerUserId: string | null): Promise<Dto<typeof WebGiftCreated>> {
@@ -117,7 +103,7 @@ export async function localGiftCreate(input: Dto<typeof WebGiftCreateBody>, buye
 /** «Я оплатил(а)» за сертификат; лимит частоты — у вызывающего (действие сайта или обработчик API v1). */
 export async function localGiftClaim(token: string): Promise<{ token: string | null }> {
   // Токен сертификата — 24 знака base64url (randomBytes(18)); мусор до базы не доходит.
-  if (!/^[\w-]{16,64}$/.test(token)) return { token: null };
+  if (!GIFT_CLAIM_TOKEN_RE.test(token)) return { token: null };
   const { container } = await loadContainer();
   const gift = await container().ordering.gifts.claimPayment(token);
   return { token: gift?.token ?? null };
@@ -127,33 +113,18 @@ export async function localRedeemCheck(code: string): Promise<Dto<typeof WebRede
   const { container } = await loadContainer();
   const ordering = container().ordering;
   const check = await ordering.promos.check(code);
-  if (!check.ok) return { check: { ok: false, error: check.error }, gift: null };
+  if (!check.ok) return toRedeemCheckDto(check, null);
   const gift = await ordering.queries.giftByPromo(check.promo.id);
-  const { code: c, kind, value, label } = check.promo;
-  return {
-    check: { ok: true, code: c, kind, value, label },
-    gift: gift ? { locale: gift.locale, plan: gift.plan as Dto<typeof WebGiftStatus>["plan"], recipientName: gift.recipientName, buyerName: gift.buyerName, message: gift.message } : null,
-  };
+  return toRedeemCheckDto(check, gift ?? null);
 }
 
 // ─── Письмо близких, отзыв по ссылке, отписка ──────────────────────────────────────────────────────────────
 
 export async function localLetterInvite(token: string): Promise<Dto<typeof WebLetterInvite> | null> {
-  if (!/^[A-Za-z0-9_-]{10,40}$/.test(token)) return null;
+  if (!LETTER_INVITE_TOKEN_RE.test(token)) return null;
   const { container } = await loadContainer();
   const book = await container().authoring.queries.bookByInviteToken(token);
-  if (!book) return null;
-  return {
-    status: book.status,
-    theme: book.theme,
-    title: book.title,
-    authorName: book.authorName,
-    recipientName: book.recipientName,
-    inviteText: book.inviteText,
-    coverTemplate: book.coverTemplate,
-    coverLines: book.coverLines,
-    format: book.format,
-  };
+  return book ? toLetterInviteDto(book) : null;
 }
 
 export async function localReviewPage(orderId: string, token: string | null): Promise<Dto<typeof WebReviewPage> | null> {
@@ -162,45 +133,13 @@ export async function localReviewPage(orderId: string, token: string | null): Pr
   const c = container();
   const details = await c.ordering.queries.orderDetails(orderId);
   if (!details) return null;
-  const b = details.book;
   let state: Awaited<ReturnType<ReturnType<typeof container>["feedback"]["reviews"]["open"]>> | null = null;
   try {
     state = await c.feedback.reviews.open(orderId);
   } catch (err) {
     if (!FeedbackError.is(err)) throw err;
   }
-  const review = state?.review?.snapshot() ?? null;
-  return {
-    number: details.number,
-    book: {
-      theme: b.theme,
-      title: b.title,
-      coverTemplate: b.coverTemplate,
-      coverLines: b.coverLines,
-      format: b.format,
-      authorName: b.authorName,
-      recipientName: b.recipientName,
-      hideRecipientOnCover: b.hideRecipientOnCover,
-      namesOnCover: b.namesOnCover,
-    },
-    state: state
-      ? {
-          defaultName: state.order.name,
-          review: review
-            ? {
-                rating: review.rating,
-                text: review.text,
-                authorName: review.authorName,
-                city: review.city,
-                consent: review.consent,
-                hasPhoto: !!review.photo,
-                status: review.status,
-                thankYouCode: review.thankYouCode,
-              }
-            : null,
-        }
-      : null,
-  };
+  return toReviewPageDto(details, state);
 }
 
 export async function localUnsubscribeLink(u: string, t: string): Promise<{ valid: boolean }> {
