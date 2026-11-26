@@ -1,5 +1,8 @@
-/** Метка ошибок домена. Symbol.for — общий для всех слоёв бандла Next.js (RSC, server actions, роуты). */
-const DOMAIN_ERROR = Symbol.for("mybook.domain-error");
+/**
+ * Метка ошибок домена — обычное имя свойства: одно для всех слоёв бандла Next.js (RSC, server actions, роуты) и видно
+ * в объявлениях типов (пакет типов бэкенда для веба, ADR 0013), в отличие от символа.
+ */
+const DOMAIN_ERROR = "__mybookDomainError";
 
 /**
  * Нарушение бизнес-правила. code — стабильный машинный код (по нему слой представления
@@ -9,7 +12,7 @@ const DOMAIN_ERROR = Symbol.for("mybook.domain-error");
  * отвечает «нет». Поэтому проверяйте ошибки через `XError.is(err)` — по метке и контексту.
  */
 export class DomainError<TCode extends string = string> extends Error {
-  readonly [DOMAIN_ERROR] = true;
+  readonly __mybookDomainError = true;
   /** Контекст, в котором возникла ошибка: ordering, identity, access… */
   readonly context: string = "shared";
 
@@ -24,7 +27,7 @@ export class DomainError<TCode extends string = string> extends Error {
   }
 
   static isDomainError(err: unknown): err is DomainError {
-    return typeof err === "object" && err !== null && (err as Record<symbol, unknown>)[DOMAIN_ERROR] === true;
+    return typeof err === "object" && err !== null && (err as Record<string, unknown>)[DOMAIN_ERROR] === true;
   }
 }
 

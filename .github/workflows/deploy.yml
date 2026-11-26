@@ -173,6 +173,27 @@ jobs:
 
   # Сборка и архив релиза. Кэш .next/cache не сохраняем: это кэш Turbopack на гигабайты, а сборка (~1 мин) короче
   # тестов и общее время не задаёт.
+  shared-package:
+    # Пакет @sanjuniperodee/mybook-shared для mybook-web (ADR 0013, шаг 3): контракт API v1 и общий чистый код, типы
+    # бэкенда — объявлениями. Версия 0.1.<номер сборки>; веб берёт её в .mybook-shared-version. Публикует GITHUB_TOKEN.
+    name: Пакет для веба (mybook-shared)
+    needs: [types, test]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, registry-url: "https://npm.pkg.github.com", scope: "@sanjuniperodee" }
+      - run: npm ci --no-audit --no-fund
+      - run: node scripts/packages/build-shared.mjs "0.1.${{ github.run_number }}" dist/mybook-shared
+      - run: npm publish
+        working-directory: dist/mybook-shared
+        env: { NODE_AUTH_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
+
   build:
     name: Сборка
     runs-on: ubuntu-24.04

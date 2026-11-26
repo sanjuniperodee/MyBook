@@ -34,7 +34,7 @@ describe("XError.is(): ошибки платежей, чеков и Wazzup", () 
   });
 
   it("метка работает и у ошибки из другой копии класса (другой слой бандла)", () => {
-    const otherLayer = Object.assign(new Error("копия"), { context: "payments", code: "date", [Symbol.for("mybook.domain-error")]: true });
+    const otherLayer = Object.assign(new Error("копия"), { context: "payments", code: "date", __mybookDomainError: true });
     expect(PaymentError.is(otherLayer)).toBe(true);
     expect(otherLayer instanceof PaymentError).toBe(false);
   });
