@@ -28,10 +28,17 @@ function coverArtVersion() {
   }
 }
 
+/**
+ * Фронт без нашего сервера (пробная выкатка на Vercel, docs/microservices/vercel-trial.md): BACKEND_ORIGIN — адрес, где
+ * живут mybook-api и mybook-files (https://mybooks.kz). Без переменной — как на нашем сервере: 127.0.0.1.
+ */
+const backendOrigin = process.env.BACKEND_ORIGIN?.trim().replace(/\/+$/, "") || "";
+
 const PUBLIC_IMAGE_CACHE = "public, max-age=604800, stale-while-revalidate=2592000";
 
 const nextConfig: NextConfig = {
-  output: "standalone",
+  // Vercel собирает своим способом; standalone — для нашего сервера (deploy/deploy.sh).
+  output: process.env.VERCEL ? undefined : "standalone",
   // Heavy Node-only packages used by PDF generation and image processing.
   // heic-decode (libheif в wasm) читает HEIC с iPhone; поток раскодирования подключает его по имени, поэтому пакет едет в релиз как есть.
   serverExternalPackages: ["@react-pdf/renderer", "@react-pdf/layout", "sharp", "pdf-lib", "hyphen", "pg", "archiver", "hunspell-asm", "heic-decode", "libheif-js"],
@@ -59,9 +66,9 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return {
       beforeFiles: [
-        { source: "/files/:token", destination: `http://127.0.0.1:${Number(process.env.FILES_PORT) || 3050}/files/:token` },
+        { source: "/files/:token", destination: backendOrigin ? `${backendOrigin}/files/:token` : `http://127.0.0.1:${Number(process.env.FILES_PORT) || 3050}/files/:token` },
         // API v1 (ADR 0012, apps/api) — процесс mybook-api; на проде nginx отдаёт /api/v1/ ему напрямую, мимо Next.
-        { source: "/api/v1/:path*", destination: `http://127.0.0.1:${Number(process.env.API_PORT) || 3044}/api/v1/:path*` },
+        { source: "/api/v1/:path*", destination: backendOrigin ? `${backendOrigin}/api/v1/:path*` : `http://127.0.0.1:${Number(process.env.API_PORT) || 3044}/api/v1/:path*` },
       ],
     };
   },

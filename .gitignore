@@ -28,3 +28,5 @@ tests/visual/.report/
 # в git их не брать.
 /mobile/*
 !/mobile/MOVED.md
+# Пробная выкатка на Vercel: привязка проекта (vercel link)
+.vercel

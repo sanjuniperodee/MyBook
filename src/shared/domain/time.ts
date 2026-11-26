@@ -6,7 +6,11 @@
  */
 const DEFAULT_STORE_TIME_ZONE = "Asia/Almaty";
 
-export const storeTimeZone = (): string => process.env.TZ || DEFAULT_STORE_TIME_ZONE;
+/**
+ * STORE_TIME_ZONE — явный пояс магазина (Vercel не даёт задать TZ и ставит свой «:UTC»); иначе TZ процесса без
+ * ведущего «:» (запись POSIX), иначе Алматы.
+ */
+export const storeTimeZone = (): string => process.env.STORE_TIME_ZONE?.trim() || process.env.TZ?.replace(/^:/, "").trim() || DEFAULT_STORE_TIME_ZONE;
 
 /** Местные дата и время момента: день недели 1 — понедельник … 7 — воскресенье, minutes — минуты от полуночи. */
 interface ZonedParts {

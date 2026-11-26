@@ -30,8 +30,16 @@ function installVisualClock() {
   console.log(`[visual] server clock fixed at ${new RealDate(ts).toISOString()}`);
 }
 
+/** Сайт без БД (Vercel, ADR 0012 A5): то же условие, что webApiOnly() в src/server/v1-web-client.ts. */
+const webApiOnly = () => process.env.WEB_API_ONLY?.trim() === "1" || !process.env.DATABASE_URL?.trim();
+
 export async function registerNode() {
   installVisualClock();
+  // Без БД сайт только показывает страницы через API v1: миграции, синхронизация каталога и фон — на нашем сервере.
+  if (webApiOnly()) {
+    console.log("[mybook] web without database: API v1 only, no migrations or background jobs");
+    return;
+  }
   const { configureSharpMemory } = await import("@/shared/infrastructure/sharpMemory");
   await configureSharpMemory();
   // Память процесса и счётчики отдачи файлов — в журнал замеров раз в 5 минут (perfLog.ts; в проде, без PERF_LOG=off).
