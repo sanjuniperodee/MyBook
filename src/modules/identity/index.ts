@@ -7,6 +7,7 @@ import { DrizzleIdentityQueries } from "./infrastructure/queries";
 
 export * from "./domain";
 export type { LoginResult } from "./application";
+export { SessionReader } from "./application/SessionReader";
 export type { CurrentUser } from "./infrastructure/queries";
 
 /** Удаление аккаунта клиента: какие удалённые аккаунты ещё дочищаются (оркеструет src/server/account-deletion). */

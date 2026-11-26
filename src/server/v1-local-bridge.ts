@@ -17,7 +17,8 @@ import { getTheme } from "@/lib/content/themes";
 import { formatDate, nowMs } from "@/lib/dates";
 import { deadlineFor, getOccasion } from "@/lib/occasions";
 import { startBookInput, type createBookSchema } from "@/lib/book/create-book-schema";
-import type { CurrentUser } from "@/modules/identity";
+import { SessionReader, type CurrentUser } from "@/modules/identity";
+import { systemClock } from "@/shared/application";
 import type { DeletionPreview } from "./account-deletion";
 import type { ShelfBook } from "./shelf";
 
@@ -116,13 +117,8 @@ const loadContainer = () => (containerModule ??= import("./container"));
 
 export async function localCurrentUserByToken(token: string): Promise<CurrentUser | null> {
   const { container } = await loadContainer();
-  const identity = container().identity;
-  const now = new Date();
-  const user = await identity.queries.userBySession(identity.tokens.hash(token), now);
-  if (user && (!user.lastSeenAt || now.getTime() - user.lastSeenAt.getTime() > 10 * 60_000)) {
-    void identity.queries.touch(user.id, now).catch(() => {});
-  }
-  return user;
+  const { queries, tokens } = container().identity;
+  return new SessionReader(queries, tokens, systemClock).user(token);
 }
 
 export async function localSessionUserDto(token: string): Promise<WebSessionUserDto | null> {

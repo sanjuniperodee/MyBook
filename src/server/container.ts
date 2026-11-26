@@ -24,7 +24,7 @@ import { ClientsModule } from "@/modules/clients";
 import { BoardsModule } from "@/modules/boards";
 import { ReportingModule } from "@/modules/reporting";
 import { WorkspaceModule, getSettings, notifyMentions, smtpConfig, staffWith } from "@/modules/workspace";
-import { FeedbackModule, reviewUrl, THANK_YOU } from "@/modules/feedback";
+import { FeedbackModule, reviewUrl, THANK_YOU, type StaffAlerts, type ThankYouPromos } from "@/modules/feedback";
 import { ReferralsModule } from "@/modules/referrals";
 import { SupportModule, ticketAlert } from "@/modules/support";
 import { convertAudio } from "./audio-convert";
@@ -294,11 +294,9 @@ export class Container {
   }
 
   /** Отзывы: благодарность — промокод контекста заказов, низкая оценка — уведомление тем, кто разбирает отзывы. */
-  get feedback(): FeedbackModule {
-    return (this.#feedback ??= new FeedbackModule({
-      uow: this.uow,
-      clock: this.clock,
-      logger: consoleLogger("feedback"),
+  /** Порты Feedback из других контекстов (промокод — Ordering, сигнал сотрудникам — Workspace): одни для фасада и бэкенда на Nest (ADR 0014). */
+  get feedbackPorts(): { promos: ThankYouPromos; alerts: StaffAlerts } {
+    return {
       promos: { issue: async (input) => (await this.ordering.promos.issuePersonal(input))?.code ?? null },
       alerts: {
         lowRating: (r) =>
@@ -309,8 +307,13 @@ export class Container {
             link: "/admin/reviews",
           }),
       },
-    }));
+    };
   }
+
+  get feedback(): FeedbackModule {
+    return (this.#feedback ??= new FeedbackModule({ uow: this.uow, clock: this.clock, logger: consoleLogger("feedback"), ...this.feedbackPorts }));
+  }
+
 
   /**
    * Обращения: расшифровка и суть — AI-помощник, уведомление — WhatsApp магазина, звук из видео — ffmpeg; о новом

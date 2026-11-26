@@ -34,7 +34,8 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm }
       - run: npm ci --no-audit --no-fund
-      - run: npx tsc --noEmit
+      # Сайт и бэкенд на Nest (у него свой tsconfig с декораторами, ADR 0014).
+      - run: npm run typecheck
 
   lint:
     name: Линтер

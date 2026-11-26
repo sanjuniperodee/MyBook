@@ -29,3 +29,17 @@ export function verifyClientIp(ip: string, sig: string | null | undefined, secre
   const got = Buffer.from(sig.slice(dot + 1));
   return want.length === got.length && timingSafeEqual(want, got);
 }
+
+/**
+ * Адрес клиента — для лимитов частоты, списка разрешённых IP и журнала. Подписанный адрес от фронта (выше), иначе
+ * X-Real-IP своего прокси, иначе последний адрес X-Forwarded-For (первый клиент может подставить сам — его добавил
+ * ближайший к приложению прокси). Одно правило для mybook-api и бэкенда на Nest (ADR 0014).
+ */
+export function clientIpFrom(header: (name: string) => string | null | undefined, secret: string | null | undefined): string {
+  const forwarded = header(CLIENT_IP_HEADER)?.trim();
+  if (forwarded && verifyClientIp(forwarded, header(CLIENT_IP_SIG_HEADER), secret)) return forwarded;
+  const real = header("x-real-ip")?.trim();
+  if (real) return real;
+  const chain = header("x-forwarded-for")?.split(",").map((s) => s.trim()).filter(Boolean) ?? [];
+  return chain.at(-1) || "local";
+}

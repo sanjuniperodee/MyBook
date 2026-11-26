@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "experimentalDecorators": true,
+    "incremental": false,
+    "plugins": []
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts", "../../src/types/**/*.d.ts"],
+  "exclude": []
+}

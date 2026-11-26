@@ -6,6 +6,7 @@ import type { User } from "@/shared/infrastructure/db/schema";
 import { isBookEditableBy, type BookRow, type BookViewer } from "@/modules/authoring";
 import { DomainError } from "@/shared/domain";
 import { viewerOf } from "@/server/books";
+import { originAllowed } from "@/shared/origin";
 import { domainStatus, errorText, isApiKey, isErrorKey, type ApiMessages, type ErrorKey, type ErrorParams } from "@/server/errors";
 import { container } from "@/server/container";
 import { env } from "@/config/env";
@@ -65,22 +66,8 @@ export function api<C>(handler: Handler<C>): Handler<C> {
 
 /** Проверка Origin для изменяющих запросов (защита от CSRF поверх SameSite=Lax). */
 export function checkOrigin(req: Request) {
-  if (["GET", "HEAD", "OPTIONS"].includes(req.method)) return;
-  const origin = req.headers.get("origin");
-  if (!origin) return;
   const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
-  const allowed = new Set([new URL(env.appUrl).host]);
-  if (host) allowed.add(host);
-  if (!allowed.has(originHost(origin))) throw new HttpError(403, "forbidden");
-}
-
-/** Хост из заголовка Origin; у «null» (песочные iframe, часть приватных режимов) и мусора — пустая строка, её нет среди разрешённых. */
-function originHost(origin: string): string {
-  try {
-    return new URL(origin).host;
-  } catch {
-    return "";
-  }
+  if (!originAllowed({ method: req.method, origin: req.headers.get("origin"), host }, env.appUrl)) throw new HttpError(403, "forbidden");
 }
 
 export async function apiUser(req: Request): Promise<User> {

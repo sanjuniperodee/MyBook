@@ -10,8 +10,12 @@ import { asciiBundle } from "./ascii-bundle.mjs";
 
 export const EXTERNAL = ["@react-pdf/renderer", "@react-pdf/layout", "sharp", "pdf-lib", "hyphen", "pg", "archiver", "hunspell-asm", "heic-decode", "libheif-js", "react", "react-dom"];
 
-/** Собрать entry в .next/standalone/<name>.mjs; nextShim — чем заменить next/server, next/headers, next/navigation. */
-export async function bundleNodeProcess({ name, entry, nextShim }) {
+/**
+ * Собрать entry в .next/standalone/<name>.mjs; nextShim — чем заменить next/server, next/headers, next/navigation;
+ * tsconfig — свой у процесса (бэкенду на Nest нужны experimentalDecorators); optional — пакеты, которые процесс грузит
+ * только при наличии (необязательные зависимости Nest), — не в бандл и не в релиз.
+ */
+export async function bundleNodeProcess({ name, entry, nextShim, tsconfig = "tsconfig.json", optional = [] }) {
   const out = path.join(".next", "standalone", `${name}.mjs`);
   if (!existsSync(path.dirname(out))) {
     console.error(`${name}: нет .next/standalone — сначала next build`);
@@ -25,8 +29,8 @@ export async function bundleNodeProcess({ name, entry, nextShim }) {
     format: "esm",
     target: "node22",
     jsx: "automatic",
-    tsconfig: "tsconfig.json",
-    external: EXTERNAL,
+    tsconfig,
+    external: [...EXTERNAL, ...optional],
     alias: {
       "server-only": "./scripts/empty-module.mjs",
       "react/jsx-runtime": "./scripts/pdf-worker-jsx.mjs",
