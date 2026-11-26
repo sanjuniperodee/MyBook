@@ -6,11 +6,14 @@ import { APP_CONFIG, type AppConfig } from "../config/app-config";
 import { ApiError } from "../errors/api-error";
 import { contractRouteOf, PUBLIC_ROUTE } from "../http/endpoint";
 import { header } from "../http/request";
+import { siteRouteOf } from "../http/site-route";
 import { SESSION_USERS, sessionToken, type SessionUsers } from "./session";
 
 /**
- * Вход по контракту маршрута (глобальный guard): auth "none" — без входа, "user" — Origin (CSRF) и сессия, иначе 401.
- * Маршрут без контракта открыт только с @Public() — по умолчанию закрыто, забытая проверка не открывает данные.
+ * Вход по контракту или @SiteRoute (глобальный guard):
+ * - auth "none" — без входа (CSRF проверяется только при явном csrf: true на @SiteRoute),
+ * - auth "user" | "staff" — Origin (CSRF, если не отключён) и сессия, иначе 401.
+ * Маршрут без @Endpoint/@SiteRoute открыт только с @Public() — по умолчанию закрыто.
  */
 @Injectable()
 export class SessionGuard implements CanActivate {
@@ -21,15 +24,21 @@ export class SessionGuard implements CanActivate {
   ) {}
 
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
-    const route = contractRouteOf(this.reflector, ctx.getHandler());
-    if (!route) {
-      if (this.reflector.get<boolean>(PUBLIC_ROUTE, ctx.getHandler())) return true;
+    const handler = ctx.getHandler();
+    const contract = contractRouteOf(this.reflector, handler);
+    const site = contract ? undefined : siteRouteOf(this.reflector, handler);
+    if (!contract && !site) {
+      if (this.reflector.get<boolean>(PUBLIC_ROUTE, handler)) return true;
       throw new ApiError(403, "forbidden");
     }
-    if (route.def.auth === "none") return true;
+    const auth = contract ? contract.def.auth : site!.options.auth;
+    const checkCsrf = contract ? auth !== "none" : (site!.options.csrf ?? auth !== "none");
     const req = ctx.switchToHttp().getRequest<FastifyRequest>();
-    const host = header(req, "x-forwarded-host") ?? header(req, "host");
-    if (!originAllowed({ method: req.method, origin: header(req, "origin"), host }, this.config.appUrl)) throw new ApiError(403, "forbidden");
+    if (checkCsrf) {
+      const host = header(req, "x-forwarded-host") ?? header(req, "host");
+      if (!originAllowed({ method: req.method, origin: header(req, "origin"), host }, this.config.appUrl)) throw new ApiError(403, "forbidden");
+    }
+    if (auth === "none") return true;
     const token = sessionToken(req);
     const user = token ? await this.sessions.user(token) : null;
     if (!user) throw new ApiError(401, "unauthorized");

@@ -11,6 +11,8 @@ declare module "fastify" {
     staff?: StaffMember;
     /** Вход маршрута, разобранный схемами контракта, — кладёт ContractInputGuard. */
     contractInput?: unknown;
+    /** Сырое тело запроса (JSON, form-urlencoded, text/plain) — для проверки подписей вебхуков. */
+    rawBody?: Buffer;
   }
 }
 

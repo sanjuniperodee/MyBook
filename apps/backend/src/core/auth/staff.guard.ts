@@ -5,6 +5,7 @@ import { APP_CONFIG, type AppConfig } from "../config/app-config";
 import { ApiError } from "../errors/api-error";
 import { clientIp } from "../http/client-ip";
 import { contractRouteOf } from "../http/endpoint";
+import { siteRouteOf } from "../http/site-route";
 import { STAFF_ACCESS, type StaffAccessPort } from "./staff";
 import { ALLOW_UNCONFIGURED_2FA_KEY } from "./staff.decorators";
 
@@ -21,13 +22,16 @@ export class StaffGuard implements CanActivate {
   ) {}
 
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
-    const route = contractRouteOf(this.reflector, ctx.getHandler());
-    if (!route || route.def.auth !== "staff") return true;
+    const handler = ctx.getHandler();
+    const contract = contractRouteOf(this.reflector, handler);
+    const site = contract ? undefined : siteRouteOf(this.reflector, handler);
+    const isStaff = contract?.def.auth === "staff" || site?.options.auth === "staff";
+    if (!isStaff) return true;
     const req = ctx.switchToHttp().getRequest<FastifyRequest>();
     if (!req.user) throw new ApiError(401, "unauthorized");
     const resolved = await this.access.resolve(req.user, clientIp(req, this.config.edgeIpSecret));
     if (!resolved || resolved.gate === "ip") throw new ApiError(403, "forbidden");
-    const allow2fa = this.reflector.getAllAndOverride<boolean>(ALLOW_UNCONFIGURED_2FA_KEY, [ctx.getHandler(), ctx.getClass()]);
+    const allow2fa = site?.options.allowUnconfigured2fa || this.reflector.getAllAndOverride<boolean>(ALLOW_UNCONFIGURED_2FA_KEY, [handler, ctx.getClass()]);
     if (resolved.gate === "2fa" && !allow2fa) throw new ApiError(403, "forbidden");
     const { context, gate } = resolved;
     req.staff = {

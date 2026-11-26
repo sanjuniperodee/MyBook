@@ -1,4 +1,4 @@
-import { Catch, HttpException, Logger, type ArgumentsHost, type ExceptionFilter } from "@nestjs/common";
+import { Catch, HttpException, Inject, Logger, type ArgumentsHost, type ExceptionFilter } from "@nestjs/common";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { ZodError } from "zod";
 import { createRouter, v1 } from "@mybook/contracts";
@@ -6,6 +6,7 @@ import { domainStatus, errorText, isApiKey, isErrorKey, type ApiMessages } from 
 import { messagesFor } from "@/i18n/messages";
 import { DomainError } from "@/shared/domain";
 import { requestLocale } from "../http/request";
+import { SITE_ROUTE_REGISTRY, type SiteRouteRegistry } from "../http/site-route";
 import { ApiError } from "./api-error";
 
 interface Failure {
@@ -16,9 +17,25 @@ interface Failure {
 
 /** Статусы Fastify (тело не JSON, слишком большое, не тот тип) → ключ словаря api. */
 const HTTP_CODES: Record<number, string> = { 413: "badData", 415: "badRequest" };
-/** Метка ForbiddenError из общего слоя прав (src/server/access.ts): узнаётся без импорта @/server. */
+/** Метки HttpError/ForbiddenError/notFound из общего слоя сайта и Next — узнаются без импорта @/server и next. */
 const FORBIDDEN_ERROR = Symbol.for("mybook.forbidden-error");
-const isForbiddenError = (err: unknown): boolean => typeof err === "object" && err !== null && (err as Record<symbol, unknown>)[FORBIDDEN_ERROR] === true;
+const HTTP_ERROR = Symbol.for("mybook.http-error");
+const isForbiddenError = (err: unknown): boolean => typeof err === "object" && err !== null && Reflect.get(err, FORBIDDEN_ERROR) === true;
+
+const asTaggedHttpError = (err: unknown): Failure | null => {
+  if (typeof err !== "object" || err === null || Reflect.get(err, HTTP_ERROR) !== true) return null;
+  const status = Reflect.get(err, "status");
+  const code = Reflect.get(err, "code");
+  const params = Reflect.get(err, "params");
+  if (typeof status !== "number" || typeof code !== "string") return null;
+  return { status, code, params: Array.isArray(params) ? params : undefined };
+};
+
+const isNextNotFound = (err: unknown): boolean => {
+  if (typeof err !== "object" || err === null) return false;
+  const digest = Reflect.get(err, "digest");
+  return digest === "NEXT_NOT_FOUND" || digest === "NEXT_HTTP_ERROR_FALLBACK;404";
+};
 
 const log = new Logger("api");
 const contract = createRouter(v1);
@@ -29,15 +46,20 @@ const contract = createRouter(v1);
  */
 @Catch()
 export class ApiExceptionFilter implements ExceptionFilter {
+  constructor(@Inject(SITE_ROUTE_REGISTRY) private readonly siteRoutes: SiteRouteRegistry) {}
+
   catch(err: unknown, host: ArgumentsHost) {
     const http = host.switchToHttp();
     const req = http.getRequest<FastifyRequest>();
     const reply = http.getResponse<FastifyReply>();
-    // Адреса нет среди маршрутов процесса — как у mybook-api: путь контракта с другим методом — 405 с Allow,
+    // Адреса нет среди маршрутов процесса — как у mybook-api: путь контракта или @SiteRoute с другим методом — 405 с Allow,
     // неизвестный путь — 404 с тем же телом (код notFound; текст не переводится — так отвечал и прежний API).
     if (err instanceof HttpException && err.getStatus() === 404) {
-      const found = contract.match(req.method, req.url.split("?")[0]);
+      const pathname = req.url.split("?")[0];
+      const found = contract.match(req.method, pathname);
       if (found && "allowed" in found) return void reply.status(405).header("allow", found.allowed.join(", ")).send();
+      const siteAllowed = this.siteRoutes.allowed(req.method, pathname);
+      if (siteAllowed.length > 0) return void reply.status(405).header("allow", siteAllowed.join(", ")).send();
       return void reply.status(404).header("cache-control", "no-store").send({ error: "Not found", code: "notFound" });
     }
     const t = messagesFor(requestLocale(req)).api;
@@ -49,6 +71,9 @@ export class ApiExceptionFilter implements ExceptionFilter {
 
   private classify(err: unknown, t: ApiMessages): Failure {
     if (err instanceof ApiError) return { status: err.status, code: err.code, params: err.params };
+    const httpErr = asTaggedHttpError(err);
+    if (httpErr) return httpErr;
+    if (isNextNotFound(err)) return { status: 404, code: "notFound" };
     if (isForbiddenError(err)) return { status: 403, code: "forbidden" };
     if (DomainError.isDomainError(err) && isApiKey(t, err.code)) return { status: domainStatus(err.code), code: err.code, params: [...err.params] };
     if (err instanceof ZodError) {
