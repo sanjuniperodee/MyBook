@@ -1,6 +1,6 @@
 import "server-only";
 import { AsyncLocalStorage } from "node:async_hooks";
-import { cookies } from "next/headers";
+import { cookies, headers as nextHeaders } from "next/headers";
 import { createApiClient, type ApiClient } from "@mybook/contracts";
 import { describeDiff, diffValues, normalize } from "@/shared/parity/normalize";
 import { ParityError, parityMode, type ParityLogger } from "./parity";
@@ -68,9 +68,21 @@ export function webUseApiV1(
 }
 
 export function apiInternalUrl(raw: string | undefined = process.env.API_INTERNAL_URL, apiPort: string | undefined = process.env.API_PORT): string {
-  const explicit = raw?.trim().replace(/\/+$/, "");
+  const explicit = raw?.trim().replace(/\/+$/, "").replace(/\/api\/v1$/i, "");
   if (explicit) return explicit;
   return `http://127.0.0.1:${Number(apiPort) || 3044}`;
+}
+
+async function readRequestClientIp(): Promise<string | null> {
+  try {
+    const h = await nextHeaders();
+    const real = h.get("x-real-ip")?.trim();
+    if (real) return real;
+    const chain = h.get("x-forwarded-for")?.split(",").map((s) => s.trim()).filter(Boolean) ?? [];
+    return chain.at(-1) ?? null;
+  } catch {
+    return null;
+  }
 }
 
 export interface WebApiClientOptions {
@@ -78,6 +90,8 @@ export interface WebApiClientOptions {
   sessionCookie?: string | null;
   /** Язык ответа для Accept-Language (ru | kk | uz | en). */
   locale?: string;
+  /** IP клиента для проброса в x-real-ip (чтобы rate-limit в mybook-api считался на клиента, а не общий "local"). */
+  clientIp?: string | null;
   baseUrl?: string;
   fetch?: typeof fetch;
   timeoutMs?: number;
@@ -91,6 +105,8 @@ export function createWebApiClient(opts: WebApiClientOptions = {}): ApiClient {
     headers.authorization = `Bearer ${opts.sessionCookie}`;
   }
   if (opts.locale) headers["accept-language"] = opts.locale;
+  const ip = opts.clientIp?.trim();
+  if (ip && ip !== "local") headers["x-real-ip"] = ip;
   const rawFetch = opts.fetch ?? fetch;
   const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const timedFetch: typeof fetch = (input, init) => {
@@ -100,10 +116,13 @@ export function createWebApiClient(opts: WebApiClientOptions = {}): ApiClient {
   return createApiClient({ baseUrl, headers, fetch: timedFetch });
 }
 
-/** Клиент для текущего SSR/RSC-запроса или Server Action: забирает токен сессии из mb_session cookie (если не передан явно). */
-export async function webApiClient(opts: { locale?: string; baseUrl?: string; fetch?: typeof fetch; timeoutMs?: number; sessionCookie?: string | null } = {}): Promise<ApiClient> {
-  const sessionCookie = opts.sessionCookie !== undefined ? opts.sessionCookie : ((await cookies()).get(SESSION_COOKIE)?.value ?? null);
-  return createWebApiClient({ ...opts, sessionCookie });
+/** Клиент для текущего SSR/RSC-запроса или Server Action: забирает токен сессии и IP клиента из next/headers. */
+export async function webApiClient(opts: { locale?: string; baseUrl?: string; fetch?: typeof fetch; timeoutMs?: number; sessionCookie?: string | null; clientIp?: string | null } = {}): Promise<ApiClient> {
+  const [sessionCookie, clientIp] = await Promise.all([
+    opts.sessionCookie !== undefined ? Promise.resolve(opts.sessionCookie) : cookies().then((c) => c.get(SESSION_COOKIE)?.value ?? null),
+    opts.clientIp !== undefined ? Promise.resolve(opts.clientIp) : readRequestClientIp(),
+  ]);
+  return createWebApiClient({ ...opts, sessionCookie, clientIp });
 }
 
 export interface V1WebReadOptions<T> {

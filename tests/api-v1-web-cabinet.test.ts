@@ -1,12 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { IdentityError } from "@/modules/identity/domain";
 import {
+  apiInternalUrl,
   createWebApiClient,
   v1WebAction,
   v1WebRead,
+  webApiClient,
   webApiOnly,
   webUseApiV1,
 } from "@/server/v1-web-client";
+import { hasTwoFactorTicket, issueTwoFactorTicket, setTwoFactorTicket } from "@/server/auth";
 import { anna, client, fake, request, resetContainer, resetRequest, signIn } from "./doubles/web";
 
 vi.mock("next/headers", async () => (await import("./doubles/web")).nextHeaders);
@@ -175,22 +178,72 @@ describe("v1-web-client: webApiOnly, v1WebAction, Bearer + Cookie", () => {
   });
 
   it("createWebApiClient(): отправляет токен одновременно в Cookie: mb_session и Authorization: Bearer", async () => {
-    const seen: Headers[] = [];
+    const seen: { url: string; headers: Headers }[] = [];
     const api = createWebApiClient({
-      baseUrl: "https://mybooks.kz",
+      baseUrl: "https://mybooks.kz/api/v1/",
       sessionCookie: "tok_vercel_1234567890",
       locale: "kk",
-      fetch: async (_input, init) => {
-        seen.push(new Headers(init?.headers));
+      clientIp: "198.51.100.42",
+      fetch: async (input, init) => {
+        seen.push({ url: String(input), headers: new Headers(init?.headers) });
         return Response.json({ user: null });
       },
     });
     const res = await api.meWebSession({});
     expect(res).toEqual({ user: null });
     expect(seen).toHaveLength(1);
-    expect(seen[0].get("cookie")).toBe("mb_session=tok_vercel_1234567890");
-    expect(seen[0].get("authorization")).toBe("Bearer tok_vercel_1234567890");
-    expect(seen[0].get("accept-language")).toBe("kk");
+    expect(seen[0].url).toBe("https://mybooks.kz/api/v1/web/session");
+    expect(seen[0].headers.get("cookie")).toBe("mb_session=tok_vercel_1234567890");
+    expect(seen[0].headers.get("authorization")).toBe("Bearer tok_vercel_1234567890");
+    expect(seen[0].headers.get("accept-language")).toBe("kk");
+    expect(seen[0].headers.get("x-real-ip")).toBe("198.51.100.42");
+  });
+
+  it("apiInternalUrl(): срезает хвостовой /api/v1 и слэши, чтобы не было /api/v1/api/v1", () => {
+    expect(apiInternalUrl("https://mybooks.kz/api/v1", undefined)).toBe("https://mybooks.kz");
+    expect(apiInternalUrl("https://mybooks.kz/api/v1/", undefined)).toBe("https://mybooks.kz");
+    expect(apiInternalUrl("https://mybooks.kz/API/V1", undefined)).toBe("https://mybooks.kz");
+    expect(apiInternalUrl("http://127.0.0.1:3044/", undefined)).toBe("http://127.0.0.1:3044");
+  });
+
+  it("webApiClient(): пробрасывает клиентский IP из x-real-ip / x-forwarded-for в mybook-api для rate-limit", async () => {
+    const seen: Headers[] = [];
+    const fakeFetch: typeof fetch = async (_input, init) => {
+      seen.push(new Headers(init?.headers));
+      return Response.json({ user: null });
+    };
+
+    request.headers.set("x-real-ip", "203.0.113.10");
+    const c1 = await webApiClient({ baseUrl: "http://127.0.0.1:3044", fetch: fakeFetch });
+    await c1.meWebSession({});
+    expect(seen[0].get("x-real-ip")).toBe("203.0.113.10");
+
+    request.headers.delete("x-real-ip");
+    request.headers.set("x-forwarded-for", "198.51.100.1, 203.0.113.25");
+    const c2 = await webApiClient({ baseUrl: "http://127.0.0.1:3044", fetch: fakeFetch });
+    await c2.meWebSession({});
+    expect(seen[1].get("x-real-ip")).toBe("203.0.113.25");
+
+    request.headers.delete("x-forwarded-for");
+    const c3 = await webApiClient({ baseUrl: "http://127.0.0.1:3044", fetch: fakeFetch });
+    await c3.meWebSession({});
+    expect(seen[2].get("x-real-ip")).toBeNull();
+  });
+
+  it("hasTwoFactorTicket(): в API-режиме (Vercel без секрета) проверяет наличие cookie mb_2fa, локально — подпись", async () => {
+    // API-режим: чужая подпись от mybook-api не проверяется локально, но cookie должна существовать.
+    vi.stubEnv("WEB_API_ONLY", "1");
+    expect(await hasTwoFactorTicket()).toBe(false);
+    await setTwoFactorTicket("signed-by-api-server.foreign-sig");
+    expect(await hasTwoFactorTicket()).toBe(true);
+
+    // Локальный режим: невалидная подпись отклоняется, валидная — принимается.
+    vi.stubEnv("WEB_API_ONLY", "");
+    vi.stubEnv("WEB_USE_API_V1", "0");
+    vi.stubEnv("DATABASE_URL", "postgres://test/mybook");
+    expect(await hasTwoFactorTicket()).toBe(false);
+    await issueTwoFactorTicket(USER_ID);
+    expect(await hasTwoFactorTicket()).toBe(true);
   });
 });
 

@@ -6,7 +6,7 @@ import { isSecureCookie } from "@/config/env";
 import { signValue, verifySigned } from "@/shared/crypto";
 import type { CurrentUser } from "@/modules/identity";
 import { fromWebSessionUser, localLogout, localSessionUserDto } from "./v1-local-bridge";
-import { v1WebAction, v1WebRead } from "./v1-web-client";
+import { v1WebAction, v1WebRead, webUseApiV1 } from "./v1-web-client";
 
 /**
  * Веб-адаптер аутентификации: cookie сессии и «билета» второго фактора, текущий пользователь.
@@ -97,6 +97,12 @@ export async function readTwoFactorTicket(): Promise<string | null> {
   if (!data) return null;
   const [userId, exp] = data.split(".");
   return Number(exp) > Date.now() ? userId : null;
+}
+
+/** Есть ли билет 2FA: в API-режиме (в т.ч. Vercel без APP_SECRET/DATABASE_URL) проверяем наличие cookie (подпись проверит mybook-api). */
+export async function hasTwoFactorTicket(): Promise<boolean> {
+  if (webUseApiV1("cabinet")) return Boolean(await rawTwoFactorTicket());
+  return Boolean(await readTwoFactorTicket());
 }
 
 export async function clearTwoFactorTicket() {
