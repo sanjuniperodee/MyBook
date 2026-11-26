@@ -9,7 +9,7 @@ import type {
   WebShelfBook,
   WebShelfData,
 } from "@mybook/contracts";
-import { isLocale, type Locale } from "@/i18n/config";
+import type { Locale } from "@/i18n/config";
 import type { Messages } from "@/i18n/messages";
 import { registrationOpen, site } from "@/config/site";
 import { BLANK_READY_WORDS, bookKind } from "@/lib/content/kinds";
@@ -18,6 +18,7 @@ import { formatDate, nowMs } from "@/lib/dates";
 import { deadlineFor, getOccasion } from "@/lib/occasions";
 import { startBookInput, type createBookSchema } from "@/lib/book/create-book-schema";
 import { SessionReader, type CurrentUser } from "@/modules/identity";
+import { toWebSessionUser } from "@/modules/identity/ui/session";
 import { systemClock } from "@/shared/application";
 import type { DeletionPreview } from "./account-deletion";
 import type { ShelfBook } from "./shelf";
@@ -38,45 +39,9 @@ type WebHealthDto = z.output<typeof WebHealth>;
 
 const NEXT_SECTION_LOOKUP = 6;
 
-const toIsoOrNull = (d: Date | string | null | undefined): string | null =>
-  d instanceof Date ? d.toISOString() : typeof d === "string" ? d : null;
-
-const toIsoOrEpoch = (d: Date | string | null | undefined): string =>
-  toIsoOrNull(d) ?? new Date(0).toISOString();
-
 const fromIsoOrNull = (v: string | null): Date | null => (v ? new Date(v) : null);
 
-/** Безопасная проекция пользователя БД → DTO сессии без секретов (passwordHash, totpSecret, totpBackup). */
-export function toWebSessionUser(u: CurrentUser): WebSessionUserDto {
-  return {
-    id: u.id,
-    email: u.email,
-    name: u.name ?? "",
-    phone: u.phone ?? null,
-    role: u.role === "admin" ? "admin" : "user",
-    tags: Array.isArray(u.tags) ? u.tags : [],
-    lastSeenAt: toIsoOrNull(u.lastSeenAt),
-    remindedAt: toIsoOrNull(u.remindedAt),
-    emailOptOut: Boolean(u.emailOptOut),
-    locale: isLocale(u.locale) ? u.locale : "ru",
-    source: u.source && typeof u.source === "object" ? u.source : null,
-    crmRoleId: u.crmRoleId ?? null,
-    managerId: u.managerId ?? null,
-    sipExtension: u.sipExtension ?? null,
-    notifyPrefs: u.notifyPrefs && typeof u.notifyPrefs === "object" ? u.notifyPrefs : {},
-    onShift: u.onShift ?? true,
-    extraPhones: Array.isArray(u.extraPhones) ? u.extraPhones : [],
-    customFields: u.customFields && typeof u.customFields === "object" ? (u.customFields as Record<string, unknown>) : {},
-    staffDisabled: Boolean(u.staffDisabled),
-    totpEnabledAt: toIsoOrNull(u.totpEnabledAt),
-    hasTotpSecret: Boolean(u.totpSecret),
-    totpBackupCount: Array.isArray(u.totpBackup) ? u.totpBackup.length : 0,
-    deletedAt: toIsoOrNull(u.deletedAt),
-    purgedAt: toIsoOrNull(u.purgedAt),
-    createdAt: toIsoOrEpoch(u.createdAt),
-    updatedAt: toIsoOrEpoch(u.updatedAt),
-  };
-}
+export { toWebSessionUser };
 
 /** Восстановление `CurrentUser` из безопасного DTO сессии API v1 (без передачи секретов по сети). */
 export function fromWebSessionUser(dto: WebSessionUserDto): CurrentUser {

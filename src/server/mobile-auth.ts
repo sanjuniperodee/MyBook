@@ -5,7 +5,7 @@ import { HttpError } from "@/server/api";
 import { container } from "@/server/container";
 import { staffActionError } from "@/server/errors";
 import { IdentityError } from "@/modules/identity";
-import { signValue, verifySigned } from "@/shared/crypto";
+import { issueTicket, readTicket } from "@/shared/two-factor-ticket";
 import { rateLimit, trustedClientIp } from "@/server/rateLimit";
 
 /**
@@ -13,7 +13,7 @@ import { rateLimit, trustedClientIp } from "@/server/rateLimit";
  * в теле ответа (приложение кладёт его в защищённое хранилище и шлёт как Authorization: Bearer). Только для сотрудников.
  */
 
-const TICKET_TTL_MS = 5 * 60_000;
+export { issueTicket, readTicket };
 
 export const loginBody = z.object({ login: z.string().trim().min(1).max(200), password: z.string().min(1).max(200) });
 export const secondFactorBody = z.object({ ticket: z.string().min(10).max(300), code: z.string().trim().min(4).max(40) });
@@ -22,18 +22,6 @@ export interface MobileSession {
   token: string;
   expiresAt: string;
   user: { id: string; name: string; email: string };
-}
-
-/** «Билет» второго шага: подписанный id сотрудника на 5 минут (как cookie веба, но в теле ответа). */
-export function issueTicket(userId: string) {
-  return signValue(`${userId}.${Date.now() + TICKET_TTL_MS}`);
-}
-
-export function readTicket(ticket: string): string | null {
-  const data = verifySigned(ticket);
-  if (!data) return null;
-  const [userId, exp] = data.split(".");
-  return Number(exp) > Date.now() ? userId : null;
 }
 
 /** Ошибка входа (пароль, код) — 401 с текстом для экрана; всё остальное — настоящая ошибка сервера. */

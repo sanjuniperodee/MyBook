@@ -26,14 +26,8 @@ function warnMissingSeller(overrides: Partial<SellerDetails>) {
   if (missing.length) console.warn(`[site] реквизиты продавца не заданы (${missing.map((k) => SELLER_LABELS[k]).join(", ")}): на сайте заглушки из src/config/site.ts — заполните в админке «Сайт»`);
 }
 
-/**
- * Цены, тарифы, переключатели сайта (регистрация, открытка к заказу) и реквизиты продавца, заданные в админке, подтягиваются из настроек
- * в действующий каталог (config/site.ts). Настройки кэшируются на 10 секунд, поэтому вызов дешёвый; ошибка чтения не ломает
- * сайт — остаются прежние значения.
- */
-export async function ensureCatalog() {
-  // Сайт без БД (Vercel): те же настройки берём из API v1, не чаще раза в 10 секунд.
-  if (webApiOnly()) return ensureCatalogViaApi();
+/** Прямая синхронизация каталога, флагов сайта и реквизитов продавца из таблицы настроек БД (без webApiOnly/next/headers). */
+export async function syncCatalogFromSettings() {
   try {
     const raw = await getSetting("catalog.overrides");
     applyCatalog(raw ? sanitizeOverrides(JSON.parse(raw)) : null);
@@ -48,6 +42,17 @@ export async function ensureCatalog() {
   } catch (err) {
     console.error("[catalog] не удалось прочитать реквизиты продавца из настроек", err);
   }
+}
+
+/**
+ * Цены, тарифы, переключатели сайта (регистрация, открытка к заказу) и реквизиты продавца, заданные в админке, подтягиваются из настроек
+ * в действующий каталог (config/site.ts). Настройки кэшируются на 10 секунд, поэтому вызов дешёвый; ошибка чтения не ломает
+ * сайт — остаются прежние значения.
+ */
+export async function ensureCatalog() {
+  // Сайт без БД (Vercel): те же настройки берём из API v1, не чаще раза в 10 секунд.
+  if (webApiOnly()) return ensureCatalogViaApi();
+  await syncCatalogFromSettings();
 }
 
 /** Настройки каталога как есть — для сайта без БД (API v1 webSiteCatalog); применяет их ensureCatalogViaApi. */

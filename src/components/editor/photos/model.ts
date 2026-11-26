@@ -4,26 +4,15 @@
  * и «не печатается» пишет единственная функция placePatch — остальной код сравнивает места, а не ключи.
  */
 import type { Locale } from "@/i18n/config";
-import type { ClientMessages } from "@/i18n/messages";
 import { patchEditorPhotos, type EditorPhoto, type EditorPhotoPatch } from "@/lib/book/editor-model";
 import { isChapterPhotoKey, PHOTO_OFF_KEY } from "@/lib/book/layout";
 import type { InlinePhotoStyle } from "@/lib/book/inline-photo";
 import type { PhotoCrop } from "@/lib/book/photo-crop";
 import type { PhotoPlace } from "@/lib/book/photo-place";
+import { currentOption, placeNames, placeText, type PlaceAnswer, type PlaceChapter, type PlaceNames, type PlaceTarget, type SheetPhoto } from "@/lib/book/photo-tab-model";
 import { GALLERY_KEY, tocKey, type TocLineSetting, type TocLines } from "@/lib/book/toc";
 
-/** Фото книги в листах: размеры и поля места — строка photos или фото редактора. Порядок списка — порядок вкладки «Фото». */
-export interface SheetPhoto {
-  id: string;
-  width: number;
-  height: number;
-  questionId?: string | null;
-  chapter?: string | null;
-  opener?: boolean;
-  crop?: PhotoCrop | null;
-  caption?: string;
-  layout?: "full" | "bleed" | "half" | "grid";
-}
+export { currentOption, placeNames, placeText, type PlaceAnswer, type PlaceChapter, type PlaceNames, type PlaceTarget, type SheetPhoto };
 
 /** Строка фото из ответа API (PATCH, пакет, загрузка) — ей вызывающий обновляет свой список. */
 export interface PhotoRowView {
@@ -62,22 +51,6 @@ export interface PlaceBook {
   layoutRev?: number;
 }
 
-/** Глава книги по порядку: название (своё из tocLines), номер и эпиграф для мини-страницы; printed — в ней есть что печатать. */
-export interface PlaceChapter {
-  key: string;
-  title: string;
-  number?: number | null;
-  epigraph?: string;
-  printed: boolean;
-}
-
-/** Ответ (раздел) книги — куда можно поставить фото. */
-export interface PlaceAnswer {
-  id: string;
-  title: string;
-  chapterKey: string;
-}
-
 /** Всё о фото книги, что нужно листам: книга, фото, их места (photoPlaceOf), главы, ответы и строки оглавления. */
 export interface PlaceData {
   book: PlaceBook;
@@ -112,30 +85,7 @@ export interface PlaceEvents {
   onLayout?: (sync: { layoutRev: number; photos: PhotoRowView[] }) => void;
 }
 
-/** Названия для подписей мест. */
-export interface PlaceNames {
-  chapter: (key: string) => string;
-  question: (id: string) => string;
-}
-
-/** album — название альбома в конце (как печатается): «Фото главы «…»» у фото начальной полосы альбома. */
-export function placeNames(chapters: readonly Pick<PlaceChapter, "key" | "title">[], answers: readonly Pick<PlaceAnswer, "id" | "title">[] = [], album = ""): PlaceNames {
-  const c = new Map(chapters.map((ch) => [ch.key, ch.title]));
-  if (album) c.set(GALLERY_KEY, album);
-  const q = new Map(answers.map((a) => [a.id, a.title]));
-  return { chapter: (key) => c.get(key) || "—", question: (id) => q.get(id) || "—" };
-}
-
 // ─── куда поставить ─────────────────────────────────────────────────────────
-
-/** Выбор автора в листе места. */
-export type PlaceTarget =
-  | { kind: "answer"; questionId: string }
-  | { kind: "opener"; chapterKey: string }
-  | { kind: "after"; chapterKey: string }
-  | { kind: "album" }
-  | { kind: "auto" }
-  | { kind: "off" };
 
 /** Правка места фото для PATCH …/photos/[pid] и пакета (правила проверяет домен, Photo.update). */
 export interface PlacePatch {
@@ -161,14 +111,6 @@ export function placePatch(t: PlaceTarget): PlacePatch {
     case "off":
       return { questionId: null, chapter: PHOTO_OFF_KEY };
   }
-}
-
-/** Какой пункт листа места отмечен «сейчас здесь». Фото, ждущее главу без текста, — выбор «после главы» (или фото главы). */
-export function currentOption(place: PhotoPlace | undefined, photo?: Pick<SheetPhoto, "opener">): PlaceTarget["kind"] {
-  if (!place) return "auto";
-  if (place.waitingFor) return photo?.opener ? "opener" : "after";
-  if (place.auto) return "auto";
-  return place.kind;
 }
 
 /** Совпадает ли выбор с тем, где фото стоит сейчас, — тогда писать нечего. */
@@ -375,35 +317,5 @@ export function reorderWithin(all: readonly string[], subset: readonly string[],
   const inSubset = new Set(subset);
   let k = 0;
   return all.map((x) => (inSubset.has(x) ? next[k++] : x));
-}
-
-/**
- * Где стоит фото — одной строкой (R6: только по photoPlaceOf). marked — у фото отметка «фото главы»; в оформлении без
- * фото главы (openerDesign = false) оно печатается после главы, и подпись это говорит. У фото, отданного правилу книги
- * до пересборки (глава ещё неизвестна), — «Пусть встанет само».
- */
-export function placeText(place: PhotoPlace, names: PlaceNames, t: ClientMessages["editor"], blank: boolean, opts: { marked?: boolean; openerDesign?: boolean } = {}): string {
-  const p = t.photoPlace;
-  if (place.waitingFor) return p.waiting(names.chapter(place.waitingFor));
-  let label: string;
-  switch (place.kind) {
-    case "answer":
-      label = (blank ? p.answerBlank : p.answer)(place.questionId ? names.question(place.questionId) : "—");
-      break;
-    case "opener":
-      label = p.opener(names.chapter(place.chapterKey ?? ""));
-      break;
-    case "after":
-      if (!place.chapterKey) return t.placeSheet.auto.label;
-      label = opts.marked && opts.openerDesign === false && !place.auto ? `${p.opener(names.chapter(place.chapterKey))} · ${p.noteNoOpener}` : p.after(names.chapter(place.chapterKey));
-      break;
-    case "album":
-      label = p.album;
-      break;
-    case "off":
-      label = p.off;
-      break;
-  }
-  return place.auto ? p.withAuto(label) : label;
 }
 

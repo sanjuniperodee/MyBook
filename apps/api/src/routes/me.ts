@@ -2,9 +2,9 @@
 import { env } from "@/config/env";
 import { isLocale, localizePath, type Locale } from "@/i18n/config";
 import { getLocale } from "@/i18n/server";
-import { accountDeletionFor } from "@/i18n/messages/account-deletion";
 import { messagesFor } from "@/i18n/messages";
 import { IdentityError } from "@/modules/identity";
+import { buildAccountView, deletionLabels, type AccountDto, type AccountNotice } from "@/modules/identity/ui/accountView";
 import {
   fcmClientOptions,
   fcmConfig,
@@ -18,15 +18,8 @@ import { HttpError } from "@/server/api";
 import { sessionToken } from "@/server/auth";
 import { container } from "@/server/container";
 import { rateLimit, trustedClientIp } from "@/server/rateLimit";
-import { locales, localeMeta } from "@/i18n/config";
-import type { AccountView } from "@mybook/contracts";
 import { ACCOUNT_LIMITS } from "@mybook/contracts/limits";
-import { MIN_PASSWORD_LENGTH } from "@/modules/identity";
-import type { z } from "zod";
 import type { Handlers } from "../app";
-
-type Account = z.infer<typeof AccountView>;
-type Notice = Account["notice"];
 
 /** Свежий пользователь сессии (после правки: getCurrentUser держит прежнего на весь запрос). */
 async function freshUser() {
@@ -44,51 +37,16 @@ async function freshUser() {
 
 /** Аккаунт как страница /account сайта: те же тексты (orders.account), язык — выбранный пользователем. */
 async function accountView(
-  notice: Notice = null,
+  notice: AccountNotice = null,
   raw?: string,
-): Promise<Account> {
+): Promise<AccountDto> {
   const u = await freshUser();
   const locale = isLocale(raw)
     ? raw
     : isLocale(u.locale)
       ? u.locale
       : await localeOf(undefined);
-  const m = messagesFor(locale);
-  const t = m.orders.account;
-  return {
-    profile: { name: u.name, phone: u.phone ?? "", email: u.email },
-    remindersOn: !u.emailOptOut,
-    locale,
-    locales: locales.map((id) => ({ id, label: localeMeta[id].label })),
-    limits: { name: ACCOUNT_LIMITS.name, passwordMin: MIN_PASSWORD_LENGTH },
-    notice,
-    labels: {
-      title: t.title,
-      lead: t.lead,
-      groups: t.groups,
-      email: t.email,
-      emailHint: t.emailHint,
-      name: t.name,
-      phone: t.phone,
-      save: t.save,
-      current: t.current,
-      next: t.next,
-      change: t.change,
-      languageText: t.languageText,
-      logout: m.common.nav.logout,
-      notifications: {
-        orderMail: t.notifications.orderMail,
-        orderMailValue: t.notifications.orderMailValue,
-        reminders: t.notifications.reminders,
-        on: t.notifications.on,
-        off: t.notifications.off,
-        onHint: t.notifications.onHint,
-        offHint: t.notifications.offHint,
-        turnOn: t.notifications.turnOn,
-        turnOff: t.notifications.turnOff,
-      },
-    },
-  };
+  return buildAccountView(u, locale, notice);
 }
 
 /** Тексты формы аккаунта на языке пользователя. */
@@ -105,23 +63,6 @@ async function accountTexts() {
 async function localeOf(raw: string | undefined): Promise<Locale> {
   const l = raw ?? (await getLocale());
   return isLocale(l) ? l : "ru";
-}
-
-/** Надписи экрана удаления для приложения — тексты кабинета сайта (один источник), без списков. */
-function deletionLabels(locale: Locale) {
-  const t = accountDeletionFor(locale);
-  return {
-    title: t.title,
-    intro: t.intro,
-    accounting: t.accounting,
-    password: t.password,
-    forgot: t.forgot,
-    next: t.next,
-    confirmTitle: t.confirmTitle,
-    confirm: t.confirm,
-    cancel: t.cancel,
-    done: t.done,
-  };
 }
 
 export const meHandlers: Pick<

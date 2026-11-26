@@ -3,6 +3,7 @@ import { container, type Container } from "@/server/container";
 import { CLOCK, RATE_LIMITER, UNIT_OF_WORK } from "../core/kernel/tokens";
 import { FEEDBACK_PORTS } from "../modules/feedback/feedback.tokens";
 import { legacyFeedbackPorts } from "./feedback.ports";
+import { LEGACY_IDENTITY_TOKENS, legacyIdentityPorts } from "./identity.ports";
 import { LEGACY_CONTAINER } from "./legacy.tokens";
 
 /**
@@ -19,7 +20,8 @@ import { LEGACY_CONTAINER } from "./legacy.tokens";
     { provide: CLOCK, useFactory: (c: Container) => c.clock, inject: [LEGACY_CONTAINER] },
     { provide: RATE_LIMITER, useFactory: (c: Container) => c.rateLimiter, inject: [LEGACY_CONTAINER] },
     legacyFeedbackPorts,
+    ...legacyIdentityPorts,
   ],
-  exports: [LEGACY_CONTAINER, UNIT_OF_WORK, CLOCK, RATE_LIMITER, FEEDBACK_PORTS],
+  exports: [LEGACY_CONTAINER, UNIT_OF_WORK, CLOCK, RATE_LIMITER, FEEDBACK_PORTS, ...LEGACY_IDENTITY_TOKENS],
 })
 export class LegacyModule {}

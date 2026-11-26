@@ -6,11 +6,13 @@
 import type { ClientMessages } from "@/i18n/messages";
 import type { BookFormat } from "@/lib/book/formats";
 import type { InteriorDesign } from "@/lib/book/interiors";
-import { WARN_LOSS } from "@/lib/book/photo-loss";
 import { gridCellFrame, openerFrame, pageFrame, type PlaceFrame } from "@/lib/book/photo-pages";
 import type { PhotoPlace } from "@/lib/book/photo-place";
+import { filterCounts, isLossy, isPhotoFilter, lossOf, matchesFilter, PHOTO_FILTERS, placeTotals, visibleFilters, type PhotoFilter } from "@/lib/book/photo-tab-model";
 import type { PlaceAnswer, PlaceBook, PlaceChapter, SheetPhoto } from "@/components/editor/photos/model";
 import type { TocLines } from "@/lib/book/toc";
+
+export { filterCounts, isLossy, isPhotoFilter, lossOf, matchesFilter, PHOTO_FILTERS, placeTotals, visibleFilters, type PhotoFilter };
 
 export type PhotoLayout = NonNullable<SheetPhoto["layout"]>;
 
@@ -38,50 +40,6 @@ export interface PhotosTabData {
   /** Предел фото в книге (CRM → «Сайт» → «Фото в книге»). */
   maxPhotos?: number;
 }
-
-// ─── фильтры ───────────────────────────────────────────────────────────────
-
-export const PHOTO_FILTERS = ["all", "auto", "cover", "off", "crop"] as const;
-export type PhotoFilter = (typeof PHOTO_FILTERS)[number];
-export const isPhotoFilter = (v: unknown): v is PhotoFilter => (PHOTO_FILTERS as readonly unknown[]).includes(v);
-
-/**
- * Обрезка фото на его месте — по сборке сервера. Пока вид на странице поменяли, а книгу ещё не пересобрали
- * (layout не тот, что у сервера), прежняя оценка неверна — 0.
- */
-export function lossOf(photo: Pick<SheetPhoto, "id" | "layout">, server: Pick<SheetPhoto, "layout"> | undefined, losses: Readonly<Record<string, number>>): number {
-  if (!server || (photo.layout ?? "full") !== (server.layout ?? "full")) return 0;
-  return losses[photo.id] ?? 0;
-}
-
-/** Фото с заметной обрезкой (R11): метка у фото, фильтр «С обрезкой». */
-export const isLossy = (loss: number) => loss >= WARN_LOSS;
-
-/** Подходит ли фото под фильтр: «Встали сами» — напечатаются по правилу книги; «Не печатаются» — и по выбору, и по правилу. */
-export function matchesFilter(filter: PhotoFilter, place: PhotoPlace | undefined, loss: number): boolean {
-  switch (filter) {
-    case "all":
-      return true;
-    case "auto":
-      return !!place && place.auto && place.kind !== "off";
-    case "cover":
-      return !!place?.onCover;
-    case "off":
-      return place?.kind === "off";
-    case "crop":
-      return isLossy(loss);
-  }
-}
-
-/** Сколько фото под каждым фильтром. */
-export function filterCounts(photos: readonly Pick<SheetPhoto, "id">[], places: ReadonlyMap<string, PhotoPlace>, loss: (id: string) => number): Record<PhotoFilter, number> {
-  const out = Object.fromEntries(PHOTO_FILTERS.map((f) => [f, 0])) as Record<PhotoFilter, number>;
-  for (const p of photos) for (const f of PHOTO_FILTERS) if (matchesFilter(f, places.get(p.id), loss(p.id))) out[f]++;
-  return out;
-}
-
-/** Чипы фильтров: «Все», остальные — если под ними есть фото или фильтр выбран сейчас (ссылка ?filter=crop). */
-export const visibleFilters = (counts: Record<PhotoFilter, number>, active: PhotoFilter): PhotoFilter[] => PHOTO_FILTERS.filter((f) => f === "all" || f === active || counts[f] > 0);
 
 // ─── место на странице ─────────────────────────────────────────────────────
 
@@ -171,18 +129,4 @@ export function groupByPlace<T extends { id: string }>(photos: readonly T[], pla
     ...(album.length ? [{ id: "album", kind: "album" as const, photos: album }] : []),
     ...(off.length ? [{ id: "off", kind: "off" as const, photos: off }] : []),
   ];
-}
-
-/** Сколько фото каждого вида по месту: выбрал автор, встали сами (правило книги), не печатаются внутри книги. */
-export function placeTotals(photos: readonly { id: string }[], places: ReadonlyMap<string, PhotoPlace>): { total: number; placed: number; auto: number; off: number } {
-  let placed = 0;
-  let auto = 0;
-  let off = 0;
-  for (const p of photos) {
-    const place = places.get(p.id);
-    if (!place || place.kind === "off") off++;
-    else if (place.auto) auto++;
-    else placed++;
-  }
-  return { total: photos.length, placed, auto, off };
 }
