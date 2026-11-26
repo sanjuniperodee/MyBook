@@ -21,9 +21,9 @@ export interface ShadowOptions {
   random?: () => number;
 }
 
-/** Никогда не сверяются: отчёты и выгрузки (тяжёлые запросы к БД), потоки событий, файлы и картинки. */
+/** Никогда не сверяются: отчёты и выгрузки (тяжёлые запросы к БД), потоки событий, файлы, картинки и health с timestamp. */
 const HEAVY =
-  /(?:^|[/_-])(analytics|reports?|exports?|stats|finance|profit|dashboard|digest|live|stream|events|download|files?|media|images?|photos?|pdf|audio|voice|preview|cover-image|package|ical|apk|ipa)(?:$|[/_.-])/i;
+  /(?:^|[/_-])(analytics|reports?|exports?|stats|finance|profit|dashboard|digest|live|stream|events|download|files?|media|images?|photos?|pdf|audio|voice|preview|cover-image|package|ical|apk|ipa|health)(?:$|[/_.-])/i;
 const DROP_HEADERS = new Set(["host", "content-length", "connection", "keep-alive", "transfer-encoding", "accept-encoding"]);
 const MAX_DIFFS = 5;
 

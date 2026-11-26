@@ -18,6 +18,7 @@ function fakeNest(answer: (path: string) => Response) {
           { method: "GET", path: "/api/v1/crm/orders/:id/delivery" },
           { method: "GET", path: "/api/v1/me/profile" },
           { method: "GET", path: "/api/v1/books/:id/file" },
+          { method: "GET", path: "/api/v1/web/health" },
         ],
       });
     }
@@ -100,6 +101,7 @@ describe("теневая сверка mybook-api ↔ Nest (ADR 0014)", () => {
     await handle(new Request(`https://api.mybooks.kz${REVIEW}`, { method: "PUT", body: "{}" }));
     await handle(get("/api/v1/books"));
     await handle(get("/api/v1/analytics/sales"));
+    await handle(get("/api/v1/web/health"));
     await handle(get("/api/v1/books/33333333-3333-4333-8333-333333333333/file"));
     const sampled = shadowed(async () => json({}), log, 0.25, () => 0.9);
     await flush();

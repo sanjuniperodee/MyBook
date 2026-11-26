@@ -9,7 +9,8 @@ import { loadConfig } from "../src/core/config/app-config";
 import { CurrentUser } from "../src/core/auth/current-user.decorator";
 import { STAFF_ACCESS, type StaffAccessPort, type StaffMember } from "../src/core/auth/staff";
 import { CurrentStaff, Permissions } from "../src/core/auth/staff.decorators";
-import { RequestLocale } from "../src/core/http/decorators";
+import { RequestLocale, SessionToken } from "../src/core/http/decorators";
+import { Endpoint } from "../src/core/http/endpoint";
 import { RawBody, SiteRoute } from "../src/core/http/site-route";
 import { bootTestApp, sessionOf, testUser } from "./app";
 
@@ -108,6 +109,11 @@ class TestSiteController {
   @SiteRoute("GET", "/api/legacy/next-not-found", { auth: "none" })
   throwNextNotFound() {
     throw Object.assign(new Error("NEXT_NOT_FOUND"), { digest: "NEXT_NOT_FOUND" });
+  }
+
+  @Endpoint("webOrdersList")
+  probeWebResponse(@SessionToken() token: string | null) {
+    return Response.json({ seenToken: token !== null }, { status: 202, headers: { "cache-control": "no-store" } });
   }
 }
 
@@ -229,6 +235,16 @@ describe("@SiteRoute и rawBody (NestJS ↔ сайт)", () => {
     });
     expect(cfg304.statusCode).toBe(304);
     expect(cfg304.body).toBe("");
+
+    const webResp = await nest.inject({
+      method: "GET",
+      url: "/api/v1/web/orders",
+      headers: { cookie: `mb_session=${sessionOf(user)}` },
+    });
+    expect(webResp.statusCode).toBe(202);
+    expect(webResp.headers["cache-control"]).toBe("no-store");
+    expect(webResp.headers.etag).toBeUndefined();
+    expect(webResp.json()).toEqual({ seenToken: true });
   });
 
   it("отдаёт 405 с Allow для маршрутов сайта и переводит HttpError / NEXT_NOT_FOUND в формат сайта", async () => {
