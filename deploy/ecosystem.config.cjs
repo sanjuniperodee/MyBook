@@ -128,9 +128,24 @@ const backend = process.env.MYBOOK_BACKEND !== "off" &&
     time: true,
   };
 
+/**
+ * Сайт (Next, server.js на 3040). С 26.11 сайт и CRM работают на Vercel (ADR 0013), а здесь остаётся только бэкенд.
+ * Файл-флаг ~/mybook-flags/site со словом off (или MYBOOK_SITE=off) — процесс сайта не запускать. deploy/deploy.sh тогда
+ * проверяет mybook-api и mybook-worker вместо сайта и без них выкатку не проводит: фону и API больше негде работать.
+ */
+const flagsDir = process.env.MYBOOK_FLAGS_DIR || path.join(path.dirname(root), "mybook-flags");
+function readFlag(name) {
+  try {
+    return fs.readFileSync(path.join(flagsDir, name), "utf8").trim();
+  } catch {
+    return "";
+  }
+}
+const siteOn = process.env.MYBOOK_SITE !== "off" && readFlag("site") !== "off";
+
 module.exports = {
   apps: [
-    {
+    siteOn && {
       name: "mybook",
       cwd: path.join(releasesDir, "current"),
       script: "server.js",
@@ -161,5 +176,5 @@ module.exports = {
     ...(backend ? [backend] : []),
     ...(files ? [files] : []),
     ...sidecars,
-  ],
+  ].filter(Boolean),
 };

@@ -141,11 +141,16 @@ has_files() {
 has_api() {
   node -e 'process.exit(require("./deploy/ecosystem.config.cjs").apps.some((a) => a.name === "mybook-api") ? 0 : 1)'
 }
+# Сайт (Next) — если не выключен файлом-флагом ~/mybook-flags/site (ecosystem.config.cjs). С 26.11 сайт на Vercel, а
+# здесь — только бэкенд: без сайта выкатку проверяют mybook-api и mybook-worker.
+has_site() {
+  node -e 'process.exit(require("./deploy/ecosystem.config.cjs").apps.some((a) => a.name === "mybook") ? 0 : 1)'
+}
 pm2_apply() {
   pm2 delete mybook >/dev/null 2>&1 || true
   pm2 delete mybook-worker >/dev/null 2>&1 || true
   pm2 delete mybook-files >/dev/null 2>&1 || true
-  pm2 start deploy/ecosystem.config.cjs --only mybook
+  if has_site; then pm2 start deploy/ecosystem.config.cjs --only mybook; fi
   if has_worker; then pm2 start deploy/ecosystem.config.cjs --only mybook-worker; fi
   if has_files; then pm2 start deploy/ecosystem.config.cjs --only mybook-files; fi
   pm2 save
@@ -216,31 +221,43 @@ if [ -f "$REL/api.mjs" ] && ! node "$ROOT/scripts/smoke-bundles.mjs" "$REL"; the
   exit 1
 fi
 
-echo "→ Проверка новой версии на порту $SMOKE_PORT (фоновые задачи выключены; миграции БД применяет mybook-api при старте)"
-(
-  cd "$REL"
-  SCHEDULER=off NODE_ENV=production PORT="$SMOKE_PORT" HOSTNAME=localhost TZ=Asia/Almaty \
-    exec node --env-file="$ROOT/.env" server.js >"$REL/smoke.log" 2>&1
-) &
-SMOKE_PID=$!
-if ! check_app "$SMOKE_PORT" 40; then
-  echo "✗ Новая версия не прошла проверку — текущая версия продолжает работать, ничего не переключено."
-  tail -n 40 "$REL/smoke.log" || true
-  kill "$SMOKE_PID" 2>/dev/null || true
-  wait "$SMOKE_PID" 2>/dev/null || true
-  SMOKE_PID=""
+SITE=1
+has_site || SITE=0
+if [ "$SITE" = 0 ] && { [ ! -f "$REL/api.mjs" ] || [ ! -f "$REL/worker.mjs" ]; }; then
+  echo "✗ Сайт выключен (~/mybook-flags/site), а в релизе нет api.mjs или worker.mjs — API и фону негде работать. Ничего не переключено."
   rm -rf "$REL"
   exit 1
 fi
-# Проверенная копия на $SMOKE_PORT остаётся работать, пока PM2 перезапускает основную: в nginx она — запасной сервер
-# (backup в upstream mybook_app), и запросы в эти секунды идут к ней, а не в 502.
+
+if [ "$SITE" = 1 ]; then
+  echo "→ Проверка новой версии на порту $SMOKE_PORT (фоновые задачи выключены; миграции БД применяет mybook-api при старте)"
+  (
+    cd "$REL"
+    SCHEDULER=off NODE_ENV=production PORT="$SMOKE_PORT" HOSTNAME=localhost TZ=Asia/Almaty \
+      exec node --env-file="$ROOT/.env" server.js >"$REL/smoke.log" 2>&1
+  ) &
+  SMOKE_PID=$!
+  if ! check_app "$SMOKE_PORT" 40; then
+    echo "✗ Новая версия не прошла проверку — текущая версия продолжает работать, ничего не переключено."
+    tail -n 40 "$REL/smoke.log" || true
+    kill "$SMOKE_PID" 2>/dev/null || true
+    wait "$SMOKE_PID" 2>/dev/null || true
+    SMOKE_PID=""
+    rm -rf "$REL"
+    exit 1
+  fi
+  # Проверенная копия на $SMOKE_PORT остаётся работать, пока PM2 перезапускает основную: в nginx она — запасной сервер
+  # (backup в upstream mybook_app), и запросы в эти секунды идут к ней, а не в 502.
+else
+  echo "→ Сайт выключен (~/mybook-flags/site): проверка сайта пропущена, после переключения проверяются mybook-api и mybook-worker"
+fi
 
 echo "→ Переключение на $(basename "$REL")"
 PREV="$(readlink -f "$CURRENT" 2>/dev/null || true)"
 ln -sfn "$REL" "$CURRENT"
 pm2_apply
 
-if ! check_app "$PORT" 30; then
+if [ "$SITE" = 1 ] && ! check_app "$PORT" 30; then
   echo "✗ После переключения приложение не ответило."
   if [ -n "$PREV" ] && [ -d "$PREV" ]; then
     echo "→ Откат на $(basename "$PREV")"
@@ -254,13 +271,27 @@ if ! check_app "$PORT" 30; then
   echo "Логи: pm2 logs mybook --nostream --lines 100"
   exit 1
 fi
-echo "✓ MyBooks отвечает на localhost:$PORT ($(basename "$REL"))"
+if [ "$SITE" = 1 ]; then echo "✓ MyBooks отвечает на localhost:$PORT ($(basename "$REL"))"; fi
 api_apply
 # Без живого воркера стоят сверка Kaspi, бот и почта: тогда возвращаем фон в процесс сайта (запасная копия ещё отвечает).
+# Сайт выключен — фону деться некуда: откат на прежний релиз.
 if ! check_worker; then
-  echo "✗ mybook-worker не поднялся — фон возвращён в процесс сайта (MYBOOK_WORKER=off). Логи: pm2 logs mybook-worker --nostream --lines 100"
-  MYBOOK_WORKER=off pm2_apply
-  check_app "$PORT" 30 || echo "✗ После возврата фона сайт не ответил — смотрите pm2 logs mybook"
+  if [ "$SITE" = 1 ]; then
+    echo "✗ mybook-worker не поднялся — фон возвращён в процесс сайта (MYBOOK_WORKER=off). Логи: pm2 logs mybook-worker --nostream --lines 100"
+    MYBOOK_WORKER=off pm2_apply
+    check_app "$PORT" 30 || echo "✗ После возврата фона сайт не ответил — смотрите pm2 logs mybook"
+  else
+    echo "✗ mybook-worker не поднялся, а сайт выключен — фону негде работать. Логи: pm2 logs mybook-worker --nostream --lines 100"
+    if [ -n "$PREV" ] && [ -d "$PREV" ]; then
+      echo "→ Откат на $(basename "$PREV")"
+      ln -sfn "$PREV" "$CURRENT"
+      purge_previews
+      pm2_apply
+      api_apply
+      backend_apply
+    fi
+    exit 1
+  fi
 elif has_worker; then
   echo "✓ mybook-worker работает: фон отдельно от сайта"
 fi
@@ -298,13 +329,15 @@ if has_backend; then
   fi
 fi
 # Основная версия отвечает — запасная больше не нужна.
-kill "$SMOKE_PID" 2>/dev/null || true
-# Next при SIGTERM ждёт открытые соединения (например, поток событий CRM) — не дольше 10 секунд, потом добиваем:
-# иначе выкатка висит на wait, хотя сайт уже переключён (21.10: 10 минут).
-for _ in $(seq 1 10); do kill -0 "$SMOKE_PID" 2>/dev/null || break; sleep 1; done
-kill -9 "$SMOKE_PID" 2>/dev/null || true
-wait "$SMOKE_PID" 2>/dev/null || true
-SMOKE_PID=""
+if [ -n "$SMOKE_PID" ]; then
+  kill "$SMOKE_PID" 2>/dev/null || true
+  # Next при SIGTERM ждёт открытые соединения (например, поток событий CRM) — не дольше 10 секунд, потом добиваем:
+  # иначе выкатка висит на wait, хотя сайт уже переключён (21.10: 10 минут).
+  for _ in $(seq 1 10); do kill -0 "$SMOKE_PID" 2>/dev/null || break; sleep 1; done
+  kill -9 "$SMOKE_PID" 2>/dev/null || true
+  wait "$SMOKE_PID" 2>/dev/null || true
+  SMOKE_PID=""
+fi
 rm -f "$REL/smoke.log"
 
 # Прогрев: обложки рисуются на сервере при первом запросе (на снимках — до 1–3 с), а кэш живёт в памяти процесса и после
@@ -317,7 +350,7 @@ warm_covers() {
     curl -fsS -m 30 -o /dev/null -H "Accept-Encoding: br, gzip" "http://localhost:$PORT$u" 2>/dev/null || true
   done
 }
-warm_covers && echo "  обложки прогреты" || true
+if [ "$SITE" = 1 ]; then warm_covers && echo "  обложки прогреты" || true; fi
 
 # Видео в WhatsApp шлюз GOWA готовит через ffmpeg: без него «ffmpeg not installed» (сайт тогда шлёт видео файлом).
 # Ставим, если можно без пароля; нет — подсказываем команду. Выкатку это не ломает.
@@ -340,4 +373,7 @@ DEPLOY_OK=1
 PREV_SHA="$(basename "${PREV:-}" | sed -n 's/^[0-9]*-[0-9]*-//p')"
 notify ok "$SHA" "$PREV_SHA" "$(basename "$REL")"
 # Обращения: коммиты с «Обращение №N» закрывают обращения и пишут человеку в WhatsApp (deploy/support-release.mjs).
-node --env-file="$ROOT/.env" "$ROOT/deploy/support-release.mjs" "$SHA" "$PREV_SHA" "$(basename "$REL")" "$PORT" 2>&1 | sed "s/^/  /" || true
+# Маршрут /api/support/release есть и у сайта, и у mybook-api: без сайта — к api.
+SUPPORT_PORT="$PORT"
+[ "$SITE" = 1 ] || SUPPORT_PORT="${MYBOOK_API_PORT:-3044}"
+node --env-file="$ROOT/.env" "$ROOT/deploy/support-release.mjs" "$SHA" "$PREV_SHA" "$(basename "$REL")" "$SUPPORT_PORT" 2>&1 | sed "s/^/  /" || true

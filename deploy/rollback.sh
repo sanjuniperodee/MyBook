@@ -21,7 +21,10 @@ pm2 delete mybook >/dev/null 2>&1 || true
 # сборка без водяного знака, а код до этого отдаёт тот же файл как предпросмотр со знаком.
 STORAGE_DIR="$({ sed -n 's/^STORAGE_DIR=//p' "$ROOT/.env" 2>/dev/null || true; } | tail -n 1 | tr -d "\"'\r")"
 case "$STORAGE_DIR" in /*) rm -rf "$STORAGE_DIR/cache/preview" "$STORAGE_DIR/cache/pages" && echo "  кэш предпросмотров удалён" ;; esac
-pm2 start "$ROOT/deploy/ecosystem.config.cjs" --only mybook
+# Сайт выключен файлом-флагом ~/mybook-flags/site (сайт на Vercel) — в конфиге его нет, запускать нечего.
+if node -e 'process.exit(require(process.argv[1]).apps.some((a) => a.name === "mybook") ? 0 : 1)' "$ROOT/deploy/ecosystem.config.cjs"; then
+  pm2 start "$ROOT/deploy/ecosystem.config.cjs" --only mybook
+fi
 # Бэкенд того же релиза: сайт ходит в БД только через mybook-api (ADR 0013), фон — в mybook-worker.
 for app in mybook-api mybook-worker; do
   if pm2 describe "$app" >/dev/null 2>&1; then pm2 delete "$app" >/dev/null 2>&1 || true; pm2 start "$ROOT/deploy/ecosystem.config.cjs" --only "$app"; fi
