@@ -3,7 +3,7 @@
 // вшиваются — берутся из node_modules релиза; остальное — в бандле, потому что standalone-сборка кладёт в node_modules
 // только то, что Next оставил внешним.
 import { build } from "esbuild";
-import { copyFileSync, existsSync, lstatSync, mkdirSync } from "node:fs";
+import { cpSync, existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { asciiBundle } from "./ascii-bundle.mjs";
@@ -58,24 +58,23 @@ export async function bundleNodeProcess({ name, entry, nextShim }) {
 }
 
 /**
- * Внешние пакеты бандла (pg, sharp, @react-pdf…) — в node_modules релиза. Раньше их туда клал трассировщик Next, потому
- * что сайт сам импортировал БД; с ADR 0013 у веба кода бэкенда нет, и Next их больше не трассирует (26.11 mybook-api
- * упал на «Cannot find package 'pg'»). Тот же трассировщик (@vercel/nft из Next) проходит по бандлу и докладывает в
- * .next/standalone/node_modules недостающие файлы; затем каждый внешний пакет должен находиться из папки релиза.
+ * Внешние пакеты бандла (pg, sharp, @react-pdf…) — в node_modules релиза вместе со своими зависимостями. Раньше их туда
+ * клал трассировщик Next, потому что сайт сам импортировал БД; с ADR 0013 у веба кода бэкенда нет, и Next их больше не
+ * трассирует (26.11 mybook-api упал на «Cannot find package 'pg'»). Пакет копируется папкой (с вложенными node_modules),
+ * файлы, которые уже положил Next, не трогаются; затем каждый внешний пакет должен находиться из папки релиза.
  */
 async function traceExternals(out) {
-  const require = createRequire(import.meta.url);
-  const { nodeFileTrace } = require("next/dist/compiled/@vercel/nft");
-  const { fileList } = await nodeFileTrace([out], { base: process.cwd() });
-  let copied = 0;
-  for (const file of fileList) {
-    if (!file.startsWith("node_modules/")) continue;
-    const dest = path.join(".next", "standalone", file);
-    // Только обычные файлы: ссылки (пакеты рабочей области) и папки трассировщик перечисляет отдельно от их файлов.
-    if (existsSync(dest) || !lstatSync(file).isFile()) continue;
-    mkdirSync(path.dirname(dest), { recursive: true });
-    copyFileSync(file, dest);
-    copied++;
+  const seen = new Set();
+  const stack = [...EXTERNAL];
+  while (stack.length) {
+    const name = stack.pop();
+    if (seen.has(name)) continue;
+    seen.add(name);
+    const dir = path.join("node_modules", name);
+    if (!existsSync(path.join(dir, "package.json"))) continue;
+    cpSync(dir, path.join(".next", "standalone", "node_modules", name), { recursive: true, force: false, dereference: true });
+    const pkg = JSON.parse(readFileSync(path.join(dir, "package.json"), "utf8"));
+    for (const dep of Object.keys({ ...pkg.dependencies, ...pkg.optionalDependencies })) stack.push(dep);
   }
   const fromRelease = createRequire(path.resolve(out));
   const missing = EXTERNAL.filter((pkg) => {
@@ -90,5 +89,4 @@ async function traceExternals(out) {
     console.error(`${path.basename(out)}: внешние пакеты не находятся из релиза: ${missing.join(", ")}`);
     process.exit(1);
   }
-  if (copied) console.log(`${path.basename(out)}: в node_modules релиза докопировано файлов: ${copied}`);
 }
