@@ -1,20 +1,11 @@
-import { NextResponse } from "next/server";
-import { api } from "@/server/api";
-import { container } from "@/server/container";
-import { authFailure, finishSession, issueTicket, limited, loginBody } from "@/server/mobile-auth";
+import { v1SiteProxy } from "@/server/v1-proxy";
 
 export const dynamic = "force-dynamic";
 
-/** Вход сотрудника: { login, password } → токен сессии или { twoFactor: true, ticket } — тогда код на /api/mobile/auth/2fa. */
-export const POST = api(async (req) => {
-  const { login, password } = loginBody.parse(await req.json());
-  const tooMany = await limited(login);
-  if (tooMany) return tooMany;
-  try {
-    const result = await container().identity.auth.login({ login, password, locale: "ru" });
-    if (result.kind === "second_factor") return NextResponse.json({ twoFactor: true, ticket: issueTicket(result.userId) });
-    return NextResponse.json(await finishSession(result));
-  } catch (err) {
-    return authFailure(err);
-  }
-});
+type Handler = (req: Request) => Response | Promise<Response>;
+
+const handler = async (method: "POST") => (await import("@/server/site-handlers/mobile/auth-login"))[method] as Handler;
+
+export function POST(req: Request) {
+  return v1SiteProxy("crm", req, async () => (await handler("POST"))(req));
+}

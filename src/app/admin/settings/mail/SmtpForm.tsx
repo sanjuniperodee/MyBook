@@ -3,7 +3,7 @@
 import { useActionState, useState, useTransition } from "react";
 import { LoaderCircle, PlugZap, Send } from "lucide-react";
 import { Actions, CheckMessage, Field, Group, Help, Note, Result, SaveButton, Section, SecretInput } from "../ui";
-import type { SettingsState } from "../state";
+import type { SettingsState } from "@/lib/crm/settings-state";
 import { saveSmtpAction, testSmtpAction, sendTestMailAction } from "./actions";
 
 const smtpPresets = [

@@ -5,7 +5,7 @@ import { assertVisible, can, canWork, contactView, staffViewer, type Staff } fro
 import { HttpError } from "@/server/api";
 import { discountLimit } from "@/server/discount";
 import { payFormOptions } from "@/server/pay-form";
-import { invoiceViews } from "@/app/admin/invoices/view";
+import { invoiceViews } from "@/server/invoice-views";
 import { getSetting, listFields } from "@/modules/workspace";
 import { channelLabel } from "@/modules/messaging";
 import { responseWait, slaMinutes } from "@/modules/reporting/ui/response-wait";

@@ -6,7 +6,7 @@ import { mobile } from "@/server/mobile-api";
 import { deleteTaskAction, updateTaskAction } from "@/app/admin/actions";
 import { loadTaskDetail } from "@/app/admin/tasks/task-detail";
 import { HttpError } from "@/server/api";
-import { taskJson } from "@/app/api/_crm-lists/work";
+import { taskJson } from "@/server/crm-lists/work";
 
 export const dynamic = "force-dynamic";
 

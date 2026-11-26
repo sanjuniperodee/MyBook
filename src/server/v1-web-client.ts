@@ -144,6 +144,8 @@ export interface V1WebReadOptions<T> {
   apiOnly?: boolean;
   client?: ApiClient;
   logger?: ParityLogger;
+  /** Предел ожидания ответа API v1, мс (тяжёлые страницы CRM). */
+  timeoutMs?: number;
 }
 
 /**
@@ -157,10 +159,11 @@ export interface V1WebReadOptions<T> {
 export async function v1WebRead<T>(opts: V1WebReadOptions<T>): Promise<T> {
   const apiOnly = opts.apiOnly ?? webApiOnly();
   const useApi = webUseApiV1(opts.section, opts.flag, apiOnly);
-  const mode = apiOnly ? "off" : parityMode(opts.parity);
+  // Внутри mybook-api сверять не с чем: вызов API отсюда ушёл бы в тот же процесс по кругу.
+  const mode = apiOnly || isInsideApiServer() ? "off" : parityMode(opts.parity);
   const logger = opts.logger ?? console;
 
-  const resolveClient = async () => opts.client ?? (await webApiClient({ locale: opts.locale, sessionCookie: opts.sessionCookie }));
+  const resolveClient = async () => opts.client ?? (await webApiClient({ locale: opts.locale, sessionCookie: opts.sessionCookie, timeoutMs: opts.timeoutMs }));
 
   if (apiOnly) {
     return opts.viaApi(await resolveClient());
@@ -230,6 +233,8 @@ export interface V1WebActionOptions<T> {
   flag?: string;
   apiOnly?: boolean;
   client?: ApiClient;
+  /** Предел ожидания ответа API v1, мс. */
+  timeoutMs?: number;
 }
 
 /**
@@ -241,7 +246,7 @@ export interface V1WebActionOptions<T> {
 export async function v1WebAction<T>(opts: V1WebActionOptions<T>): Promise<T> {
   const apiOnly = opts.apiOnly ?? webApiOnly();
   if (webUseApiV1(opts.section, opts.flag, apiOnly)) {
-    const api = opts.client ?? (await webApiClient({ locale: opts.locale, sessionCookie: opts.sessionCookie }));
+    const api = opts.client ?? (await webApiClient({ locale: opts.locale, sessionCookie: opts.sessionCookie, timeoutMs: opts.timeoutMs }));
     return opts.viaApi(api);
   }
   return opts.local();

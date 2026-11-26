@@ -5,7 +5,7 @@ import { CheckCircle2 } from "lucide-react";
 import { aiProviderIds, aiProviders, type AiProvider } from "@/modules/assistant/domain/providers";
 import { DEFAULT_TIER_MODELS, SELLER_TIERS, type RouteMode, type SellerTier } from "@/modules/assistant/domain/routing";
 import { Actions, Choice, Field, Group, Note, Result, SaveButton, Section, type SheetStatus } from "../ui";
-import type { SettingsState } from "../state";
+import type { SettingsState } from "@/lib/crm/settings-state";
 import { saveRoutingAction } from "./actions";
 import { providerReady, type AiProviderSaved } from "./saved";
 

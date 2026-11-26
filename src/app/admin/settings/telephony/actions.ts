@@ -1,29 +1,10 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-import { z } from "zod";
-import { assertStaff, audit } from "@/server/access";
-import { ensureToken, saveSettings } from "@/modules/workspace";
-import type { SettingsState } from "../state";
-import { secretValue, unlessEnv } from "../form-kit";
+/**
+ * Server actions: код — в src/server/crm-actions/settings-telephony.ts; на сайте с БД выполняется здесь же, на сайте без БД —
+ * в mybook-api через API v1 (ADR 0012, A5 — Раздел 5, crmAction). Права, zod и лимиты проверяет само действие.
+ */
+import { crmAction } from "@/server/v1-local-bridge-crm";
+import type * as impl from "@/server/crm-actions/settings-telephony";
 
-export async function saveTelephonyAction(_: SettingsState, form: FormData): Promise<SettingsState> {
-  const staff = await assertStaff("settings.manage");
-  const provider = z.enum(["off", "zadarma", "pbx"]).safeParse(form.get("provider"));
-  if (!provider.success) return { error: "Выберите АТС" };
-  await saveSettings(
-    {
-      ...unlessEnv("telephony.provider", provider.data),
-      ...secretValue(form, "zadarmaKey", "zadarma.key"),
-      ...secretValue(form, "zadarmaSecret", "zadarma.secret"),
-      ...(provider.data === "zadarma"
-        ? { ...unlessEnv("zadarma.pbxId", String(form.get("pbxId") ?? "").replace(/\D/g, "").slice(0, 12)), "zadarma.webphone": form.get("webphone") === "on" ? "on" : "off" }
-        : {}),
-    },
-    staff.user.id,
-  );
-  if (provider.data === "pbx") await ensureToken("pbx.token");
-  await audit(staff, "settings.update", "settings", "telephony", { provider: provider.data });
-  revalidatePath("/admin/settings");
-  return { ok: "Сохранено" };
-}
+export const saveTelephonyAction = crmAction<typeof impl.saveTelephonyAction>("settingsTelephony", "saveTelephonyAction");

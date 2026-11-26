@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { accessMessage, displayLogin } from "@/app/admin/clients/new/access-message";
+import { accessMessage, displayLogin } from "@/lib/crm/access-message";
 import { generateAccessPassword } from "@/lib/access-password";
 
 describe("доступ клиенту", () => {

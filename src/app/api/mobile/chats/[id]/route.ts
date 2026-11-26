@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { apiStaff } from "@/server/api";
 import { idParams } from "@/server/input";
 import { mobile } from "@/server/mobile-api";
-import { mobileChatDetail } from "@/app/api/_crm-lists/data";
+import { mobileChatDetail } from "@/server/crm-lists/data";
 
 export const dynamic = "force-dynamic";
 

@@ -13,6 +13,11 @@ describe("server actions: вход через zod", () => {
     expect(report.split("\n").filter((l) => l.startsWith("  без zod:"))).toEqual([]);
   });
 
+  it("обёртки CRM (crmAction) ведут на существующее действие src/server/crm-actions", () => {
+    expect(report.split("\n").filter((l) => l.startsWith("  без цели:"))).toEqual([]);
+    expect(report).toContain("через API v1:");
+  });
+
   it("без проверок прав и лимитов — только выход и сброс пароля по токену из письма", () => {
     expect(report.split("\n").filter((l) => l.startsWith("  без проверок:"))).toEqual([
       "  без проверок: src/app/(auth)/actions.ts::logoutAction",

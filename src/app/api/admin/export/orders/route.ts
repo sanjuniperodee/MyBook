@@ -1,49 +1,9 @@
-import { planName } from "@/i18n/labels";
-import { api, apiStaff } from "@/server/api";
-import { audit, staffViewer } from "@/server/access";
-import { container } from "@/server/container";
-import { toCsv } from "@/lib/csv";
+import { v1SiteProxy } from "@/server/v1-proxy";
 
-import { orderStatusLabel, isPrintedPlan } from "@/modules/ordering/ui/status";
+type Handler = (req: Request) => Response | Promise<Response>;
 
-export const GET = api(async (req) => {
-  const staff = await apiStaff(req, "orders.view", "clients.export", "clients.contacts");
-  const params = Object.fromEntries(new URL(req.url).searchParams);
-  await audit(staff, "export", "orders", null, params);
-  const rows = await container().reporting.orderExport(params, staffViewer(staff));
-  const csv = toCsv(
-    ["Номер", "Создан", "Оплачен", "Статус", "Тариф", "Кол-во", "Книги", "Скидка", "Промокод", "Доставка", "Итого", "Валюта", "Имя", "Телефон", "E-mail", "Способ доставки", "Страна", "Город", "Адрес", "Индекс", "Нужна к", "Трек-номер", "Комментарий"],
-    rows.map((o) => [
-      o.number,
-      o.createdAt,
-      o.paidAt,
-      orderStatusLabel(o.status, "ru", isPrintedPlan(o.plan)),
-      planName(o.plan),
-      o.quantity,
-      o.itemsAmount,
-      o.discountAmount,
-      o.promoCode,
-      o.deliveryAmount,
-      o.amount,
-      o.currency,
-      o.contactName,
-      o.contactPhone,
-      o.contactEmail,
-      o.deliveryMethod,
-      o.deliveryCountry,
-      o.city,
-      o.address,
-      o.postalCode,
-      o.desiredDate,
-      o.trackingNumber,
-      o.customerComment,
-    ]),
-  );
-  return new Response(csv, {
-    headers: {
-      "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="orders-${new Date().toISOString().slice(0, 10)}.csv"`,
-      "Cache-Control": "no-store",
-    },
-  });
-});
+const handler = async (method: "GET") => (await import("@/server/site-handlers/admin/export-orders"))[method] as Handler;
+
+export function GET(req: Request) {
+  return v1SiteProxy("crm", req, async () => (await handler("GET"))(req));
+}

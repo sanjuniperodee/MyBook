@@ -12,7 +12,7 @@ import { env } from "@/config/env";
 import { chatMessageText, notificationText, ticketLabel } from "@/modules/support";
 import { SUPPORT_KIND_LABELS, SUPPORT_STATUS_LABELS, SUPPORT_STATUSES, type SupportAttachment, type SupportStatus } from "@/shared/domain/support";
 import { phoneLabel, RESOLUTION_SLOT, STATUS_TONE } from "../labels";
-import { canOpenTicket, seesAllTickets } from "../access";
+import { canOpenTicket, seesAllTickets } from "@/server/support-access";
 import { CopyButton, TicketControls } from "./TicketControls";
 import { TicketChatPicker } from "../ChatPicker";
 

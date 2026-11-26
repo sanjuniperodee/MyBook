@@ -3,7 +3,7 @@ import { z } from "zod";
 import { apiStaff } from "@/server/api";
 import { mobile } from "@/server/mobile-api";
 import { createTaskAction } from "@/app/admin/actions";
-import { mobileTasks } from "@/app/api/_crm-lists/work";
+import { mobileTasks } from "@/server/crm-lists/work";
 
 export const dynamic = "force-dynamic";
 

@@ -3,7 +3,7 @@ import { container } from "@/server/container";
 import { canSeeAssigned, canSeeClientRecords, can, canWork, contactView, staffViewer, type Staff } from "@/server/access";
 import { HttpError } from "@/server/api";
 import { currentMonth } from "@/modules/sales";
-import { taskContact, taskRow, type Reacher } from "@/app/admin/tasks/task-row";
+import { taskContact, taskRow, type Reacher } from "@/lib/crm/task-row";
 import { getSetting } from "@/modules/workspace";
 import { staffLabel } from "@/shared/domain/staff";
 import { formatPhone } from "@/shared/domain/phone";

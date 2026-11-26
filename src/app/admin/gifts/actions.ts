@@ -1,24 +1,11 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-import { uuid } from "@/server/input";
-import { assertStaff, audit } from "@/server/access";
-import { container } from "@/server/container";
+/**
+ * Server actions: код — в src/server/crm-actions/gifts.ts; на сайте с БД выполняется здесь же, на сайте без БД —
+ * в mybook-api через API v1 (ADR 0012, A5 — Раздел 5, crmAction). Права, zod и лимиты проверяет само действие.
+ */
+import { crmAction } from "@/server/v1-local-bridge-crm";
+import type * as impl from "@/server/crm-actions/gifts";
 
-// «Оплачен» — POST /api/admin/gifts/[id]/receipt: с чеком, файл не проходит через server action (лимит тела).
-
-export async function resendGiftAction(id: string) {
-  const staff = await assertStaff("gifts.manage");
-  const giftId = uuid.parse(id);
-  await container().ordering.resendGift(giftId);
-  await audit(staff, "gift.resend", "gift", giftId);
-  revalidatePath("/admin/gifts");
-}
-
-export async function cancelGiftAction(id: string) {
-  const staff = await assertStaff("gifts.manage");
-  const giftId = uuid.parse(id);
-  await container().ordering.gifts.cancel(giftId);
-  await audit(staff, "gift.cancel", "gift", giftId);
-  revalidatePath("/admin/gifts");
-}
+export const resendGiftAction = crmAction<typeof impl.resendGiftAction>("gifts", "resendGiftAction");
+export const cancelGiftAction = crmAction<typeof impl.cancelGiftAction>("gifts", "cancelGiftAction");

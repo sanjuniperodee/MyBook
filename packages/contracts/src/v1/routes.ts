@@ -41,6 +41,7 @@ import { webCabinetRoutes } from "./web-cabinet";
 import { webBookPagesRoutes } from "./web-book-pages";
 import { webOrdersRoutes } from "./web-orders";
 import { webPublicRoutes } from "./web-public";
+import { webCrmRoutes } from "./web-crm";
 import type { RouteDef } from "./core";
 
 export * from "./core";
@@ -76,6 +77,7 @@ export * from "./web-cabinet";
 export * from "./web-book-pages";
 export * from "./web-orders";
 export * from "./web-public";
+export * from "./web-crm";
 
 export const v1 = {
   ...authRoutes,
@@ -117,6 +119,8 @@ export const v1 = {
   ...webOrdersRoutes,
   // Публичные страницы сайта: каталог, подвал, отзывы, сертификат, письма и отзывы по ссылке, отписка (Раздел 4, section: "public").
   ...webPublicRoutes,
+  // CRM сайта /admin: права сотрудника и операции областей (Раздел 5, section: "crm").
+  ...webCrmRoutes,
 } as const satisfies Record<string, RouteDef>;
 
 export type V1 = typeof v1;

@@ -14,7 +14,7 @@ import { getSetting } from "@/modules/workspace";
 import { parseWorkHours } from "@/shared/domain/schedule";
 import { responseWait, slaMinutes } from "@/modules/reporting/ui/response-wait";
 import { TaskRows, type TaskRow } from "./tasks/TaskRows";
-import { taskContact, taskRow, type Reacher } from "./tasks/task-row";
+import { taskContact, taskRow, type Reacher } from "@/lib/crm/task-row";
 import { MANAGER_LISTS, MANAGER_LIST_KEYS } from "@/modules/reporting/ui/managerLists";
 
 /**

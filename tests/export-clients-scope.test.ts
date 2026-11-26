@@ -23,7 +23,7 @@ beforeEach(() => {
   };
 });
 
-const download = () => exportClients(new Request("http://localhost/api/admin/export/clients?segment=all"), { params: Promise.resolve({}) });
+const download = () => exportClients(new Request("http://localhost/api/admin/export/clients?segment=all"));
 
 describe("выгрузка клиентов CSV", () => {
   it("роль «только свои» выгружает только своих (scopeManagerId — она сама), руководитель — всех", async () => {

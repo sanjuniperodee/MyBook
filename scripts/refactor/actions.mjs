@@ -19,6 +19,14 @@ const GUARD = /\b(requireStaff|assertStaff|assertStaffShell|requireStaffShell|re
 // zod напрямую или вызовы общих схем из server/input (uuid.parse, textForm(), idParam()) и parseForm() форм настроек; formText стоит внутри z.object().
 const ZOD = /\.(safeParse|parse)\(|z\.\w+\(|\b(textForm|idParams?|parseForm)\(/;
 
+// Обёртки CRM (ADR 0012, A5 — Раздел 5): `export const x = crmAction<…>("модуль", "действие")` в src/app/admin только
+// передают вызов действию src/server/crm-actions/<файл>.ts (оно проверяется здесь же, как любое действие).
+const crmModules = new Map(
+  [...readFileSync(path.join(root, "src/server/crm-actions/index.ts"), "utf8").matchAll(/(\w+): \(\) => import\("\.\/([\w-]+)"\)/g)].map((m) => [m[1], `src/server/crm-actions/${m[2]}.ts`]),
+);
+const delegated = [];
+const exported = new Set();
+
 let total = 0;
 const unguarded = [];
 const withoutZod = [];
@@ -60,6 +68,13 @@ for (const file of files.sort()) {
     if (ts.isFunctionDeclaration(st)) [name, node] = [st.name?.text, st];
     else if (ts.isVariableStatement(st)) [name, node] = [st.declarationList.declarations[0].name.getText(sf), st.declarationList.declarations[0].initializer];
     if (!node) continue;
+    exported.add(`${rel}::${name}`);
+    if (ts.isCallExpression(node) && node.expression.getText(sf) === "crmAction") {
+      const [mod, fn] = node.arguments.map((a) => (ts.isStringLiteral(a) ? a.text : ""));
+      delegated.push([`${rel}::${name}`, `${crmModules.get(mod) ?? `?${mod}`}::${fn}`]);
+      console.log(`${rel}::${name} -> через API v1: ${mod}.${fn}`);
+      continue;
+    }
     total++;
     const guards = [...guardsOf(node)];
     const input = paramsOf(node) > 0;
@@ -73,3 +88,4 @@ for (const file of files.sort()) {
 console.log(`\nвсего: ${total}, без проверок: ${unguarded.length}, без входа: ${noInput.length}, с входом без zod: ${withoutZod.length}`);
 for (const u of withoutZod) console.log(`  без zod: ${u}`);
 for (const u of unguarded) console.log(`  без проверок: ${u}`);
+for (const [from, to] of delegated) if (!exported.has(to)) console.log(`  без цели: ${from} -> ${to}`);

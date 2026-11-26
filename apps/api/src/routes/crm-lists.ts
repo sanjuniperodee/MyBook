@@ -1,13 +1,13 @@
 /**
- * CRM — чтение списков в API v1 (перенос /api/mobile/*): те же выборки src/app/api/_crm-lists и те же права, что у
+ * CRM — чтение списков в API v1 (перенос /api/mobile/*): те же выборки src/server/crm-lists и те же права, что у
  * маршрутов /api/mobile (apiStaff с теми же правами). Тип Handlers сверяет ответ функций со схемами контракта.
  */
 import { apiStaff, HttpError } from "@/server/api";
 import { assertVisible } from "@/server/access";
 import { container } from "@/server/container";
-import { mobileCalls, mobileClient, mobileClients, mobileStaff, mobileTasks, mobileToday } from "@/app/api/_crm-lists/work";
-import { mobileOrder, mobileOrders } from "@/app/api/_crm-lists/orders";
-import { mobileChatDetail, mobileChatList, mobileDealDetail, mobileDeals, mobileMessages } from "@/app/api/_crm-lists/data";
+import { mobileCalls, mobileClient, mobileClients, mobileStaff, mobileTasks, mobileToday } from "@/server/crm-lists/work";
+import { mobileOrder, mobileOrders } from "@/server/crm-lists/orders";
+import { mobileChatDetail, mobileChatList, mobileDealDetail, mobileDeals, mobileMessages } from "@/server/crm-lists/data";
 import { staffNotifications } from "@/modules/workspace";
 import type { Handlers } from "../app";
 

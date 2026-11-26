@@ -4,7 +4,7 @@ import { db, pool } from "@/shared/infrastructure/db";
 import { paymentsExport } from "@/modules/reporting/infrastructure/PaymentsExport";
 import { clientBrief } from "@/modules/reporting/infrastructure/DealCard";
 import { DrizzleDealInvoiceRepository } from "@/modules/ordering/infrastructure/persistence/DrizzleDealInvoiceRepository";
-import { invoiceViews } from "@/app/admin/invoices/view";
+import { invoiceViews } from "@/server/invoice-views";
 
 /**
  * Счета из чата в CRM на настоящем PostgreSQL (зона C): выгрузка платежей помечает онлайн-платёж «онлайн» вместо чека,

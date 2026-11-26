@@ -13,9 +13,9 @@ import { planLabels } from "@/modules/ordering/ui/labels";
 import { InvoiceDialog } from "@/components/admin/invoices/InvoiceDialog";
 import { PayFormPicker } from "@/components/admin/PayFormPicker";
 import { InvoicesBlock } from "@/components/admin/invoices/InvoicesBlock";
-import { choiceNeeded, guardIds, newIssueKey, overpaidPayments, type InvoicePerms, type InvoiceView, type MoneyGuard } from "@/components/admin/invoices/model";
+import { choiceNeeded, guardIds, newIssueKey, overpaidPayments, type InvoicePerms, type InvoiceView, type MoneyGuard } from "@/lib/crm/invoice-model";
 import { setDealAgreedGiftsAction, setDealAgreedPlanAction } from "../actions";
-import { giftOptionsForPlan } from "@/components/admin/invoices/model";
+import { giftOptionsForPlan } from "@/lib/crm/invoice-model";
 import type { AgreementGift } from "@/shared/domain/agreementGifts";
 
 interface PaymentItem {

@@ -1,29 +1,17 @@
-import { NextResponse } from "next/server";
-import { z } from "zod";
-import { api, apiStaff } from "@/server/api";
-import { container } from "@/server/container";
-import { vapidKeys } from "@/modules/workspace";
+import { v1SiteProxy } from "@/server/v1-proxy";
 
-/** Публичный ключ VAPID для подписки браузера. */
-export const GET = api(async (req) => {
-  await apiStaff(req);
-  const { publicKey } = await vapidKeys();
-  return NextResponse.json({ publicKey });
-});
+type Handler = (req: Request) => Response | Promise<Response>;
 
-const sub = z.object({ endpoint: z.string().url().max(1000), keys: z.object({ p256dh: z.string().min(10).max(200), auth: z.string().min(4).max(100) }) });
+const handler = async (method: "GET" | "POST" | "DELETE") => (await import("@/server/site-handlers/admin/push"))[method] as Handler;
 
-/** Подписать это устройство на push-уведомления сотрудника. */
-export const POST = api(async (req) => {
-  const staff = await apiStaff(req);
-  const s = sub.parse(await req.json());
-  await container().workspace.inbox.subscribe(staff.user.id, { endpoint: s.endpoint, p256dh: s.keys.p256dh, auth: s.keys.auth, userAgent: (req.headers.get("user-agent") ?? "").slice(0, 200) });
-  return NextResponse.json({ ok: true });
-});
+export function GET(req: Request) {
+  return v1SiteProxy("crm", req, async () => (await handler("GET"))(req));
+}
 
-export const DELETE = api(async (req) => {
-  const staff = await apiStaff(req);
-  const { endpoint } = z.object({ endpoint: z.string().max(1000) }).parse(await req.json());
-  await container().workspace.inbox.unsubscribe(staff.user.id, endpoint);
-  return NextResponse.json({ ok: true });
-});
+export function POST(req: Request) {
+  return v1SiteProxy("crm", req, async () => (await handler("POST"))(req));
+}
+
+export function DELETE(req: Request) {
+  return v1SiteProxy("crm", req, async () => (await handler("DELETE"))(req));
+}

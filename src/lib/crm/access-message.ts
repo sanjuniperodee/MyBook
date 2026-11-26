@@ -1,6 +1,6 @@
 import { type Locale } from "@/i18n/config";
 import { formatPhone } from "@/shared/domain/phone";
-import { maskEmail, maskPhone } from "@/modules/access/domain";
+import { maskEmail, maskPhone } from "@/shared/domain/staff";
 
 interface AccessMessageInput {
   name: string;

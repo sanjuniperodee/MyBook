@@ -3,7 +3,7 @@
 import { useActionState, useState, useTransition } from "react";
 import { LoaderCircle, PlugZap } from "lucide-react";
 import { Actions, CheckMessage, CopyField, Field, Group, Note, Result, SaveButton, Section, SecretInput, rotateToken } from "../ui";
-import type { SettingsState } from "../state";
+import type { SettingsState } from "@/lib/crm/settings-state";
 import { saveEmailAction, testImapAction } from "./actions";
 
 export function EmailForm({ smtp, saved, env, webhookUrl }: { smtp: boolean; saved: { imapHost: string; imapPort: string; imapUser: string; imapPassword: string; imapMailbox: string }; env: { imapHost: boolean; imapPort: boolean; imapUser: boolean; imapPassword: boolean }; webhookUrl: string | null }) {

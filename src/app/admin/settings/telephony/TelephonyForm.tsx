@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { Actions, Choice, CopyField, Field, Group, Help, Result, SaveButton, Section, SecretInput, Toggle, rotateToken, type SheetStatus } from "../ui";
-import type { SettingsState } from "../state";
+import type { SettingsState } from "@/lib/crm/settings-state";
 import { saveTelephonyAction } from "./actions";
 
 export function TelephonyForm({

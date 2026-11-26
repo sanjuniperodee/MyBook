@@ -14,7 +14,7 @@ import { ClientFields, RemindButton, TagEditor } from "./ClientControls";
 import { ClientBooks, ClientDeals, ClientHeader, ClientOrders, ClientPayments, ClientProfile, ClientReferrals } from "./sections";
 import { ClientTabs } from "./ClientTabs";
 import { ClientAccess } from "./ClientAccess";
-import { staffLogin } from "@/app/admin/clients/new/access-message";
+import { staffLogin } from "@/lib/crm/access-message";
 import { isPhoneEmail } from "@/modules/identity/domain";
 import { can, canAssignOthers, canSeeAssigned, contactView, requireStaff, canSeeClientRecords } from "@/server/access";
 import { pageId } from "@/server/input";

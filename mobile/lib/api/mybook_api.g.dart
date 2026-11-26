@@ -1909,6 +1909,24 @@ class MybookApi {
     final json = await _send('POST', '/api/v1/web/unsubscribe', body: body.toJson());
     return Ok.fromJson(json as Map<String, dynamic>);
   }
+
+  /// Права сотрудника CRM и что мешает войти (сеть, обязательная 2FA) — для каркаса и страниц /admin
+  Future<WebCrmStaff> webCrmStaff() async {
+    final json = await _send('GET', '/api/v1/web/crm/staff');
+    return WebCrmStaff.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Данные страницы CRM: операция чтения области (без изменений данных), права сотрудника проверяет операция
+  Future<WebCrmReply> webCrmRead({required String op, required WebCrmCall body}) async {
+    final json = await _send('POST', '/api/v1/web/crm/read/${Uri.encodeComponent('$op')}', body: body.toJson());
+    return WebCrmReply.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Server action CRM (<модуль>.<действие>, аргументы — массив): права, zod и лимиты проверяет само действие
+  Future<WebCrmReply> webCrmAct({required String op, required WebCrmCall body}) async {
+    final json = await _send('POST', '/api/v1/web/crm/act/${Uri.encodeComponent('$op')}', body: body.toJson());
+    return WebCrmReply.fromJson(json as Map<String, dynamic>);
+  }
 }
 
 class ApiError {
@@ -14536,4 +14554,52 @@ class WebGiftClaimBody {
   factory WebGiftClaimBody.fromJson(Map<String, dynamic> json) => WebGiftClaimBody(token: json['token'] as String);
 
   Map<String, dynamic> toJson() => {'token': token};
+}
+
+class WebCrmStaff {
+  final WebCrmStaffStaff? staff;
+  final String? gate;
+
+  const WebCrmStaff({this.staff, this.gate});
+
+  factory WebCrmStaff.fromJson(Map<String, dynamic> json) => WebCrmStaff(staff: json['staff'] == null ? null : WebCrmStaffStaff.fromJson(json['staff'] as Map<String, dynamic>), gate: json['gate'] == null ? null : json['gate'] as String);
+
+  Map<String, dynamic> toJson() => {'staff': staff == null ? null : staff!.toJson(), 'gate': gate};
+}
+
+class WebCrmStaffStaff {
+  final String roleName;
+  final String? roleKey;
+  /// all | own
+  final String scope;
+  final List<String> permissions;
+  final bool isOwner;
+
+  const WebCrmStaffStaff({required this.roleName, this.roleKey, required this.scope, required this.permissions, required this.isOwner});
+
+  factory WebCrmStaffStaff.fromJson(Map<String, dynamic> json) => WebCrmStaffStaff(roleName: json['roleName'] as String, roleKey: json['roleKey'] == null ? null : json['roleKey'] as String, scope: json['scope'] as String, permissions: (json['permissions'] as List).map((e) => e as String).toList(), isOwner: json['isOwner'] as bool);
+
+  Map<String, dynamic> toJson() => {'roleName': roleName, 'roleKey': roleKey, 'scope': scope, 'permissions': permissions.map((e) => e).toList(), 'isOwner': isOwner};
+}
+
+class WebCrmCall {
+  final Object? args;
+
+  const WebCrmCall({this.args});
+
+  factory WebCrmCall.fromJson(Map<String, dynamic> json) => WebCrmCall(args: json['args'] == null ? null : json['args'] as Object);
+
+  Map<String, dynamic> toJson() => {if (args != null) 'args': args!};
+}
+
+class WebCrmReply {
+  final Object data;
+  final String? redirect;
+  final bool? notFound;
+
+  const WebCrmReply({required this.data, this.redirect, this.notFound});
+
+  factory WebCrmReply.fromJson(Map<String, dynamic> json) => WebCrmReply(data: json['data'] as Object, redirect: json['redirect'] == null ? null : json['redirect'] as String, notFound: json['notFound'] == null ? null : json['notFound'] as bool);
+
+  Map<String, dynamic> toJson() => {'data': data, if (redirect != null) 'redirect': redirect!, if (notFound != null) 'notFound': notFound!};
 }

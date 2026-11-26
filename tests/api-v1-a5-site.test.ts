@@ -137,7 +137,7 @@ describe("API v1 A5: маршруты сайта в mybook-api (site-routes.ts)"
       {
         name: "POST /api/admin/notifications",
         req: () => new Request("http://127.0.0.1:3044/api/admin/notifications", { method: "POST", body: "{}" }),
-        direct: async (r: Request) => (await import("@/app/api/admin/notifications/route")).POST(r, undefined as never),
+        direct: async (r: Request) => (await import("@/app/api/admin/notifications/route")).POST(r),
       },
     ];
 

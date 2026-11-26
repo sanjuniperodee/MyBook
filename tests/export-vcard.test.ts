@@ -22,7 +22,7 @@ beforeEach(() => {
   };
 });
 
-const download = (qs = "") => exportVcard(new Request(`http://localhost/api/admin/export/vcard${qs}`), { params: Promise.resolve({}) });
+const download = (qs = "") => exportVcard(new Request(`http://localhost/api/admin/export/vcard${qs}`));
 
 describe("выгрузка контактов vCard", () => {
   it("файл .vcf: подпись с номером сделки и поводом по-русски, номера в международном виде", async () => {

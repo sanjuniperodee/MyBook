@@ -1,17 +1,10 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-import { z } from "zod";
-import { assertStaff, audit } from "@/server/access";
-import { fromEnv, saveSettings } from "@/modules/workspace";
-import { randomToken } from "@/shared/crypto";
+/**
+ * Server actions: код — в src/server/crm-actions/settings.ts; на сайте с БД выполняется здесь же, на сайте без БД —
+ * в mybook-api через API v1 (ADR 0012, A5 — Раздел 5, crmAction). Права, zod и лимиты проверяет само действие.
+ */
+import { crmAction } from "@/server/v1-local-bridge-crm";
+import type * as impl from "@/server/crm-actions/settings";
 
-/** Новый токен вебхука: старый адрес перестаёт работать (если он утёк). */
-export async function rotateTokenAction(key: "wazzup.webhookToken" | "pbx.token" | "email.webhookToken") {
-  const staff = await assertStaff("settings.manage");
-  const k = z.enum(["wazzup.webhookToken", "pbx.token", "email.webhookToken"]).parse(key);
-  if (fromEnv(k)) throw new Error("Токен задан переменной окружения");
-  await saveSettings({ [k]: randomToken() }, staff.user.id);
-  await audit(staff, "settings.update", "settings", k, { rotated: true });
-  revalidatePath("/admin/settings");
-}
+export const rotateTokenAction = crmAction<typeof impl.rotateTokenAction>("settings", "rotateTokenAction");

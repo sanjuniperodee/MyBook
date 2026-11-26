@@ -20,10 +20,7 @@ export interface Task {
   remindBeforeMin?: number | null;
 }
 
-/** Чужие задачи закрывают и удаляют только с правом «все задачи»; свои, ничьи и поставленные мной — можно. */
-export function canManageTask(actor: { userId: string; allTasks: boolean }, t: Pick<Task, "assigneeId" | "createdById">) {
-  return actor.allTasks || !t.assigneeId || t.assigneeId === actor.userId || t.createdById === actor.userId;
-}
+export { canManageTask } from "@/shared/domain/tasks";
 
 /** Срок без времени — до конца рабочего дня (18:00). */
 export function taskDue(raw: string | undefined): Date | null {

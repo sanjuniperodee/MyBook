@@ -4,7 +4,7 @@ import { mobile } from "@/server/mobile-api";
 import { z } from "zod";
 import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { createDealAction } from "@/app/admin/deals/actions";
-import { mobileDeals } from "@/app/api/_crm-lists/data";
+import { mobileDeals } from "@/server/crm-lists/data";
 
 export const dynamic = "force-dynamic";
 

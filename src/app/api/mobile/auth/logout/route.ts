@@ -1,13 +1,11 @@
-import { NextResponse } from "next/server";
-import { api, apiUser } from "@/server/api";
-import { sessionToken } from "@/server/auth";
-import { container } from "@/server/container";
+import { v1SiteProxy } from "@/server/v1-proxy";
 
 export const dynamic = "force-dynamic";
 
-/** Выход: сессия закрывается на сервере, токен перестаёт действовать. */
-export const POST = api(async (req) => {
-  await apiUser(req);
-  await container().identity.auth.logout((await sessionToken()) ?? undefined);
-  return NextResponse.json({ ok: true });
-});
+type Handler = (req: Request) => Response | Promise<Response>;
+
+const handler = async (method: "POST") => (await import("@/server/site-handlers/mobile/auth-logout"))[method] as Handler;
+
+export function POST(req: Request) {
+  return v1SiteProxy("crm", req, async () => (await handler("POST"))(req));
+}

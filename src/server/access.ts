@@ -3,10 +3,12 @@ import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
 import { admin } from "@/i18n/admin";
 import { trustedClientIp } from "@/server/rateLimit";
-import type { StaffContext, StaffGate } from "@/modules/access";
+import type { StaffGate } from "@/modules/access";
+import { StaffContext } from "@/modules/access/domain/StaffContext";
+import { isPhoneEmail } from "@/modules/identity/domain/Login";
 import type { Permission, RoleScope } from "@/shared/domain/permissions";
 import { getCurrentUser, type User } from "./auth";
-import { container } from "./container";
+import { crmStaffAccess, type StaffAccessDto } from "./v1-local-bridge-crm";
 
 /**
  * Веб-адаптер прав сотрудников CRM: guards для страниц (редирект/404), server actions и API (исключение).
@@ -39,21 +41,38 @@ export class ForbiddenError extends Error {
 
 const account = (u: User) => ({ id: u.id, role: u.role, staffDisabled: u.staffDisabled, crmRoleId: u.crmRoleId, twoFactorEnabled: !!u.totpEnabledAt && !!u.totpSecret });
 
-/** Сотрудник без проверок безопасности — для каркаса админки и страницы «Безопасность». */
-const loadStaff = cache(async (): Promise<Staff | null> => {
+let containerModule: Promise<typeof import("./container")> | undefined;
+const loadContainer = () => (containerModule ??= import("./container"));
+
+/**
+ * Права сотрудника и правило безопасности для пользователя — из модуля Access (сайт с БД и mybook-api). Сайт без БД
+ * (ADR 0012, A5 — Раздел 5) берёт то же через API v1 (`webCrmStaff`): src/server/v1-local-bridge-crm.ts.
+ */
+export async function localStaffAccess(user: User): Promise<StaffAccessDto> {
+  const { container } = await loadContainer();
+  const resolver = container().access.resolver;
+  const ctx = await resolver.resolve(account(user));
+  if (!ctx) return { staff: null, gate: null };
+  const gate = await resolver.gate(account(user), await trustedClientIp());
+  return { staff: { roleName: ctx.roleName, roleKey: ctx.roleKey, scope: ctx.scope, permissions: [...ctx.permissions], isOwner: ctx.isOwner }, gate };
+}
+
+const access = cache(async () => {
   const user = await getCurrentUser();
   if (!user) return null;
-  const ctx = await container().access.resolver.resolve(account(user));
-  if (!ctx) return null;
-  return { user, roleName: ctx.roleName, roleKey: ctx.roleKey, scope: ctx.scope, permissions: ctx.permissions, isOwner: ctx.isOwner, context: ctx };
+  const dto = await crmStaffAccess(() => localStaffAccess(user));
+  if (!dto.staff) return null;
+  const s = dto.staff;
+  const context = new StaffContext(user.id, s.roleName, s.roleKey, s.scope, new Set(s.permissions as Permission[]), s.isOwner, { isPhoneEmail });
+  const staff: Staff = { user, roleName: s.roleName, roleKey: s.roleKey, scope: s.scope, permissions: context.permissions, isOwner: s.isOwner, context };
+  return { staff, gate: dto.gate as StaffGate };
 });
 
+/** Сотрудник без проверок безопасности — для каркаса админки и страницы «Безопасность». */
+const loadStaff = cache(async (): Promise<Staff | null> => (await access())?.staff ?? null);
+
 /** Что мешает сотруднику работать в CRM: вход не из разрешённой сети или не настроена обязательная 2FA. */
-const staffGate = cache(async (): Promise<StaffGate> => {
-  const staff = await loadStaff();
-  if (!staff) return null;
-  return container().access.resolver.gate(account(staff.user), await trustedClientIp());
-});
+const staffGate = cache(async (): Promise<StaffGate> => (await access())?.gate ?? null);
 
 /** Текущий сотрудник, если его ничего не блокирует. Кэшируется на запрос. */
 export const getStaff = cache(async (): Promise<Staff | null> => {
@@ -125,6 +144,7 @@ export function canSeeClientRecords(staff: Staff, managerId: string | null | und
 /** Заказ виден сотруднику (см. canSeeClientRecords); нет заказа — false. */
 export async function canSeeOrder(staff: Staff, orderId: string) {
   if (staff.scope === "all") return true;
+  const { container } = await loadContainer();
   const own = await container().reporting.orderOwnership(orderId);
   return !!own && canSeeClientRecords(staff, own.managerId, own.assigneeId);
 }
@@ -137,6 +157,7 @@ export async function assertOrderVisible(staff: Staff, orderId: string) {
 /** Книга видна сотруднику: роль «только свои» — книги своих клиентов. */
 export async function canSeeBook(staff: Staff, bookId: string) {
   if (staff.scope === "all") return true;
+  const { container } = await loadContainer();
   const own = await container().reporting.bookOwnership(bookId);
   return !!own && canSeeClientRecords(staff, own.managerId);
 }
@@ -178,6 +199,7 @@ export function contactView(staff: Staff, v: { phone?: string | null; email?: st
 
 /** Запись в журнал действий. */
 export async function audit(staff: Staff | null, action: string, entity: string, entityId?: string | null, details?: Record<string, unknown>) {
+  const { container } = await loadContainer();
   await container().access.audit.record({ actorId: staff?.user.id ?? null, action, entity, entityId, details });
 }
 

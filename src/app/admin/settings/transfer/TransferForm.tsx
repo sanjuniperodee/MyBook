@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { Actions, Field, Group, Note, Result, SaveButton, Section } from "../ui";
-import type { SettingsState } from "../state";
+import type { SettingsState } from "@/lib/crm/settings-state";
 import { saveTransferAction } from "./actions";
 
 /** «Оплата переводом»: номер Kaspi и имя получателя, которые клиент видит на странице оплаты. */

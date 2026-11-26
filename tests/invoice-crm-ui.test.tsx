@@ -20,7 +20,7 @@ import {
   pickAmount,
   type InvoicePerms,
   type InvoiceView,
-} from "@/components/admin/invoices/model";
+} from "@/lib/crm/invoice-model";
 
 // Интерфейс счетов в CRM (зона C): чистые правила формы и блока «Счета» и разметка компонентов (renderToStaticMarkup).
 // Серверные действия и роутер подменены: здесь проверяется, что видит менеджер, а не сервер.

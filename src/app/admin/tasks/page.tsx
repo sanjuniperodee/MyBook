@@ -11,7 +11,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/lib/class-names";
 import { TaskRows } from "./TaskRows";
-import { taskRow } from "./task-row";
+import { taskRow } from "@/lib/crm/task-row";
 import { NewTask, QuickTask } from "./NewTask";
 
 export const metadata = { title: "Задачи" };

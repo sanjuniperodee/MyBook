@@ -13,3 +13,11 @@ export function readGifts(raw: unknown): AgreementGift[] {
   const list = Array.isArray(raw) ? raw : typeof raw === "string" ? raw.split(",") : [];
   return AGREEMENT_GIFTS.filter((g) => list.some((x) => typeof x === "string" && x.trim() === g));
 }
+
+/** Что можно отметить бесплатным по договорённости — галочками в формах заведения клиента и сделок. */
+export const giftFields = { giftwrap: "giftWrap", delivery: "giftDelivery" } as const;
+
+/** Галочки формы → список бесплатного (недоступное тарифу сервер всё равно отбросит). */
+export function giftsFromForm(values: Record<string, string>): ("giftwrap" | "delivery")[] {
+  return [...(values[giftFields.giftwrap] === "on" ? (["giftwrap"] as const) : []), ...(values[giftFields.delivery] === "on" ? (["delivery"] as const) : [])];
+}

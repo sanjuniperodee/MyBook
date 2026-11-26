@@ -1,12 +1,7 @@
 import { availableAddons, formatPrice, getDeliveryOptions } from "@/config/site";
 
-/** Что можно отметить бесплатным по договорённости — галочками в формах заведения клиента и сделок. */
-export const giftFields = { giftwrap: "giftWrap", delivery: "giftDelivery" } as const;
-
-/** Галочки формы → список бесплатного (недоступное тарифу сервер всё равно отбросит). */
-export function giftsFromForm(values: Record<string, string>): ("giftwrap" | "delivery")[] {
-  return [...(values[giftFields.giftwrap] === "on" ? (["giftwrap"] as const) : []), ...(values[giftFields.delivery] === "on" ? (["delivery"] as const) : [])];
-}
+export { giftFields, giftsFromForm } from "@/shared/domain/agreementGifts";
+import { giftFields } from "@/shared/domain/agreementGifts";
 
 /**
  * «Бесплатно по договорённости»: подарочная упаковка и (или) доставка. Ничего не отмечено — клиент платит за них по прайсу.

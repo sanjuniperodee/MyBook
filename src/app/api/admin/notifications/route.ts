@@ -1,16 +1,9 @@
-import { NextResponse } from "next/server";
-import { z } from "zod";
-import { uuid } from "@/server/input";
-import { api, apiStaff } from "@/server/api";
-import { container } from "@/server/container";
-import { syncMobileBadge } from "@/modules/workspace";
+import { v1SiteProxy } from "@/server/v1-proxy";
 
-/** Отметить уведомления прочитанными: { id } — одно, без id — все. */
-export const POST = api(async (req) => {
-  const staff = await apiStaff(req);
-  const { id } = z.object({ id: uuid.optional() }).parse(await req.json().catch(() => ({})));
-  await container().workspace.inbox.markRead(staff.user.id, id);
-  // Число на значке iPhone — по новым непрочитанным (тихий push), не дожидаясь следующего уведомления.
-  void syncMobileBadge(staff.user.id).catch((err: unknown) => console.error("[push:badge]", err));
-  return NextResponse.json({ ok: true });
-});
+type Handler = (req: Request) => Response | Promise<Response>;
+
+const handler = async (method: "POST") => (await import("@/server/site-handlers/admin/notifications"))[method] as Handler;
+
+export function POST(req: Request) {
+  return v1SiteProxy("crm", req, async () => (await handler("POST"))(req));
+}

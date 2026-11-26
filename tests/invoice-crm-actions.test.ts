@@ -353,7 +353,7 @@ describe("invoiceAccountsAction: чей аккаунт", () => {
 describe("actions.mjs: счета из чата — с правами и zod", () => {
   it("каждое действие счёта проверяет права и вход", () => {
     const report = execFileSync(process.execPath, ["scripts/refactor/actions.mjs"], { encoding: "utf8" });
-    const lines = report.split("\n").filter((l) => l.startsWith("src/app/admin/invoices/actions.ts::"));
+    const lines = report.split("\n").filter((l) => l.startsWith("src/server/crm-actions/invoices.ts::"));
     expect(lines.map((l) => l.split("::")[1].split(" ")[0]).sort()).toEqual(["cancelInvoiceAction", "invoiceAccountsAction", "invoiceFormInfoAction", "issueInvoiceAction", "resendInvoiceAccessAction", "resendInvoiceAction"]);
     for (const l of lines) expect(l).toMatch(/assertStaff.*\[zod\]$/);
     expect(lines.find((l) => l.includes("::resendInvoiceAccessAction"))).toContain("assertWorkable");

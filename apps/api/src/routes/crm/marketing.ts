@@ -17,7 +17,7 @@ import { can } from "@/server/access";
 import { HttpError } from "@/server/api";
 import { cancelGiftAction, resendGiftAction } from "@/app/admin/gifts/actions";
 import { moderateReviewAction } from "@/app/admin/reviews/actions";
-import { POST as giftReceiptRoute } from "@/app/api/admin/gifts/[id]/receipt/route";
+import { POST as giftReceiptRoute } from "@/server/site-handlers/admin/gifts-id-receipt";
 import type { Handlers } from "../../app";
 import { refused } from "./common";
 import { siteFileRoute } from "./site-route";

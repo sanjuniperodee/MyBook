@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import type { TaskRow } from "@/app/admin/tasks/TaskRows";
-import { taskContact, type ReachableTask, type Reacher } from "@/app/admin/tasks/task-row";
+import { taskContact, type ReachableTask, type Reacher } from "@/lib/crm/task-row";
 import { StaffContext } from "@/modules/access/domain";
 import type { Permission } from "@/shared/domain/permissions";
 

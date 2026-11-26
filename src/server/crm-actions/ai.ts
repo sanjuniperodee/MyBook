@@ -1,0 +1,147 @@
+"use server";
+
+import { container } from "@/server/container";
+import { ClientsError } from "@/modules/clients";
+import { revalidatePath } from "next/cache";
+import { z } from "zod";
+import { uuid } from "@/server/input";
+import { assertStaff, assertVisible, audit } from "@/server/access";
+import { staffLabel } from "@/shared/domain/staff";
+import { AssistantError, normalizeExtracted, type AiSummary } from "@/modules/assistant";
+import { listFields } from "@/modules/workspace";
+import { rateLimit } from "@/server/rateLimit";
+
+
+type Result<T> = ({ ok: true } & T) | { ok: false; message: string };
+
+async function guard<T>(staffId: string, run: () => Promise<T>): Promise<Result<T>> {
+  // Запросы к AI-модели платные: ограничиваем частоту на сотрудника.
+  if (!await rateLimit(`ai:${staffId}`, 30, 600_000)) return { ok: false, message: "Слишком много запросов к AI — подождите несколько минут." };
+  try {
+    return { ok: true, ...(await run()) };
+  } catch (err) {
+    if (AssistantError.is(err)) return { ok: false, message: err.message };
+    throw err;
+  }
+}
+
+async function loadDeal(dealId: string, staff: Awaited<ReturnType<typeof assertStaff>>) {
+  const deal = await container().reporting.dealById(uuid.parse(dealId));
+  if (!deal) throw new Error("Сделка не найдена");
+  assertVisible(staff, deal.assigneeId);
+  return deal;
+}
+
+/**
+ * Вариант ответа клиенту — менеджер правит и отправляет сам. Диалог привязан к сделке и подключена модель продажника —
+ * черновик пишет «мозг» продажника (факты, тарифы, срок к дате, поля сделки, уроки) от лица менеджера, с заметкой о
+ * клиенте (hint); иначе — обычный AI-помощник.
+ */
+export async function aiSuggestReplyAction(conversationId: string): Promise<Result<{ text: string; hint?: string }>> {
+  const staff = await assertStaff("chats.view", "chats.send");
+  const conv = await container().messaging.queries.conversation(uuid.parse(conversationId));
+  if (!conv) return { ok: false, message: "Диалог не найден" };
+  assertVisible(staff, conv.assigneeId);
+  return guard(staff.user.id, async () => {
+    const manager = staffLabel(staff.user);
+    const seller = await container().messaging.bot.suggestReply(conv.id, manager);
+    if (seller) {
+      if ("error" in seller) throw new AssistantError("unavailable", seller.error);
+      await audit(staff, "ai.reply", "conversation", conv.id, { engine: "seller", stage: seller.stage });
+      return { text: seller.text, hint: seller.summary || undefined };
+    }
+    const r = await container().assistant.service.suggestReply(conv.id, manager);
+    await audit(staff, "ai.reply", "conversation", conv.id, r.usage);
+    return { text: r.text };
+  });
+}
+
+export async function aiSummaryAction(dealId: string): Promise<Result<{ summary: AiSummary }>> {
+  const staff = await assertStaff("deals.view");
+  const deal = await loadDeal(dealId, staff);
+  const r = await guard(staff.user.id, async () => {
+    const s = await container().assistant.service.summarizeDeal(deal.id);
+    await audit(staff, "ai.summary", "deal", deal.id, s.usage);
+    return { summary: s.summary };
+  });
+  if (r.ok) revalidatePath(`/admin/deals/${deal.id}`);
+  return r;
+}
+
+export type FieldProposal = { key: string; label: string; type: string; value: string | number; current: string | null };
+
+export async function aiExtractFieldsAction(dealId: string): Promise<Result<{ proposals: FieldProposal[] }>> {
+  const staff = await assertStaff("deals.view", "deals.edit");
+  const deal = await loadDeal(dealId, staff);
+  return guard(staff.user.id, async () => {
+    const r = await container().assistant.service.extractDealFields(deal.id);
+    await audit(staff, "ai.extract", "deal", deal.id, r.usage);
+    return { proposals: r.proposals };
+  });
+}
+
+/** Применить выбранные менеджером значения (повторно проверяем по описанию полей). */
+export async function aiApplyFieldsAction(dealId: string, values: Record<string, string | number>) {
+  const staff = await assertStaff("deals.edit");
+  const deal = await loadDeal(dealId, staff);
+  const fields = await listFields("deal");
+  const clean = normalizeExtracted(
+    fields.map((f) => ({ key: f.key, label: f.label, type: f.type, options: f.options })),
+    z.record(z.string(), z.union([z.string(), z.number()])).parse(values),
+  );
+  if (!Object.keys(clean).length) return { ok: false as const, message: "Нечего применять" };
+  await container().sales.deals.setFields(deal.id, clean);
+  await audit(staff, "deal.fields_ai", "deal", deal.id, clean);
+  revalidatePath(`/admin/deals/${deal.id}`);
+  return { ok: true as const, count: Object.keys(clean).length };
+}
+
+/** Следующий шаг из резюме — задачей на ответственного. */
+export async function aiNextStepTaskAction(dealId: string) {
+  const staff = await assertStaff("deals.view");
+  const deal = await loadDeal(dealId, staff);
+  const s = deal.aiSummary;
+  if (!s?.nextStep) return { ok: false as const, message: "Сначала получите резюме сделки" };
+  const due = new Date(Date.now() + s.dueDays * 86_400_000);
+  // Задача ответственному за сделку (или тому, кто попросил резюме), срок — до вечера.
+  const iso = `${due.getFullYear()}-${String(due.getMonth() + 1).padStart(2, "0")}-${String(due.getDate()).padStart(2, "0")}`;
+  const actor = { userId: staff.user.id, name: staff.user.name || staff.user.email, seesAll: true, allTasks: false };
+  const task = (assigneeId: string) =>
+    container().clients.tasks.create(actor, {
+      title: s.nextStep!.slice(0, 300),
+      kind: /позвон|звон|перезвон/i.test(s.nextStep!) ? "call" : /напис|отправ|сообщ/i.test(s.nextStep!) ? "message" : "task",
+      dueAt: iso,
+      dealId: deal.id,
+      clientId: deal.clientId ?? undefined,
+      assigneeId,
+    });
+  try {
+    await task(deal.assigneeId ?? staff.user.id);
+  } catch (err) {
+    // Ответственный сделки отключён — задача тому, кто попросил резюме (B12).
+    if (!(ClientsError.is(err) && err.code === "staffNotFound")) throw err;
+    await task(staff.user.id);
+  }
+  revalidatePath(`/admin/deals/${deal.id}`);
+  return { ok: true as const };
+}
+
+/**
+ * «Создать шаблон» из сообщения: текст с подстановками вместо данных клиента (имя, номер заказа, менеджер, ссылка) и
+ * название. Только черновик — сотрудник правит и сохраняет сам. Без подключённой модели замены делает код.
+ */
+export async function aiTemplateDraftAction(conversationId: string, messageId: string): Promise<Result<{ title: string; text: string; replaced: { was: string; with: string }[]; ai: boolean }>> {
+  const staff = await assertStaff("chats.view");
+  const conv = await container().messaging.queries.conversation(uuid.parse(conversationId));
+  if (!conv) return { ok: false, message: "Диалог не найден" };
+  assertVisible(staff, conv.assigneeId);
+  const id = uuid.parse(messageId);
+  const view = container().messaging.view;
+  const msg = (await view.messages(conv.id)).find((m) => m.id === id);
+  if (!msg || msg.deleted || msg.internal || !msg.text.trim()) return { ok: false, message: "У этого сообщения нет текста для шаблона" };
+  const [vars, fields] = await Promise.all([view.vars(conv, staffLabel(staff.user)), listFields("deal")]);
+  return guard(staff.user.id, async () => {
+    const d = await container().assistant.service.draftTemplate(msg.text, { name: vars.name, manager: vars.manager, order: vars.order, recipient: vars.recipient, link: vars.link }, fields.map((f) => f.label));
+    return { title: d.title, text: d.text, replaced: d.replaced, ai: d.ai };
+  });
+}

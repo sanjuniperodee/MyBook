@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { Actions, CopyField, Field, Group, Help, Result, SaveButton, Section, SecretInput, type SheetStatus } from "../ui";
-import type { SettingsState } from "../state";
+import type { SettingsState } from "@/lib/crm/settings-state";
 import { saveGoogleAction } from "./actions";
 
 /** Google Календарь для досок задач: OAuth-клиент Google Cloud и пошаговая инструкция. */

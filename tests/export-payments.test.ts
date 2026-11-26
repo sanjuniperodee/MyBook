@@ -22,7 +22,7 @@ beforeEach(() => {
 describe("выгрузка поступлений", () => {
   it("платёж — «платёж менеджеру», сделка без платежа — с подписью «денег в журнале нет»", async () => {
     signIn(owner);
-    const res = await exportPayments(new Request("http://localhost/api/admin/export/payments?days=30"), { params: Promise.resolve({}) });
+    const res = await exportPayments(new Request("http://localhost/api/admin/export/payments?days=30"));
     expect(res.status).toBe(200);
     const [, paid, agreed] = (await res.text()).replace(/^﻿/, "").split(/\r?\n/);
     expect(paid).toContain("платёж менеджеру");

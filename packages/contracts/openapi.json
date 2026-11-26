@@ -15136,6 +15136,146 @@
         },
         "x-auth": "none"
       }
+    },
+    "/api/v1/web/crm/staff": {
+      "get": {
+        "operationId": "webCrmStaff",
+        "tags": [
+          "web-crm"
+        ],
+        "summary": "Права сотрудника CRM и что мешает войти (сеть, обязательная 2FA) — для каркаса и страниц /admin",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebCrmStaff"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      }
+    },
+    "/api/v1/web/crm/read/{op}": {
+      "post": {
+        "operationId": "webCrmRead",
+        "tags": [
+          "web-crm"
+        ],
+        "summary": "Данные страницы CRM: операция чтения области (без изменений данных), права сотрудника проверяет операция",
+        "parameters": [
+          {
+            "name": "op",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 80,
+              "pattern": "^[a-z][a-zA-Z0-9]*\\.[a-zA-Z][a-zA-Z0-9]*$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebCrmCall"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebCrmReply"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      }
+    },
+    "/api/v1/web/crm/act/{op}": {
+      "post": {
+        "operationId": "webCrmAct",
+        "tags": [
+          "web-crm"
+        ],
+        "summary": "Server action CRM (<модуль>.<действие>, аргументы — массив): права, zod и лимиты проверяет само действие",
+        "parameters": [
+          {
+            "name": "op",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 80,
+              "pattern": "^[a-z][a-zA-Z0-9]*\\.[a-zA-Z][a-zA-Z0-9]*$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebCrmCall"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebCrmReply"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      }
     }
   },
   "components": {
@@ -48435,6 +48575,98 @@
         },
         "required": [
           "token"
+        ],
+        "additionalProperties": false
+      },
+      "WebCrmStaff": {
+        "type": "object",
+        "properties": {
+          "staff": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "roleName": {
+                    "type": "string"
+                  },
+                  "roleKey": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "scope": {
+                    "type": "string",
+                    "enum": [
+                      "all",
+                      "own"
+                    ]
+                  },
+                  "permissions": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "isOwner": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "roleName",
+                  "roleKey",
+                  "scope",
+                  "permissions",
+                  "isOwner"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "gate": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "ip",
+                  "2fa"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "staff",
+          "gate"
+        ],
+        "additionalProperties": false
+      },
+      "WebCrmCall": {
+        "type": "object",
+        "properties": {
+          "args": {}
+        },
+        "additionalProperties": false
+      },
+      "WebCrmReply": {
+        "type": "object",
+        "properties": {
+          "data": {},
+          "redirect": {
+            "type": "string"
+          },
+          "notFound": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "data"
         ],
         "additionalProperties": false
       }

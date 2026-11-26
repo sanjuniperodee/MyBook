@@ -28,8 +28,11 @@ export const nextHeaders = {
 
 /** redirect() и notFound() в Next прерывают рендер исключением; двойники бросают узнаваемые. */
 export class Redirect extends Error {
+  /** Как у Next и shim mybook-api: по digest обработчик API узнаёт redirect() server action. */
+  readonly digest: string;
   constructor(readonly url: string) {
     super(`redirect ${url}`);
+    this.digest = `NEXT_REDIRECT;replace;${url};307;`;
   }
 }
 

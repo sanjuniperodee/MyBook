@@ -1,7 +1,7 @@
 import "server-only";
 import { formatDate } from "@/lib/dates";
 import type { DealInvoice } from "@/modules/ordering";
-import type { InvoiceView } from "@/components/admin/invoices/model";
+import type { InvoiceView } from "@/lib/crm/invoice-model";
 
 import { payLink } from "@/server/deal-invoices";
 

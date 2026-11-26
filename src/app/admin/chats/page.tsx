@@ -17,7 +17,7 @@ import { ChatNavProvider, ChatSlot } from "@/components/admin/chat/ChatNav";
 import { ChatsLive } from "@/components/admin/chat/ChatsLive";
 import { DetailsPanel } from "@/components/admin/chat/DetailsPanel";
 import { InvoicesBlock } from "@/components/admin/invoices/InvoicesBlock";
-import { invoiceViews } from "@/app/admin/invoices/view";
+import { invoiceViews } from "@/server/invoice-views";
 import { BotBanner, ChatSideControls } from "./ChatControls";
 import { PhoneHolder } from "./PhoneHolder";
 import { WhatsappCallButton } from "@/components/admin/WhatsappCall";

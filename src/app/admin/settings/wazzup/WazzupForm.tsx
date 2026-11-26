@@ -3,7 +3,7 @@
 import { useActionState, useState, useTransition } from "react";
 import { LoaderCircle, PlugZap } from "lucide-react";
 import { Actions, CheckMessage, CopyField, Field, Group, Help, Result, SaveButton, Section, SecretInput, rotateToken } from "../ui";
-import type { SettingsState } from "../state";
+import type { SettingsState } from "@/lib/crm/settings-state";
 import { saveWazzupAction, testWazzupAction, registerWazzupWebhookAction } from "./actions";
 
 export function WazzupForm({ saved, env, webhookUrl }: { saved: { apiKey: string; baseUrl: string; channelId: string }; env: { apiKey: boolean; baseUrl: boolean; channelId: boolean }; webhookUrl: string | null }) {

@@ -1,35 +1,13 @@
-import { NextResponse } from "next/server";
-import { getSetting } from "@/modules/workspace";
-import { safeEqual } from "@/shared/crypto";
-import { parseZadarmaEvent, zadarmaSign, zadarmaSignedString } from "@/modules/telephony/domain/protocol";
-import { container } from "@/server/container";
+import { v1SiteProxy } from "@/server/v1-proxy";
 
-/** Проверка адреса при подключении уведомлений в кабинете Zadarma: вернуть zd_echo как есть. */
-export async function GET(req: Request) {
-  const echo = new URL(req.url).searchParams.get("zd_echo");
-  if (echo) return new Response(echo.slice(0, 200), { headers: { "Content-Type": "text/plain" } });
-  return new Response("ok", { headers: { "Content-Type": "text/plain" } });
+type Handler = (req: Request) => Response | Promise<Response>;
+
+const handler = async (method: "GET" | "POST") => (await import("@/server/site-handlers/integrations/zadarma"))[method] as Handler;
+
+export function GET(req: Request) {
+  return v1SiteProxy("crm", req, async () => (await handler("GET"))(req));
 }
 
-/** События АТС Zadarma (NOTIFY_START, NOTIFY_INTERNAL, NOTIFY_ANSWER, NOTIFY_END, NOTIFY_OUT_*, NOTIFY_RECORD). */
-export async function POST(req: Request) {
-  const secret = await getSetting("zadarma.secret");
-  if (!secret) return NextResponse.json({ error: "not configured" }, { status: 503 });
-  const form = new URLSearchParams(await req.text());
-  const params = Object.fromEntries(form.entries());
-  const signed = zadarmaSignedString(params);
-  if (signed === null) return NextResponse.json({ ok: true, ignored: true });
-  const signature = req.headers.get("signature") ?? "";
-  if (!safeEqual(signature, zadarmaSign(signed, secret))) return NextResponse.json({ error: "bad signature" }, { status: 403 });
-
-  const event = parseZadarmaEvent(params);
-  if (event) {
-    try {
-      await container().telephony.calls.handle(event);
-    } catch (err) {
-      console.error("[zadarma]", params.event, err);
-      return NextResponse.json({ error: "failed" }, { status: 500 });
-    }
-  }
-  return NextResponse.json({ ok: true });
+export function POST(req: Request) {
+  return v1SiteProxy("crm", req, async () => (await handler("POST"))(req));
 }

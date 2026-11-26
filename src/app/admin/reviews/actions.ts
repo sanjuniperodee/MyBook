@@ -1,18 +1,10 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-import { z } from "zod";
-import { uuid } from "@/server/input";
-import { assertStaff, audit } from "@/server/access";
-import { container } from "@/server/container";
+/**
+ * Server actions: код — в src/server/crm-actions/reviews.ts; на сайте с БД выполняется здесь же, на сайте без БД —
+ * в mybook-api через API v1 (ADR 0012, A5 — Раздел 5, crmAction). Права, zod и лимиты проверяет само действие.
+ */
+import { crmAction } from "@/server/v1-local-bridge-crm";
+import type * as impl from "@/server/crm-actions/reviews";
 
-const input = z.object({ id: uuid, action: z.enum(["publish", "hide", "feature", "unfeature"]) });
-
-/** Проверка отзыва: показать на сайте, скрыть, закрепить первым на главной. */
-export async function moderateReviewAction(id: string, action: string) {
-  const staff = await assertStaff("reviews.manage");
-  const d = input.parse({ id, action });
-  await container().feedback.reviews.moderate(d.id, d.action);
-  await audit(staff, `review.${d.action}`, "review", d.id);
-  revalidatePath("/admin/reviews");
-}
+export const moderateReviewAction = crmAction<typeof impl.moderateReviewAction>("reviews", "moderateReviewAction");

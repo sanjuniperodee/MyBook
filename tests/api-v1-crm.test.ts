@@ -37,8 +37,8 @@ const payRoute = vi.fn(async (req: Request, ctx: { params: Promise<{ id: string 
   void ctx;
   return Response.json({ payment: { id: "p1", amount: 30000 }, settled: true, overpaid: 0 });
 });
-vi.mock("@/app/api/admin/orders/[id]/payments/route", () => ({ POST: (req: Request, ctx: { params: Promise<{ id: string }> }) => payRoute(req, ctx) }));
-vi.mock("@/app/api/admin/orders/[id]/refunds/route", () => ({ POST: vi.fn() }));
+vi.mock("@/server/site-handlers/admin/orders-id-payments", () => ({ POST: (req: Request, ctx: { params: Promise<{ id: string }> }) => payRoute(req, ctx) }));
+vi.mock("@/server/site-handlers/admin/orders-id-refunds", () => ({ POST: vi.fn() }));
 const createClientAction = vi.fn<(state: unknown, form: FormData) => Promise<Record<string, unknown>>>(async () => ({ error: "Клиент с таким телефоном или почтой уже есть" }));
 vi.mock("@/app/admin/clients/new/actions", () => ({ createClientAction: (s: unknown, f: FormData) => createClientAction(s, f) }));
 const updateOrderAction = vi.fn<(state: unknown, form: FormData) => Promise<{ ok?: string; error?: string }>>(async () => ({ ok: "Сохранено" }));

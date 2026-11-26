@@ -5,7 +5,7 @@ import { Trash2 } from "lucide-react";
 import { ask } from "@/components/ui/overlays";
 import { cn } from "@/lib/class-names";
 import { Result, SaveButton } from "../ui";
-import type { SettingsState } from "../state";
+import type { SettingsState } from "@/lib/crm/settings-state";
 import { saveTemplateAction, deleteTemplateAction } from "./actions";
 
 export function TemplateEditor({ template }: { template: { id: string; title: string; text: string } | null }) {

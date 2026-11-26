@@ -1,10 +1,11 @@
-import { NextResponse } from "next/server";
-import { api, apiStaff } from "@/server/api";
-import { container } from "@/server/container";
+import { v1SiteProxy } from "@/server/v1-proxy";
 
 export const dynamic = "force-dynamic";
 
-export const GET = api(async (req) => {
-  const staff = await apiStaff(req);
-  return NextResponse.json(await container().reporting.live(staff.context), { headers: { "Cache-Control": "no-store" } });
-});
+type Handler = (req: Request) => Response | Promise<Response>;
+
+const handler = async (method: "GET") => (await import("@/server/site-handlers/admin/live"))[method] as Handler;
+
+export function GET(req: Request) {
+  return v1SiteProxy("crm", req, async () => (await handler("GET"))(req));
+}

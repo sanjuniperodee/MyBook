@@ -7,7 +7,7 @@ import { Intro } from "@/components/admin/Intro";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import { ask, toast, toastError } from "@/components/ui/overlays";
 import { cn } from "@/lib/class-names";
-import type { SettingsState } from "./state";
+import type { SettingsState } from "@/lib/crm/settings-state";
 import { rotateTokenAction } from "./actions";
 
 /**

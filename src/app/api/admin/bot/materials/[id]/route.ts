@@ -1,12 +1,10 @@
-import { api, apiStaff, HttpError } from "@/server/api";
-import { container } from "@/server/container";
+import { v1SiteProxy } from "@/server/v1-proxy";
 
-/** Файл подборки — превью в настройках бота. */
-export const GET = api(async (req: Request, { params }: { params: Promise<{ id: string }> }) => {
-  await apiStaff(req, "settings.manage");
-  const { id } = await params;
-  const file = await container().messaging.materialFile(id.slice(0, 40));
-  if (!file) throw new HttpError(404, "notFound");
-  const { data, material: m } = file;
-  return new Response(new Uint8Array(data), { headers: { "Content-Type": m.mime, "Cache-Control": "private, max-age=3600", "Content-Disposition": `inline; filename*=UTF-8''${encodeURIComponent(m.name)}` } });
-});
+type Ctx = { params: Promise<{ id: string }> };
+type Handler = (req: Request, ctx: Ctx) => Response | Promise<Response>;
+
+const handler = async (method: "GET") => (await import("@/server/site-handlers/admin/bot-materials-id"))[method] as Handler;
+
+export function GET(req: Request, ctx: Ctx) {
+  return v1SiteProxy("crm", req, async () => (await handler("GET"))(req, ctx));
+}

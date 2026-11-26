@@ -34,6 +34,15 @@ const FORWARD_REQUEST_HEADERS = [
   "x-content-hmac",
   // Язык запроса, который ставит src/proxy.ts (/kk/r/<код> ведёт на казахскую главную).
   "x-mb-locale",
+  // CRM (Раздел 5): проверка доступа nginx к записи звонка, подписи и токены вебхуков интеграций, выпуск обращений.
+  "x-original-uri",
+  "x-token",
+  "x-hub-signature-256",
+  "signature",
+  "x-goog-channel-id",
+  "x-goog-channel-token",
+  "x-goog-resource-state",
+  "x-release-token",
 ] as const;
 
 const HOP_BY_HOP_HEADERS = [

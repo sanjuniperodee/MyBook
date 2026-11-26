@@ -2,7 +2,7 @@
 
 import { useActionState, useRef } from "react";
 import { Actions, Field, Group, Note, Result, SaveButton, Section, Toggle } from "../ui";
-import type { SettingsState } from "../state";
+import type { SettingsState } from "@/lib/crm/settings-state";
 import { saveCrmSettingsAction } from "./actions";
 import { MERGE_CLOSED_DAYS_MAX } from "@/modules/sales/domain/merge";
 import { kzHolidays, parseOffDates } from "@/shared/domain/schedule";

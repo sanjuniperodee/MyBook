@@ -4,7 +4,7 @@ import { useActionState, useState, useTransition } from "react";
 import { CheckCircle2, LoaderCircle, PenLine } from "lucide-react";
 import { aiProviderIds, aiProviders, type AiProvider, modelFits } from "@/modules/assistant/domain/providers";
 import { Actions, CheckMessage, Choice, Field, Group, Note, Result, SaveButton, Section, SecretInput, Toggle, type SheetStatus } from "../ui";
-import type { SettingsState } from "../state";
+import type { SettingsState } from "@/lib/crm/settings-state";
 import { saveWriterAction, testWriterAction } from "./actions";
 import { providerReady, type AiProviderSaved } from "./saved";
 

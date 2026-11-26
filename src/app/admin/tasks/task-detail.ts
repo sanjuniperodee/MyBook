@@ -6,7 +6,7 @@ import { formatPhone } from "@/shared/domain/phone";
 import { formatPrice } from "@/config/site";
 import { orderStatusLabels } from "@/modules/ordering/ui/status";
 import { dealSourceLabels } from "@/shared/domain/dealSources";
-import { taskContact, taskRow, type ListedTask, type Reacher } from "./task-row";
+import { taskContact, taskRow, type ListedTask, type Reacher } from "@/lib/crm/task-row";
 
 /**
  * Карточка задачи: сама задача и всё, к чему она привязана, — сделка (этап, сумма, кто ведёт), клиент, заказ, диалог,

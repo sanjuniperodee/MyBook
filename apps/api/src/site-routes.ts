@@ -22,13 +22,7 @@ import * as calendarFeed from "@/server/site-handlers/public/calendar-feed";
 import * as chatAvatar from "@/server/site-handlers/public/chat-avatar";
 import * as inviteLink from "@/server/site-handlers/public/invite-link";
 import * as shortLink from "@/server/site-handlers/public/short-link";
-import * as gowa from "@/app/api/integrations/gowa/route";
-import * as zadarma from "@/app/api/integrations/zadarma/route";
-import * as google from "@/app/api/integrations/google/webhook/route";
-import * as live from "@/app/api/admin/live/route";
 import * as chatsInbox from "@/app/api/admin/chats/inbox/route";
-import * as chatMessages from "@/app/api/admin/chats/[id]/messages/route";
-import * as adminNotifications from "@/app/api/admin/notifications/route";
 import * as bookRoute from "@/server/site-handlers/books/book";
 import * as build from "@/server/site-handlers/books/build";
 import * as buildProgress from "@/server/site-handlers/books/build-progress";
@@ -67,6 +61,67 @@ import * as writeAi from "@/server/site-handlers/books/write-ai";
 import * as mediaPhoto from "@/server/site-handlers/media/photo";
 import * as mediaCover from "@/server/site-handlers/media/cover";
 import * as mediaCoverPhoto from "@/server/site-handlers/media/cover-photo";
+import * as adminBotMaterialsId from "@/server/site-handlers/admin/bot-materials-id";
+import * as adminBotMaterials from "@/server/site-handlers/admin/bot-materials";
+import * as adminCallsIdRecording from "@/server/site-handlers/admin/calls-id-recording";
+import * as adminCallsWhatsappIdRecording from "@/server/site-handlers/admin/calls-whatsapp-id-recording";
+import * as adminCallsWhatsappId from "@/server/site-handlers/admin/calls-whatsapp-id";
+import * as adminCallsWhatsappAudioAuth from "@/server/site-handlers/admin/calls-whatsapp-audio-auth";
+import * as adminCallsWhatsappListenAuth from "@/server/site-handlers/admin/calls-whatsapp-listen-auth";
+import * as adminCallsWhatsappLive from "@/server/site-handlers/admin/calls-whatsapp-live";
+import * as adminCatalogIdImage from "@/server/site-handlers/admin/catalog-id-image";
+import * as adminCatalogPhoto from "@/server/site-handlers/admin/catalog-photo";
+import * as adminChatsIdFiles from "@/server/site-handlers/admin/chats-id-files";
+import * as adminChatsIdMessages from "@/server/site-handlers/admin/chats-id-messages";
+import * as adminChatsIdVoice from "@/server/site-handlers/admin/chats-id-voice";
+import * as adminChatsMessagesIdMedia from "@/server/site-handlers/admin/chats-messages-id-media";
+import * as adminDealsIdPayments from "@/server/site-handlers/admin/deals-id-payments";
+import * as adminDealsIdReceipts from "@/server/site-handlers/admin/deals-id-receipts";
+import * as adminExportClients from "@/server/site-handlers/admin/export-clients";
+import * as adminExportExpenses from "@/server/site-handlers/admin/export-expenses";
+import * as adminExportFinance from "@/server/site-handlers/admin/export-finance";
+import * as adminExportLeads from "@/server/site-handlers/admin/export-leads";
+import * as adminExportOrders from "@/server/site-handlers/admin/export-orders";
+import * as adminExportPayments from "@/server/site-handlers/admin/export-payments";
+import * as adminExportProfit from "@/server/site-handlers/admin/export-profit";
+import * as adminExportSales from "@/server/site-handlers/admin/export-sales";
+import * as adminExportVcard from "@/server/site-handlers/admin/export-vcard";
+import * as adminGiftsIdReceipt from "@/server/site-handlers/admin/gifts-id-receipt";
+import * as adminLive from "@/server/site-handlers/admin/live";
+import * as adminLiveStream from "@/server/site-handlers/admin/live-stream";
+import * as adminNotifications from "@/server/site-handlers/admin/notifications";
+import * as adminOrderPaymentsIdReceipt from "@/server/site-handlers/admin/order-payments-id-receipt";
+import * as adminOrdersIdPackage from "@/server/site-handlers/admin/orders-id-package";
+import * as adminOrdersIdPayments from "@/server/site-handlers/admin/orders-id-payments";
+import * as adminOrdersIdRefunds from "@/server/site-handlers/admin/orders-id-refunds";
+import * as adminPaymentsId from "@/server/site-handlers/admin/payments-id";
+import * as adminPush from "@/server/site-handlers/admin/push";
+import * as adminReceiptsId from "@/server/site-handlers/admin/receipts-id";
+import * as adminSupportIdFilesAtt from "@/server/site-handlers/admin/support-id-files-att";
+import * as adminSupport from "@/server/site-handlers/admin/support";
+import * as adminTasksIdFilesAtt from "@/server/site-handlers/admin/tasks-id-files-att";
+import * as adminWebphone from "@/server/site-handlers/admin/webphone";
+import * as integrationsEmail from "@/server/site-handlers/integrations/email";
+import * as integrationsGoogleCallback from "@/server/site-handlers/integrations/google-callback";
+import * as integrationsGoogleConnect from "@/server/site-handlers/integrations/google-connect";
+import * as integrationsGoogleWebhook from "@/server/site-handlers/integrations/google-webhook";
+import * as integrationsGowa from "@/server/site-handlers/integrations/gowa";
+import * as integrationsPbx from "@/server/site-handlers/integrations/pbx";
+import * as integrationsWazzup from "@/server/site-handlers/integrations/wazzup";
+import * as integrationsZadarma from "@/server/site-handlers/integrations/zadarma";
+import * as mobileAuth2fa from "@/server/site-handlers/mobile/auth-2fa";
+import * as mobileAuthLogin from "@/server/site-handlers/mobile/auth-login";
+import * as mobileAuthLogout from "@/server/site-handlers/mobile/auth-logout";
+import * as mobileChatsIdMessages from "@/server/site-handlers/mobile/chats-id-messages";
+import * as mobileChatsIdVoice from "@/server/site-handlers/mobile/chats-id-voice";
+import * as mobileChatsMessagesMidAudio from "@/server/site-handlers/mobile/chats-messages-mid-audio";
+import * as mobileMe from "@/server/site-handlers/mobile/me";
+import * as mobileNotifications from "@/server/site-handlers/mobile/notifications";
+import * as mobileOverview from "@/server/site-handlers/mobile/overview";
+import * as mobilePush from "@/server/site-handlers/mobile/push";
+import * as mobileTemplates from "@/server/site-handlers/mobile/templates";
+import * as mobileWebSession from "@/server/site-handlers/mobile/web-session";
+import * as supportRelease from "@/server/site-handlers/support/release";
 
 /** Обработчик маршрута Next: второй аргумент — { params } своего вида у каждого маршрута. */
 type RouteHandler = (req: Request, ctx: never) => Promise<Response> | Response;
@@ -93,9 +148,6 @@ const table: [string, RouteModule][] = [
   // /r/<код> и /go/<ссылка> вне /api: прокси шлёт их на /api/v1/site/r/… и /api/v1/site/go/….
   ["/api/r/{code}", inviteLink as RouteModule],
   ["/api/go/{slug}", shortLink as RouteModule],
-  ["/api/integrations/gowa", gowa as RouteModule],
-  ["/api/integrations/zadarma", zadarma as RouteModule],
-  ["/api/integrations/google/webhook", google as RouteModule],
   // Автосохранение ответа и удаление своего раздела — самый частый маршрут редактора (~17 тыс. в сутки).
   // Статические подмаршруты (/order, /move, /batch, /invite, /packs) идут раньше параметрических ({qid}, {key}, {pid}, {lid}, {fileId}).
   ["/api/books/{id}/questions/order", questionsOrder as RouteModule],
@@ -139,10 +191,70 @@ const table: [string, RouteModule][] = [
   ["/api/covers/{file}", mediaCover as RouteModule],
   ["/api/cover-photos/{key}", mediaCoverPhoto as RouteModule],
   // Частые JSON-маршруты CRM.
-  ["/api/admin/live", live as RouteModule],
   ["/api/admin/chats/inbox", chatsInbox as RouteModule],
-  ["/api/admin/chats/{id}/messages", chatMessages as RouteModule],
+  // CRM (Раздел 5): маршруты /api/admin, старое приложение /api/mobile, вебхуки интеграций — обработчики в
+  // src/server/site-handlers/{admin,mobile,integrations,support}; статические адреса раньше параметрических.
+  ["/api/admin/bot/materials", adminBotMaterials as RouteModule],
+  ["/api/admin/calls/whatsapp/audio-auth", adminCallsWhatsappAudioAuth as RouteModule],
+  ["/api/admin/calls/whatsapp/listen-auth", adminCallsWhatsappListenAuth as RouteModule],
+  ["/api/admin/calls/whatsapp/live", adminCallsWhatsappLive as RouteModule],
+  ["/api/admin/catalog/photo", adminCatalogPhoto as RouteModule],
+  ["/api/admin/export/clients", adminExportClients as RouteModule],
+  ["/api/admin/export/expenses", adminExportExpenses as RouteModule],
+  ["/api/admin/export/finance", adminExportFinance as RouteModule],
+  ["/api/admin/export/leads", adminExportLeads as RouteModule],
+  ["/api/admin/export/orders", adminExportOrders as RouteModule],
+  ["/api/admin/export/payments", adminExportPayments as RouteModule],
+  ["/api/admin/export/profit", adminExportProfit as RouteModule],
+  ["/api/admin/export/sales", adminExportSales as RouteModule],
+  ["/api/admin/export/vcard", adminExportVcard as RouteModule],
+  ["/api/admin/live", adminLive as RouteModule],
+  ["/api/admin/live/stream", adminLiveStream as RouteModule],
   ["/api/admin/notifications", adminNotifications as RouteModule],
+  ["/api/admin/push", adminPush as RouteModule],
+  ["/api/admin/support", adminSupport as RouteModule],
+  ["/api/admin/webphone", adminWebphone as RouteModule],
+  ["/api/integrations/email", integrationsEmail as RouteModule],
+  ["/api/integrations/google/callback", integrationsGoogleCallback as RouteModule],
+  ["/api/integrations/google/connect", integrationsGoogleConnect as RouteModule],
+  ["/api/integrations/google/webhook", integrationsGoogleWebhook as RouteModule],
+  ["/api/integrations/gowa", integrationsGowa as RouteModule],
+  ["/api/integrations/pbx", integrationsPbx as RouteModule],
+  ["/api/integrations/wazzup", integrationsWazzup as RouteModule],
+  ["/api/integrations/zadarma", integrationsZadarma as RouteModule],
+  ["/api/mobile/auth/2fa", mobileAuth2fa as RouteModule],
+  ["/api/mobile/auth/login", mobileAuthLogin as RouteModule],
+  ["/api/mobile/auth/logout", mobileAuthLogout as RouteModule],
+  ["/api/mobile/me", mobileMe as RouteModule],
+  ["/api/mobile/notifications", mobileNotifications as RouteModule],
+  ["/api/mobile/overview", mobileOverview as RouteModule],
+  ["/api/mobile/push", mobilePush as RouteModule],
+  ["/api/mobile/templates", mobileTemplates as RouteModule],
+  ["/api/mobile/web-session", mobileWebSession as RouteModule],
+  ["/api/support/release", supportRelease as RouteModule],
+  ["/api/admin/bot/materials/{id}", adminBotMaterialsId as RouteModule],
+  ["/api/admin/calls/whatsapp/{id}", adminCallsWhatsappId as RouteModule],
+  ["/api/admin/calls/whatsapp/{id}/recording", adminCallsWhatsappIdRecording as RouteModule],
+  ["/api/admin/calls/{id}/recording", adminCallsIdRecording as RouteModule],
+  ["/api/admin/catalog/{id}/image", adminCatalogIdImage as RouteModule],
+  ["/api/admin/chats/messages/{id}/media", adminChatsMessagesIdMedia as RouteModule],
+  ["/api/admin/chats/{id}/files", adminChatsIdFiles as RouteModule],
+  ["/api/admin/chats/{id}/messages", adminChatsIdMessages as RouteModule],
+  ["/api/admin/chats/{id}/voice", adminChatsIdVoice as RouteModule],
+  ["/api/admin/deals/{id}/payments", adminDealsIdPayments as RouteModule],
+  ["/api/admin/deals/{id}/receipts", adminDealsIdReceipts as RouteModule],
+  ["/api/admin/gifts/{id}/receipt", adminGiftsIdReceipt as RouteModule],
+  ["/api/admin/order-payments/{id}/receipt", adminOrderPaymentsIdReceipt as RouteModule],
+  ["/api/admin/orders/{id}/package", adminOrdersIdPackage as RouteModule],
+  ["/api/admin/orders/{id}/payments", adminOrdersIdPayments as RouteModule],
+  ["/api/admin/orders/{id}/refunds", adminOrdersIdRefunds as RouteModule],
+  ["/api/admin/payments/{id}", adminPaymentsId as RouteModule],
+  ["/api/admin/receipts/{id}", adminReceiptsId as RouteModule],
+  ["/api/mobile/chats/messages/{mid}/audio", mobileChatsMessagesMidAudio as RouteModule],
+  ["/api/mobile/chats/{id}/messages", mobileChatsIdMessages as RouteModule],
+  ["/api/mobile/chats/{id}/voice", mobileChatsIdVoice as RouteModule],
+  ["/api/admin/support/{id}/files/{att}", adminSupportIdFilesAtt as RouteModule],
+  ["/api/admin/tasks/{id}/files/{att}", adminTasksIdFilesAtt as RouteModule],
 ];
 
 const compiled = table.map(([path, module]) => ({ path, module, re: new RegExp(`^${path.replace(/\{(\w+)\}/g, "(?<$1>[^/]+)")}$`) }));

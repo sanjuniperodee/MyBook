@@ -1,7 +1,33 @@
-import { canManageTask } from "@/modules/clients/domain";
+import { canManageTask } from "@/shared/domain/tasks";
 import { formatDate } from "@/lib/dates";
 import { normalizePhone } from "@/shared/domain/phone";
-import type { TaskRow } from "./TaskRows";
+
+export interface TaskRow {
+  id: string;
+  title: string;
+  kind: "task" | "call" | "message" | "meeting";
+  /** Срок для поля ввода «ГГГГ-ММ-ДДTЧЧ:ММ» по времени магазина; "" — без срока. */
+  due: string;
+  dueLabel: string | null;
+  overdue: boolean;
+  done: boolean;
+  doneLabel: string | null;
+  assigneeId: string | null;
+  /** null — не напоминать. */
+  remindBeforeMin: number | null;
+  result: string;
+  context: { label: string; href: string } | null;
+  /** Задачу поставил бот (заголовок «… (бот)»). */
+  fromBot: boolean;
+  /** Можно ли менять (своя, ничья, поставлена мной или право «все задачи»). */
+  editable: boolean;
+  /**
+   * С кем связаться по задаче: phone — цифры номера для tel: и wa.me (только если сотруднику видны контакты), target —
+   * для звонка через АТС и «Открыть чат» (номер сервер найдёт сам). pbx и chat — есть ли у этой строки звонок через АТС
+   * и «Открыть чат»: свои у каждой задачи, их разрешает тот, кто ведёт сделку (taskContact). null — задача ни к кому.
+   */
+  contact?: { phone: string | null; target: { dealId?: string; orderId?: string; clientId?: string }; pbx: boolean; chat: boolean } | null;
+}
 
 /** Срок для поля «дата и время» — по времени магазина (сервер работает в TZ=Asia/Almaty). */
 const localInput = (d: Date) => {

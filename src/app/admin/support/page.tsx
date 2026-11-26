@@ -9,7 +9,7 @@ import { requireStaff } from "@/server/access";
 import { container } from "@/server/container";
 import { SUPPORT_KIND_LABELS, SUPPORT_STATUS_LABELS, SUPPORT_STATUSES, type SupportStatus } from "@/shared/domain/support";
 import { phoneLabel, STATUS_TONE } from "./labels";
-import { seesAllTickets } from "./access";
+import { seesAllTickets } from "@/server/support-access";
 
 export const metadata = { title: "Обращения" };
 
