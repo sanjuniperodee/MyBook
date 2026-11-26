@@ -38,6 +38,7 @@ import { crmInvoiceRoutes } from "./crm-invoices";
 import { crmMobileRestRoutes } from "./crm-mobile-rest";
 import { answerFilesRoutes } from "./answer-files";
 import { webCabinetRoutes } from "./web-cabinet";
+import { webBookPagesRoutes } from "./web-book-pages";
 import type { RouteDef } from "./core";
 
 export * from "./core";
@@ -70,6 +71,7 @@ export * from "./crm-invoices";
 export * from "./crm-mobile-rest";
 export * from "./answer-files";
 export * from "./web-cabinet";
+export * from "./web-book-pages";
 
 export const v1 = {
   ...authRoutes,
@@ -105,6 +107,8 @@ export const v1 = {
   ...answerFilesRoutes,
   // Веб-кабинет (SSR и Server Actions без прямого доступа к БД).
   ...webCabinetRoutes,
+  // Страницы и оболочка редактора книги (Раздел 2A, section: "book").
+  ...webBookPagesRoutes,
 } as const satisfies Record<string, RouteDef>;
 
 export type V1 = typeof v1;

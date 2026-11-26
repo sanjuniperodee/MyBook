@@ -1,10 +1,8 @@
 import type { Metadata } from "next";
 import { requireUser } from "@/server/auth";
-import { getAccessibleBook, viewerOf } from "@/server/books";
-import { isBookEditableBy } from "@/modules/authoring";
-import { maxPhotos } from "@/server/photoLimit";
-import { container } from "@/server/container";
-import { editorBook, editorModel } from "@/lib/book/editor-data";
+import { getAccessibleBook } from "@/server/books";
+import { localQuestionsPageDtoForUser } from "@/server/v1-local-bridge-book";
+import { v1WebRead } from "@/server/v1-web-client";
 import { sectionIndex } from "@/lib/book/editor-model";
 import { QuestionsEditor } from "@/components/editor/QuestionsEditor";
 import { getMessages } from "@/i18n/server";
@@ -18,36 +16,29 @@ export default async function QuestionsPage({ params, searchParams }: { params: 
   const { q, s } = await searchParams;
   const user = await requireUser(`/books/${id}/questions`);
   const book = await getAccessibleBook(id, user);
-  const [rows, chapters, photos, letters, proofreadAi, writerAi] = await Promise.all([
-    container().authoring.queries.questions(book.id),
-    container().authoring.queries.chapters(book.id),
-    container().authoring.queries.photos(book.id),
-    container().authoring.queries.approvedLetters(book.id),
-    book.status === "draft" ? container().assistant.proofreader.configured() : false,
-    book.status === "draft" ? container().assistant.writer.configured() : false,
-  ]);
-  // Все фото книги, снимок обложки тоже; какие снимки обложка и оборот печатают на самом деле, считается здесь
-  // (cover-photos.ts через editorModel): каталог обложек в браузер не идёт, а редактор собирает книгу, как PDF.
-  const model = editorModel(book, rows, chapters, photos, letters);
-  // Править можно черновик, и сотруднику — только с правом правки (с правом просмотра он лишь читает: сервер ответил бы 404).
-  const editable = book.status === "draft" && isBookEditableBy(book.userId, await viewerOf(user, book.id));
+  const data = await v1WebRead({
+    name: "book.questionsPage",
+    section: "book",
+    local: () => localQuestionsPageDtoForUser(book, user),
+    viaApi: (api) => api.webBookQuestionsPage({ bookId: book.id }),
+  });
   return (
     <QuestionsEditor
-      epigraphs={model.epigraphs}
-      book={editorBook(book, model.coverPhotos)}
-      proofreadAi={proofreadAi}
-      writerAi={writerAi}
-      initialQuestions={model.questions}
-      chapters={model.chapters}
+      epigraphs={data.epigraphs}
+      book={data.book}
+      proofreadAi={data.proofreadAi}
+      writerAi={data.writerAi}
+      initialQuestions={data.initialQuestions}
+      chapters={data.chapters}
       initialIndex={sectionIndex(
-        model.questions.map((x) => x.id),
+        data.initialQuestions.map((x) => x.id),
         s,
         q,
       )}
-      initialPhotos={model.photos}
-      maxPhotos={await maxPhotos()}
-      letters={model.letters}
-      editable={editable}
+      initialPhotos={data.initialPhotos}
+      maxPhotos={data.maxPhotos}
+      letters={data.letters}
+      editable={data.editable}
     />
   );
 }

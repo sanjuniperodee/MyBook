@@ -11,8 +11,8 @@
 | Модуль | Что делает | Файлов / строк | Вызовов `container()` |
 |---|---|---:|---:|
 | [access](#access) | Access: сотрудники, роли и права, правила безопасности, журнал. | 16 / 866 | 48 |
-| [assistant](#assistant) | AI-помощник (Claude, ChatGPT, DeepSeek или свой OpenAI-совместимый сервер). | 24 / 2314 | 25 |
-| [authoring](#authoring) | Authoring: книги, вопросы, оглавление своей книги, фото, письма близких. | 29 / 3882 | 72 |
+| [assistant](#assistant) | AI-помощник (Claude, ChatGPT, DeepSeek или свой OpenAI-совместимый сервер). | 24 / 2314 | 23 |
+| [authoring](#authoring) | Authoring: книги, вопросы, оглавление своей книги, фото, письма близких. | 29 / 3882 | 54 |
 | [automation](#automation) | Автоматизации (цифровая воронка CRM). | 16 / 1987 | 9 |
 | [boards](#boards) | Доски задач: доски отделов, личные и проектные, колонки с лимитами, карточки (задачи CRM) с исполнителями, метками, чек-листами, комментариями и вложениями, правила досок, календарь, личная iCal-ссылка и Google Календарь сотрудника. | 15 / 3218 | 15 |
 | [clients](#clients) | Клиенты CRM: профиль клиента, задачи и заметки менеджеров. | 10 / 1167 | 29 |
@@ -21,7 +21,7 @@
 | [marketing](#marketing) | Маркетинг: каналы привлечения, короткие ссылки, предложения из чата. | 10 / 596 | 13 |
 | [messaging](#messaging) | Переписка: единый инбокс, бот-квалификатор, виджет на сайте. | 60 / 16694 | 152 |
 | [notifications](#notifications) | Уведомления: автописьма, напоминания из CRM, отписка. | 10 / 707 | 6 |
-| [ordering](#ordering) | Заказы. Остальной код видит только его. | 48 / 5792 | 94 |
+| [ordering](#ordering) | Заказы. Остальной код видит только его. | 48 / 5792 | 92 |
 | [production](#production) | Производство: вёрстка PDF книги и сертификатов, предпросмотры полос и обложек, файлы для типографии, очередь сборки. В container — previews (BookPreviewService) и printFiles. | 43 / 5606 | 0 |
 | [referrals](#referrals) | Приглашения: код для друзей, награда за их заказы и покупки из чата. | 10 / 358 | 3 |
 | [reporting](#reporting) | Отчёты CRM — сторона чтения (CQRS): сводные выборки по нескольким контекстам для страниц (дашборд, аналитика, поиск, «Мой день»). Только чтение, без бизнес-правил: команды идут через модули контекстов. | 44 / 4494 | 57 |
@@ -58,7 +58,7 @@ Authoring: книги, вопросы, оглавление своей книг�
 - Фасад: `AuthoringModule` → `container().authoring`
 - Публичное: `books`, `questions`, `outline`, `photos`, `letters`, `ordering`, `layoutRev`, `queries`, `photoRepository`, `themes`, `designAi`, `photoFile`, `photoStream`, `photoViewFile`
 - Таблицы: `books`, `book_questions`, `book_chapters`, `photos`, `photo_edits`, `book_letters`, `design_ai_requests`, `design_ai_credits`, `design_ai_purchases`, `answer_files`, `answer_file_purchases`
-- Тесты (29): `album-opener-photo.test.ts`, `api-v1-photo-editor.test.ts`, `api-v1.test.ts`, `architecture-web-db.test.ts`, `authoring.test.ts`, `book-modes.integration.test.ts`, `book-modes.test.ts`, `book-wizard.test.tsx`, `chapter-opener-left.test.tsx`, `chapter-start.test.tsx`, `crm-modes.integration.test.ts`, `editor-book-content.test.ts`, `editor-outline.test.ts`, `errors.test.ts`, `foreign-access.test.ts`, `inline-photo-placement.test.ts`, `layout-rev2-property.test.ts`, `layout-rev2.integration.test.ts`, `layout-rev2.test.ts`, `pages-photos.test.tsx`, `photo-crop.test.ts`, `photo-damage.test.ts`, `photo-edit.test.ts`, `photo-pages.test.ts`, `photo-rotate.test.ts`, `server-adapters-access.test.ts`, `server-adapters.test.ts`, `title-page.test.tsx`, `web-v1-strangler.test.ts`
+- Тесты (30): `album-opener-photo.test.ts`, `api-v1-photo-editor.test.ts`, `api-v1-web-book-pages.test.ts`, `api-v1.test.ts`, `architecture-web-db.test.ts`, `authoring.test.ts`, `book-modes.integration.test.ts`, `book-modes.test.ts`, `book-wizard.test.tsx`, `chapter-opener-left.test.tsx`, `chapter-start.test.tsx`, `crm-modes.integration.test.ts`, `editor-book-content.test.ts`, `editor-outline.test.ts`, `errors.test.ts`, `foreign-access.test.ts`, `inline-photo-placement.test.ts`, `layout-rev2-property.test.ts`, `layout-rev2.integration.test.ts`, `layout-rev2.test.ts`, `pages-photos.test.tsx`, `photo-crop.test.ts`, `photo-damage.test.ts`, `photo-edit.test.ts`, `photo-pages.test.ts`, `photo-rotate.test.ts`, `server-adapters-access.test.ts`, `server-adapters.test.ts`, `title-page.test.tsx`, `web-v1-strangler.test.ts`
 
 ## automation
 

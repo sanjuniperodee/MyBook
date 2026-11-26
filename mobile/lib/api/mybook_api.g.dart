@@ -1724,6 +1724,12 @@ class MybookApi {
     return Ok.fromJson(json as Map<String, dynamic>);
   }
 
+  /// Доступная книга текущего пользователя (или сотрудника CRM) для страниц редактора
+  Future<WebBookResponse> webBook({required String bookId}) async {
+    final json = await _send('GET', '/api/v1/web/books/${Uri.encodeComponent('$bookId')}');
+    return WebBookResponse.fromJson(json as Map<String, dynamic>);
+  }
+
   /// Страница приглашений: персональный код, ссылка, проценты и список наград
   Future<WebInviteData> webInvite({String? locale}) async {
     final json = await _send('GET', '/api/v1/web/invite', query: {if (locale != null) 'locale': '${locale}'});
@@ -1734,6 +1740,54 @@ class MybookApi {
   Future<WebHealth> webHealth() async {
     final json = await _send('GET', '/api/v1/web/health');
     return WebHealth.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Штаб книги для страницы /books/[id]: шаги пути, следующий шаг, замечания, главы, письма и срок
+  Future<WebBookHubResponse> webBookHub({required String bookId, String? locale}) async {
+    final json = await _send('GET', '/api/v1/web/books/${Uri.encodeComponent('$bookId')}/hub', query: {if (locale != null) 'locale': '${locale}'});
+    return WebBookHubResponse.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Навигация и состояние шапки книги для layout.tsx и ленты разделов
+  Future<WebBookNavResponse> webBookNav({required String bookId, String? locale}) async {
+    final json = await _send('GET', '/api/v1/web/books/${Uri.encodeComponent('$bookId')}/nav', query: {if (locale != null) 'locale': '${locale}'});
+    return WebBookNavResponse.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Данные страницы редактора вопросов и ответов (/books/[id]/questions)
+  Future<WebBookQuestionsPage> webBookQuestionsPage({required String bookId}) async {
+    final json = await _send('GET', '/api/v1/web/books/${Uri.encodeComponent('$bookId')}/pages/questions');
+    return WebBookQuestionsPage.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Данные вкладки «Фото» (/books/[id]/photos): места фото, обрезка, главы, ответы и лимит
+  Future<WebBookPhotosPage> webBookPhotosPage({required String bookId, String? locale}) async {
+    final json = await _send('GET', '/api/v1/web/books/${Uri.encodeComponent('$bookId')}/pages/photos', query: {if (locale != null) 'locale': '${locale}'});
+    return WebBookPhotosPage.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Список писем близких для страницы /books/[id]/letters
+  Future<WebBookLettersPage> webBookLettersPage({required String bookId}) async {
+    final json = await _send('GET', '/api/v1/web/books/${Uri.encodeComponent('$bookId')}/pages/letters');
+    return WebBookLettersPage.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Данные редактора обложки (/books/[id]/cover): разворот-образец, фото, места, подписи и объём
+  Future<WebBookCoverPage> webBookCoverPage({required String bookId, String? locale}) async {
+    final json = await _send('GET', '/api/v1/web/books/${Uri.encodeComponent('$bookId')}/pages/cover', query: {if (locale != null) 'locale': '${locale}'});
+    return WebBookCoverPage.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Данные редактора страниц и оформления (/books/[id]/pages): разворот, оглавление, истории и фото глав
+  Future<WebBookPagesPage> webBookPagesPage({required String bookId, String? locale}) async {
+    final json = await _send('GET', '/api/v1/web/books/${Uri.encodeComponent('$bookId')}/pages/pages', query: {if (locale != null) 'locale': '${locale}'});
+    return WebBookPagesPage.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Данные страницы 3D-превью книги (/books/[id]/preview): переплёт flipbook и право правки
+  Future<WebBookPreviewPage> webBookPreviewPage({required String bookId}) async {
+    final json = await _send('GET', '/api/v1/web/books/${Uri.encodeComponent('$bookId')}/pages/preview');
+    return WebBookPreviewPage.fromJson(json as Map<String, dynamic>);
   }
 }
 
@@ -12392,4 +12446,1073 @@ class WebHealth {
   factory WebHealth.fromJson(Map<String, dynamic> json) => WebHealth(ok: json['ok'] as bool, db: json['db'] as bool, storage: json['storage'] as bool, redis: json['redis'] == null ? null : json['redis'] as bool, outbox: json['outbox'] == null ? null : WebHealthOutbox.fromJson(json['outbox'] as Map<String, dynamic>), time: json['time'] as String);
 
   Map<String, dynamic> toJson() => {'ok': ok, 'db': db, 'storage': storage, 'redis': redis, 'outbox': outbox == null ? null : outbox!.toJson(), 'time': time};
+}
+
+class WebPhotoFrame {
+  final double zoom;
+  final double x;
+  final double y;
+
+  const WebPhotoFrame({required this.zoom, required this.x, required this.y});
+
+  factory WebPhotoFrame.fromJson(Map<String, dynamic> json) => WebPhotoFrame(zoom: (json['zoom'] as num).toDouble(), x: (json['x'] as num).toDouble(), y: (json['y'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'zoom': zoom, 'x': x, 'y': y};
+}
+
+class WebPhotoCrop {
+  final double x;
+  final double y;
+  final double zoom;
+
+  const WebPhotoCrop({required this.x, required this.y, required this.zoom});
+
+  factory WebPhotoCrop.fromJson(Map<String, dynamic> json) => WebPhotoCrop(x: (json['x'] as num).toDouble(), y: (json['y'] as num).toDouble(), zoom: (json['zoom'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'x': x, 'y': y, 'zoom': zoom};
+}
+
+class WebTocLineSetting {
+  final String? title;
+  final bool? hidden;
+  final String? epigraph;
+  final bool? noOpenerPhoto;
+
+  const WebTocLineSetting({this.title, this.hidden, this.epigraph, this.noOpenerPhoto});
+
+  factory WebTocLineSetting.fromJson(Map<String, dynamic> json) => WebTocLineSetting(title: json['title'] == null ? null : json['title'] as String, hidden: json['hidden'] == null ? null : json['hidden'] as bool, epigraph: json['epigraph'] == null ? null : json['epigraph'] as String, noOpenerPhoto: json['noOpenerPhoto'] == null ? null : json['noOpenerPhoto'] as bool);
+
+  Map<String, dynamic> toJson() => {if (title != null) 'title': title!, if (hidden != null) 'hidden': hidden!, if (epigraph != null) 'epigraph': epigraph!, if (noOpenerPhoto != null) 'noOpenerPhoto': noOpenerPhoto!};
+}
+
+class WebInlinePhotoStyle {
+  final double width;
+  /// left | center | right
+  final String align;
+  final int? anchor;
+  /// original | 1:1 | 4:3 | 3:4 | 16:9
+  final String aspect;
+  final double focusX;
+  final double focusY;
+  /// none | line | polaroid | round
+  final String frame;
+  final bool? page;
+  /// contain
+  final String? pageFit;
+  final bool? keepSize;
+  final double? spaceAbove;
+  final bool? breakBefore;
+
+  const WebInlinePhotoStyle({required this.width, required this.align, this.anchor, required this.aspect, required this.focusX, required this.focusY, required this.frame, this.page, this.pageFit, this.keepSize, this.spaceAbove, this.breakBefore});
+
+  factory WebInlinePhotoStyle.fromJson(Map<String, dynamic> json) => WebInlinePhotoStyle(width: (json['width'] as num).toDouble(), align: json['align'] as String, anchor: json['anchor'] == null ? null : (json['anchor'] as num).toInt(), aspect: json['aspect'] as String, focusX: (json['focusX'] as num).toDouble(), focusY: (json['focusY'] as num).toDouble(), frame: json['frame'] as String, page: json['page'] == null ? null : json['page'] as bool, pageFit: json['pageFit'] == null ? null : json['pageFit'] as String, keepSize: json['keepSize'] == null ? null : json['keepSize'] as bool, spaceAbove: json['spaceAbove'] == null ? null : (json['spaceAbove'] as num).toDouble(), breakBefore: json['breakBefore'] == null ? null : json['breakBefore'] as bool);
+
+  Map<String, dynamic> toJson() => {'width': width, 'align': align, 'anchor': anchor, 'aspect': aspect, 'focusX': focusX, 'focusY': focusY, 'frame': frame, if (page != null) 'page': page!, if (pageFit != null) 'pageFit': pageFit!, if (keepSize != null) 'keepSize': keepSize!, if (spaceAbove != null) 'spaceAbove': spaceAbove!, if (breakBefore != null) 'breakBefore': breakBefore!};
+}
+
+class WebAnswerMedia {
+  final String id;
+  /// video | music | audio
+  final String kind;
+  final String url;
+  final String? fileId;
+  final String title;
+  final int? anchor;
+
+  const WebAnswerMedia({required this.id, required this.kind, required this.url, this.fileId, required this.title, this.anchor});
+
+  factory WebAnswerMedia.fromJson(Map<String, dynamic> json) => WebAnswerMedia(id: json['id'] as String, kind: json['kind'] as String, url: json['url'] as String, fileId: json['fileId'] == null ? null : json['fileId'] as String, title: json['title'] as String, anchor: json['anchor'] == null ? null : (json['anchor'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'id': id, 'kind': kind, 'url': url, if (fileId != null) 'fileId': fileId!, 'title': title, 'anchor': anchor};
+}
+
+class WebPhotoPlace {
+  /// answer | opener | after | album | off
+  final String kind;
+  final String? chapterKey;
+  final String? questionId;
+  final bool auto;
+  final String? waitingFor;
+  final String? onCover;
+
+  const WebPhotoPlace({required this.kind, this.chapterKey, this.questionId, required this.auto, this.waitingFor, this.onCover});
+
+  factory WebPhotoPlace.fromJson(Map<String, dynamic> json) => WebPhotoPlace(kind: json['kind'] as String, chapterKey: json['chapterKey'] == null ? null : json['chapterKey'] as String, questionId: json['questionId'] == null ? null : json['questionId'] as String, auto: json['auto'] as bool, waitingFor: json['waitingFor'] == null ? null : json['waitingFor'] as String, onCover: json['onCover'] == null ? null : json['onCover'] as String);
+
+  Map<String, dynamic> toJson() => {'kind': kind, if (chapterKey != null) 'chapterKey': chapterKey!, if (questionId != null) 'questionId': questionId!, 'auto': auto, if (waitingFor != null) 'waitingFor': waitingFor!, 'onCover': onCover};
+}
+
+class WebPhotoPlaceEntry {
+  final String id;
+  final WebPhotoPlace place;
+
+  const WebPhotoPlaceEntry({required this.id, required this.place});
+
+  factory WebPhotoPlaceEntry.fromJson(Map<String, dynamic> json) => WebPhotoPlaceEntry(id: json['id'] as String, place: WebPhotoPlace.fromJson(json['place'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'id': id, 'place': place.toJson()};
+}
+
+class WebBookRow {
+  final String id;
+  final String userId;
+  final String theme;
+  /// draft | ordered
+  final String status;
+  final String title;
+  final String subtitle;
+  final String authorName;
+  /// m | f
+  final String authorGender;
+  final String recordedBy;
+  final String recipientName;
+  /// m | f
+  final String recipientGender;
+  final String namesOnCover;
+  final bool hideRecipientOnCover;
+  final bool coverLines;
+  final String coverTemplate;
+  final String? coverPhotoId;
+  final List<String> coverPhotoExtra;
+  final String backText;
+  final String backLayout;
+  final String? backPhotoId;
+  final List<String> backPhotoExtra;
+  final Map<String, dynamic> photoFrames;
+  final String dedication;
+  final String interior;
+  final Map<String, dynamic> interiorStyle;
+  final Map<String, dynamic>? coverDesign;
+  final Map<String, dynamic>? coverBack;
+  final String format;
+  /// chapters | end | none
+  final String photoPlacement;
+  final bool showToc;
+  /// chapters | sections | both
+  final String tocMode;
+  final Map<String, dynamic> tocLines;
+  final int layoutRev;
+  final int paginationRev;
+  final String? inviteToken;
+  final String inviteText;
+  final String? endText;
+  /// page | inline | none
+  final String chapterStart;
+  final bool titlePage;
+  /// ru | kk | uz | en
+  final String language;
+  final String? occasion;
+  final String? occasionDate;
+  final String createdAt;
+  final String updatedAt;
+
+  const WebBookRow({required this.id, required this.userId, required this.theme, required this.status, required this.title, required this.subtitle, required this.authorName, required this.authorGender, required this.recordedBy, required this.recipientName, required this.recipientGender, required this.namesOnCover, required this.hideRecipientOnCover, required this.coverLines, required this.coverTemplate, this.coverPhotoId, required this.coverPhotoExtra, required this.backText, required this.backLayout, this.backPhotoId, required this.backPhotoExtra, required this.photoFrames, required this.dedication, required this.interior, required this.interiorStyle, this.coverDesign, this.coverBack, required this.format, required this.photoPlacement, required this.showToc, required this.tocMode, required this.tocLines, required this.layoutRev, required this.paginationRev, this.inviteToken, required this.inviteText, this.endText, required this.chapterStart, required this.titlePage, required this.language, this.occasion, this.occasionDate, required this.createdAt, required this.updatedAt});
+
+  factory WebBookRow.fromJson(Map<String, dynamic> json) => WebBookRow(id: json['id'] as String, userId: json['userId'] as String, theme: json['theme'] as String, status: json['status'] as String, title: json['title'] as String, subtitle: json['subtitle'] as String, authorName: json['authorName'] as String, authorGender: json['authorGender'] as String, recordedBy: json['recordedBy'] as String, recipientName: json['recipientName'] as String, recipientGender: json['recipientGender'] as String, namesOnCover: json['namesOnCover'] as String, hideRecipientOnCover: json['hideRecipientOnCover'] as bool, coverLines: json['coverLines'] as bool, coverTemplate: json['coverTemplate'] as String, coverPhotoId: json['coverPhotoId'] == null ? null : json['coverPhotoId'] as String, coverPhotoExtra: (json['coverPhotoExtra'] as List).map((e) => e as String).toList(), backText: json['backText'] as String, backLayout: json['backLayout'] as String, backPhotoId: json['backPhotoId'] == null ? null : json['backPhotoId'] as String, backPhotoExtra: (json['backPhotoExtra'] as List).map((e) => e as String).toList(), photoFrames: json['photoFrames'] as Map<String, dynamic>, dedication: json['dedication'] as String, interior: json['interior'] as String, interiorStyle: json['interiorStyle'] as Map<String, dynamic>, coverDesign: json['coverDesign'] == null ? null : json['coverDesign'] as Map<String, dynamic>, coverBack: json['coverBack'] == null ? null : json['coverBack'] as Map<String, dynamic>, format: json['format'] as String, photoPlacement: json['photoPlacement'] as String, showToc: json['showToc'] as bool, tocMode: json['tocMode'] as String, tocLines: json['tocLines'] as Map<String, dynamic>, layoutRev: (json['layoutRev'] as num).toInt(), paginationRev: (json['paginationRev'] as num).toInt(), inviteToken: json['inviteToken'] == null ? null : json['inviteToken'] as String, inviteText: json['inviteText'] as String, endText: json['endText'] == null ? null : json['endText'] as String, chapterStart: json['chapterStart'] as String, titlePage: json['titlePage'] as bool, language: json['language'] as String, occasion: json['occasion'] == null ? null : json['occasion'] as String, occasionDate: json['occasionDate'] == null ? null : json['occasionDate'] as String, createdAt: json['createdAt'] as String, updatedAt: json['updatedAt'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'userId': userId, 'theme': theme, 'status': status, 'title': title, 'subtitle': subtitle, 'authorName': authorName, 'authorGender': authorGender, 'recordedBy': recordedBy, 'recipientName': recipientName, 'recipientGender': recipientGender, 'namesOnCover': namesOnCover, 'hideRecipientOnCover': hideRecipientOnCover, 'coverLines': coverLines, 'coverTemplate': coverTemplate, 'coverPhotoId': coverPhotoId, 'coverPhotoExtra': coverPhotoExtra.map((e) => e).toList(), 'backText': backText, 'backLayout': backLayout, 'backPhotoId': backPhotoId, 'backPhotoExtra': backPhotoExtra.map((e) => e).toList(), 'photoFrames': photoFrames, 'dedication': dedication, 'interior': interior, 'interiorStyle': interiorStyle, 'coverDesign': coverDesign, 'coverBack': coverBack, 'format': format, 'photoPlacement': photoPlacement, 'showToc': showToc, 'tocMode': tocMode, 'tocLines': tocLines, 'layoutRev': layoutRev, 'paginationRev': paginationRev, 'inviteToken': inviteToken, 'inviteText': inviteText, 'endText': endText, 'chapterStart': chapterStart, 'titlePage': titlePage, 'language': language, 'occasion': occasion, 'occasionDate': occasionDate, 'createdAt': createdAt, 'updatedAt': updatedAt};
+}
+
+class WebBookResponse {
+  final WebBookRow book;
+
+  const WebBookResponse({required this.book});
+
+  factory WebBookResponse.fromJson(Map<String, dynamic> json) => WebBookResponse(book: WebBookRow.fromJson(json['book'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'book': book.toJson()};
+}
+
+class WebBookNavOrder {
+  final String id;
+  final int number;
+  final String status;
+  final String plan;
+
+  const WebBookNavOrder({required this.id, required this.number, required this.status, required this.plan});
+
+  factory WebBookNavOrder.fromJson(Map<String, dynamic> json) => WebBookNavOrder(id: json['id'] as String, number: (json['number'] as num).toInt(), status: json['status'] as String, plan: json['plan'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'number': number, 'status': status, 'plan': plan};
+}
+
+class WebBookNavStep {
+  /// questions | photos | pages | cover | preview | order
+  final String key;
+  /// done | partial | todo | attention
+  final String status;
+  final double fraction;
+
+  const WebBookNavStep({required this.key, required this.status, required this.fraction});
+
+  factory WebBookNavStep.fromJson(Map<String, dynamic> json) => WebBookNavStep(key: json['key'] as String, status: json['status'] as String, fraction: (json['fraction'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'key': key, 'status': status, 'fraction': fraction};
+}
+
+class WebBookNavLetters {
+  final int approved;
+  final int pending;
+
+  const WebBookNavLetters({required this.approved, required this.pending});
+
+  factory WebBookNavLetters.fromJson(Map<String, dynamic> json) => WebBookNavLetters(approved: (json['approved'] as num).toInt(), pending: (json['pending'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'approved': approved, 'pending': pending};
+}
+
+class WebBookNav {
+  /// gift | autobiography | blank
+  final String kind;
+  final int answered;
+  final int total;
+  final int words;
+  final int photos;
+  final WebBookNavLetters letters;
+  final bool coverReady;
+  final bool ordered;
+  final bool paid;
+  final WebBookNavOrder? order;
+  final List<WebBookNavStep> steps;
+  final bool textDone;
+  final bool ready;
+  final String? current;
+
+  const WebBookNav({required this.kind, required this.answered, required this.total, required this.words, required this.photos, required this.letters, required this.coverReady, required this.ordered, required this.paid, this.order, required this.steps, required this.textDone, required this.ready, this.current});
+
+  factory WebBookNav.fromJson(Map<String, dynamic> json) => WebBookNav(kind: json['kind'] as String, answered: (json['answered'] as num).toInt(), total: (json['total'] as num).toInt(), words: (json['words'] as num).toInt(), photos: (json['photos'] as num).toInt(), letters: WebBookNavLetters.fromJson(json['letters'] as Map<String, dynamic>), coverReady: json['coverReady'] as bool, ordered: json['ordered'] as bool, paid: json['paid'] as bool, order: json['order'] == null ? null : WebBookNavOrder.fromJson(json['order'] as Map<String, dynamic>), steps: (json['steps'] as List).map((e) => WebBookNavStep.fromJson(e as Map<String, dynamic>)).toList(), textDone: json['textDone'] as bool, ready: json['ready'] as bool, current: json['current'] == null ? null : json['current'] as String);
+
+  Map<String, dynamic> toJson() => {'kind': kind, 'answered': answered, 'total': total, 'words': words, 'photos': photos, 'letters': letters.toJson(), 'coverReady': coverReady, 'ordered': ordered, 'paid': paid, 'order': order == null ? null : order!.toJson(), 'steps': steps.map((e) => e.toJson()).toList(), 'textDone': textDone, 'ready': ready, 'current': current};
+}
+
+class WebBookOrderState {
+  final String label;
+  /// warning | success | info | accent | neutral | danger
+  final String tone;
+
+  const WebBookOrderState({required this.label, required this.tone});
+
+  factory WebBookOrderState.fromJson(Map<String, dynamic> json) => WebBookOrderState(label: json['label'] as String, tone: json['tone'] as String);
+
+  Map<String, dynamic> toJson() => {'label': label, 'tone': tone};
+}
+
+class WebBookNavResponse {
+  final WebBookNav nav;
+  final WebBookOrderState? orderState;
+
+  const WebBookNavResponse({required this.nav, this.orderState});
+
+  factory WebBookNavResponse.fromJson(Map<String, dynamic> json) => WebBookNavResponse(nav: WebBookNav.fromJson(json['nav'] as Map<String, dynamic>), orderState: json['orderState'] == null ? null : WebBookOrderState.fromJson(json['orderState'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'nav': nav.toJson(), 'orderState': orderState == null ? null : orderState!.toJson()};
+}
+
+class WebBookHubStats {
+  final int answered;
+  final int total;
+  final int words;
+  final int photos;
+  final int estimatedPages;
+  final int printedPages;
+  final int emptyChapters;
+
+  const WebBookHubStats({required this.answered, required this.total, required this.words, required this.photos, required this.estimatedPages, required this.printedPages, required this.emptyChapters});
+
+  factory WebBookHubStats.fromJson(Map<String, dynamic> json) => WebBookHubStats(answered: (json['answered'] as num).toInt(), total: (json['total'] as num).toInt(), words: (json['words'] as num).toInt(), photos: (json['photos'] as num).toInt(), estimatedPages: (json['estimatedPages'] as num).toInt(), printedPages: (json['printedPages'] as num).toInt(), emptyChapters: (json['emptyChapters'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'answered': answered, 'total': total, 'words': words, 'photos': photos, 'estimatedPages': estimatedPages, 'printedPages': printedPages, 'emptyChapters': emptyChapters};
+}
+
+class WebBookHubPhoto {
+  final String id;
+  final int width;
+  final int height;
+
+  const WebBookHubPhoto({required this.id, required this.width, required this.height});
+
+  factory WebBookHubPhoto.fromJson(Map<String, dynamic> json) => WebBookHubPhoto(id: json['id'] as String, width: (json['width'] as num).toInt(), height: (json['height'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'id': id, 'width': width, 'height': height};
+}
+
+class WebBookHubChapter {
+  final String key;
+  final String title;
+  final int total;
+  final int answered;
+  final String? firstId;
+  final String? firstOpenId;
+
+  const WebBookHubChapter({required this.key, required this.title, required this.total, required this.answered, this.firstId, this.firstOpenId});
+
+  factory WebBookHubChapter.fromJson(Map<String, dynamic> json) => WebBookHubChapter(key: json['key'] as String, title: json['title'] as String, total: (json['total'] as num).toInt(), answered: (json['answered'] as num).toInt(), firstId: json['firstId'] == null ? null : json['firstId'] as String, firstOpenId: json['firstOpenId'] == null ? null : json['firstOpenId'] as String);
+
+  Map<String, dynamic> toJson() => {'key': key, 'title': title, 'total': total, 'answered': answered, 'firstId': firstId, 'firstOpenId': firstOpenId};
+}
+
+class WebBookHubStepRow {
+  final String key;
+  final String href;
+  final String title;
+  final String value;
+  final String action;
+  final int? bar;
+  /// done | partial | todo | attention
+  final String status;
+  final double fraction;
+  final bool active;
+
+  const WebBookHubStepRow({required this.key, required this.href, required this.title, required this.value, required this.action, this.bar, required this.status, required this.fraction, required this.active});
+
+  factory WebBookHubStepRow.fromJson(Map<String, dynamic> json) => WebBookHubStepRow(key: json['key'] as String, href: json['href'] as String, title: json['title'] as String, value: json['value'] as String, action: json['action'] as String, bar: json['bar'] == null ? null : (json['bar'] as num).toInt(), status: json['status'] as String, fraction: (json['fraction'] as num).toDouble(), active: json['active'] as bool);
+
+  Map<String, dynamic> toJson() => {'key': key, 'href': href, 'title': title, 'value': value, 'action': action, if (bar != null) 'bar': bar!, 'status': status, 'fraction': fraction, 'active': active};
+}
+
+class WebBookHubCardPrimary {
+  final String href;
+  final String label;
+  final bool? icon;
+
+  const WebBookHubCardPrimary({required this.href, required this.label, this.icon});
+
+  factory WebBookHubCardPrimary.fromJson(Map<String, dynamic> json) => WebBookHubCardPrimary(href: json['href'] as String, label: json['label'] as String, icon: json['icon'] == null ? null : json['icon'] as bool);
+
+  Map<String, dynamic> toJson() => {'href': href, 'label': label, if (icon != null) 'icon': icon!};
+}
+
+class WebBookHubCardSecondary {
+  final String href;
+  final String label;
+
+  const WebBookHubCardSecondary({required this.href, required this.label});
+
+  factory WebBookHubCardSecondary.fromJson(Map<String, dynamic> json) => WebBookHubCardSecondary(href: json['href'] as String, label: json['label'] as String);
+
+  Map<String, dynamic> toJson() => {'href': href, 'label': label};
+}
+
+class WebBookHubCardMore {
+  final String href;
+  final String label;
+  final String text;
+
+  const WebBookHubCardMore({required this.href, required this.label, required this.text});
+
+  factory WebBookHubCardMore.fromJson(Map<String, dynamic> json) => WebBookHubCardMore(href: json['href'] as String, label: json['label'] as String, text: json['text'] as String);
+
+  Map<String, dynamic> toJson() => {'href': href, 'label': label, 'text': text};
+}
+
+class WebBookHubCard {
+  final String eyebrow;
+  final String title;
+  final String? text;
+  final bool? serif;
+  final String? lang;
+  final WebBookHubCardPrimary primary;
+  final WebBookHubCardSecondary? secondary;
+  final WebBookHubCardMore? more;
+
+  const WebBookHubCard({required this.eyebrow, required this.title, this.text, this.serif, this.lang, required this.primary, this.secondary, this.more});
+
+  factory WebBookHubCard.fromJson(Map<String, dynamic> json) => WebBookHubCard(eyebrow: json['eyebrow'] as String, title: json['title'] as String, text: json['text'] == null ? null : json['text'] as String, serif: json['serif'] == null ? null : json['serif'] as bool, lang: json['lang'] == null ? null : json['lang'] as String, primary: WebBookHubCardPrimary.fromJson(json['primary'] as Map<String, dynamic>), secondary: json['secondary'] == null ? null : WebBookHubCardSecondary.fromJson(json['secondary'] as Map<String, dynamic>), more: json['more'] == null ? null : WebBookHubCardMore.fromJson(json['more'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'eyebrow': eyebrow, 'title': title, if (text != null) 'text': text!, if (serif != null) 'serif': serif!, if (lang != null) 'lang': lang!, 'primary': primary.toJson(), if (secondary != null) 'secondary': secondary!.toJson(), if (more != null) 'more': more!.toJson()};
+}
+
+class WebBookReadinessIssue {
+  /// error | warning
+  final String level;
+  final String text;
+  final String? href;
+
+  const WebBookReadinessIssue({required this.level, required this.text, this.href});
+
+  factory WebBookReadinessIssue.fromJson(Map<String, dynamic> json) => WebBookReadinessIssue(level: json['level'] as String, text: json['text'] as String, href: json['href'] == null ? null : json['href'] as String);
+
+  Map<String, dynamic> toJson() => {'level': level, 'text': text, if (href != null) 'href': href!};
+}
+
+class WebBookHubDeadline {
+  final int days;
+  final String daysShort;
+  /// calm | warm | hot
+  final String tone;
+  final String headline;
+  final String line;
+  final String? icon;
+  final String changeLabel;
+
+  const WebBookHubDeadline({required this.days, required this.daysShort, required this.tone, required this.headline, required this.line, this.icon, required this.changeLabel});
+
+  factory WebBookHubDeadline.fromJson(Map<String, dynamic> json) => WebBookHubDeadline(days: (json['days'] as num).toInt(), daysShort: json['daysShort'] as String, tone: json['tone'] as String, headline: json['headline'] as String, line: json['line'] as String, icon: json['icon'] == null ? null : json['icon'] as String, changeLabel: json['changeLabel'] as String);
+
+  Map<String, dynamic> toJson() => {'days': days, 'daysShort': daysShort, 'tone': tone, 'headline': headline, 'line': line, 'icon': icon, 'changeLabel': changeLabel};
+}
+
+class WebBookHubLetters {
+  final String href;
+  final String title;
+  final String text;
+  final String action;
+
+  const WebBookHubLetters({required this.href, required this.title, required this.text, required this.action});
+
+  factory WebBookHubLetters.fromJson(Map<String, dynamic> json) => WebBookHubLetters(href: json['href'] as String, title: json['title'] as String, text: json['text'] as String, action: json['action'] as String);
+
+  Map<String, dynamic> toJson() => {'href': href, 'title': title, 'text': text, 'action': action};
+}
+
+class WebBookHubPreview {
+  final String href;
+  final String tab;
+  final String cta;
+
+  const WebBookHubPreview({required this.href, required this.tab, required this.cta});
+
+  factory WebBookHubPreview.fromJson(Map<String, dynamic> json) => WebBookHubPreview(href: json['href'] as String, tab: json['tab'] as String, cta: json['cta'] as String);
+
+  Map<String, dynamic> toJson() => {'href': href, 'tab': tab, 'cta': cta};
+}
+
+class WebBookHubResponse {
+  final WebBookHubStats stats;
+  final List<WebBookHubPhoto> photos;
+  final int printedPages;
+  final WebDealAgreement? agreement;
+  final WebBookNavLetters letterStats;
+  final WebBookHubLetters letters;
+  /// gift | autobiography | blank
+  final String kind;
+  final bool blank;
+  final bool editable;
+  final int percent;
+  final List<WebBookHubChapter> chapters;
+  final WebBookNav nav;
+  final List<WebBookHubStepRow> rows;
+  final WebBookHubCard? card;
+  final List<WebBookReadinessIssue> needs;
+  final bool hasErrors;
+  final WebBookHubDeadline? deadline;
+  final WebBookHubPreview preview;
+
+  const WebBookHubResponse({required this.stats, required this.photos, required this.printedPages, this.agreement, required this.letterStats, required this.letters, required this.kind, required this.blank, required this.editable, required this.percent, required this.chapters, required this.nav, required this.rows, this.card, required this.needs, required this.hasErrors, this.deadline, required this.preview});
+
+  factory WebBookHubResponse.fromJson(Map<String, dynamic> json) => WebBookHubResponse(stats: WebBookHubStats.fromJson(json['stats'] as Map<String, dynamic>), photos: (json['photos'] as List).map((e) => WebBookHubPhoto.fromJson(e as Map<String, dynamic>)).toList(), printedPages: (json['printedPages'] as num).toInt(), agreement: json['agreement'] == null ? null : WebDealAgreement.fromJson(json['agreement'] as Map<String, dynamic>), letterStats: WebBookNavLetters.fromJson(json['letterStats'] as Map<String, dynamic>), letters: WebBookHubLetters.fromJson(json['letters'] as Map<String, dynamic>), kind: json['kind'] as String, blank: json['blank'] as bool, editable: json['editable'] as bool, percent: (json['percent'] as num).toInt(), chapters: (json['chapters'] as List).map((e) => WebBookHubChapter.fromJson(e as Map<String, dynamic>)).toList(), nav: WebBookNav.fromJson(json['nav'] as Map<String, dynamic>), rows: (json['rows'] as List).map((e) => WebBookHubStepRow.fromJson(e as Map<String, dynamic>)).toList(), card: json['card'] == null ? null : WebBookHubCard.fromJson(json['card'] as Map<String, dynamic>), needs: (json['needs'] as List).map((e) => WebBookReadinessIssue.fromJson(e as Map<String, dynamic>)).toList(), hasErrors: json['hasErrors'] as bool, deadline: json['deadline'] == null ? null : WebBookHubDeadline.fromJson(json['deadline'] as Map<String, dynamic>), preview: WebBookHubPreview.fromJson(json['preview'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'stats': stats.toJson(), 'photos': photos.map((e) => e.toJson()).toList(), 'printedPages': printedPages, 'agreement': agreement == null ? null : agreement!.toJson(), 'letterStats': letterStats.toJson(), 'letters': letters.toJson(), 'kind': kind, 'blank': blank, 'editable': editable, 'percent': percent, 'chapters': chapters.map((e) => e.toJson()).toList(), 'nav': nav.toJson(), 'rows': rows.map((e) => e.toJson()).toList(), 'card': card == null ? null : card!.toJson(), 'needs': needs.map((e) => e.toJson()).toList(), 'hasErrors': hasErrors, 'deadline': deadline == null ? null : deadline!.toJson(), 'preview': preview.toJson()};
+}
+
+class WebCoverPhotos {
+  final List<String> front;
+  final List<String> back;
+
+  const WebCoverPhotos({required this.front, required this.back});
+
+  factory WebCoverPhotos.fromJson(Map<String, dynamic> json) => WebCoverPhotos(front: (json['front'] as List).map((e) => e as String).toList(), back: (json['back'] as List).map((e) => e as String).toList());
+
+  Map<String, dynamic> toJson() => {'front': front.map((e) => e).toList(), 'back': back.map((e) => e).toList()};
+}
+
+class WebEditorBook {
+  final String id;
+  final String format;
+  final String interior;
+  final Map<String, dynamic>? interiorStyle;
+  final String dedication;
+  final bool showToc;
+  /// chapters | sections | both
+  final String? tocMode;
+  final Map<String, dynamic>? tocLines;
+  /// chapters | end | none
+  final String photoPlacement;
+  final String title;
+  /// ru | kk | uz | en
+  final String language;
+  final List<String>? names;
+  final String theme;
+  /// gift | autobiography | blank
+  final String kind;
+  /// m | f
+  final String authorGender;
+  /// m | f
+  final String recipientGender;
+  final int? layoutRev;
+  final int? paginationRev;
+  /// page | inline | none
+  final String? chapterStart;
+  final bool? titlePage;
+  final String? coverPhotoId;
+  final List<String>? coverPhotoExtra;
+  final String? backPhotoId;
+  final List<String>? backPhotoExtra;
+  final WebCoverPhotos? coverPhotos;
+  /// Поля, которые отправить как null (иначе пустое необязательное поле не отправляется).
+  final Set<String> nulls;
+
+  const WebEditorBook({required this.id, required this.format, required this.interior, this.interiorStyle, required this.dedication, required this.showToc, this.tocMode, this.tocLines, required this.photoPlacement, required this.title, required this.language, this.names, required this.theme, required this.kind, required this.authorGender, required this.recipientGender, this.layoutRev, this.paginationRev, this.chapterStart, this.titlePage, this.coverPhotoId, this.coverPhotoExtra, this.backPhotoId, this.backPhotoExtra, this.coverPhotos, this.nulls = const {}});
+
+  factory WebEditorBook.fromJson(Map<String, dynamic> json) => WebEditorBook(id: json['id'] as String, format: json['format'] as String, interior: json['interior'] as String, interiorStyle: json['interiorStyle'] == null ? null : json['interiorStyle'] as Map<String, dynamic>, dedication: json['dedication'] as String, showToc: json['showToc'] as bool, tocMode: json['tocMode'] == null ? null : json['tocMode'] as String, tocLines: json['tocLines'] == null ? null : json['tocLines'] as Map<String, dynamic>, photoPlacement: json['photoPlacement'] as String, title: json['title'] as String, language: json['language'] as String, names: json['names'] == null ? null : (json['names'] as List).map((e) => e as String).toList(), theme: json['theme'] as String, kind: json['kind'] as String, authorGender: json['authorGender'] as String, recipientGender: json['recipientGender'] as String, layoutRev: json['layoutRev'] == null ? null : (json['layoutRev'] as num).toInt(), paginationRev: json['paginationRev'] == null ? null : (json['paginationRev'] as num).toInt(), chapterStart: json['chapterStart'] == null ? null : json['chapterStart'] as String, titlePage: json['titlePage'] == null ? null : json['titlePage'] as bool, coverPhotoId: json['coverPhotoId'] == null ? null : json['coverPhotoId'] as String, coverPhotoExtra: json['coverPhotoExtra'] == null ? null : (json['coverPhotoExtra'] as List).map((e) => e as String).toList(), backPhotoId: json['backPhotoId'] == null ? null : json['backPhotoId'] as String, backPhotoExtra: json['backPhotoExtra'] == null ? null : (json['backPhotoExtra'] as List).map((e) => e as String).toList(), coverPhotos: json['coverPhotos'] == null ? null : WebCoverPhotos.fromJson(json['coverPhotos'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'id': id, 'format': format, 'interior': interior, if (interiorStyle != null) 'interiorStyle': interiorStyle!, 'dedication': dedication, 'showToc': showToc, if (tocMode != null) 'tocMode': tocMode!, if (tocLines != null) 'tocLines': tocLines!, 'photoPlacement': photoPlacement, 'title': title, 'language': language, if (names != null) 'names': names!.map((e) => e).toList(), 'theme': theme, 'kind': kind, 'authorGender': authorGender, 'recipientGender': recipientGender, if (layoutRev != null) 'layoutRev': layoutRev!, if (paginationRev != null) 'paginationRev': paginationRev!, if (chapterStart != null) 'chapterStart': chapterStart!, if (titlePage != null) 'titlePage': titlePage!, if (coverPhotoId != null || nulls.contains('coverPhotoId')) 'coverPhotoId': coverPhotoId, if (coverPhotoExtra != null) 'coverPhotoExtra': coverPhotoExtra!.map((e) => e).toList(), if (backPhotoId != null || nulls.contains('backPhotoId')) 'backPhotoId': backPhotoId, if (backPhotoExtra != null) 'backPhotoExtra': backPhotoExtra!.map((e) => e).toList(), if (coverPhotos != null) 'coverPhotos': coverPhotos!.toJson()};
+}
+
+class WebEditorQuestion {
+  final String id;
+  final String chapter;
+  final String chapterTitle;
+  final String prompt;
+  final String? hint;
+  final String defaultTitle;
+  final String? displayText;
+  final bool hideHeading;
+  final String answer;
+  final List<WebAnswerMedia> media;
+  final bool isCustom;
+  final bool? pageBreak;
+
+  const WebEditorQuestion({required this.id, required this.chapter, required this.chapterTitle, required this.prompt, this.hint, required this.defaultTitle, this.displayText, required this.hideHeading, required this.answer, required this.media, required this.isCustom, this.pageBreak});
+
+  factory WebEditorQuestion.fromJson(Map<String, dynamic> json) => WebEditorQuestion(id: json['id'] as String, chapter: json['chapter'] as String, chapterTitle: json['chapterTitle'] as String, prompt: json['prompt'] as String, hint: json['hint'] == null ? null : json['hint'] as String, defaultTitle: json['defaultTitle'] as String, displayText: json['displayText'] == null ? null : json['displayText'] as String, hideHeading: json['hideHeading'] as bool, answer: json['answer'] as String, media: (json['media'] as List).map((e) => WebAnswerMedia.fromJson(e as Map<String, dynamic>)).toList(), isCustom: json['isCustom'] as bool, pageBreak: json['pageBreak'] == null ? null : json['pageBreak'] as bool);
+
+  Map<String, dynamic> toJson() => {'id': id, 'chapter': chapter, 'chapterTitle': chapterTitle, 'prompt': prompt, 'hint': hint, 'defaultTitle': defaultTitle, 'displayText': displayText, 'hideHeading': hideHeading, 'answer': answer, 'media': media.map((e) => e.toJson()).toList(), 'isCustom': isCustom, if (pageBreak != null) 'pageBreak': pageBreak!};
+}
+
+class WebEditorChapter {
+  final String key;
+  final String title;
+  final String epigraph;
+  final bool own;
+
+  const WebEditorChapter({required this.key, required this.title, required this.epigraph, required this.own});
+
+  factory WebEditorChapter.fromJson(Map<String, dynamic> json) => WebEditorChapter(key: json['key'] as String, title: json['title'] as String, epigraph: json['epigraph'] as String, own: json['own'] as bool);
+
+  Map<String, dynamic> toJson() => {'key': key, 'title': title, 'epigraph': epigraph, 'own': own};
+}
+
+class WebEditorPhoto {
+  final String id;
+  final int width;
+  final int height;
+  final String caption;
+  /// full | bleed | half | grid
+  final String layout;
+  final String? questionId;
+  final WebInlinePhotoStyle? inline;
+  final WebPhotoCrop? crop;
+  final String? chapter;
+  final bool opener;
+  final String? onCover;
+  final int? rev;
+  /// Поля, которые отправить как null (иначе пустое необязательное поле не отправляется).
+  final Set<String> nulls;
+
+  const WebEditorPhoto({required this.id, required this.width, required this.height, required this.caption, required this.layout, this.questionId, this.inline, this.crop, this.chapter, required this.opener, this.onCover, this.rev, this.nulls = const {}});
+
+  factory WebEditorPhoto.fromJson(Map<String, dynamic> json) => WebEditorPhoto(id: json['id'] as String, width: (json['width'] as num).toInt(), height: (json['height'] as num).toInt(), caption: json['caption'] as String, layout: json['layout'] as String, questionId: json['questionId'] == null ? null : json['questionId'] as String, inline: json['inline'] == null ? null : WebInlinePhotoStyle.fromJson(json['inline'] as Map<String, dynamic>), crop: json['crop'] == null ? null : WebPhotoCrop.fromJson(json['crop'] as Map<String, dynamic>), chapter: json['chapter'] == null ? null : json['chapter'] as String, opener: json['opener'] as bool, onCover: json['onCover'] == null ? null : json['onCover'] as String, rev: json['rev'] == null ? null : (json['rev'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'id': id, 'width': width, 'height': height, 'caption': caption, 'layout': layout, 'questionId': questionId, if (inline != null || nulls.contains('inline')) 'inline': inline == null ? null : inline!.toJson(), 'crop': crop == null ? null : crop!.toJson(), 'chapter': chapter, 'opener': opener, 'onCover': onCover, if (rev != null) 'rev': rev!};
+}
+
+class WebBookLetterBrief {
+  final String id;
+  final String authorName;
+  final String relation;
+  final String text;
+
+  const WebBookLetterBrief({required this.id, required this.authorName, required this.relation, required this.text});
+
+  factory WebBookLetterBrief.fromJson(Map<String, dynamic> json) => WebBookLetterBrief(id: json['id'] as String, authorName: json['authorName'] as String, relation: json['relation'] as String, text: json['text'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'authorName': authorName, 'relation': relation, 'text': text};
+}
+
+class WebBookQuestionsPage {
+  final Map<String, dynamic> epigraphs;
+  final WebEditorBook book;
+  final bool proofreadAi;
+  final bool writerAi;
+  final List<WebEditorQuestion> initialQuestions;
+  final List<WebEditorChapter> chapters;
+  final List<WebEditorPhoto> initialPhotos;
+  final int maxPhotos;
+  final List<WebBookLetterBrief> letters;
+  final bool editable;
+
+  const WebBookQuestionsPage({required this.epigraphs, required this.book, required this.proofreadAi, required this.writerAi, required this.initialQuestions, required this.chapters, required this.initialPhotos, required this.maxPhotos, required this.letters, required this.editable});
+
+  factory WebBookQuestionsPage.fromJson(Map<String, dynamic> json) => WebBookQuestionsPage(epigraphs: json['epigraphs'] as Map<String, dynamic>, book: WebEditorBook.fromJson(json['book'] as Map<String, dynamic>), proofreadAi: json['proofreadAi'] as bool, writerAi: json['writerAi'] as bool, initialQuestions: (json['initialQuestions'] as List).map((e) => WebEditorQuestion.fromJson(e as Map<String, dynamic>)).toList(), chapters: (json['chapters'] as List).map((e) => WebEditorChapter.fromJson(e as Map<String, dynamic>)).toList(), initialPhotos: (json['initialPhotos'] as List).map((e) => WebEditorPhoto.fromJson(e as Map<String, dynamic>)).toList(), maxPhotos: (json['maxPhotos'] as num).toInt(), letters: (json['letters'] as List).map((e) => WebBookLetterBrief.fromJson(e as Map<String, dynamic>)).toList(), editable: json['editable'] as bool);
+
+  Map<String, dynamic> toJson() => {'epigraphs': epigraphs, 'book': book.toJson(), 'proofreadAi': proofreadAi, 'writerAi': writerAi, 'initialQuestions': initialQuestions.map((e) => e.toJson()).toList(), 'chapters': chapters.map((e) => e.toJson()).toList(), 'initialPhotos': initialPhotos.map((e) => e.toJson()).toList(), 'maxPhotos': maxPhotos, 'letters': letters.map((e) => e.toJson()).toList(), 'editable': editable};
+}
+
+class WebPlaceBook {
+  final String id;
+  final String interior;
+  final String format;
+  /// ru | kk | uz | en
+  final String language;
+  final bool blank;
+  /// chapters | end | none
+  final String photoPlacement;
+  final String galleryTitle;
+  final bool editable;
+  final int? layoutRev;
+
+  const WebPlaceBook({required this.id, required this.interior, required this.format, required this.language, required this.blank, required this.photoPlacement, required this.galleryTitle, required this.editable, this.layoutRev});
+
+  factory WebPlaceBook.fromJson(Map<String, dynamic> json) => WebPlaceBook(id: json['id'] as String, interior: json['interior'] as String, format: json['format'] as String, language: json['language'] as String, blank: json['blank'] as bool, photoPlacement: json['photoPlacement'] as String, galleryTitle: json['galleryTitle'] as String, editable: json['editable'] as bool, layoutRev: json['layoutRev'] == null ? null : (json['layoutRev'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'id': id, 'interior': interior, 'format': format, 'language': language, 'blank': blank, 'photoPlacement': photoPlacement, 'galleryTitle': galleryTitle, 'editable': editable, if (layoutRev != null) 'layoutRev': layoutRev!};
+}
+
+class WebTabPhoto {
+  final String id;
+  final int width;
+  final int height;
+  final String caption;
+  /// full | bleed | half | grid
+  final String layout;
+  final String? questionId;
+  final String? chapter;
+  final bool opener;
+  final WebPhotoCrop? crop;
+  final String? version;
+  final bool? edited;
+
+  const WebTabPhoto({required this.id, required this.width, required this.height, required this.caption, required this.layout, this.questionId, this.chapter, required this.opener, this.crop, this.version, this.edited});
+
+  factory WebTabPhoto.fromJson(Map<String, dynamic> json) => WebTabPhoto(id: json['id'] as String, width: (json['width'] as num).toInt(), height: (json['height'] as num).toInt(), caption: json['caption'] as String, layout: json['layout'] as String, questionId: json['questionId'] == null ? null : json['questionId'] as String, chapter: json['chapter'] == null ? null : json['chapter'] as String, opener: json['opener'] as bool, crop: json['crop'] == null ? null : WebPhotoCrop.fromJson(json['crop'] as Map<String, dynamic>), version: json['version'] == null ? null : json['version'] as String, edited: json['edited'] == null ? null : json['edited'] as bool);
+
+  Map<String, dynamic> toJson() => {'id': id, 'width': width, 'height': height, 'caption': caption, 'layout': layout, 'questionId': questionId, 'chapter': chapter, 'opener': opener, 'crop': crop == null ? null : crop!.toJson(), if (version != null) 'version': version!, if (edited != null) 'edited': edited!};
+}
+
+class WebPlaceChapter {
+  final String key;
+  final String title;
+  final int? number;
+  final String? epigraph;
+  final bool printed;
+  /// Поля, которые отправить как null (иначе пустое необязательное поле не отправляется).
+  final Set<String> nulls;
+
+  const WebPlaceChapter({required this.key, required this.title, this.number, this.epigraph, required this.printed, this.nulls = const {}});
+
+  factory WebPlaceChapter.fromJson(Map<String, dynamic> json) => WebPlaceChapter(key: json['key'] as String, title: json['title'] as String, number: json['number'] == null ? null : (json['number'] as num).toInt(), epigraph: json['epigraph'] == null ? null : json['epigraph'] as String, printed: json['printed'] as bool);
+
+  Map<String, dynamic> toJson() => {'key': key, 'title': title, if (number != null || nulls.contains('number')) 'number': number, if (epigraph != null) 'epigraph': epigraph!, 'printed': printed};
+}
+
+class WebPlaceAnswer {
+  final String id;
+  final String title;
+  final String chapterKey;
+
+  const WebPlaceAnswer({required this.id, required this.title, required this.chapterKey});
+
+  factory WebPlaceAnswer.fromJson(Map<String, dynamic> json) => WebPlaceAnswer(id: json['id'] as String, title: json['title'] as String, chapterKey: json['chapterKey'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'title': title, 'chapterKey': chapterKey};
+}
+
+class WebBookPhotosPage {
+  final WebPlaceBook book;
+  final List<WebTabPhoto> photos;
+  final List<WebPhotoPlaceEntry> places;
+  final List<WebPlaceChapter> chapters;
+  final List<WebPlaceAnswer> answers;
+  final Map<String, dynamic> tocLines;
+  final Map<String, dynamic> losses;
+  final int maxPhotos;
+
+  const WebBookPhotosPage({required this.book, required this.photos, required this.places, required this.chapters, required this.answers, required this.tocLines, required this.losses, required this.maxPhotos});
+
+  factory WebBookPhotosPage.fromJson(Map<String, dynamic> json) => WebBookPhotosPage(book: WebPlaceBook.fromJson(json['book'] as Map<String, dynamic>), photos: (json['photos'] as List).map((e) => WebTabPhoto.fromJson(e as Map<String, dynamic>)).toList(), places: (json['places'] as List).map((e) => WebPhotoPlaceEntry.fromJson(e as Map<String, dynamic>)).toList(), chapters: (json['chapters'] as List).map((e) => WebPlaceChapter.fromJson(e as Map<String, dynamic>)).toList(), answers: (json['answers'] as List).map((e) => WebPlaceAnswer.fromJson(e as Map<String, dynamic>)).toList(), tocLines: json['tocLines'] as Map<String, dynamic>, losses: json['losses'] as Map<String, dynamic>, maxPhotos: (json['maxPhotos'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'book': book.toJson(), 'photos': photos.map((e) => e.toJson()).toList(), 'places': places.map((e) => e.toJson()).toList(), 'chapters': chapters.map((e) => e.toJson()).toList(), 'answers': answers.map((e) => e.toJson()).toList(), 'tocLines': tocLines, 'losses': losses, 'maxPhotos': maxPhotos};
+}
+
+class WebBookLetterItem {
+  final String id;
+  final String authorName;
+  final String relation;
+  final String text;
+  /// pending | approved | hidden
+  final String status;
+  final String createdAt;
+
+  const WebBookLetterItem({required this.id, required this.authorName, required this.relation, required this.text, required this.status, required this.createdAt});
+
+  factory WebBookLetterItem.fromJson(Map<String, dynamic> json) => WebBookLetterItem(id: json['id'] as String, authorName: json['authorName'] as String, relation: json['relation'] as String, text: json['text'] as String, status: json['status'] as String, createdAt: json['createdAt'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'authorName': authorName, 'relation': relation, 'text': text, 'status': status, 'createdAt': createdAt};
+}
+
+class WebBookLettersPage {
+  final List<WebBookLetterItem> letters;
+
+  const WebBookLettersPage({required this.letters});
+
+  factory WebBookLettersPage.fromJson(Map<String, dynamic> json) => WebBookLettersPage(letters: (json['letters'] as List).map((e) => WebBookLetterItem.fromJson(e as Map<String, dynamic>)).toList());
+
+  Map<String, dynamic> toJson() => {'letters': letters.map((e) => e.toJson()).toList()};
+}
+
+class WebSpreadChapter {
+  final int number;
+  final String title;
+  final String? epigraph;
+
+  const WebSpreadChapter({required this.number, required this.title, this.epigraph});
+
+  factory WebSpreadChapter.fromJson(Map<String, dynamic> json) => WebSpreadChapter(number: (json['number'] as num).toInt(), title: json['title'] as String, epigraph: json['epigraph'] == null ? null : json['epigraph'] as String);
+
+  Map<String, dynamic> toJson() => {'number': number, 'title': title, if (epigraph != null) 'epigraph': epigraph!};
+}
+
+class WebSpreadEntryPhoto {
+  final String id;
+  final String url;
+  final int width;
+  final int height;
+  final String caption;
+  final WebInlinePhotoStyle? inline;
+  /// Поля, которые отправить как null (иначе пустое необязательное поле не отправляется).
+  final Set<String> nulls;
+
+  const WebSpreadEntryPhoto({required this.id, required this.url, required this.width, required this.height, required this.caption, this.inline, this.nulls = const {}});
+
+  factory WebSpreadEntryPhoto.fromJson(Map<String, dynamic> json) => WebSpreadEntryPhoto(id: json['id'] as String, url: json['url'] as String, width: (json['width'] as num).toInt(), height: (json['height'] as num).toInt(), caption: json['caption'] as String, inline: json['inline'] == null ? null : WebInlinePhotoStyle.fromJson(json['inline'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'id': id, 'url': url, 'width': width, 'height': height, 'caption': caption, if (inline != null || nulls.contains('inline')) 'inline': inline == null ? null : inline!.toJson()};
+}
+
+class WebSpreadEntry {
+  final String? heading;
+  final List<String> paragraphs;
+  final List<int>? breaks;
+  final List<WebSpreadEntryPhoto>? photos;
+  final List<WebAnswerMedia>? media;
+  final bool? pageBreak;
+  final bool? continued;
+
+  const WebSpreadEntry({this.heading, required this.paragraphs, this.breaks, this.photos, this.media, this.pageBreak, this.continued});
+
+  factory WebSpreadEntry.fromJson(Map<String, dynamic> json) => WebSpreadEntry(heading: json['heading'] == null ? null : json['heading'] as String, paragraphs: (json['paragraphs'] as List).map((e) => e as String).toList(), breaks: json['breaks'] == null ? null : (json['breaks'] as List).map((e) => (e as num).toInt()).toList(), photos: json['photos'] == null ? null : (json['photos'] as List).map((e) => WebSpreadEntryPhoto.fromJson(e as Map<String, dynamic>)).toList(), media: json['media'] == null ? null : (json['media'] as List).map((e) => WebAnswerMedia.fromJson(e as Map<String, dynamic>)).toList(), pageBreak: json['pageBreak'] == null ? null : json['pageBreak'] as bool, continued: json['continued'] == null ? null : json['continued'] as bool);
+
+  Map<String, dynamic> toJson() => {'heading': heading, 'paragraphs': paragraphs.map((e) => e).toList(), if (breaks != null) 'breaks': breaks!.map((e) => e).toList(), if (photos != null) 'photos': photos!.map((e) => e.toJson()).toList(), if (media != null) 'media': media!.map((e) => e.toJson()).toList(), if (pageBreak != null) 'pageBreak': pageBreak!, if (continued != null) 'continued': continued!};
+}
+
+class WebSampleTocLine {
+  final String? key;
+  final String title;
+  final int? number;
+  final int? level;
+  final int page;
+
+  const WebSampleTocLine({this.key, required this.title, this.number, this.level, required this.page});
+
+  factory WebSampleTocLine.fromJson(Map<String, dynamic> json) => WebSampleTocLine(key: json['key'] == null ? null : json['key'] as String, title: json['title'] as String, number: json['number'] == null ? null : (json['number'] as num).toInt(), level: json['level'] == null ? null : (json['level'] as num).toInt(), page: (json['page'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {if (key != null) 'key': key!, 'title': title, 'number': number, if (level != null) 'level': level!, 'page': page};
+}
+
+class WebSampleTocCandidate {
+  final String key;
+  final String pageKey;
+  /// chapter | section
+  final String kind;
+  final int? number;
+  final String label;
+  final String? parent;
+  final bool? folded;
+  final bool? first;
+  final String? epigraph;
+  final int page;
+
+  const WebSampleTocCandidate({required this.key, required this.pageKey, required this.kind, this.number, required this.label, this.parent, this.folded, this.first, this.epigraph, required this.page});
+
+  factory WebSampleTocCandidate.fromJson(Map<String, dynamic> json) => WebSampleTocCandidate(key: json['key'] as String, pageKey: json['pageKey'] as String, kind: json['kind'] as String, number: json['number'] == null ? null : (json['number'] as num).toInt(), label: json['label'] as String, parent: json['parent'] == null ? null : json['parent'] as String, folded: json['folded'] == null ? null : json['folded'] as bool, first: json['first'] == null ? null : json['first'] as bool, epigraph: json['epigraph'] == null ? null : json['epigraph'] as String, page: (json['page'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'key': key, 'pageKey': pageKey, 'kind': kind, 'number': number, 'label': label, if (parent != null) 'parent': parent!, if (folded != null) 'folded': folded!, if (first != null) 'first': first!, if (epigraph != null) 'epigraph': epigraph!, 'page': page};
+}
+
+class WebSpreadPhoto {
+  final String url;
+  final int width;
+  final int height;
+  final String caption;
+
+  const WebSpreadPhoto({required this.url, required this.width, required this.height, required this.caption});
+
+  factory WebSpreadPhoto.fromJson(Map<String, dynamic> json) => WebSpreadPhoto(url: json['url'] as String, width: (json['width'] as num).toInt(), height: (json['height'] as num).toInt(), caption: json['caption'] as String);
+
+  Map<String, dynamic> toJson() => {'url': url, 'width': width, 'height': height, 'caption': caption};
+}
+
+class WebSpreadOpener {
+  final String url;
+  final WebPhotoCrop? crop;
+
+  const WebSpreadOpener({required this.url, this.crop});
+
+  factory WebSpreadOpener.fromJson(Map<String, dynamic> json) => WebSpreadOpener(url: json['url'] as String, crop: json['crop'] == null ? null : WebPhotoCrop.fromJson(json['crop'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'url': url, if (crop != null) 'crop': crop!.toJson()};
+}
+
+class WebSpreadSample {
+  /// ru | kk | uz | en
+  final String language;
+  final String title;
+  final String subtitle;
+  final String author;
+  final int year;
+  final String dedication;
+  final String dedicationPlaceholder;
+  final WebSpreadChapter chapter;
+  final List<WebSpreadEntry> entries;
+  final bool? tail;
+  final int? folio;
+  final List<WebSampleTocLine> toc;
+  final List<WebSampleTocCandidate>? tocAll;
+  /// chapters | sections | both
+  final String? tocMode;
+  final Map<String, dynamic>? tocLines;
+  final bool showToc;
+  final String? endText;
+  final bool? titlePage;
+  /// inline | none
+  final String? chapterStart;
+  final List<WebSpreadPhoto>? photos;
+  final WebSpreadOpener? opener;
+  final List<String>? captions;
+  /// Поля, которые отправить как null (иначе пустое необязательное поле не отправляется).
+  final Set<String> nulls;
+
+  const WebSpreadSample({required this.language, required this.title, required this.subtitle, required this.author, required this.year, required this.dedication, required this.dedicationPlaceholder, required this.chapter, required this.entries, this.tail, this.folio, required this.toc, this.tocAll, this.tocMode, this.tocLines, required this.showToc, this.endText, this.titlePage, this.chapterStart, this.photos, this.opener, this.captions, this.nulls = const {}});
+
+  factory WebSpreadSample.fromJson(Map<String, dynamic> json) => WebSpreadSample(language: json['language'] as String, title: json['title'] as String, subtitle: json['subtitle'] as String, author: json['author'] as String, year: (json['year'] as num).toInt(), dedication: json['dedication'] as String, dedicationPlaceholder: json['dedicationPlaceholder'] as String, chapter: WebSpreadChapter.fromJson(json['chapter'] as Map<String, dynamic>), entries: (json['entries'] as List).map((e) => WebSpreadEntry.fromJson(e as Map<String, dynamic>)).toList(), tail: json['tail'] == null ? null : json['tail'] as bool, folio: json['folio'] == null ? null : (json['folio'] as num).toInt(), toc: (json['toc'] as List).map((e) => WebSampleTocLine.fromJson(e as Map<String, dynamic>)).toList(), tocAll: json['tocAll'] == null ? null : (json['tocAll'] as List).map((e) => WebSampleTocCandidate.fromJson(e as Map<String, dynamic>)).toList(), tocMode: json['tocMode'] == null ? null : json['tocMode'] as String, tocLines: json['tocLines'] == null ? null : json['tocLines'] as Map<String, dynamic>, showToc: json['showToc'] as bool, endText: json['endText'] == null ? null : json['endText'] as String, titlePage: json['titlePage'] == null ? null : json['titlePage'] as bool, chapterStart: json['chapterStart'] == null ? null : json['chapterStart'] as String, photos: json['photos'] == null ? null : (json['photos'] as List).map((e) => WebSpreadPhoto.fromJson(e as Map<String, dynamic>)).toList(), opener: json['opener'] == null ? null : WebSpreadOpener.fromJson(json['opener'] as Map<String, dynamic>), captions: json['captions'] == null ? null : (json['captions'] as List).map((e) => e as String).toList());
+
+  Map<String, dynamic> toJson() => {'language': language, 'title': title, 'subtitle': subtitle, 'author': author, 'year': year, 'dedication': dedication, 'dedicationPlaceholder': dedicationPlaceholder, 'chapter': chapter.toJson(), 'entries': entries.map((e) => e.toJson()).toList(), if (tail != null) 'tail': tail!, if (folio != null) 'folio': folio!, 'toc': toc.map((e) => e.toJson()).toList(), if (tocAll != null) 'tocAll': tocAll!.map((e) => e.toJson()).toList(), if (tocMode != null) 'tocMode': tocMode!, if (tocLines != null) 'tocLines': tocLines!, 'showToc': showToc, if (endText != null || nulls.contains('endText')) 'endText': endText, if (titlePage != null) 'titlePage': titlePage!, if (chapterStart != null) 'chapterStart': chapterStart!, if (photos != null) 'photos': photos!.map((e) => e.toJson()).toList(), if (opener != null || nulls.contains('opener')) 'opener': opener == null ? null : opener!.toJson(), if (captions != null) 'captions': captions!.map((e) => e).toList()};
+}
+
+class WebCoverPagePhoto {
+  final String id;
+  final int width;
+  final int height;
+  final bool opener;
+
+  const WebCoverPagePhoto({required this.id, required this.width, required this.height, required this.opener});
+
+  factory WebCoverPagePhoto.fromJson(Map<String, dynamic> json) => WebCoverPagePhoto(id: json['id'] as String, width: (json['width'] as num).toInt(), height: (json['height'] as num).toInt(), opener: json['opener'] as bool);
+
+  Map<String, dynamic> toJson() => {'id': id, 'width': width, 'height': height, 'opener': opener};
+}
+
+class WebPlaceNameChapter {
+  final String key;
+  final String title;
+
+  const WebPlaceNameChapter({required this.key, required this.title});
+
+  factory WebPlaceNameChapter.fromJson(Map<String, dynamic> json) => WebPlaceNameChapter(key: json['key'] as String, title: json['title'] as String);
+
+  Map<String, dynamic> toJson() => {'key': key, 'title': title};
+}
+
+class WebPlaceNameAnswer {
+  final String id;
+  final String title;
+
+  const WebPlaceNameAnswer({required this.id, required this.title});
+
+  factory WebPlaceNameAnswer.fromJson(Map<String, dynamic> json) => WebPlaceNameAnswer(id: json['id'] as String, title: json['title'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'title': title};
+}
+
+class WebCoverPlaceNames {
+  final List<WebPlaceNameChapter> chapters;
+  final List<WebPlaceNameAnswer> answers;
+
+  const WebCoverPlaceNames({required this.chapters, required this.answers});
+
+  factory WebCoverPlaceNames.fromJson(Map<String, dynamic> json) => WebCoverPlaceNames(chapters: (json['chapters'] as List).map((e) => WebPlaceNameChapter.fromJson(e as Map<String, dynamic>)).toList(), answers: (json['answers'] as List).map((e) => WebPlaceNameAnswer.fromJson(e as Map<String, dynamic>)).toList());
+
+  Map<String, dynamic> toJson() => {'chapters': chapters.map((e) => e.toJson()).toList(), 'answers': answers.map((e) => e.toJson()).toList()};
+}
+
+class WebBookCoverPage {
+  final String defaultTitle;
+  final int pages;
+  final String recipientLabel;
+  final WebSpreadSample sample;
+  final List<WebCoverPagePhoto> photos;
+  final List<WebPhotoPlaceEntry> places;
+  final WebCoverPlaceNames placeNames;
+
+  const WebBookCoverPage({required this.defaultTitle, required this.pages, required this.recipientLabel, required this.sample, required this.photos, required this.places, required this.placeNames});
+
+  factory WebBookCoverPage.fromJson(Map<String, dynamic> json) => WebBookCoverPage(defaultTitle: json['defaultTitle'] as String, pages: (json['pages'] as num).toInt(), recipientLabel: json['recipientLabel'] as String, sample: WebSpreadSample.fromJson(json['sample'] as Map<String, dynamic>), photos: (json['photos'] as List).map((e) => WebCoverPagePhoto.fromJson(e as Map<String, dynamic>)).toList(), places: (json['places'] as List).map((e) => WebPhotoPlaceEntry.fromJson(e as Map<String, dynamic>)).toList(), placeNames: WebCoverPlaceNames.fromJson(json['placeNames'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'defaultTitle': defaultTitle, 'pages': pages, 'recipientLabel': recipientLabel, 'sample': sample.toJson(), 'photos': photos.map((e) => e.toJson()).toList(), 'places': places.map((e) => e.toJson()).toList(), 'placeNames': placeNames.toJson()};
+}
+
+class WebPageStory {
+  final String title;
+  final String? displayText;
+  final bool hidden;
+  final bool pageBreak;
+
+  const WebPageStory({required this.title, this.displayText, required this.hidden, required this.pageBreak});
+
+  factory WebPageStory.fromJson(Map<String, dynamic> json) => WebPageStory(title: json['title'] as String, displayText: json['displayText'] == null ? null : json['displayText'] as String, hidden: json['hidden'] as bool, pageBreak: json['pageBreak'] as bool);
+
+  Map<String, dynamic> toJson() => {'title': title, 'displayText': displayText, 'hidden': hidden, 'pageBreak': pageBreak};
+}
+
+class WebPagesSheetPhoto {
+  final String id;
+  final int width;
+  final int height;
+  final String caption;
+  /// full | bleed | half | grid
+  final String layout;
+  final String? questionId;
+  final String? chapter;
+  final bool opener;
+  final WebPhotoCrop? crop;
+
+  const WebPagesSheetPhoto({required this.id, required this.width, required this.height, required this.caption, required this.layout, this.questionId, this.chapter, required this.opener, this.crop});
+
+  factory WebPagesSheetPhoto.fromJson(Map<String, dynamic> json) => WebPagesSheetPhoto(id: json['id'] as String, width: (json['width'] as num).toInt(), height: (json['height'] as num).toInt(), caption: json['caption'] as String, layout: json['layout'] as String, questionId: json['questionId'] == null ? null : json['questionId'] as String, chapter: json['chapter'] == null ? null : json['chapter'] as String, opener: json['opener'] as bool, crop: json['crop'] == null ? null : WebPhotoCrop.fromJson(json['crop'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'id': id, 'width': width, 'height': height, 'caption': caption, 'layout': layout, 'questionId': questionId, 'chapter': chapter, 'opener': opener, 'crop': crop == null ? null : crop!.toJson()};
+}
+
+class WebPagesPhotoData {
+  final WebPlaceBook book;
+  final List<WebPagesSheetPhoto> photos;
+  final List<WebPhotoPlaceEntry> places;
+  final List<WebPlaceChapter> chapters;
+  final List<WebPlaceAnswer> answers;
+  final Map<String, dynamic> fit;
+  final int maxPhotos;
+
+  const WebPagesPhotoData({required this.book, required this.photos, required this.places, required this.chapters, required this.answers, required this.fit, required this.maxPhotos});
+
+  factory WebPagesPhotoData.fromJson(Map<String, dynamic> json) => WebPagesPhotoData(book: WebPlaceBook.fromJson(json['book'] as Map<String, dynamic>), photos: (json['photos'] as List).map((e) => WebPagesSheetPhoto.fromJson(e as Map<String, dynamic>)).toList(), places: (json['places'] as List).map((e) => WebPhotoPlaceEntry.fromJson(e as Map<String, dynamic>)).toList(), chapters: (json['chapters'] as List).map((e) => WebPlaceChapter.fromJson(e as Map<String, dynamic>)).toList(), answers: (json['answers'] as List).map((e) => WebPlaceAnswer.fromJson(e as Map<String, dynamic>)).toList(), fit: json['fit'] as Map<String, dynamic>, maxPhotos: (json['maxPhotos'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'book': book.toJson(), 'photos': photos.map((e) => e.toJson()).toList(), 'places': places.map((e) => e.toJson()).toList(), 'chapters': chapters.map((e) => e.toJson()).toList(), 'answers': answers.map((e) => e.toJson()).toList(), 'fit': fit, 'maxPhotos': maxPhotos};
+}
+
+class WebBookPagesPage {
+  final WebSpreadSample sample;
+  final Map<String, dynamic>? exactPages;
+  final Map<String, dynamic> stories;
+  final WebPagesPhotoData photos;
+
+  const WebBookPagesPage({required this.sample, this.exactPages, required this.stories, required this.photos});
+
+  factory WebBookPagesPage.fromJson(Map<String, dynamic> json) => WebBookPagesPage(sample: WebSpreadSample.fromJson(json['sample'] as Map<String, dynamic>), exactPages: json['exactPages'] == null ? null : json['exactPages'] as Map<String, dynamic>, stories: json['stories'] as Map<String, dynamic>, photos: WebPagesPhotoData.fromJson(json['photos'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'sample': sample.toJson(), 'exactPages': exactPages, 'stories': stories, 'photos': photos.toJson()};
+}
+
+class WebFlipbookPhotoSpec {
+  final String href;
+  final int? width;
+  final int? height;
+  final WebPhotoFrame? frame;
+
+  const WebFlipbookPhotoSpec({required this.href, this.width, this.height, this.frame});
+
+  factory WebFlipbookPhotoSpec.fromJson(Map<String, dynamic> json) => WebFlipbookPhotoSpec(href: json['href'] as String, width: json['width'] == null ? null : (json['width'] as num).toInt(), height: json['height'] == null ? null : (json['height'] as num).toInt(), frame: json['frame'] == null ? null : WebPhotoFrame.fromJson(json['frame'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'href': href, if (width != null) 'width': width!, if (height != null) 'height': height!, if (frame != null) 'frame': frame!.toJson()};
+}
+
+class WebFlipbookCover {
+  final String template;
+  final bool? lines;
+  final String format;
+  final String title;
+  final String subtitle;
+  final String names;
+  final List<WebFlipbookPhotoSpec?> photos;
+  final Map<String, dynamic>? design;
+  final Map<String, dynamic>? back;
+
+  const WebFlipbookCover({required this.template, this.lines, required this.format, required this.title, required this.subtitle, required this.names, required this.photos, this.design, this.back});
+
+  factory WebFlipbookCover.fromJson(Map<String, dynamic> json) => WebFlipbookCover(template: json['template'] as String, lines: json['lines'] == null ? null : json['lines'] as bool, format: json['format'] as String, title: json['title'] as String, subtitle: json['subtitle'] as String, names: json['names'] as String, photos: (json['photos'] as List).map((e) => e == null ? null : WebFlipbookPhotoSpec.fromJson(e as Map<String, dynamic>)).toList(), design: json['design'] == null ? null : json['design'] as Map<String, dynamic>, back: json['back'] == null ? null : json['back'] as Map<String, dynamic>);
+
+  Map<String, dynamic> toJson() => {'template': template, if (lines != null) 'lines': lines!, 'format': format, 'title': title, 'subtitle': subtitle, 'names': names, 'photos': photos.map((e) => e == null ? null : e!.toJson()).toList(), if (design != null) 'design': design!, if (back != null) 'back': back!};
+}
+
+class WebBackPhotoDims {
+  final int width;
+  final int height;
+
+  const WebBackPhotoDims({required this.width, required this.height});
+
+  factory WebBackPhotoDims.fromJson(Map<String, dynamic> json) => WebBackPhotoDims(width: (json['width'] as num).toInt(), height: (json['height'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'width': width, 'height': height};
+}
+
+class WebBackContent {
+  /// quote | letter | photo | fullPhoto | polaroids | minimal
+  final String layout;
+  final String text;
+  final String signature;
+  final String names;
+  final int? year;
+  final List<WebBackPhotoDims> photos;
+
+  const WebBackContent({required this.layout, required this.text, required this.signature, required this.names, this.year, required this.photos});
+
+  factory WebBackContent.fromJson(Map<String, dynamic> json) => WebBackContent(layout: json['layout'] as String, text: json['text'] as String, signature: json['signature'] as String, names: json['names'] as String, year: json['year'] == null ? null : (json['year'] as num).toInt(), photos: (json['photos'] as List).map((e) => WebBackPhotoDims.fromJson(e as Map<String, dynamic>)).toList());
+
+  Map<String, dynamic> toJson() => {'layout': layout, 'text': text, 'signature': signature, 'names': names, 'year': year, 'photos': photos.map((e) => e.toJson()).toList()};
+}
+
+class WebFlipbookModel {
+  final String brand;
+  final WebBackContent back;
+  final List<WebFlipbookPhotoSpec> backPhotos;
+
+  const WebFlipbookModel({required this.brand, required this.back, required this.backPhotos});
+
+  factory WebFlipbookModel.fromJson(Map<String, dynamic> json) => WebFlipbookModel(brand: json['brand'] as String, back: WebBackContent.fromJson(json['back'] as Map<String, dynamic>), backPhotos: (json['backPhotos'] as List).map((e) => WebFlipbookPhotoSpec.fromJson(e as Map<String, dynamic>)).toList());
+
+  Map<String, dynamic> toJson() => {'brand': brand, 'back': back.toJson(), 'backPhotos': backPhotos.map((e) => e.toJson()).toList()};
+}
+
+class WebFlipbookData {
+  final WebFlipbookCover cover;
+  final String formatId;
+  final String title;
+  final WebFlipbookModel model;
+
+  const WebFlipbookData({required this.cover, required this.formatId, required this.title, required this.model});
+
+  factory WebFlipbookData.fromJson(Map<String, dynamic> json) => WebFlipbookData(cover: WebFlipbookCover.fromJson(json['cover'] as Map<String, dynamic>), formatId: json['formatId'] as String, title: json['title'] as String, model: WebFlipbookModel.fromJson(json['model'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'cover': cover.toJson(), 'formatId': formatId, 'title': title, 'model': model.toJson()};
+}
+
+class WebBookPreviewPage {
+  final WebFlipbookData flipbook;
+  final bool editable;
+
+  const WebBookPreviewPage({required this.flipbook, required this.editable});
+
+  factory WebBookPreviewPage.fromJson(Map<String, dynamic> json) => WebBookPreviewPage(flipbook: WebFlipbookData.fromJson(json['flipbook'] as Map<String, dynamic>), editable: json['editable'] as bool);
+
+  Map<String, dynamic> toJson() => {'flipbook': flipbook.toJson(), 'editable': editable};
 }

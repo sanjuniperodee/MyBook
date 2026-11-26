@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import { Link } from "@/i18n/client";
 import { requireUser } from "@/server/auth";
-import { getAccessibleBook, viewerOf } from "@/server/books";
-import { isBookEditableBy } from "@/modules/authoring";
+import { getAccessibleBook } from "@/server/books";
+import { localPreviewPageDtoForUser } from "@/server/v1-local-bridge-book";
+import { v1WebRead } from "@/server/v1-web-client";
+import type { FlipbookData } from "@/components/book3d/pages";
 import { PreviewTabs } from "./PreviewTabs";
 import { getMessages } from "@/i18n/server";
-import { container } from "@/server/container";
-import { flipbookData } from "@/components/book3d/flipbook-data";
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getMessages()).books.preview.meta };
@@ -16,16 +16,24 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
   const { id } = await params;
   const user = await requireUser(`/books/${id}/preview`);
   const book = await getAccessibleBook(id, user);
-  const [m, questions] = await Promise.all([getMessages(), container().authoring.queries.questions(book.id)]);
+  const [m, data] = await Promise.all([
+    getMessages(),
+    v1WebRead({
+      name: "book.previewPage",
+      section: "book",
+      local: () => localPreviewPageDtoForUser(book, user),
+      viaApi: (api) => api.webBookPreviewPage({ bookId: book.id }),
+    }),
+  ]);
   const t = m.books.preview;
-
-  // Переплёт 3D-книги — из того же содержимого, что PDF (название по умолчанию, имена, фото обложки и оборота);
-  // страницы книга берёт из экранной сборки.
-  const bundle = await container().authoring.queries.bundle(book.id);
-  const flipbook = flipbookData(book, questions, bundle?.chapters ?? [], bundle?.photos ?? [], bundle?.letters ?? []);
+  const flipbook: FlipbookData = {
+    ...data.flipbook,
+    cover: {
+      ...data.flipbook.cover,
+      photos: data.flipbook.cover.photos.map((p) => p ?? undefined),
+    },
+  };
   const orderHref = book.status === "draft" ? `/books/${book.id}/checkout` : null;
-  // Нажатие на текст, фото и главу на полосе открывает правку — у черновика и тому, кто может его править (сотруднику — с правом правки).
-  const editable = book.status === "draft" && isBookEditableBy(book.userId, await viewerOf(user, book.id));
   return (
     <main className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-6">
       <header className="mb-4 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
@@ -39,7 +47,7 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
           </Link>
         ) : null}
       </header>
-      <PreviewTabs bookId={book.id} flipbook={flipbook} orderHref={orderHref} editable={editable} />
+      <PreviewTabs bookId={book.id} flipbook={flipbook} orderHref={orderHref} editable={data.editable} />
     </main>
   );
 }
