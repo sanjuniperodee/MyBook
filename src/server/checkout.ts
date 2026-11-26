@@ -2,12 +2,9 @@ import "server-only";
 import { z } from "zod";
 import { uuid } from "@/server/input";
 import { getDeliveryOptions, getPlan, getPlans, getVisiblePlans, giftNoteEnabled, isAbroadDelivery, isQuotedDelivery, soldAddons, formatPrice, site, type DeliveryId, type PlanId } from "@/config/site";
-import { container } from "@/server/container";
-import { ensureCatalog } from "@/server/catalog";
-import { quoteCheckout } from "@/modules/ordering/domain/Pricing";
+import { quoteCheckout } from "@/shared/domain/pricing";
 import { buildBookContent } from "@/lib/book/book-content";
 import { toPhotoItem } from "@/lib/book/layout";
-import { checkReadiness } from "@/modules/authoring/domain/readiness";
 import { coverName, interiorName } from "@/i18n/labels";
 import { getFormat } from "@/lib/book/formats";
 import { getOccasion } from "@/lib/occasions";
@@ -20,6 +17,9 @@ import type { getAccessibleBook } from "@/server/books";
  * Оформление заказа — одна логика для страницы сайта (/books/[id]/checkout) и приложения (API v1 cabinetCheckout*):
  * проверка формы, создание заказа, модель экрана (тарифы, доставка, допы, договорённость, проверка макета) и расчёт
  * итога теми же правилами цены (quoteCheckout), что считает сервер при создании заказа.
+ *
+ * Без статических импортов `./container`, `./catalog` или `@/modules/*`: `checkoutSchema` может импортироваться
+ * на фронте без БД (Vercel, `WEB_API_ONLY=1`), а серверные функции подгружают контейнер лениво.
  */
 
 type Book = Awaited<ReturnType<typeof getAccessibleBook>>;
@@ -74,6 +74,7 @@ export type CheckoutInput = z.output<ReturnType<typeof checkoutSchema>>;
 
 /** Создать заказ по проверенной форме (ошибки домена — исключением OrderingError, текст — у вызывающего). */
 export async function placeOrder(user: { id: string; phone: string | null }, locale: Locale, d: CheckoutInput) {
+  const [{ container }, { ensureCatalog }] = await Promise.all([import("./container"), import("./catalog")]);
   await ensureCatalog(); // цену считаем по действующему каталогу, а не по тому, что видел клиент
   // Скрытый тариф продаётся только по договорённости — это проверит сервис заказов (ошибка planUnavailable, без подмены).
   const plan = getPlan(d.plan)!;
@@ -101,6 +102,7 @@ export async function placeOrder(user: { id: string; phone: string | null }, loc
 
 /** Договорённость с менеджером для формы: как её видит клиент (сотрудник смотрит глазами владельца книги). */
 async function agreementOf(book: Book) {
+  const { container } = await import("./container");
   const a = await container().ordering.orders.agreementFor(book.userId);
   if (!a) return null;
   return { dealNumber: a.dealNumber, agreedTotal: a.agreedTotal, prepaid: a.prepaid, batch: a.batch && !a.batch.implicit ? { index: a.batch.index, size: a.batch.size } : null, plan: a.plan && getPlan(a.plan) ? (a.plan as PlanId) : null, gifts: (a.gifts ?? []) as AgreementGift[] };
@@ -111,6 +113,7 @@ async function agreementOf(book: Book) {
  * Тексты — на языке пользователя.
  */
 export async function checkoutModel(book: Book, user: { id: string; name: string; email: string; phone: string | null }, locale: Locale, m: Messages) {
+  const [{ container }, { checkReadiness }] = await Promise.all([import("./container"), import("@/modules/authoring/domain/readiness")]);
   const t = m.checkout;
   const c = m.common;
   const bookOrder = await container().ordering.queries.lastOrderOfBook(book.id);
@@ -167,6 +170,7 @@ export async function checkoutModel(book: Book, user: { id: string; name: string
 
 /** Расчёт итога для выбранного (тариф, количество, доставка, допы, промокод, режим договорённости): строки и «К оплате». */
 export async function checkoutQuote(book: Book, userId: string, input: { plan: string; quantity: number; delivery: string | null; addons: string[]; promoCode: string | null; mode: "agreed" | "advance" | null }, m: Messages) {
+  const [{ container }, { ensureCatalog }] = await Promise.all([import("./container"), import("./catalog")]);
   await ensureCatalog();
   const t = m.checkout;
   const c = m.common;

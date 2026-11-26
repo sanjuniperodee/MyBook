@@ -8,7 +8,7 @@ import { checkPromoAction, createOrderAction, type CheckoutState, type PromoPrev
 import { soldAddons, getPlan, getPlans, getVisiblePlans, isQuotedDelivery, type AddonId, type DeliveryId, type PlanId } from "@/config/site";
 import { nowMs } from "@/lib/dates";
 import { toIsoDay } from "@/lib/occasions";
-import { quoteCheckout } from "@/modules/ordering/domain/Pricing";
+import { quoteCheckout } from "@/shared/domain/pricing";
 import type { AgreementGift } from "@/shared/domain/agreementGifts";
 import { Alert } from "@/components/ui/Alert";
 import { AgreementChoice, ConsentField, ContactsBlock, DeliveryBlock, GiftBlock, MobileSummary, PlanStep, PromoBox, ReviewBlock, StepActions, Summary, UpgradeNote, type AgreementMode, type FormValues, type PromoField } from "./form/sections";

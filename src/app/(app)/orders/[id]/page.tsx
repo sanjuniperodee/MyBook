@@ -1,18 +1,12 @@
 import type { Metadata } from "next";
 import { ChevronLeft } from "lucide-react";
+import { notFound } from "next/navigation";
+import { ApiClientError } from "@mybook/contracts";
 import { Link } from "@/i18n/client";
 import { TrackOnce } from "@/components/analytics/TrackOnce";
-import { notFound } from "next/navigation";
 import { requireUser } from "@/server/auth";
-import { can, getStaff, canSeeOrder } from "@/server/access";
-import { container } from "@/server/container";
-import { manualPaymentProps } from "@/server/requisites";
-import { formatPrice, getPlan } from "@/config/site";
+import { formatPrice } from "@/config/site";
 import { getLocale, getMessages } from "@/i18n/server";
-import { env } from "@/config/env";
-import { isOnlinePayment } from "@/modules/ordering";
-import { canReview } from "@/modules/feedback";
-import { orderStatusLabel, orderStatusTone } from "@/modules/ordering/ui/status";
 import { Badge } from "@/components/ui/Badge";
 import { CoverPreview } from "@/components/cover/CoverPreview";
 import { Morph } from "@/components/motion/PageTransition";
@@ -20,12 +14,16 @@ import { coverNames } from "@/lib/book/cover-names";
 import { coverPhotoIds } from "@/lib/book/covers";
 import { photoUrls } from "@/lib/urls";
 import { formatDate } from "@/lib/dates";
-import { isPaid } from "@/modules/ordering/domain";
-import { kaspiPaymentProps } from "@/app/api/payments/kaspi/view";
+import { pageId } from "@/server/input";
+import { localOrderDetailDto } from "@/server/v1-local-bridge-orders";
+import { v1WebRead } from "@/server/v1-web-client";
 import { PaymentBlock } from "./PaymentBlock";
 import { BookAside, InviteCard, OrderDetails, OrderFiles, OrderHelp, OrderStatusSheet, ReviewCard, UpgradeCard } from "./sections";
 import { orderSteps } from "../StatusTrack";
-import { pageId } from "@/server/input";
+
+const isNotFoundApiError = (err: unknown): boolean =>
+  (err instanceof ApiClientError && err.status === 404) ||
+  (typeof err === "object" && err !== null && "status" in err && (err as { status?: unknown }).status === 404);
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getMessages()).orders.order.meta };
@@ -39,23 +37,27 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
   const { id } = await params;
   const user = await requireUser(`/orders/${id}`);
   pageId(id);
-  const order = await container().ordering.queries.orderDetails(id);
-  // Чужой заказ — только сотруднику с правом «Видеть заказы», вошедшему по правилам «Безопасности» (V1); роли «только
-  // свои» — только заказ своего клиента.
-  const staff = order && order.userId !== user.id ? await getStaff() : null;
-  if (!order || (order.userId !== user.id && !(staff && can(staff, "orders.view") && (await canSeeOrder(staff, order.id))))) notFound();
-  const own = order.userId === user.id;
-  const [locale, m, review] = await Promise.all([getLocale(), getMessages(), own ? container().feedback.queries.byOrder(order.id) : null]);
+  const [locale, m] = await Promise.all([getLocale(), getMessages()]);
+  const detail = await v1WebRead({
+    name: "orders.detail",
+    section: "orders",
+    locale,
+    local: () => localOrderDetailDto(id, user, locale, m),
+    viaApi: async (api) => {
+      try {
+        return await api.webOrderDetail({ orderId: id, locale });
+      } catch (err) {
+        if (isNotFoundApiError(err)) return null;
+        throw err;
+      }
+    },
+  });
+  if (!detail) notFound();
+
+  const { order, own, printed, paid, statusLabel, statusTone, reviewable, review, upgrade, payment, reviewThankYouPercent, referral } = detail;
   const t = m.orders.order;
-  const plan = getPlan(order.plan);
-  const printed = !!plan?.printed;
   const book = order.book;
   const steps = orderSteps(printed, t.steps);
-  const paid = isPaid(order.status);
-  const reviewable = own && canReview({ status: order.status, plan: order.plan, paid });
-  // Оплаченная электронная версия без печатного заказа: можно дозаказать книгу на бумаге, оплата электронной засчитается.
-  const upgrade = own && !plan?.printed && order.status === "paid" ? await container().ordering.orders.upgradeOffer(order.id, user.id) : null;
-  const kaspi = own && order.status === "pending_payment" ? await kaspiPaymentProps({ kind: "order", id: order.id }, order.contactPhone) : null;
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
@@ -74,7 +76,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
             <h1 className="font-serif text-4xl leading-none font-medium sm:text-5xl">{t.title(order.number)}</h1>
-            <Badge tone={orderStatusTone[order.status]}>{orderStatusLabel(order.status, locale, printed)}</Badge>
+            <Badge tone={statusTone}>{statusLabel}</Badge>
           </div>
           <p className="mt-2 text-sm text-muted sm:text-[15px]">{t.created(formatDate(order.createdAt, true, locale))}</p>
           <p className="mt-0.5 truncate font-serif text-lg text-ink-soft lg:hidden">{book.title}</p>
@@ -90,9 +92,9 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
         <div className="min-w-0 space-y-6">
           <OrderStatusSheet orderId={order.id} status={order.status} printed={printed} steps={steps} trackingNumber={order.trackingNumber} t={t} />
 
-          {reviewable ? <ReviewCard orderId={order.id} review={review} t={m.review.card} /> : null}
+          {reviewable ? <ReviewCard orderId={order.id} review={review} thankYouPercent={reviewThankYouPercent} t={m.review.card} /> : null}
 
-          {order.status === "pending_payment" && own ? (
+          {payment && order.status === "pending_payment" && own ? (
             <PaymentBlock
               orderId={order.id}
               number={order.number}
@@ -100,11 +102,11 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
               amountLabel={formatPrice(order.amount)}
               currency={order.currency}
               email={order.contactEmail}
-              online={isOnlinePayment() ? { publicId: env.cloudpayments.publicId } : null}
-              manual={await manualPaymentProps(m)}
+              online={payment.online}
+              manual={payment.manual}
               unavailable={m.common.manualPayment.unavailable}
               claimed={!!order.paymentClaimedAt}
-              kaspi={kaspi}
+              kaspi={payment.kaspi}
             />
           ) : null}
 
@@ -112,7 +114,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
 
           {upgrade ? <UpgradeCard upgrade={upgrade} t={t} /> : null}
 
-          {own && paid ? <InviteCard t={m.invite.card} /> : null}
+          {own && paid ? <InviteCard referral={referral} t={m.invite.card} /> : null}
 
           <OrderDetails order={order} printed={printed} locale={locale} t={t} free={m.common.free} />
 

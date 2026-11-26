@@ -1,21 +1,43 @@
 "use server";
 
+import { ApiClientError } from "@mybook/contracts";
 import { z } from "zod";
-import { getMessages, lredirect } from "@/i18n/server";
-import { PAY_TOKEN } from "@/modules/ordering";
-import { container } from "@/server/container";
-import { rateLimit, trustedClientIp } from "@/server/rateLimit";
+import { PAY_TOKEN } from "@/shared/domain/orders";
+import { getLocale, getMessages, lredirect } from "@/i18n/server";
+import { localPayClaim } from "@/server/v1-local-bridge-orders";
+import { v1WebAction } from "@/server/v1-web-client";
 
 /**
  * Клиент сообщил, что оплатил счёт из чата переводом: ответственному — проверить поступление (подписчики события
  * ordering.deal_invoice_claimed). Кнопку жмут по ссылке без входа: лимит не даёт перебирать токены.
  */
 export async function claimDealInvoicePaymentAction(rawToken: string): Promise<{ error?: string } | void> {
-  // Лимит — с текстом, как у сертификата: иначе кнопка «Я оплатил(а)» молча ничего не делает.
-  if (!(await rateLimit(`pay-claim:${await trustedClientIp()}`, 20, 600_000))) return { error: (await getMessages()).common.errors.tooMany };
+  const [locale, m] = await Promise.all([getLocale(), getMessages()]);
   const token = z.string().regex(PAY_TOKEN).safeParse(rawToken);
   if (!token.success) return; // как и для неизвестного токена
-  const invoice = await container().ordering.invoices.claim(token.data);
-  if (!invoice) return;
-  return lredirect(`/pay/${invoice.token}`);
+  const outcome = await v1WebAction({
+    section: "orders",
+    locale,
+    viaApi: async (api): Promise<{ ok: true; claimed: boolean; token: string | null } | { ok: false; error: string }> => {
+      try {
+        const res = await api.webPayClaim({ body: { token: token.data, locale } });
+        return { ok: true, claimed: res.claimed, token: res.token };
+      } catch (err) {
+        if (err instanceof ApiClientError && err.status === 429) {
+          return { ok: false, error: err.message };
+        }
+        throw err;
+      }
+    },
+    // Лимит — там, где выполняется действие: здесь (сервер с БД) или в обработчике API v1 (webPayClaim).
+    local: async () => {
+      const { rateLimit, trustedClientIp } = await import("@/server/rateLimit");
+      if (!(await rateLimit(`pay-claim:${await trustedClientIp()}`, 20, 600_000))) return { ok: false as const, error: m.common.errors.tooMany };
+      return localPayClaim(token.data);
+    },
+  });
+  // Лимит — с текстом, как у сертификата: иначе кнопка «Я оплатил(а)» молча ничего не делает.
+  if (!outcome.ok) return { error: outcome.error };
+  if (!outcome.claimed || !outcome.token) return;
+  return lredirect(`/pay/${outcome.token}`);
 }

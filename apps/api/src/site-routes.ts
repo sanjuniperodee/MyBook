@@ -6,8 +6,12 @@
  * Обработчики Раздела 2 (книга и медиа) вынесены в `src/server/site-handlers/**`, чтобы `src/app/api/**`
  * был тонкой прокси-обёрткой без петли прокси.
  */
-import * as kaspi from "@/app/api/payments/kaspi/webhook/route";
-import * as cloudpayments from "@/app/api/payments/cloudpayments/[event]/route";
+import * as kaspi from "@/server/site-handlers/payments/kaspi-webhook";
+import * as kaspiInvoices from "@/server/site-handlers/payments/kaspi-invoices";
+import * as kaspiInvoiceItem from "@/server/site-handlers/payments/kaspi-invoice-item";
+import * as cloudpayments from "@/server/site-handlers/payments/cloudpayments-webhook";
+import * as orderFile from "@/server/site-handlers/orders/file";
+import * as orderRenderProgress from "@/server/site-handlers/orders/render-progress";
 import * as gowa from "@/app/api/integrations/gowa/route";
 import * as zadarma from "@/app/api/integrations/zadarma/route";
 import * as google from "@/app/api/integrations/google/webhook/route";
@@ -62,7 +66,11 @@ type RouteModule = Partial<Record<Method, RouteHandler>>;
 /** Путь с параметрами в фигурных скобках → модуль маршрута сайта. */
 const table: [string, RouteModule][] = [
   ["/api/payments/kaspi/webhook", kaspi as RouteModule],
+  ["/api/payments/kaspi/invoices/{id}", kaspiInvoiceItem as RouteModule],
+  ["/api/payments/kaspi/invoices", kaspiInvoices as RouteModule],
   ["/api/payments/cloudpayments/{event}", cloudpayments as RouteModule],
+  ["/api/orders/{id}/files/{kind}", orderFile as RouteModule],
+  ["/api/orders/{id}/render-progress", orderRenderProgress as RouteModule],
   ["/api/integrations/gowa", gowa as RouteModule],
   ["/api/integrations/zadarma", zadarma as RouteModule],
   ["/api/integrations/google/webhook", google as RouteModule],

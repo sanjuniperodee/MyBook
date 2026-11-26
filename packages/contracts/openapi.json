@@ -14179,6 +14179,417 @@
         },
         "x-auth": "user"
       }
+    },
+    "/api/v1/web/books/{bookId}/checkout": {
+      "get": {
+        "operationId": "webCheckoutPage",
+        "tags": [
+          "web-orders"
+        ],
+        "summary": "Данные страницы оформления заказа книги: готовность макета, промокод/сертификат, договорённость, дозаказ",
+        "parameters": [
+          {
+            "name": "bookId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "locale",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ru",
+                "kk",
+                "uz",
+                "en"
+              ]
+            }
+          },
+          {
+            "name": "promo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "upgrade",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebCheckoutPageResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      }
+    },
+    "/api/v1/web/checkout/promo-check": {
+      "post": {
+        "operationId": "webPromoCheck",
+        "tags": [
+          "web-orders"
+        ],
+        "summary": "Проверка промокода или сертификата при оформлении заказа (с лимитом по IP)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebPromoCheckBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebPromoCheckResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      }
+    },
+    "/api/v1/web/orders": {
+      "post": {
+        "operationId": "webOrderPlace",
+        "tags": [
+          "web-orders"
+        ],
+        "summary": "Оформить заказ с сайта (поддержка всех языков веба, договорённостей и дозаказа печатной версии)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebOrderPlaceBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebOrderPlacedResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      },
+      "get": {
+        "operationId": "webOrdersList",
+        "tags": [
+          "web-orders"
+        ],
+        "summary": "Список заказов клиента для веба: заказы с полями обложки, договорённость и книги для карточки брони",
+        "parameters": [
+          {
+            "name": "locale",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ru",
+                "kk",
+                "uz",
+                "en"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebOrdersListResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      }
+    },
+    "/api/v1/web/orders/{orderId}": {
+      "get": {
+        "operationId": "webOrderDetail",
+        "tags": [
+          "web-orders"
+        ],
+        "summary": "Карточка заказа для веба (владелец или сотрудник с правом orders.view): детали, отзыв, дозаказ, оплата",
+        "parameters": [
+          {
+            "name": "orderId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "locale",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ru",
+                "kk",
+                "uz",
+                "en"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebOrderDetailResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      }
+    },
+    "/api/v1/web/pay/{token}": {
+      "get": {
+        "operationId": "webPayPage",
+        "tags": [
+          "web-orders"
+        ],
+        "summary": "Страница оплаты счёта из чата по секретному токену (без входа и без контактов клиента)",
+        "security": [],
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "locale",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ru",
+                "kk",
+                "uz",
+                "en"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebPayPageResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "none"
+      }
+    },
+    "/api/v1/web/pay/{token}/viewed": {
+      "post": {
+        "operationId": "webPayViewed",
+        "tags": [
+          "web-orders"
+        ],
+        "summary": "Отметить открытие счёта из чата клиентом (сделки-12)",
+        "security": [],
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "none"
+      }
+    },
+    "/api/v1/web/pay/claim": {
+      "post": {
+        "operationId": "webPayClaim",
+        "tags": [
+          "web-orders"
+        ],
+        "summary": "«Я оплатил(а)» переводом по счёту из чата (с лимитом по IP)",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebPayClaimBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebPayClaimResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "none"
+      }
     }
   },
   "components": {
@@ -45009,6 +45420,1523 @@
         "required": [
           "flipbook",
           "editable"
+        ],
+        "additionalProperties": false
+      },
+      "WebPromoPreview": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "const": true
+          },
+          "code": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "percent",
+              "fixed"
+            ]
+          },
+          "value": {
+            "type": "number"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "ok",
+          "code",
+          "kind",
+          "value",
+          "label"
+        ],
+        "additionalProperties": false
+      },
+      "WebCheckoutAgreement": {
+        "type": "object",
+        "properties": {
+          "dealNumber": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "agreedTotal": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "prepaid": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "batch": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "index": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "size": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "index",
+                  "size"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "plan": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "digital",
+                  "hardcover",
+                  "premium"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "gifts": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "giftwrap",
+                "delivery"
+              ]
+            }
+          }
+        },
+        "required": [
+          "dealNumber",
+          "agreedTotal",
+          "prepaid",
+          "batch",
+          "plan",
+          "gifts"
+        ],
+        "additionalProperties": false
+      },
+      "WebCheckoutUpgrade": {
+        "type": "object",
+        "properties": {
+          "orderId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "number": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "credit": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "orderId",
+          "number",
+          "credit"
+        ],
+        "additionalProperties": false
+      },
+      "WebCheckoutPhotoDim": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "width": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "height": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "id",
+          "width",
+          "height"
+        ],
+        "additionalProperties": false
+      },
+      "WebCheckoutIssue": {
+        "type": "object",
+        "properties": {
+          "level": {
+            "type": "string",
+            "enum": [
+              "error",
+              "warning"
+            ]
+          },
+          "text": {
+            "type": "string"
+          },
+          "href": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "level",
+          "text",
+          "href"
+        ],
+        "additionalProperties": false
+      },
+      "WebCheckoutPageData": {
+        "type": "object",
+        "properties": {
+          "pageCount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "exactPages": {
+            "type": "boolean"
+          },
+          "answered": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "photosCount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "photos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebCheckoutPhotoDim"
+            }
+          },
+          "issues": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebCheckoutIssue"
+            }
+          },
+          "blocked": {
+            "type": "boolean"
+          },
+          "staffView": {
+            "type": "boolean"
+          },
+          "initialPromo": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WebPromoPreview"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "initialPlan": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "digital",
+                  "hardcover",
+                  "premium"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "upgrade": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WebCheckoutUpgrade"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "agreement": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WebCheckoutAgreement"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "defaults": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "email": {
+                "type": "string"
+              },
+              "phone": {
+                "type": "string"
+              },
+              "desiredDate": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "occasionLabel": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "name",
+              "email",
+              "phone",
+              "desiredDate",
+              "occasionLabel"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "pageCount",
+          "exactPages",
+          "answered",
+          "photosCount",
+          "photos",
+          "issues",
+          "blocked",
+          "staffView",
+          "initialPromo",
+          "initialPlan",
+          "upgrade",
+          "agreement",
+          "defaults"
+        ],
+        "additionalProperties": false
+      },
+      "WebCheckoutPageResponse": {
+        "type": "object",
+        "properties": {
+          "closed": {
+            "type": "boolean"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WebCheckoutPageData"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "closed",
+          "data"
+        ],
+        "additionalProperties": false
+      },
+      "WebPromoCheckBody": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "locale": {
+            "type": "string",
+            "enum": [
+              "ru",
+              "kk",
+              "uz",
+              "en"
+            ]
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      },
+      "WebPromoCheckResponse": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "code": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "percent",
+              "fixed"
+            ]
+          },
+          "value": {
+            "type": "number"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "additionalProperties": false
+      },
+      "WebOrderPlaceBody": {
+        "type": "object",
+        "properties": {
+          "bookId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "plan": {
+            "type": "string",
+            "maxLength": 40
+          },
+          "quantity": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 20
+          },
+          "delivery": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "contactName": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "contactPhone": {
+            "type": "string",
+            "maxLength": 40
+          },
+          "contactEmail": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "country": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "city": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "address": {
+            "type": "string",
+            "maxLength": 300
+          },
+          "postalCode": {
+            "type": "string",
+            "maxLength": 20
+          },
+          "comment": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "promoCode": {
+            "type": "string",
+            "maxLength": 40
+          },
+          "addons": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "giftNote": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "desiredDate": {
+            "type": "string",
+            "maxLength": 10
+          },
+          "surprise": {
+            "type": "boolean"
+          },
+          "agreementMode": {
+            "type": "string",
+            "enum": [
+              "agreed",
+              "advance"
+            ]
+          },
+          "upgradeFrom": {
+            "type": "string",
+            "maxLength": 40
+          },
+          "consent": {
+            "type": "boolean"
+          },
+          "locale": {
+            "type": "string",
+            "enum": [
+              "ru",
+              "kk",
+              "uz",
+              "en"
+            ]
+          }
+        },
+        "required": [
+          "bookId",
+          "plan",
+          "quantity",
+          "contactName",
+          "contactPhone",
+          "contactEmail",
+          "consent"
+        ],
+        "additionalProperties": false
+      },
+      "WebOrderPlacedResponse": {
+        "type": "object",
+        "properties": {
+          "orderId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "amount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "orderId",
+          "amount"
+        ],
+        "additionalProperties": false
+      },
+      "WebOrderBookCover": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "title": {
+            "type": "string"
+          },
+          "subtitle": {
+            "type": "string"
+          },
+          "coverTemplate": {
+            "type": "string"
+          },
+          "coverLines": {
+            "type": "boolean"
+          },
+          "format": {
+            "type": "string"
+          },
+          "theme": {
+            "type": "string"
+          },
+          "authorName": {
+            "type": "string"
+          },
+          "recipientName": {
+            "type": "string"
+          },
+          "hideRecipientOnCover": {
+            "type": "boolean"
+          },
+          "namesOnCover": {
+            "type": "string"
+          },
+          "coverPhotoId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "coverPhotoExtra": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "coverDesign": {
+            "anyOf": [
+              {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {}
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "subtitle",
+          "coverTemplate",
+          "coverLines",
+          "format",
+          "theme",
+          "authorName",
+          "recipientName",
+          "hideRecipientOnCover",
+          "namesOnCover",
+          "coverPhotoId",
+          "coverPhotoExtra",
+          "coverDesign"
+        ],
+        "additionalProperties": false
+      },
+      "WebOrderListItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "number": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "plan": {
+            "type": "string"
+          },
+          "printed": {
+            "type": "boolean"
+          },
+          "quantity": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "amount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending_payment",
+              "paid",
+              "in_production",
+              "shipped",
+              "delivered",
+              "cancelled"
+            ]
+          },
+          "statusLabel": {
+            "type": "string"
+          },
+          "statusTone": {
+            "type": "string",
+            "enum": [
+              "warning",
+              "success",
+              "info",
+              "accent",
+              "neutral",
+              "danger"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          },
+          "book": {
+            "$ref": "#/components/schemas/WebOrderBookCover"
+          }
+        },
+        "required": [
+          "id",
+          "number",
+          "plan",
+          "printed",
+          "quantity",
+          "amount",
+          "status",
+          "statusLabel",
+          "statusTone",
+          "createdAt",
+          "book"
+        ],
+        "additionalProperties": false
+      },
+      "WebOrdersListResponse": {
+        "type": "object",
+        "properties": {
+          "orders": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebOrderListItem"
+            }
+          },
+          "agreement": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WebDealAgreement"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "agreementBooks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebAgreementBook"
+            }
+          }
+        },
+        "required": [
+          "orders",
+          "agreement",
+          "agreementBooks"
+        ],
+        "additionalProperties": false
+      },
+      "WebKaspiInvoiceView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "invoice",
+              "qr"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "paid",
+              "failed",
+              "cancelled",
+              "expired"
+            ]
+          },
+          "amount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "phone": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "link": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "qrSvg": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "expiresAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "paidAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "method",
+          "status",
+          "amount",
+          "phone",
+          "link",
+          "qrSvg",
+          "expiresAt",
+          "paidAt"
+        ],
+        "additionalProperties": false
+      },
+      "WebOrderDetailOrder": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "number": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending_payment",
+              "paid",
+              "in_production",
+              "shipped",
+              "delivered",
+              "cancelled"
+            ]
+          },
+          "plan": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "currency": {
+            "type": "string"
+          },
+          "itemsAmount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "discountAmount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "addonsAmount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "deliveryAmount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "prepaidAmount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "amount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "promoCode": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "addons": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "deliveryMethod": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "deliveryCountry": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "postalCode": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "city": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "address": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "contactName": {
+            "type": "string"
+          },
+          "contactPhone": {
+            "type": "string"
+          },
+          "contactEmail": {
+            "type": "string"
+          },
+          "giftNote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "desiredDate": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "surprise": {
+            "type": "boolean"
+          },
+          "customerComment": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "trackingNumber": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "paymentClaimedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          },
+          "book": {
+            "$ref": "#/components/schemas/WebOrderBookCover"
+          }
+        },
+        "required": [
+          "id",
+          "number",
+          "status",
+          "plan",
+          "quantity",
+          "currency",
+          "itemsAmount",
+          "discountAmount",
+          "addonsAmount",
+          "deliveryAmount",
+          "prepaidAmount",
+          "amount",
+          "promoCode",
+          "addons",
+          "deliveryMethod",
+          "deliveryCountry",
+          "postalCode",
+          "city",
+          "address",
+          "contactName",
+          "contactPhone",
+          "contactEmail",
+          "giftNote",
+          "desiredDate",
+          "surprise",
+          "customerComment",
+          "trackingNumber",
+          "paymentClaimedAt",
+          "createdAt",
+          "book"
+        ],
+        "additionalProperties": false
+      },
+      "WebOrderDetailResponse": {
+        "type": "object",
+        "properties": {
+          "own": {
+            "type": "boolean"
+          },
+          "printed": {
+            "type": "boolean"
+          },
+          "paid": {
+            "type": "boolean"
+          },
+          "statusLabel": {
+            "type": "string"
+          },
+          "statusTone": {
+            "type": "string",
+            "enum": [
+              "warning",
+              "success",
+              "info",
+              "accent",
+              "neutral",
+              "danger"
+            ]
+          },
+          "reviewable": {
+            "type": "boolean"
+          },
+          "reviewThankYouPercent": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "referral": {
+            "type": "object",
+            "properties": {
+              "friendPercent": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "rewardPercent": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "friendPercent",
+              "rewardPercent"
+            ],
+            "additionalProperties": false
+          },
+          "review": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "rating": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "status": {
+                    "type": "string"
+                  },
+                  "thankYouCode": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "rating",
+                  "status",
+                  "thankYouCode"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "upgrade": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "bookId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "orderId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "number": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "credit": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "bookId",
+                  "orderId",
+                  "number",
+                  "credit"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "payment": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "online": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "publicId": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "publicId"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "manual": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "title": {
+                            "type": "string"
+                          },
+                          "steps": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "required": [
+                          "title",
+                          "steps"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "kaspi": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "initial": {
+                            "anyOf": [
+                              {
+                                "$ref": "#/components/schemas/WebKaspiInvoiceView"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "defaultPhone": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "initial",
+                          "defaultPhone"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "online",
+                  "manual",
+                  "kaspi"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "order": {
+            "$ref": "#/components/schemas/WebOrderDetailOrder"
+          }
+        },
+        "required": [
+          "own",
+          "printed",
+          "paid",
+          "statusLabel",
+          "statusTone",
+          "reviewable",
+          "reviewThankYouPercent",
+          "referral",
+          "review",
+          "upgrade",
+          "payment",
+          "order"
+        ],
+        "additionalProperties": false
+      },
+      "WebPayPageResponse": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string"
+          },
+          "number": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "label": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "paid",
+              "ordered",
+              "payable",
+              "cancelled",
+              "expired"
+            ]
+          },
+          "viewed": {
+            "type": "boolean"
+          },
+          "amount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "plan": {
+            "type": "string"
+          },
+          "purpose": {
+            "type": "string",
+            "enum": [
+              "prepayment",
+              "remainder",
+              "full",
+              "custom"
+            ]
+          },
+          "booksCount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "gifts": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "giftwrap",
+                "delivery"
+              ]
+            }
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          },
+          "claimed": {
+            "type": "boolean"
+          },
+          "accessStatus": {
+            "type": "string",
+            "enum": [
+              "none",
+              "due",
+              "sent",
+              "delivered",
+              "failed",
+              "needs_manager",
+              "skipped"
+            ]
+          },
+          "seller": {
+            "type": "object",
+            "properties": {
+              "legalName": {
+                "type": "string"
+              },
+              "bin": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "legalName",
+              "bin"
+            ],
+            "additionalProperties": false
+          },
+          "online": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "publicId": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "publicId"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "transfer": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "phone": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "phone",
+                  "name"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "kaspi": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "initial": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/WebKaspiInvoiceView"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "defaultPhone": {
+                    "type": "string"
+                  },
+                  "maskedPhone": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "recipient": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "comment": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "initial",
+                  "defaultPhone",
+                  "maskedPhone",
+                  "recipient",
+                  "comment"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "token",
+          "number",
+          "label",
+          "state",
+          "viewed",
+          "amount",
+          "plan",
+          "purpose",
+          "booksCount",
+          "gifts",
+          "expiresAt",
+          "claimed",
+          "accessStatus",
+          "seller",
+          "online",
+          "transfer",
+          "kaspi"
+        ],
+        "additionalProperties": false
+      },
+      "WebPayClaimBody": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "locale": {
+            "type": "string",
+            "enum": [
+              "ru",
+              "kk",
+              "uz",
+              "en"
+            ]
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "additionalProperties": false
+      },
+      "WebPayClaimResponse": {
+        "type": "object",
+        "properties": {
+          "claimed": {
+            "type": "boolean"
+          },
+          "token": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "claimed",
+          "token"
         ],
         "additionalProperties": false
       }

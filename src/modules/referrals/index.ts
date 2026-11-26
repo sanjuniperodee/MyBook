@@ -9,7 +9,7 @@ export type { PaidOrder, ReferralPromos, InvitePromo } from "./application";
 export { inviteUrl } from "./infrastructure/adapters";
 
 /** Cookie с кодом-приглашением: друг пришёл по ссылке — скидка подставится при оформлении. */
-export const INVITE_COOKIE = "mb_invite";
+export { INVITE_COOKIE } from "@/shared/domain/orders";
 
 /** Публичный фасад контекста «Приглашения»: код для друзей, награда за их заказы и покупки из чата. */
 export class ReferralsModule {

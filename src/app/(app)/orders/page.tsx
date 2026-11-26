@@ -5,12 +5,11 @@ import { Link } from "@/i18n/client";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Badge } from "@/components/ui/Badge";
 import { requireUser } from "@/server/auth";
-import { container } from "@/server/container";
+import { localOrdersListDto } from "@/server/v1-local-bridge-orders";
 import { v1WebRead } from "@/server/v1-web-client";
 import { formatPrice } from "@/config/site";
 import { getLocale, getMessages } from "@/i18n/server";
 import { planName } from "@/i18n/labels";
-import { orderStatusLabel, orderStatusTone, isPrintedPlan } from "@/modules/ordering/ui/status";
 import { formatDate } from "@/lib/dates";
 import { AgreementCard } from "@/components/AgreementCard";
 import { CoverPreview } from "@/components/cover/CoverPreview";
@@ -31,18 +30,14 @@ export async function generateMetadata(): Promise<Metadata> {
  */
 export default async function OrdersPage() {
   const user = await requireUser("/orders");
-  const [list, locale, m, agreement] = await Promise.all([container().ordering.queries.userOrders(user.id), getLocale(), getMessages(), container().ordering.orders.agreementFor(user.id)]);
-  // Заказа ещё нет, но есть договорённость с менеджером: показываем «бронь» вместо пустого списка.
-  const books = agreement
-    ? await v1WebRead({
-        name: "orders.agreementBooks",
-        section: "cabinet",
-        locale,
-        local: async () =>
-          (await container().authoring.queries.userBooks(user.id)).map((r) => ({ id: r.book.id, status: r.book.status, theme: r.book.theme, answered: r.answered, total: r.total, words: r.words })),
-        viaApi: async (api) => (await api.booksList({})).books.map((b) => ({ id: b.id, status: b.status, theme: b.theme, answered: b.answered, total: b.total, words: b.words })),
-      })
-    : [];
+  const [locale, m] = await Promise.all([getLocale(), getMessages()]);
+  const { orders: list, agreement, agreementBooks: books } = await v1WebRead({
+    name: "orders.list",
+    section: "orders",
+    locale,
+    local: () => localOrdersListDto(user.id, locale),
+    viaApi: (api) => api.webOrdersList({ locale }),
+  });
   const t = m.orders.list;
   const o = m.orders.order;
   return (
@@ -71,7 +66,7 @@ export default async function OrdersPage() {
         <ul className="mt-8 space-y-4">
           {/* Действующие заказы — сверху, отменённые — ниже и приглушены (порядок внутри групп — от новых к старым). */}
           {[...list].sort((a, b) => Number(a.status === "cancelled") - Number(b.status === "cancelled")).map((order) => {
-            const printed = isPrintedPlan(order.plan);
+            const printed = order.printed;
             const key = nowKey(order.status, printed);
             const cancelled = order.status === "cancelled";
             const waitingPayment = order.status === "pending_payment";
@@ -112,7 +107,7 @@ export default async function OrdersPage() {
                       </div>
                       <div className="flex items-center gap-3 sm:flex-col sm:items-end sm:gap-1.5">
                         <span className="text-lg font-semibold tabular-nums sm:text-xl">{formatPrice(order.amount)}</span>
-                        <Badge tone={orderStatusTone[order.status]}>{orderStatusLabel(order.status, locale, printed)}</Badge>
+                        <Badge tone={order.statusTone}>{order.statusLabel}</Badge>
                       </div>
                     </div>
 

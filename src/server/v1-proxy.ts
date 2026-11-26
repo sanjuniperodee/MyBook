@@ -29,6 +29,9 @@ const FORWARD_REQUEST_HEADERS = [
   "if-range",
   "cache-control",
   "user-agent",
+  "x-webhook-signature",
+  "content-hmac",
+  "x-content-hmac",
 ] as const;
 
 const HOP_BY_HOP_HEADERS = [

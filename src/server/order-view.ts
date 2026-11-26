@@ -1,17 +1,12 @@
 import "server-only";
 import { formatPrice, getPlan, isQuotedDelivery } from "@/config/site";
-import { container } from "@/server/container";
-import { manualPaymentProps } from "@/server/requisites";
-import { invoiceView } from "@/server/kaspi-view";
 import { addonName, deliveryName, planName } from "@/i18n/labels";
-import { deliveryAddress } from "@/modules/ordering/ui/labels";
-import { orderStatusLabel, orderStatusTone } from "@/modules/ordering/ui/status";
-import { isPaid } from "@/modules/ordering/domain";
-import { orderSteps, nowKey } from "@/modules/ordering/ui/steps";
+import { deliveryAddress } from "@/shared/domain/orders";
 import { formatDate } from "@/lib/dates";
 import type { Locale } from "@/i18n/config";
 import type { Messages } from "@/i18n/messages";
 import type { KaspiInvoiceView } from "@/modules/ordering/ui/kaspi";
+import type { container } from "@/server/container";
 
 type Order = NonNullable<Awaited<ReturnType<ReturnType<typeof container>["ordering"]["queries"]["orderDetails"]>>>;
 
@@ -21,8 +16,17 @@ export const kaspiInvoice = (v: KaspiInvoiceView) => ({ id: v.id, method: v.meth
 /**
  * Заказ клиента — одна модель для приложения (API v1 cabinetOrder), по правилам страницы /orders/[id]: что сейчас,
  * этапы, детали и чек, оплата (Kaspi Pay, перевод по реквизитам). Тексты — на языке пользователя.
+ * Без статических импортов `./container`, `./requisites`, `./kaspi-view` и `@/modules/*` — всё подгружается лениво.
  */
 export async function orderModel(order: Order, own: boolean, locale: Locale, m: Messages) {
+  const [{ container }, { manualPaymentProps }, { invoiceView }, { orderStatusLabel, orderStatusTone }, { isPaid }, { orderSteps, nowKey }] = await Promise.all([
+    import("./container"),
+    import("./requisites"),
+    import("./kaspi-view"),
+    import("@/modules/ordering/ui/status"),
+    import("@/modules/ordering/domain"),
+    import("@/modules/ordering/ui/steps"),
+  ]);
   const t = m.orders.order;
   const plan = getPlan(order.plan);
   const printed = !!plan?.printed;
@@ -109,6 +113,7 @@ export async function orderModel(order: Order, own: boolean, locale: Locale, m: 
 
 /** Мои заказы для приложения: от новых к старым, со статусом и суммой. */
 export async function ordersList(userId: string, locale: Locale, m: Messages) {
+  const [{ container }, { orderStatusLabel, orderStatusTone }] = await Promise.all([import("./container"), import("@/modules/ordering/ui/status")]);
   const orders = await container().ordering.queries.userOrders(userId);
   const t = m.orders.list;
   return {

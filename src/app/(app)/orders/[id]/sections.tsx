@@ -2,12 +2,10 @@ import { Link } from "@/i18n/client";
 import { Confetti } from "@/components/motion/Confetti";
 import { Gift, Star, Truck } from "lucide-react";
 import { formatPrice, isQuotedDelivery, site } from "@/config/site";
-import { deliveryAddress } from "@/modules/ordering/ui/labels";
+import { deliveryAddress, type OrderStatus } from "@/shared/domain/orders";
 import type { getMessages } from "@/i18n/server";
 import { addonName, deliveryName, planName } from "@/i18n/labels";
 import type { Locale } from "@/i18n/config";
-import { THANK_YOU } from "@/modules/feedback";
-import { REFERRAL } from "@/modules/referrals";
 import { CoverPreview } from "@/components/cover/CoverPreview";
 import { Morph } from "@/components/motion/PageTransition";
 import { Panel } from "@/components/ui/Panel";
@@ -17,14 +15,13 @@ import { coverNames } from "@/lib/book/cover-names";
 import { photoUrls } from "@/lib/urls";
 import { cn } from "@/lib/class-names";
 import { formatDate } from "@/lib/dates";
-import type { OrderStatus } from "@/shared/domain/orders";
-import type { container } from "@/server/container";
+import type { WebOrderDetailResponseDto } from "@/server/v1-local-bridge-orders";
 import { FileButtons } from "./FileButtons";
 import { nowKey, StatusTrack, type TrackStep } from "../StatusTrack";
 
 type Messages = Awaited<ReturnType<typeof getMessages>>;
 type T = Messages["orders"]["order"];
-type OrderView = NonNullable<Awaited<ReturnType<ReturnType<typeof container>["ordering"]["queries"]["orderDetails"]>>>;
+type OrderView = WebOrderDetailResponseDto["order"];
 
 /**
  * Статус заказа: что с ним сейчас и что дальше (крупно, шрифтом книги), линейка этапов и трек-номер, когда книга отправлена.
@@ -198,10 +195,12 @@ export function BookAside({ book, orderId, t }: { book: OrderView["book"]; order
 export function ReviewCard({
   orderId,
   review,
+  thankYouPercent,
   t,
 }: {
   orderId: string;
   review: { rating: number; status: string; thankYouCode: string | null } | null;
+  thankYouPercent: number;
   t: Awaited<ReturnType<typeof getMessages>>["review"]["card"];
 }) {
   if (!review)
@@ -214,7 +213,7 @@ export function ReviewCard({
         </div>
         <div className="min-w-0 flex-1">
           <h2 className="font-serif text-2xl leading-tight font-medium">{t.title}</h2>
-          <p className="mt-1 text-sm text-ink-soft">{t.text(THANK_YOU.percent)}</p>
+          <p className="mt-1 text-sm text-ink-soft">{t.text(thankYouPercent)}</p>
         </div>
         <Link href={`/review/${orderId}`} className="btn btn-primary shrink-0 max-sm:w-full">
           {t.button}
@@ -246,12 +245,18 @@ export function ReviewCard({
 }
 
 /** Приглашение друзей — после оплаты, когда клиент уже знает, что книга будет. */
-export function InviteCard({ t }: { t: Awaited<ReturnType<typeof getMessages>>["invite"]["card"] }) {
+export function InviteCard({
+  referral,
+  t,
+}: {
+  referral: { friendPercent: number; rewardPercent: number };
+  t: Awaited<ReturnType<typeof getMessages>>["invite"]["card"];
+}) {
   return (
     <section className="panel flex flex-col items-start gap-4 p-5 sm:flex-row sm:items-center sm:gap-6 sm:p-6">
       <div className="min-w-0 flex-1">
         <h2 className="font-semibold">{t.title}</h2>
-        <p className="mt-0.5 text-sm text-ink-soft">{t.text(REFERRAL.friendPercent, REFERRAL.rewardPercent)}</p>
+        <p className="mt-0.5 text-sm text-ink-soft">{t.text(referral.friendPercent, referral.rewardPercent)}</p>
       </div>
       <Link href="/invite" className="btn btn-outline shrink-0 max-sm:w-full">
         {t.button}

@@ -9,7 +9,4 @@ export const addonLabels: Record<AddonId, string> = { express: "Экспресс
 /** Порядок ключей — порядок в списках выбора. */
 export const deliveryLabels: Record<DeliveryId, string> = { courier: "Курьер по городу", post: "Доставка по Казахстану", pickup: "Самовывоз", abroad: "В другую страну (стоимость считает менеджер)" };
 
-/** Адрес доставки одной строкой: страна (для другой страны), индекс, город, адрес; пусто — «—» решает вызывающий. */
-export function deliveryAddress(o: { country?: string | null; postalCode: string | null; city: string | null; address: string | null }): string {
-  return [o.country, o.postalCode, o.city, o.address].filter(Boolean).join(", ");
-}
+export { deliveryAddress } from "@/shared/domain/orders";

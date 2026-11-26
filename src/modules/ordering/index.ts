@@ -30,7 +30,7 @@ export { DEAL_INVOICE_CLOSE_REASONS, dealInvoiceCancelledNote, mergeCancels } fr
 export { KASPI_ALERT_AFTER_MAX } from "./application/KaspiWatchService";
 
 /** Cookie с кодом активированного сертификата — подставляется в оформление заказа. */
-export const GIFT_COOKIE = "mb_gift";
+export { GIFT_COOKIE } from "@/shared/domain/orders";
 
 /** Удаление аккаунта клиента: стереть персональные данные этого контекста (оркеструет src/server/account-deletion). */
 export { orderingPrivacy, ORDER_IN_PROGRESS, type ClientOrderRef } from "./infrastructure/privacy";
