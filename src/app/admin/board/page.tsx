@@ -1,3 +1,4 @@
+import { dayStart, localDay } from "@/modules/reporting/ui/time";
 import { planName } from "@/i18n/labels";
 import { nowMs } from "@/lib/dates";
 import { PageHeader } from "@/components/admin/PageHeader";
@@ -18,8 +19,8 @@ export default async function BoardPage() {
   const monthAgo = new Date(nowMs() - 30 * 86_400_000);
   const { rows, admins } = await crmRead("pages.productionBoard", { since: monthAgo });
   const byId = new Map(admins.map((a) => [a.id, staffLabel(a)]));
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  // Полночь по времени магазина (процесс сайта может быть в UTC).
+  const today = localDay(0);
   const cards: BoardCard[] = rows.map((o) => {
     const plan = getPlan(o.plan);
     return {
@@ -34,7 +35,7 @@ export default async function BoardPage() {
       amountLabel: formatPrice(o.amount),
       amount: o.amount,
       desiredDate: o.desiredDate,
-      daysLeft: o.desiredDate ? Math.round((new Date(`${o.desiredDate}T00:00:00`).getTime() - today.getTime()) / 86_400_000) : null,
+      daysLeft: o.desiredDate ? Math.round((dayStart(o.desiredDate).getTime() - today.getTime()) / 86_400_000) : null,
       claimed: o.status === "pending_payment" && !!o.paymentClaimedAt,
       surprise: o.surprise,
       giftNote: !!o.giftNote,

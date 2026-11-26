@@ -1,6 +1,7 @@
 import "server-only";
 import { cookies, headers as nextHeaders } from "next/headers";
 import { env } from "@/config/env";
+import { CLIENT_IP_HEADER, CLIENT_IP_SIG_HEADER, signClientIp } from "@/shared/clientIp";
 import { apiInternalUrl } from "./api";
 
 /**
@@ -166,6 +167,12 @@ export async function v1SiteProxy(req: Request, opts: V1SiteProxyOptions = {}): 
 
   if (clientIp && clientIp !== "local") {
     forwardHeaders.set("x-real-ip", clientIp);
+    // Фронт на Vercel: адрес клиента с подписью общим секретом — nginx бэкенда видит только адрес Vercel.
+    const secret = process.env.EDGE_IP_SECRET;
+    if (secret) {
+      forwardHeaders.set(CLIENT_IP_HEADER, clientIp);
+      forwardHeaders.set(CLIENT_IP_SIG_HEADER, signClientIp(clientIp, secret));
+    }
   }
 
   const method = req.method.toUpperCase();

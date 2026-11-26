@@ -1,4 +1,4 @@
-import { localDay } from "@/modules/reporting/ui/time";
+import { dayStart, localDay } from "@/modules/reporting/ui/time";
 import { storeTimeZone, zonedDay } from "@/shared/domain/time";
 import { z } from "zod";
 import { MoneyFlow } from "@/components/admin/MoneyFlow";
@@ -120,7 +120,7 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
   const manual = byPlan.find((b) => b.plan === "manual");
 
   const day = await myDayParts(staff);
-  const days = (due: string) => Math.round((new Date(`${due}T00:00:00`).getTime() - localDay(0).getTime()) / 86_400_000);
+  const days = (due: string) => Math.round((dayStart(due).getTime() - localDay(0).getTime()) / 86_400_000);
   const stat = "flex flex-col justify-between gap-1 px-4 py-3.5 sm:px-5";
   const delta = (cur: number, prev: number) => {
     const d = change(cur, prev);
@@ -420,7 +420,7 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
 function AttentionLine({ row: a }: { row: AttentionRow }) {
   const now = nowMs();
   const mins = Math.max(0, Math.round((now - new Date(a.at).getTime()) / 60_000));
-  const days = a.kind === "deadline_unpaid" ? Math.round((new Date(`${a.at}T00:00:00`).getTime() - localDay(0).getTime()) / 86_400_000) : 0;
+  const days = a.kind === "deadline_unpaid" ? Math.round((dayStart(a.at).getTime() - localDay(0).getTime()) / 86_400_000) : 0;
   const label =
     a.kind === "handoff"
       ? `бот передал — ждёт ответа ${mins < 120 ? `${mins} мин` : `${Math.round(mins / 60)} ч`}`

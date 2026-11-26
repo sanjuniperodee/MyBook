@@ -25,8 +25,14 @@ export async function sessionToken(): Promise<string | null> {
   return bearer ? bearer[1] : null;
 }
 
+/**
+ * Домен cookie сессии: SESSION_COOKIE_DOMAIN=mybooks.kz — сессия видна и бэкенду на api.mybooks.kz (звук звонков
+ * WhatsApp идёт туда напрямую). Без переменной — только хост сайта, как раньше.
+ */
+const cookieDomain = () => process.env.SESSION_COOKIE_DOMAIN?.trim() || undefined;
+
 export async function startSession(token: string, expiresAt: Date) {
-  (await cookies()).set(SESSION_COOKIE, token, { httpOnly: true, sameSite: "lax", secure: isSecureCookie, path: "/", expires: expiresAt });
+  (await cookies()).set(SESSION_COOKIE, token, { httpOnly: true, sameSite: "lax", secure: isSecureCookie, path: "/", expires: expiresAt, domain: cookieDomain() });
 }
 
 export async function destroySession() {
@@ -41,7 +47,9 @@ export async function destroySession() {
       },
     });
   }
-  jar.delete(SESSION_COOKIE);
+  // Токен уже отозван в API: даже оставшаяся cookie прежнего вида (без домена) больше не открывает сессию.
+  if (cookieDomain()) jar.set(SESSION_COOKIE, "", { path: "/", maxAge: 0, domain: cookieDomain() });
+  else jar.delete(SESSION_COOKIE);
 }
 
 /** Текущий пользователь (кэш на запрос). Активность для CRM отмечаем не чаще раза в 10 минут. */

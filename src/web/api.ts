@@ -1,6 +1,7 @@
 import "server-only";
 import { cookies, headers as nextHeaders } from "next/headers";
 import { createApiClient, type ApiClient } from "@mybook/contracts";
+import { CLIENT_IP_HEADER, CLIENT_IP_SIG_HEADER, signClientIp } from "@/shared/clientIp";
 
 /**
  * Веб ↔ API v1 (ADR 0012/0013): у веба нет БД и кода бэкенда — страницы, server actions и маршруты ходят только в
@@ -49,7 +50,14 @@ export function createWebApiClient(opts: WebApiClientOptions = {}): ApiClient {
   }
   if (opts.locale) headers["accept-language"] = opts.locale;
   const ip = opts.clientIp?.trim();
-  if (ip && ip !== "local") headers["x-real-ip"] = ip;
+  if (ip && ip !== "local") {
+    headers["x-real-ip"] = ip;
+    const secret = process.env.EDGE_IP_SECRET;
+    if (secret) {
+      headers[CLIENT_IP_HEADER] = ip;
+      headers[CLIENT_IP_SIG_HEADER] = signClientIp(ip, secret);
+    }
+  }
   const rawFetch = opts.fetch ?? fetch;
   const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const timedFetch: typeof fetch = (input, init) => {

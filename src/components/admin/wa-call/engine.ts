@@ -33,7 +33,13 @@ const RECORD_MIMES = ["audio/webm;codecs=opus", "audio/ogg;codecs=opus", "audio/
 const MAX_BUFFERED = 4 * 1920;
 
 /** Адрес аудиопотока звонка на сайте: nginx пропускает его к шлюзу после проверки сессии (deploy/nginx-mybook.conf). */
-export const audioUrl = (callId: string, loc: Pick<Location, "protocol" | "host"> = window.location) => `${loc.protocol === "https:" ? "wss" : "ws"}://${loc.host}/wa-call/audio?call_id=${encodeURIComponent(callId)}`;
+/**
+ * Хост звука звонков: сайт на Vercel не проводит WebSocket — поток идёт прямо на бэкенд (NEXT_PUBLIC_WA_CALL_HOST,
+ * например api.mybooks.kz; cookie сессии там видна с Domain=mybooks.kz). Без переменной — хост страницы, как раньше.
+ */
+const callHost = (loc: Pick<Location, "host">) => process.env.NEXT_PUBLIC_WA_CALL_HOST || loc.host;
+
+export const audioUrl = (callId: string, loc: Pick<Location, "protocol" | "host"> = window.location) => `${loc.protocol === "https:" ? "wss" : "ws"}://${callHost(loc)}/wa-call/audio?call_id=${encodeURIComponent(callId)}`;
 
 function micError(err: unknown): CallAudioError {
   const name = (err as { name?: string })?.name;
@@ -389,7 +395,7 @@ const LISTEN_AGENT = 0;
 const LISTEN_PEER = 1;
 
 /** Адрес прослушки звонка на сайте: nginx пускает к шлюзу после проверки прав (deploy/nginx-wa-call.conf). */
-export const listenUrl = (callId: string, loc: Pick<Location, "protocol" | "host"> = window.location) => `${loc.protocol === "https:" ? "wss" : "ws"}://${loc.host}/wa-call/listen?call_id=${encodeURIComponent(callId)}`;
+export const listenUrl = (callId: string, loc: Pick<Location, "protocol" | "host"> = window.location) => `${loc.protocol === "https:" ? "wss" : "ws"}://${callHost(loc)}/wa-call/listen?call_id=${encodeURIComponent(callId)}`;
 
 /**
  * Прослушка чужого звонка WhatsApp руководителем: только приём — голос сотрудника и голос клиента приходят из шлюза

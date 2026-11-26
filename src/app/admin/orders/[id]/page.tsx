@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Alert } from "@/components/ui/Alert";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Facts } from "@/components/ui/Facts";
-import { localDay } from "@/modules/reporting/ui/time";
+import { dayStart, localDay } from "@/modules/reporting/ui/time";
 import { notFound } from "next/navigation";
 import { formatPrice, getPlan, isQuotedDelivery } from "@/config/site";
 import { deliveryAddress } from "@/modules/ordering/ui/labels";
@@ -93,7 +93,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
   const printed = isPrintedPlan(order.plan);
   const kind = bookKind(book.theme);
   // Сколько дней до даты, к которой нужна книга (по дню магазина): срок — главное для производства.
-  const daysLeft = order.desiredDate ? Math.round((new Date(`${order.desiredDate}T00:00:00`).getTime() - localDay(0).getTime()) / 86_400_000) : null;
+  const daysLeft = order.desiredDate ? Math.round((dayStart(order.desiredDate).getTime() - localDay(0).getTime()) / 86_400_000) : null;
   const open = order.status !== "delivered" && order.status !== "cancelled";
   const dueTone = daysLeft === null || !open ? "neutral" : daysLeft < 0 ? "danger" : daysLeft <= 3 ? "warning" : "neutral";
   const dueText = daysLeft === null ? null : daysLeft < 0 ? `просрочено на ${-daysLeft} дн.` : daysLeft === 0 ? "сегодня" : `через ${daysLeft} дн.`;

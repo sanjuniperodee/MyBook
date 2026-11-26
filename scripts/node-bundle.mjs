@@ -3,7 +3,8 @@
 // вшиваются — берутся из node_modules релиза; остальное — в бандле, потому что standalone-сборка кладёт в node_modules
 // только то, что Next оставил внешним.
 import { build } from "esbuild";
-import { existsSync } from "node:fs";
+import { copyFileSync, existsSync, lstatSync, mkdirSync } from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { asciiBundle } from "./ascii-bundle.mjs";
 
@@ -52,5 +53,42 @@ export async function bundleNodeProcess({ name, entry, nextShim }) {
     logLevel: "warning",
   });
   asciiBundle(out);
+  await traceExternals(out);
   console.log(`${name}: ${out}`);
+}
+
+/**
+ * Внешние пакеты бандла (pg, sharp, @react-pdf…) — в node_modules релиза. Раньше их туда клал трассировщик Next, потому
+ * что сайт сам импортировал БД; с ADR 0013 у веба кода бэкенда нет, и Next их больше не трассирует (26.11 mybook-api
+ * упал на «Cannot find package 'pg'»). Тот же трассировщик (@vercel/nft из Next) проходит по бандлу и докладывает в
+ * .next/standalone/node_modules недостающие файлы; затем каждый внешний пакет должен находиться из папки релиза.
+ */
+async function traceExternals(out) {
+  const require = createRequire(import.meta.url);
+  const { nodeFileTrace } = require("next/dist/compiled/@vercel/nft");
+  const { fileList } = await nodeFileTrace([out], { base: process.cwd() });
+  let copied = 0;
+  for (const file of fileList) {
+    if (!file.startsWith("node_modules/")) continue;
+    const dest = path.join(".next", "standalone", file);
+    // Только обычные файлы: ссылки (пакеты рабочей области) и папки трассировщик перечисляет отдельно от их файлов.
+    if (existsSync(dest) || !lstatSync(file).isFile()) continue;
+    mkdirSync(path.dirname(dest), { recursive: true });
+    copyFileSync(file, dest);
+    copied++;
+  }
+  const fromRelease = createRequire(path.resolve(out));
+  const missing = EXTERNAL.filter((pkg) => {
+    try {
+      fromRelease.resolve(pkg);
+      return false;
+    } catch {
+      return true;
+    }
+  });
+  if (missing.length) {
+    console.error(`${path.basename(out)}: внешние пакеты не находятся из релиза: ${missing.join(", ")}`);
+    process.exit(1);
+  }
+  if (copied) console.log(`${path.basename(out)}: в node_modules релиза докопировано файлов: ${copied}`);
 }

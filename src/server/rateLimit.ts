@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import type { RequestOrigin } from "@/modules/access";
+import { CLIENT_IP_HEADER, CLIENT_IP_SIG_HEADER, verifyClientIp } from "@/shared/clientIp";
 
 /**
  * Ограничение частоты через порт RateLimiter: Redis при REDIS_URL (общий для всех экземпляров),
@@ -17,6 +18,9 @@ export async function rateLimit(key: string, limit: number, windowMs: number): P
  */
 export async function trustedClientIp(): Promise<string> {
   const h = await headers();
+  // Фронт на Vercel: адрес клиента в заголовке, подписанном общим секретом (src/shared/clientIp.ts).
+  const forwarded = h.get(CLIENT_IP_HEADER)?.trim();
+  if (forwarded && verifyClientIp(forwarded, h.get(CLIENT_IP_SIG_HEADER), process.env.EDGE_IP_SECRET)) return forwarded;
   const real = h.get("x-real-ip")?.trim();
   if (real) return real;
   const chain = h.get("x-forwarded-for")?.split(",").map((s) => s.trim()).filter(Boolean) ?? [];

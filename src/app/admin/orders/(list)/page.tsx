@@ -8,7 +8,7 @@ import { orderMoney } from "@/modules/ordering/ui/money";
 import { staffLabel } from "@/shared/domain/staff";
 import { storeTimeZone } from "@/shared/domain/time";
 import type { OrderFilters } from "@/modules/reporting";
-import { iso, localDay } from "@/modules/reporting/ui/time";
+import { dayStart, iso, localDay } from "@/modules/reporting/ui/time";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { OrdersViews } from "../OrdersViews";
 import { OrdersTable, type OrderDue, type OrderRow } from "../OrdersTable";
@@ -57,7 +57,7 @@ export default async function AdminOrders({ searchParams }: { searchParams: Prom
     const open = o.status !== "delivered" && o.status !== "cancelled" && (printed || o.status === "pending_payment");
     let due: OrderDue | null = null;
     if (o.desiredDate) {
-      const left = Math.round((new Date(`${o.desiredDate}T00:00:00`).getTime() - today) / MS_DAY);
+      const left = Math.round((dayStart(o.desiredDate).getTime() - today) / MS_DAY);
       due = {
         label: shortDay(o.desiredDate),
         text: !open ? null : left < 0 ? `просрочено на ${-left} дн.` : left === 0 ? "сегодня" : `через ${left} дн.`,

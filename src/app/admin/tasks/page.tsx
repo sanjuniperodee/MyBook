@@ -1,3 +1,4 @@
+import { localDay } from "@/modules/reporting/ui/time";
 import { AutoApply } from "@/components/admin/AutoApply";
 import Link from "next/link";
 import { MobileFilters } from "@/components/admin/MobileFilters";
@@ -42,11 +43,9 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
   const { rows, admins } = await crmRead("tasks.list", { who: who.slice(0, 40), done: showDone, kind, q });
   const staffList = staffOptions(admins);
   const now = new Date();
-  const tomorrow = new Date(now);
-  tomorrow.setHours(0, 0, 0, 0);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const afterTomorrow = new Date(tomorrow);
-  afterTomorrow.setDate(afterTomorrow.getDate() + 1);
+  // Границы «сегодня / завтра» — по времени магазина (процесс сайта может быть в UTC).
+  const tomorrow = localDay(1);
+  const afterTomorrow = localDay(2);
 
   const toRow = (r: (typeof rows)[number]) => taskRow(r, { userId: me.id, allTasks }, now);
   const due = (r: (typeof rows)[number]) => r.task.dueAt;

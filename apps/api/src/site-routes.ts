@@ -61,6 +61,7 @@ import * as writeAi from "@/server/site-handlers/books/write-ai";
 import * as mediaPhoto from "@/server/site-handlers/media/photo";
 import * as mediaCover from "@/server/site-handlers/media/cover";
 import * as mediaCoverPhoto from "@/server/site-handlers/media/cover-photo";
+import * as fontsFile from "@/server/site-handlers/fonts/file";
 import * as vToken from "@/server/site-handlers/v/token";
 import * as designAiPacks from "@/server/site-handlers/design-ai/packs";
 import * as mediaOembed from "@/server/site-handlers/media/oembed";
@@ -248,6 +249,8 @@ const table: [string, RouteModule][] = [
   ["/api/v/{token}", vToken as RouteModule],
   ["/api/design-ai/packs", designAiPacks as RouteModule],
   ["/api/media/oembed", mediaOembed as RouteModule],
+  // Шрифты книги для приложения (TTF из assets/fonts).
+  ["/api/fonts/{file}", fontsFile as RouteModule],
   // Потоковые медиа книги и шаблонов обложек.
   ["/api/photos/{id}", mediaPhoto as RouteModule],
   ["/api/covers/{file}", mediaCover as RouteModule],
