@@ -1,5 +1,3 @@
-import { container } from "@/server/container";
-import { listFields } from "@/modules/workspace";
 import { PAY_FORM_KEY, PAY_FORM_OPTIONS } from "@/shared/domain/expenses";
 import Link from "next/link";
 import { cn } from "@/lib/class-names";
@@ -7,22 +5,18 @@ import { Panel } from "@/components/ui/Panel";
 import { notFound } from "next/navigation";
 import { can, canAssignOthers, canSeeAssigned, canWork, contactView, requireStaff } from "@/server/access";
 import { staffOptions } from "@/modules/access/ui";
-import { staffLabel } from "@/shared/domain/staff";
 import { dealSourceLabels } from "@/shared/domain/dealSources";
-import { channelLabel } from "@/modules/messaging";
-import { mentionableStaff } from "@/modules/workspace";
+import { channelLabel } from "@/modules/messaging/domain/conversation";
 import { formatPhone, normalizePhone } from "@/shared/domain/phone";
 import { storeTimeZone } from "@/shared/domain/time";
 import { NotesTimeline, TaskList } from "@/components/admin/CrmWidgets";
 import { dealScreen } from "@/modules/reporting/ui/deal-screen";
 import { ChatPanel } from "@/components/admin/ChatPanel";
-import { REJECTION_TAGS, mergeRefusal } from "@/modules/sales/domain";
-import { mergeCancels } from "@/modules/ordering";
+import { REJECTION_TAGS } from "@/modules/sales/domain";
 import { ContactActions } from "@/components/admin/ContactActions";
 import { NoMarketingToggle } from "@/components/admin/NoMarketingToggle";
 import { formatDate } from "@/lib/dates";
 import { formatPrice } from "@/config/site";
-import { invoiceViews } from "@/server/invoice-views";
 import { RECENT_ONLINE_MS, type MoneyGuard } from "@/lib/crm/invoice-model";
 import { DealAi } from "./DealAi";
 import { PaymentsPanel } from "./PaymentsPanel";
@@ -31,7 +25,7 @@ import { DealBooks, DealCalls, DealContact, Duplicates, NotesTimelineReadonly, P
 import { DealHeader } from "./DealHeader";
 import { DealWorkspace } from "./DealWorkspace";
 import { pageId } from "@/server/input";
-import { discountLimit } from "@/server/discount";
+import { crmRead } from "@/server/v1-local-bridge-crm";
 
 export const metadata = { title: "Сделка" };
 
@@ -41,54 +35,23 @@ export default async function DealPage({ params, searchParams }: { params: Promi
   // «Оплата пришла» из чата: ?pay=<счёт> открывает приём платежа по этому счёту.
   const payParam = (await searchParams).pay;
   const payInvoiceId = typeof payParam === "string" && /^[0-9a-f-]{36}$/i.test(payParam) ? payParam : null;
-  const deal = await container().reporting.dealById(id);
-  const batch = deal ? await container().sales.batch.of(deal.id) : [];
-  if (!deal || !canSeeAssigned(staff, deal.assigneeId)) notFound();
-
-  const [allStages, pipelines, admins, { noteRows, taskRows, callRows, convs, client, order, bookRows }] = await Promise.all([
-    container().sales.queries.listStages(),
-    container().sales.queries.listPipelines(),
-    container().access.queries.allStaff(),
-    container().reporting.dealCard(deal, { calls: can(staff, "calls.view"), chats: can(staff, "chats.view") }),
-  ]);
+  const data = await crmRead("deals.card", { id });
+  if (!data) notFound();
+  const { deal, batch, allStages, pipelines, admins, paymentRows, receiptRows, orderMoney, invoices, invoiceLabels, openInvoice, duplicates, openDeals, suggested, dealFields, agreedPlan, maxDiscount, noMarketing, messages, templates, vars, blocker, offers, ai, kaspiWarning, catalog, mentionables, gifts, refundAfterOrder } = data;
+  const { noteRows, taskRows, callRows, convs, client, order, bookRows } = data.card;
   const conv = convs[0] ?? null;
-  const [paymentRows, receiptRows, orderMoney, invoiceRows] = await Promise.all([
-    container().sales.payments.list(deal.id),
-    container().sales.receipts.list(deal.id),
-    deal.orderId ? container().ordering.payments.summary(deal.orderId) : null,
-    container().ordering.invoices.listFor(deal.id),
-  ]);
   const methodName = { manual: "перевод", kaspi: "Kaspi", cloudpayments: "карта" } as const;
   const orderMoneyView = orderMoney ? { due: orderMoney.due, received: orderMoney.received, postpay: orderMoney.postpay, rows: orderMoney.rows.filter((r) => !r.voidedAt).map((r) => ({ id: r.id, amount: r.kind === "refund" ? -r.amount : r.amount, method: r.kind === "refund" ? "возврат" : methodName[r.method], dateLabel: formatDate(r.paidAt), receipt: !!r.receipt })) } : null;
-  const [duplicates, suggestedClientId, dealFields, agreedPlan, maxDiscount, noMarketing, mergeDays] = await Promise.all([
-    container().sales.queries.duplicates(deal),
-    !deal.clientId && deal.contactPhone ? container().sales.deals.findClientByPhone(deal.contactPhone) : null,
-    listFields("deal"),
-    container().sales.agreedPlan.get(deal.id),
-    discountLimit(staff),
-    container().messaging.chats.noMarketingFor({ dealId: deal.id, clientId: deal.clientId, phones: [deal.contactPhone, ...deal.extraPhones] }),
-    container().sales.deals.mergeClosedDays(),
-  ]);
-  const suggested = suggestedClientId ? await container().reporting.clientBrief(suggestedClientId) : null;
   const clientSeen = client?.lastSeenAt ?? null;
-  const chat = container().messaging.view;
-  const [messages, templates, vars, blocker, offers] = conv
-    ? await Promise.all([chat.messages(conv.id), chat.templates(staff.user.id), chat.vars(conv, staffLabel(staff.user)), chat.sendBlocker(conv), container().marketing.service.chatOffers(conv.clientId, can(staff, "promo.give"))])
-    : [[], [], null, null, null];
-  const [ai, kaspiWarning] = await Promise.all([container().assistant.service.configured(), conv ? container().ordering.kaspiWatch.warning().catch(() => null) : null]);
-  const mentionables = (await mentionableStaff()).filter((m) => m.id !== staff.user.id).map((m) => m.label);
 
   const canEdit = can(staff, "deals.edit");
   // Счета из чата: действия — тому, кто ведёт сделку (сервер проверяет те же права).
   const works = canWork(staff, deal.assigneeId);
   const invoicePerms = { edit: canEdit && works, send: canEdit && works && can(staff, "chats.send"), access: works && can(staff, "clients.create"), pay: canEdit && works && !deal.orderId };
   const now = new Date();
-  const invoices = invoiceViews(invoiceRows, { now, withLink: invoicePerms.edit });
-  const invoiceLabels = new Map(invoiceRows.map((i) => [i.id, i.label]));
-  const openInvoice = invoiceRows.find((i) => i.status === "pending_payment") ?? null;
   // Защита от двойной записи: открытый счёт и онлайн-оплаты за 72 ч — в форме приёма платежа явный выбор.
   const guard: MoneyGuard = {
-    invoice: openInvoice ? { id: openInvoice.id, label: openInvoice.label, amount: openInvoice.amount } : null,
+    invoice: openInvoice,
     recentOnline: paymentRows
       .filter((p) => p.method !== "manual" && p.kind !== "refund" && now.getTime() - p.paidAt.getTime() < RECENT_ONLINE_MS)
       .map((p) => ({ id: p.id, text: `${formatPrice(p.amount)} (${p.method === "kaspi" ? "Kaspi" : "картой"}${p.invoiceId && invoiceLabels.has(p.invoiceId) ? `, счёт ${invoiceLabels.get(p.invoiceId)}` : ""}, ${formatDate(p.paidAt, true)})` })),
@@ -104,22 +67,10 @@ export default async function DealPage({ params, searchParams }: { params: Promi
   // Другие открытые сделки контакта: «Объединить сюда» — по правилу продаж (в закрытую — только заявку той же покупки), а в
   // подтверждении — счета, которые слияние отменит (то же правило, что у переноса счетов: mergeCancels).
   const closed = !!stage && stage.kind !== "open";
-  const closeOpen = !!deal.orderId || closed;
-  const targetSide = { kind: stage?.kind ?? null, orderId: deal.orderId, createdAt: deal.createdAt, closedAt: deal.closedAt };
-  const openDeals = await Promise.all(
-    duplicates.open.map(async (r) => {
-      const allowed = can(staff, "deals.edit", "deals.delete") && canSeeAssigned(staff, r.deal.assigneeId) && !mergeRefusal(targetSide, { kind: r.stage.kind, orderId: r.deal.orderId, createdAt: r.deal.createdAt, closedAt: r.deal.closedAt }, mergeDays);
-      if (!allowed) return { ...r, merge: null };
-      const theirs = closeOpen || openInvoice ? await container().ordering.invoices.listFor(r.deal.id) : [];
-      return { ...r, merge: { cancels: mergeCancels([...invoiceRows, ...theirs], r.deal.id, closeOpen).map((i) => `${i.label} на ${formatPrice(i.snapshot().amount)}`) } };
-    }),
-  );
 
   const canReveal = can(staff, "clients.reveal") && canWork(staff, deal.assigneeId);
   const extraPhones = contact.masked ? [] : deal.extraPhones.map((p) => formatPhone(p));
   const showCreateClient = !deal.clientId && !suggested && !!deal.contactPhone && can(staff, "clients.create") && canWork(staff, deal.assigneeId);
-  const gifts = await container().sales.agreedGifts.get(deal.id);
-  const refundAfterOrder = deal.orderId ? await container().sales.refundAfterOrder(deal.id) : null;
 
   // Деньги в шапке — как в листе «Оплата»: получено по сделке (минус возвраты) плюс по заказу; всего — по заказу или по договорённости.
   const dealPaid = payments.reduce((sum, p) => sum + (p.kind === "refund" ? -p.amount : p.amount), 0);
@@ -320,7 +271,7 @@ export default async function DealPage({ params, searchParams }: { params: Promi
                         mentionables={mentionables}
                         ai={ai && canChatSend}
                         invoice={invoicePerms.send ? { dealId: deal.id } : null}
-                        catalog={canChatSend && (await container().messaging.catalogInChat(conv))}
+                        catalog={canChatSend && !!catalog}
                         timeZone={storeTimeZone()}
                         me={staff.user.id}
                       />

@@ -13,6 +13,11 @@ const areas = {
   money: () => import("./money"),
   shell: () => import("./shell"),
   orders: () => import("./orders"),
+  deals: () => import("./deals"),
+  clients: () => import("./clients"),
+  chats: () => import("./chats"),
+  tasks: () => import("./tasks"),
+  settings: () => import("./settings"),
 } as const;
 
 type Areas = { [K in keyof typeof areas]: Awaited<ReturnType<(typeof areas)[K]>> };

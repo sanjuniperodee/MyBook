@@ -272,3 +272,38 @@ describe("API v1 Раздел 5.3 (crm): деньги, каркас и «Мой 
     await expect(strictOp(anna, "money.expenses", {})).rejects.toMatchObject({ status: 403 });
   });
 });
+
+describe("API v1 Раздел 5.4 (crm): чаты, задачи и настройки", () => {
+  beforeEach(() => {
+    resetRequest();
+    resetContainer();
+    vi.stubEnv("WEB_API_ONLY", "");
+    vi.stubEnv("WEB_USE_API_V1", "");
+  });
+  afterEach(() => vi.unstubAllEnvs());
+
+  const strictOp = (user: typeof owner, op: string, args: unknown) =>
+    v1WebRead({
+      name: `crm.${op}`,
+      section: "crm",
+      flag: "crm",
+      parity: "strict",
+      client: createWebApiClient({ baseUrl: "http://127.0.0.1:3044", sessionCookie: user.id, fetch: fetchViaApp }),
+      local: () => runCrmOp(op, args),
+      viaApi: async (api) => decodeWire((await api.webCrmRead({ op, body: { args: await encodeWire(args) } })).data),
+    });
+
+  it("задачи: роль «только свои» не видит чужие, даже если просит who=all", async () => {
+    const asked: unknown[] = [];
+    fake.reporting = { taskList: async (viewer: unknown, filter: unknown) => (asked.push([viewer, filter]), [{ id: "t1", dueAt: at }]) };
+    fake.access.queries = { allStaff: async () => [] };
+    signIn(anna);
+    expect(await strictOp(anna, "tasks.list", { who: "all", done: false, kind: "", q: "" })).toMatchObject({ rows: [{ dueAt: at }] });
+    expect(asked[0]).toEqual([{ userId: "anna", seesAll: false }, { who: "mine", done: false, kind: "", q: "" }]);
+  });
+
+  it("настройки: без права «Настройки» — 403; секреты уходят только маской", async () => {
+    signIn(anna);
+    await expect(strictOp(anna, "settings.telephony", {})).rejects.toMatchObject({ status: 403 });
+  });
+});

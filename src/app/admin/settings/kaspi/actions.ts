@@ -14,3 +14,4 @@ export const saveKaspiApiUrlAction = crmAction<typeof impl.saveKaspiApiUrlAction
 export const saveKaspiAlertAfterAction = crmAction<typeof impl.saveKaspiAlertAfterAction>("settingsKaspi", "saveKaspiAlertAfterAction");
 export const kaspiStatusAction = crmAction<typeof impl.kaspiStatusAction>("settingsKaspi", "kaspiStatusAction");
 export const disconnectKaspiAction = crmAction<typeof impl.disconnectKaspiAction>("settingsKaspi", "disconnectKaspiAction");
+export const ensureKaspiWebhookSecretAction = crmAction<typeof impl.ensureKaspiWebhookSecretAction>("settingsKaspi", "ensureKaspiWebhookSecretAction");

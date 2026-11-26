@@ -1,14 +1,12 @@
-import { container } from "@/server/container";
 import Link from "next/link";
 import { Info, MessagesSquare, UserRound } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Badge } from "@/components/ui/Badge";
-import { can, canAssignOthers, canSeeAssigned, canWork, contactView, requireStaff } from "@/server/access";
+import { can, canAssignOthers, canWork, contactView, requireStaff } from "@/server/access";
 import { staffOptions } from "@/modules/access/ui";
 import { staffLabel } from "@/shared/domain/staff";
-import { channelLabel } from "@/modules/messaging";
+import { channelLabel } from "@/modules/messaging/domain/conversation";
 import { channelLabel as acquisitionChannel, toAttribution } from "@/shared/domain/channels";
-import { mentionableStaff } from "@/modules/workspace";
 import { formatPhone } from "@/shared/domain/phone";
 import { storeTimeZone } from "@/shared/domain/time";
 import { formatPrice } from "@/config/site";
@@ -17,12 +15,12 @@ import { ChatNavProvider, ChatSlot } from "@/components/admin/chat/ChatNav";
 import { ChatsLive } from "@/components/admin/chat/ChatsLive";
 import { DetailsPanel } from "@/components/admin/chat/DetailsPanel";
 import { InvoicesBlock } from "@/components/admin/invoices/InvoicesBlock";
-import { invoiceViews } from "@/server/invoice-views";
 import { BotBanner, ChatSideControls } from "./ChatControls";
 import { PhoneHolder } from "./PhoneHolder";
 import { WhatsappCallButton } from "@/components/admin/WhatsappCall";
 import { CHAT_FILTERS, ChatAvatar, ChatHeader, ChatListPane, SideSection, type ChatFilter } from "@/components/admin/chat/Inbox";
 import { chatTitle, inboxItems, shortTime } from "./inbox-items";
+import { crmRead } from "@/server/v1-local-bridge-crm";
 
 export const metadata = { title: "Чаты" };
 
@@ -38,15 +36,11 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
 
   const selectedId = sp.c && /^[0-9a-f-]{36}$/.test(sp.c) ? sp.c : null;
   // Строки списка — та же сборка, что у живого обновления списка (/api/admin/chats/inbox).
-  const [items, admins, selected, phoneHolder] = await Promise.all([
-    inboxItems(staff, f, q),
-    container().access.queries.allStaff(),
-    selectedId ? container().messaging.queries.conversation(selectedId) : null,
-    container().messaging.phoneHolder(),
-  ]);
+  const [items, page] = await Promise.all([inboxItems(staff, f, q), crmRead("chats.page", { selectedId })]);
+  const { admins, phoneHolder } = page;
   const list = items;
   const names = new Map(admins.map((a) => [a.id, staffLabel(a)]));
-  const conv = selected && canSeeAssigned(staff, selected.assigneeId) ? selected : null;
+  const conv = page.conv;
   const title = (c: { contactName: string; chatId: string; channel: string; meta: { phone?: string } }) => chatTitle(staff, c);
 
   let panel: React.ReactNode = (
@@ -69,24 +63,8 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
   let side: React.ReactNode = null;
 
   if (conv) {
-    const chat = container().messaging.view;
-    const [messages, templates, vars, blocker, { dealRow, client }, offers, mentionables, ai, invoiceRows, bot, kaspiWarning] = await Promise.all([
-      chat.messages(conv.id),
-      chat.templates(staff.user.id),
-      chat.vars(conv, staffLabel(staff.user)),
-      chat.sendBlocker(conv),
-      container().reporting.conversationContext(conv),
-      container().marketing.service.chatOffers(conv.clientId, can(staff, "promo.give")),
-      mentionableStaff(),
-      // Подсказка ответа: AI-помощник или (для диалогов со сделкой) модель продажника.
-      Promise.all([container().assistant.service.configured(), container().assistant.seller.configured().catch(() => false)]).then(([a, s]) => a || s),
-      conv.dealId && can(staff, "deals.view") ? container().ordering.invoices.listFor(conv.dealId) : Promise.resolve([]),
-      container().messaging.botStatus(conv.id),
-      // Кассир Kaspi отключён — плашка над полем ввода (без запроса к Kaspi: сохранённое состояние проверки).
-      container().ordering.kaspiWatch.warning().catch(() => null),
-    ]);
-    // Вопросы клиента помощнику в кабинете — рядом с его WhatsApp (в самой беседе помощника — не нужно).
-    const help = conv.clientId && !conv.meta.help ? await container().messaging.helpQuestionsOf(conv.clientId).catch(() => null) : null;
+    const { messages, templates, vars, blocker, context, offers, mentionables, ai, invoices, bot, kaspiWarning, help, catalog } = page.open!;
+    const { dealRow, client } = context;
     const options = canAssignOthers(staff) ? staffOptions(admins) : staffOptions(admins).filter((a) => a.id === staff.user.id || a.id === conv.assigneeId);
     // Ничей диалог менеджер только читает: ответит тот, кому его отдаст круг (или назначит руководитель).
     const mine = canWork(staff, conv.assigneeId);
@@ -99,7 +77,6 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
       access: mine && dealWork && can(staff, "clients.create"),
       pay: can(staff, "deals.edit") && mine && dealWork && !dealRow?.deal.orderId,
     };
-    const invoices = invoiceViews(invoiceRows, { now: new Date(), withLink: invoicePerms.edit });
     panel = (
       <div className="flex min-w-0 flex-1 flex-col">
         <ChatHeader
@@ -142,7 +119,7 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
           mentionables={mentionables.filter((m) => m.id !== staff.user.id).map((m) => m.label)}
           ai={ai && canReply}
           invoice={invoicePerms.send ? { dealId: conv.dealId } : null}
-          catalog={canReply && (await container().messaging.catalogInChat(conv))}
+          catalog={canReply && catalog}
           timeZone={storeTimeZone()}
           me={staff.user.id}
         />

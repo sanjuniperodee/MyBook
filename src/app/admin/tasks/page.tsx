@@ -2,7 +2,6 @@ import { AutoApply } from "@/components/admin/AutoApply";
 import Link from "next/link";
 import { MobileFilters } from "@/components/admin/MobileFilters";
 import { CalendarDays, CheckCheck, ListChecks, Search, SquareKanban } from "lucide-react";
-import { container } from "@/server/container";
 import { can, requireStaff } from "@/server/access";
 import { staffOptions } from "@/modules/access/ui";
 import { PageHeader } from "@/components/admin/PageHeader";
@@ -13,6 +12,7 @@ import { cn } from "@/lib/class-names";
 import { TaskRows } from "./TaskRows";
 import { taskRow } from "@/lib/crm/task-row";
 import { NewTask, QuickTask } from "./NewTask";
+import { crmRead } from "@/server/v1-local-bridge-crm";
 
 export const metadata = { title: "Задачи" };
 
@@ -39,7 +39,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
   const showDone = sp.done === "1";
   const kind = sp.kind && sp.kind in KINDS ? sp.kind : "";
   const q = (sp.q ?? "").trim().slice(0, 100);
-  const [rows, admins] = await Promise.all([container().reporting.taskList({ userId: me.id, seesAll }, { who, done: showDone, kind, q }), container().access.queries.allStaff()]);
+  const { rows, admins } = await crmRead("tasks.list", { who: who.slice(0, 40), done: showDone, kind, q });
   const staffList = staffOptions(admins);
   const now = new Date();
   const tomorrow = new Date(now);

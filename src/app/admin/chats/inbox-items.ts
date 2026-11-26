@@ -1,13 +1,12 @@
 import "server-only";
-import { container } from "@/server/container";
 import { contactView, type Staff } from "@/server/access";
 import { staffLabel } from "@/shared/domain/staff";
 import { formatPhone } from "@/shared/domain/phone";
 import { storeTimeZone } from "@/shared/domain/time";
 import { parseWorkHours } from "@/shared/domain/schedule";
-import { getSetting } from "@/modules/workspace";
 import { responseWait, slaMinutes } from "@/modules/reporting/ui/response-wait";
 import type { ChatFilter, ChatListItem } from "@/components/admin/chat/inbox-model";
+import { crmRead } from "@/server/v1-local-bridge-crm";
 
 /** Время в строке списка: сегодня — часы, раньше — «5 нояб.» (по поясу магазина). */
 export const shortTime = (d: Date | null) => {
@@ -27,12 +26,7 @@ export const chatTitle = (staff: Staff, c: { contactName: string; chatId: string
  * клиента в рабочих минутах против норматива, кто ведёт, бот, закрепление.
  */
 export async function inboxItems(staff: Staff, f: ChatFilter, q: string | undefined): Promise<ChatListItem[]> {
-  const [list, admins, slaRaw, hoursRaw] = await Promise.all([
-    container().reporting.inbox({ userId: staff.user.id, seesAll: staff.scope === "all" }, f, q),
-    container().access.queries.allStaff(),
-    getSetting("crm.slaMinutes"),
-    getSetting("crm.workHours"),
-  ]);
+  const { list, admins, slaRaw, hoursRaw } = await crmRead("chats.inbox", { f, q: q?.slice(0, 200) });
   const sla = slaMinutes(slaRaw);
   const hours = parseWorkHours(hoursRaw);
   const now = new Date();

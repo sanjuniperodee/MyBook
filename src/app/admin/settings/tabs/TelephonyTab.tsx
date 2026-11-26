@@ -1,16 +1,16 @@
-import { fromEnv, getSetting, maskSecret } from "@/modules/workspace";
 import { TelephonyForm } from "../telephony/TelephonyForm";
 import { SettingsFrame } from "../frame";
 import { hook } from "./shared";
+import { crmRead } from "@/server/v1-local-bridge-crm";
 
 export async function TelephonyTab() {
-  const [provider, zKey, zSecret, pbxToken, zPbx, zWebphone] = await Promise.all([getSetting("telephony.provider"), getSetting("zadarma.key"), getSetting("zadarma.secret"), getSetting("pbx.token"), getSetting("zadarma.pbxId"), getSetting("zadarma.webphone")]);
+  const { provider, providerFromEnv, zadarma, pbxToken } = await crmRead("settings.telephony", {});
   return (
     <SettingsFrame>
       <TelephonyForm
         provider={provider as "off" | "zadarma" | "pbx"}
-        providerFromEnv={fromEnv("telephony.provider")}
-        zadarma={{ key: maskSecret(zKey), secret: maskSecret(zSecret), keyEnv: fromEnv("zadarma.key"), secretEnv: fromEnv("zadarma.secret"), pbxId: zPbx, pbxIdEnv: fromEnv("zadarma.pbxId"), webphone: zWebphone === "on" }}
+        providerFromEnv={providerFromEnv}
+        zadarma={zadarma}
         zadarmaUrl={hook("/api/integrations/zadarma")}
         pbxUrl={pbxToken ? hook("/api/integrations/pbx", pbxToken) : null}
       />

@@ -1,5 +1,3 @@
-import { container } from "@/server/container";
-import { fromEnv, getSetting, maskSecret } from "@/modules/workspace";
 import { env } from "@/config/env";
 import { GoogleForm } from "../google/GoogleForm";
 import { parseWorkHours } from "@/shared/domain/schedule";
@@ -15,28 +13,10 @@ import { Blocklist } from "../crm/Blocklist";
 import { TemplateEditor } from "../crm/TemplateEditor";
 import { HolidaysForm } from "../crm/HolidaysForm";
 import { DEFAULT_HOLIDAYS, HOLIDAYS_MAX, parseHolidays } from "@/modules/automation/domain";
+import { crmRead } from "@/server/v1-local-bridge-crm";
 
 export async function CrmTab() {
-  const [sla, templates, workHours, autoDealFrom, unsorted, maxDiscount, blocked, wEnabled, wChat, reassign, holidays, mergeDays, digest, chatReward, wHelp, helpStats, autoLetters] = await Promise.all([
-    getSetting("crm.slaMinutes"),
-    container().workspace.templates.list(),
-    getSetting("crm.workHours"),
-    getSetting("crm.autoDealFrom"),
-    getSetting("crm.unsorted"),
-    getSetting("crm.maxDiscount"),
-    container().messaging.queries.blocklist(),
-    getSetting("widget.enabled"),
-    getSetting("widget.chat"),
-    getSetting("crm.reassignMinutes"),
-    getSetting("automation.holidays"),
-    container().sales.deals.mergeClosedDays(),
-    getSetting("crm.digest"),
-    getSetting("referral.chatReward"),
-    getSetting("widget.help"),
-    container().messaging.helpStats(30).catch(() => null),
-    getSetting("notify.auto"),
-  ]);
-  const [gId, gSecret, gConnected] = await Promise.all([getSetting("google.clientId"), getSetting("google.clientSecret"), container().boards.google.connectedCount()]);
+  const { sla, templates, workHours, autoDealFrom, unsorted, maxDiscount, blocked, wEnabled, wChat, reassign, holidays, mergeDays, digest, chatReward, wHelp, helpStats, autoLetters, google } = await crmRead("settings.crm", {});
   return (
     <SettingsFrame anchors={tabAnchors("crm")}>
       <CrmSettingsForm slaMinutes={Number(sla) || 15} reassignMinutes={reassign === "" ? 15 : Number(reassign) || 0} workHours={parseWorkHours(workHours)} autoDealFrom={autoDealFrom} unsorted={unsorted !== "off"} maxDiscount={Number(maxDiscount) || 0} mergeClosedDays={mergeDays} widget={{ enabled: wEnabled !== "off", chat: wChat !== "off", help: wHelp !== "off", helpStats }} digest={digest !== "off"} autoLetters={autoLetters !== "off"} chatReward={chatReward === "on"} />
@@ -52,7 +32,7 @@ export async function CrmTab() {
         }))}
       />
 
-      <GoogleForm clientId={gId} clientIdEnv={fromEnv("google.clientId")} secret={maskSecret(gSecret)} secretEnv={fromEnv("google.clientSecret")} redirectUri={`${env.appUrl}/api/integrations/google/callback`} origin={env.appUrl} connected={gConnected} />
+      <GoogleForm clientId={google.clientId} clientIdEnv={google.clientIdEnv} secret={google.secret} secretEnv={google.secretEnv} redirectUri={`${env.appUrl}/api/integrations/google/callback`} origin={env.appUrl} connected={google.connected} />
 
       <HolidaysForm holidays={parseHolidays(holidays)} defaults={[...DEFAULT_HOLIDAYS]} max={HOLIDAYS_MAX} />
 

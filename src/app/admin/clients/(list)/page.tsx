@@ -9,15 +9,16 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { ChatAvatar } from "@/components/admin/chat/Inbox";
 import { ruCount } from "@/i18n/plural";
 import { clientSegments, type ClientSegment } from "@/shared/domain/segments";
-import { CLIENT_OCCASIONS, clientFiltersFrom, clientFiltersQuery, type ClientSort } from "@/modules/reporting";
+import { CLIENT_OCCASIONS, clientFiltersFrom, clientFiltersQuery } from "@/modules/reporting/ui/clientFilters";
+import type { ClientSort } from "@/modules/reporting";
 import { messagesFor } from "@/i18n/messages";
 import { formatPrice } from "@/config/site";
 import { cn } from "@/lib/class-names";
 import { formatDate, nowMs } from "@/lib/dates";
 import { can, contactView, requireStaff } from "@/server/access";
 import { staffLabel } from "@/shared/domain/staff";
-import { container } from "@/server/container";
 import { REPEAT_FORM, RepeatSale } from "./RepeatSale";
+import { crmRead } from "@/server/v1-local-bridge-crm";
 
 export const metadata = { title: "Клиенты" };
 const PAGE = 50;
@@ -39,18 +40,22 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
   const segment = (sp.segment && sp.segment in clientSegments ? sp.segment : "all") as ClientSegment;
   const sort = (["new", "ltv", "active"].includes(sp.sort ?? "") ? sp.sort : "new") as ClientSort;
   const page = Math.max(1, Number(sp.page) || 1);
-  // Роль «только свои» видит своих клиентов и неразобранных (без ответственного).
-  const scopeManagerId = staff.scope === "own" ? staff.user.id : null;
+  // Роль «только свои» видит своих клиентов и неразобранных (без ответственного) — clients.list.
   const onlyMine = sp.mine === "1";
   // Ручная добивка к праздникам (contacts-13): повод, месяц повода, когда покупали, без открытой сделки.
   const filters = clientFiltersFrom((k) => sp[k as keyof typeof sp]);
   const filterQs = clientFiltersQuery(filters);
-  const [{ rows, total }, counts, admins, phoneHolder] = await Promise.all([
-    container().reporting.clients({ segment, q: sp.q, tag: sp.tag, sort, channel: sp.ch, limit: PAGE, offset: (page - 1) * PAGE, scopeManagerId: scopeManagerId ?? (onlyMine ? staff.user.id : null), onlyMine, filters }),
-    container().reporting.segmentCounts(scopeManagerId),
-    container().access.queries.allStaff(),
-    container().messaging.phoneHolder(),
-  ]);
+  const { rows, total, counts, admins, phoneHolder } = await crmRead("clients.list", {
+    segment,
+    q: sp.q?.slice(0, 200),
+    tag: sp.tag?.slice(0, 100),
+    sort,
+    ch: sp.ch?.slice(0, 60),
+    page: Math.min(page, 100_000),
+    size: PAGE,
+    onlyMine,
+    filters: Object.fromEntries(Object.entries(sp).filter(([, v]) => typeof v === "string")),
+  });
   // Контакты для адресной книги телефона магазина (contacts-10) — тому, у кого сейчас телефон, и руководителю.
   const canVcard = can(staff, "clients.export", "clients.contacts") && (phoneHolder?.id === staff.user.id || can(staff, "team.manage"));
   const weekAgo = new Date(nowMs() - 7 * 86_400_000).toISOString().slice(0, 10);

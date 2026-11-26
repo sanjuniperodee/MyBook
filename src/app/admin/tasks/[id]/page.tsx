@@ -2,7 +2,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Bot, ChevronRight, Handshake, MessagesSquare, Package, UserRound } from "lucide-react";
 import { requireStaff } from "@/server/access";
-import { loadTaskDetail } from "../task-detail";
 import { pageId } from "@/server/input";
 import { formatDate } from "@/lib/dates";
 import { cn } from "@/lib/class-names";
@@ -11,10 +10,9 @@ import { Badge } from "@/components/ui/Badge";
 import { Panel } from "@/components/ui/Panel";
 import { TaskRows } from "../TaskRows";
 import { CardPage } from "../boards/CardPage";
-import { boardViewer } from "@/server/boards-api";
-import { container } from "@/server/container";
 import { staffOptions } from "@/modules/access/ui";
 import { Columns3 } from "lucide-react";
+import { crmRead } from "@/server/v1-local-bridge-crm";
 
 export const metadata = { title: "Задача" };
 
@@ -51,7 +49,7 @@ function Linked({ href, icon: Icon, label, children, aside }: { href?: string; i
 export default async function TaskPage({ params }: { params: Promise<{ id: string }> }) {
   const staff = await requireStaff();
   const id = pageId((await params).id);
-  const [d, card, admins] = await Promise.all([loadTaskDetail(staff, id), container().boards.cards.summary(boardViewer(staff), id).catch(() => null), container().access.queries.allStaff()]);
+  const { d, card, admins } = await crmRead("tasks.card", { id });
   if (!d && !card) notFound();
   const boardHref = card?.boardId ? `/admin/tasks/boards/${card.boardId}?card=${id}` : "/admin/tasks/boards";
   if (!d)

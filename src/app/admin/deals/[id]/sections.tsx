@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Facts } from "@/components/ui/Facts";
 import { StageLabel } from "../StageLabel";
 import type { Permission } from "@/shared/domain/permissions";
-import { channelLabel } from "@/modules/messaging";
+import { channelLabel } from "@/modules/messaging/domain/conversation";
 import { formatPrice } from "@/config/site";
 import { orderStatusColors, orderStatusLabel, isPrintedPlan } from "@/modules/ordering/ui/status";
 import { DraftActions, type NoteItem } from "@/components/admin/CrmWidgets";

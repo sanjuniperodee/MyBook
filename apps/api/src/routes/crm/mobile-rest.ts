@@ -13,7 +13,7 @@ import { mobileLayout } from "@/server/mobile-layout";
 import { autoShiftOnVisit } from "@/server/shift";
 import { staffLabel } from "@/shared/domain/staff";
 import { taskJson } from "@/server/crm-lists/work";
-import { loadTaskDetail } from "@/app/admin/tasks/task-detail";
+import { loadTaskDetail } from "@/server/task-detail";
 import { callAction, markCallHandledAction, openChatAction, setShiftAction } from "@/app/admin/crm-actions";
 import { deleteMyTemplateAction, duplicateTemplateAction, reorderMyTemplatesAction, saveMyTemplateAction } from "@/app/admin/templates/actions";
 import { aiTemplateDraftAction } from "@/app/admin/ai-actions";

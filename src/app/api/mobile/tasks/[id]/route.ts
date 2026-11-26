@@ -4,7 +4,7 @@ import { apiStaff } from "@/server/api";
 import { idParams } from "@/server/input";
 import { mobile } from "@/server/mobile-api";
 import { deleteTaskAction, updateTaskAction } from "@/app/admin/actions";
-import { loadTaskDetail } from "@/app/admin/tasks/task-detail";
+import { loadTaskDetail } from "@/server/task-detail";
 import { HttpError } from "@/server/api";
 import { taskJson } from "@/server/crm-lists/work";
 

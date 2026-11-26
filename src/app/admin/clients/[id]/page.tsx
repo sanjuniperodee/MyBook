@@ -1,13 +1,11 @@
-import { listFields } from "@/modules/workspace";
 import { nowMs } from "@/lib/dates";
 import { BackLink } from "@/components/admin/BackLink";
 import { Panel } from "@/components/ui/Panel";
 import { Badge } from "@/components/ui/Badge";
 import { ChatAvatar } from "@/components/admin/chat/Inbox";
 import { notFound } from "next/navigation";
-import { container } from "@/server/container";
 import { staffOptions } from "@/modules/access/ui";
-import { canRemind } from "@/modules/notifications";
+import { canRemind } from "@/modules/notifications/domain/lifecycle";
 import { NotesTimeline, TaskList } from "@/components/admin/CrmWidgets";
 import { clientScreen } from "@/modules/reporting/ui/client-screen";
 import { ClientFields, RemindButton, TagEditor } from "./ClientControls";
@@ -15,25 +13,20 @@ import { ClientBooks, ClientDeals, ClientHeader, ClientOrders, ClientPayments, C
 import { ClientTabs } from "./ClientTabs";
 import { ClientAccess } from "./ClientAccess";
 import { staffLogin } from "@/lib/crm/access-message";
-import { isPhoneEmail } from "@/modules/identity/domain";
+import { isPhoneEmail } from "@/modules/identity/domain/Login";
 import { can, canAssignOthers, canSeeAssigned, contactView, requireStaff, canSeeClientRecords } from "@/server/access";
 import { pageId } from "@/server/input";
+import { crmRead } from "@/server/v1-local-bridge-crm";
 
 export const metadata = { title: "Клиент" };
 
 export default async function ClientPage({ params }: { params: Promise<{ id: string }> }) {
   const staff = await requireStaff("clients.view");
   const id = pageId((await params).id);
-  const client = await container().reporting.clientById(id);
-  if (!client || !canSeeAssigned(staff, client.managerId)) notFound();
-
-  const [{ bookRows, orderRows, taskRows, noteRows, dealRows, paymentRows, money }, admins, clientFields, noMarketing, referrals] = await Promise.all([
-    container().reporting.clientCard(id, { deals: can(staff, "deals.view") }),
-    container().access.queries.allStaff(),
-    listFields("client"),
-    container().messaging.chats.noMarketingFor({ clientId: client.id, phones: [client.phone, ...client.extraPhones] }),
-    container().reporting.clientReferrals(id),
-  ]);
+  const data = await crmRead("clients.card", { id });
+  if (!data) notFound();
+  const { client, admins, clientFields, noMarketing, referrals } = data;
+  const { bookRows, orderRows, taskRows, noteRows, dealRows, paymentRows, money } = data.card;
 
   const adminOptions = staffOptions(admins);
   // Неразобранный клиент виден роли «только свои», но его книги и заказы — только своим клиентам.

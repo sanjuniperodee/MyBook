@@ -99,3 +99,9 @@ export async function disconnectKaspiAction(): Promise<Result> {
   revalidatePath("/admin/settings");
   return { ok: true };
 }
+
+/** Секрет вебхука Kaspi для вкладки «Оплата»: заводится при первом открытии (если не задан переменной окружения). */
+export async function ensureKaspiWebhookSecretAction(): Promise<string> {
+  await assertStaff("settings.manage");
+  return (await import("@/modules/workspace")).ensureToken("kaspi.webhookSecret");
+}

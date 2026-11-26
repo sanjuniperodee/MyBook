@@ -1,6 +1,4 @@
 import { AutoApply } from "@/components/admin/AutoApply";
-import { container } from "@/server/container";
-import { listFields } from "@/modules/workspace";
 import { channelLabel, toAttribution } from "@/shared/domain/channels";
 import Link from "next/link";
 import { MobileFilters } from "@/components/admin/MobileFilters";
@@ -26,6 +24,7 @@ import { lostReasons } from "@/modules/sales/domain/meta";
 import { storeTimeZone, zonedDay } from "@/shared/domain/time";
 import { DEAL_DATE_FIELDS, DEAL_FILTER_KEYS, dealAdvancedFilters, dealDatePresets } from "@/modules/reporting/ui/dealFilters";
 import { MANAGER_LISTS, MANAGER_LIST_KEYS, managerListKey } from "@/modules/reporting/ui/managerLists";
+import { crmRead } from "@/server/v1-local-bridge-crm";
 
 export const metadata = { title: "Сделки" };
 /** Сделок на странице списка; доска показывает до 1000 (закрытые — за 30 дней). */
@@ -34,21 +33,12 @@ const PAGE = 100;
 export default async function DealsPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined> & { mine?: string; a?: string; src?: string; q?: string; view?: string; p?: string }> }) {
   const staff = await requireStaff("deals.view");
   const sp = await searchParams;
-  const pipelines = await container().sales.queries.listPipelines();
-  const pipeline = pipelines.find((x) => x.id === sp.p) ?? pipelines[0];
-  const selectFields = (await listFields("deal")).filter((f) => f.type === "select");
   const view = sp.view === "list" ? "list" : "board";
   const q = sp.q?.trim();
   const page = view === "list" ? Math.max(1, Math.floor(Number(sp.page)) || 1) : 1;
-  const viewer = { userId: staff.user.id, seesAll: staff.scope === "all" };
-  const [stages, rows, totals, admins, views] = await Promise.all([
-    container().sales.queries.listStages(pipeline.id),
-    container().reporting.dealList(viewer, pipeline, sp, selectFields, view, view === "list" ? { limit: PAGE, offset: (page - 1) * PAGE } : undefined),
-    // Итоги шапки — отдельным запросом по тем же фильтрам: список обрезан страницей, доска — 1000 карточками.
-    container().reporting.dealTotals(viewer, pipeline, sp, selectFields, view),
-    container().access.queries.allStaff(),
-    container().reporting.savedViews(staff.user.id),
-  ]);
+  // Итоги шапки — отдельным запросом по тем же фильтрам: список обрезан страницей, доска — 1000 карточками (deals.board).
+  const sp1 = Object.fromEntries(Object.entries(sp).filter((e): e is [string, string] => typeof e[1] === "string").map(([k, v]) => [k, v.slice(0, 500)]));
+  const { pipelines, pipeline, selectFields, stages, rows, totals, admins, views } = await crmRead("deals.board", { sp: sp1, view, page: Math.min(page, 10_000), size: PAGE });
   const names = new Map(admins.map((a) => [a.id, staffLabel(a)]));
   const now = nowMs();
   const cards: DealCard[] = rows.map(({ deal, nextTask, unread, book, paid }) => ({
