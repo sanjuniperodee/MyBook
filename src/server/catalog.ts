@@ -1,6 +1,7 @@
 import "server-only";
 import { applyCatalog, applySeller, applySiteFlags, getCatalogOverrides, getSellerOverrides, missingSeller, sanitizeOverrides, sanitizeSeller, type CatalogOverrides, type SellerDetails } from "@/config/site";
 import { deleteSetting, getSetting, getSettings, saveSettings } from "@/modules/workspace";
+import { webApiClient, webApiOnly } from "./v1-web-client";
 
 /** Ключи настроек реквизитов продавца. WhatsApp магазина — общий с рекламными ссылками (crm.whatsappNumber). */
 const SELLER_KEYS = { legalName: "site.legalName", bin: "site.bin", phone: "site.phone", whatsapp: "crm.whatsappNumber" } as const satisfies Record<keyof SellerDetails, string>;
@@ -31,6 +32,8 @@ function warnMissingSeller(overrides: Partial<SellerDetails>) {
  * сайт — остаются прежние значения.
  */
 export async function ensureCatalog() {
+  // Сайт без БД (Vercel): те же настройки берём из API v1, не чаще раза в 10 секунд.
+  if (webApiOnly()) return ensureCatalogViaApi();
   try {
     const raw = await getSetting("catalog.overrides");
     applyCatalog(raw ? sanitizeOverrides(JSON.parse(raw)) : null);
@@ -45,6 +48,41 @@ export async function ensureCatalog() {
   } catch (err) {
     console.error("[catalog] не удалось прочитать реквизиты продавца из настроек", err);
   }
+}
+
+/** Настройки каталога как есть — для сайта без БД (API v1 webSiteCatalog); применяет их ensureCatalogViaApi. */
+export async function readCatalogSettings() {
+  const [raw, registration, giftNote, seller] = await Promise.all([getSetting("catalog.overrides"), getSetting("site.registration"), getSetting("site.giftNote"), readSeller()]);
+  let overrides: Record<string, unknown> | null = null;
+  try {
+    const parsed: unknown = raw ? JSON.parse(raw) : null;
+    overrides = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : null;
+  } catch {
+    overrides = null;
+  }
+  return { overrides, registration: registration !== "off", giftNote: giftNote !== "off", seller };
+}
+
+const CATALOG_TTL_MS = 10_000;
+const viaApi = globalThis as unknown as { __mybookCatalogAt?: number; __mybookCatalogLoad?: Promise<void> };
+
+async function ensureCatalogViaApi() {
+  if (viaApi.__mybookCatalogAt && Date.now() - viaApi.__mybookCatalogAt < CATALOG_TTL_MS) return;
+  viaApi.__mybookCatalogLoad ??= (async () => {
+    try {
+      const s = await (await webApiClient({ sessionCookie: null })).webSiteCatalog({});
+      applyCatalog(s.overrides ? sanitizeOverrides(s.overrides as CatalogOverrides) : null);
+      applySiteFlags({ registration: s.registration, giftNote: s.giftNote });
+      applySeller(s.seller);
+      warnMissingSeller(getSellerOverrides());
+      viaApi.__mybookCatalogAt = Date.now();
+    } catch (err) {
+      console.error("[catalog] не удалось получить цены из API v1", err);
+    } finally {
+      viaApi.__mybookCatalogLoad = undefined;
+    }
+  })();
+  await viaApi.__mybookCatalogLoad;
 }
 
 /** Сохранить цены из админки (null — вернуть заводские) и сразу применить их в этом процессе. */

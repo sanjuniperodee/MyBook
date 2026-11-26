@@ -1,17 +1,7 @@
-import { container } from "@/server/container";
-import { messagesFor } from "@/i18n/messages";
-import { fileRoute } from "@/server/file-route";
+import { v1SiteProxy } from "@/server/v1-proxy";
 
-export const GET = fileRoute("gift-pdf", async (_req: Request, { params }: { params: Promise<{ token: string }> }) => {
-  const { token } = await params;
-  const found = await container().ordering.giftPdf(token);
-  if (!found || found.gift.status !== "paid") return new Response(null, { status: 404 });
-  const { gift, pdf } = found;
-  return new Response(new Uint8Array(pdf), {
-    headers: {
-      "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="${messagesFor(gift.locale).gift.card.filename(gift.number)}"`,
-      "Cache-Control": "private, no-store",
-    },
-  });
-});
+type Ctx = { params: Promise<{ token: string }> };
+
+export function GET(req: Request, ctx: Ctx) {
+  return v1SiteProxy("public", req, async () => (await import("@/server/site-handlers/public/gift-pdf")).GET(req, ctx));
+}

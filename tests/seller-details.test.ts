@@ -27,10 +27,13 @@ describe("реквизиты продавца", () => {
   beforeEach(() => {
     settings.clear();
     resetWarned();
+    // Сервер с БД: ensureCatalog читает настройки сам (без DATABASE_URL сайт считался бы «без БД» и шёл в API v1).
+    vi.stubEnv("DATABASE_URL", "postgres://test/mybook");
     warnings = [];
     vi.spyOn(console, "warn").mockImplementation((m: string) => void warnings.push(m));
   });
   afterEach(() => {
+    vi.unstubAllEnvs();
     applySeller(null);
     resetWarned();
     vi.restoreAllMocks();

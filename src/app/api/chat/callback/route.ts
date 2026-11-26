@@ -1,26 +1,5 @@
-import { NextResponse } from "next/server";
-import { z } from "zod";
-import { api, checkOrigin, HttpError } from "@/server/api";
-import { getCurrentUser } from "@/server/auth";
-import { trustedClientIp, rateLimit } from "@/server/rateLimit";
-import { normalizePhone } from "@/shared/domain/phone";
-import { container } from "@/server/container";
+import { v1SiteProxy } from "@/server/v1-proxy";
 
-const schema = z.object({
-  name: z.string().trim().max(80).default(""),
-  phone: z.string().trim().max(30),
-  comment: z.string().trim().max(500).optional(),
-  page: z.string().max(200).optional(),
-});
-
-/** «Перезвоните мне» из виджета на сайте: сделка + задача позвонить через 15 минут. */
-export const POST = api(async (req) => {
-  checkOrigin(req);
-  if (!(await container().messaging.widgetConfig()).enabled) throw new HttpError(403, "widgetOff");
-  const body = schema.parse(await req.json());
-  if (normalizePhone(body.phone).length < 10) throw new HttpError(400, "widgetPhone");
-  if (!await rateLimit(`callback:${await trustedClientIp()}`, 5, 3600_000)) throw new HttpError(429, "widgetRate");
-  const user = await getCurrentUser();
-  await container().messaging.site.requestCallback({ ...body, userId: user?.role === "user" ? user.id : null });
-  return NextResponse.json({ ok: true });
-});
+export function POST(req: Request) {
+  return v1SiteProxy("public", req, async () => (await import("@/server/site-handlers/public/site-callback")).POST(req, undefined as never));
+}

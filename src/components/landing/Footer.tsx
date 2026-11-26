@@ -5,7 +5,7 @@ import { site } from "@/config/site";
 import { Link } from "@/i18n/client";
 import { getLocale, getMessages } from "@/i18n/server";
 import { landings } from "@/lib/content/landings";
-import { container } from "@/server/container";
+import { siteChrome } from "@/server/site-chrome";
 import { SiteWidget } from "@/components/SiteWidget";
 
 /**
@@ -13,7 +13,7 @@ import { SiteWidget } from "@/components/SiteWidget";
  * покупателям, связь), внизу реквизиты. Телефон и WhatsApp — крупно: это самый быстрый путь к человеку.
  */
 export async function Footer() {
-  const [locale, m, widget] = await Promise.all([getLocale(), getMessages(), container().messaging.widgetConfig().catch(() => null)]);
+  const [locale, m, { widget }] = await Promise.all([getLocale(), getMessages(), siteChrome()]);
   const f = m.common.footer;
   const year = new Date().getFullYear();
   const link = "inline-flex min-h-8 items-center text-ink-soft transition-colors hover:text-wine";

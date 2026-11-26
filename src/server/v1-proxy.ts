@@ -32,6 +32,8 @@ const FORWARD_REQUEST_HEADERS = [
   "x-webhook-signature",
   "content-hmac",
   "x-content-hmac",
+  // Язык запроса, который ставит src/proxy.ts (/kk/r/<код> ведёт на казахскую главную).
+  "x-mb-locale",
 ] as const;
 
 const HOP_BY_HOP_HEADERS = [

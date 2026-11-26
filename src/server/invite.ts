@@ -1,8 +1,9 @@
 import "server-only";
 import { cookies } from "next/headers";
-import { INVITE_COOKIE } from "@/modules/referrals";
+import { INVITE_COOKIE } from "@/shared/domain/orders";
 import { consoleLogger } from "@/shared/application";
-import { container } from "@/server/container";
+import { localInviteWelcome } from "./v1-local-bridge-public";
+import { v1WebRead } from "./v1-web-client";
 
 const log = consoleLogger("invite");
 
@@ -11,7 +12,14 @@ export async function invitedBy() {
   const code = (await cookies()).get(INVITE_COOKIE)?.value;
   if (!code) return null;
   try {
-    return await container().referrals.service.welcome(code);
+    const { welcome } = await v1WebRead({
+      name: "public.inviteWelcome",
+      section: "public",
+      sessionCookie: null,
+      local: () => localInviteWelcome(code),
+      viaApi: (api) => api.webInviteWelcome({ code }),
+    });
+    return welcome;
   } catch (err) {
     log.error("invite welcome", err);
     return null;

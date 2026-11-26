@@ -12,3 +12,6 @@ export interface ReviewPhoto {
   width: number;
   height: number;
 }
+
+/** Благодарность за любой отзыв (не только за хороший): персональная скидка на следующую книгу. */
+export const THANK_YOU = { percent: 10, validDays: 60 } as const;

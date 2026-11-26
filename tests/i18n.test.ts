@@ -114,6 +114,7 @@ describe("нет русских строк вне словарей", () => {
     "server/sales-analytics.ts", // аналитика продаж — только CRM (страница и API v1 для сотрудников), подписи по-русски
     "modules/production/infrastructure/pdf/render.tsx", // техзадание для типографии — на русском
     "modules/ordering/ui/labels.ts", // подписи тарифов и доставки для CRM — на русском
+    "shared/domain/links.ts", // рекламные ссылки: «(код: …)» в первом сообщении WhatsApp — метка, которую разбирает CRM (linkCodeFromText), как в modules/marketing
     "shared/domain/boards.ts", // доски задач — только CRM: шаблоны, подписи правил и приоритетов по-русски
     "modules/ordering/ui/notice.ts", // подпись под формой статуса в карточке заказа (CRM): что уйдёт клиенту
     "components/LanguageSwitch.tsx", // двуязычная подпись «Тіл / Язык»

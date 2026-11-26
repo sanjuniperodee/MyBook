@@ -9,7 +9,7 @@ import { toEditorPhoto, type EditorPhoto, type PhotoUndo } from "@/lib/book/edit
 import type { PhotoPlace } from "@/lib/book/photo-place";
 import { photoUrl } from "@/lib/urls";
 import { cn } from "@/lib/class-names";
-import { MAX_PHOTOS } from "@/modules/authoring/domain/Photo";
+import { MAX_PHOTOS } from "@/shared/domain/photos";
 import { patchPhotos, uploadPhotos, PHOTO_ACCEPT } from "../photos/api";
 import type { PlaceNames } from "../photos/model";
 import { PlaceBadge } from "../photos/PlaceBadge";

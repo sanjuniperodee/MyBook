@@ -4,9 +4,10 @@ import { PlainSheet, PlainShell } from "@/components/landing/PlainShell";
 import { CoverPreview } from "@/components/cover/CoverPreview";
 import { getCoverTemplate } from "@/lib/book/covers";
 import { coverNames } from "@/lib/book/cover-names";
-import { container } from "@/server/container";
-import { reviewAccess } from "@/server/reviews";
-import { FeedbackError, THANK_YOU } from "@/modules/feedback";
+import { ApiClientError } from "@mybook/contracts";
+import { THANK_YOU } from "@/shared/domain/reviews";
+import { localReviewPage } from "@/server/v1-local-bridge-public";
+import { v1WebRead } from "@/server/v1-web-client";
 import { getMessages } from "@/i18n/server";
 import { bookKind } from "@/lib/content/kinds";
 import { ReviewForm } from "./ReviewForm";
@@ -18,20 +19,28 @@ export async function generateMetadata(): Promise<Metadata> {
 /** Отзыв о книге — по ссылке из письма (без входа) или из заказа в кабинете. */
 export default async function ReviewPage({ params, searchParams }: { params: Promise<{ orderId: string }>; searchParams: Promise<{ t?: string }> }) {
   const [{ orderId }, { t: token }] = await Promise.all([params, searchParams]);
-  if (!(await reviewAccess(orderId, token))) notFound();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(orderId)) notFound();
+  // Доступ (подпись ссылки или владелец заказа) и данные страницы — через API v1 (Раздел 4).
+  const page = await v1WebRead({
+    name: "public.reviewPage",
+    section: "public",
+    local: () => localReviewPage(orderId, token ?? null),
+    viaApi: async (api) => {
+      try {
+        return await api.webReviewPage({ orderId, ...(token ? { t: token } : {}) });
+      } catch (err) {
+        if (err instanceof ApiClientError && err.status === 404) return null;
+        throw err;
+      }
+    },
+  });
+  if (!page) notFound();
   const m = await getMessages();
   const t = m.review;
-  const details = await container().ordering.queries.orderDetails(orderId);
-  if (!details) notFound();
-  const book = details.book;
-
-  let state: Awaited<ReturnType<ReturnType<typeof container>["feedback"]["reviews"]["open"]>> | null = null;
-  try {
-    state = await container().feedback.reviews.open(orderId);
-  } catch (err) {
-    if (!FeedbackError.is(err)) throw err;
-  }
-  const review = state?.review?.snapshot() ?? null;
+  const details = page;
+  const book = page.book;
+  const state = page.state;
+  const review = state?.review ?? null;
   // Ссылка из письма работает без входа, а фото книги отдаются только владельцу в кабинете — поэтому шаблон без фото.
   const template = getCoverTemplate(book.coverTemplate).requiresPhoto ? "linen" : book.coverTemplate;
 
@@ -58,23 +67,10 @@ export default async function ReviewPage({ params, searchParams }: { params: Pro
               <ReviewForm
                 orderId={orderId}
                 token={token ?? null}
-                defaultName={state.order.name}
+                defaultName={state.defaultName}
                 thankYou={THANK_YOU}
                 kind={bookKind(book.theme)}
-                initial={
-                  review
-                    ? {
-                        rating: review.rating,
-                        text: review.text,
-                        authorName: review.authorName,
-                        city: review.city,
-                        consent: review.consent,
-                        hasPhoto: !!review.photo,
-                        status: review.status,
-                        thankYouCode: review.thankYouCode,
-                      }
-                    : null
-                }
+                initial={review}
               />
             )}
           </PlainSheet>

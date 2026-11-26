@@ -1,11 +1,7 @@
-import { NextResponse } from "next/server";
-import { env } from "@/config/env";
-import { container } from "@/server/container";
+import { v1SiteProxy } from "@/server/v1-proxy";
 
-/** Короткая рекламная ссылка: считаем переход и ведём на сайт с UTM-метками или в WhatsApp с кодом ссылки. */
-export async function GET(req: Request, { params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params;
-  const target = await container().marketing.service.follow(slug, req.headers.get("user-agent") ?? "");
-  if (!target) return NextResponse.redirect(env.appUrl, 302);
-  return NextResponse.redirect(target, { status: 302, headers: { "Cache-Control": "no-store" } });
+type Ctx = { params: Promise<{ slug: string }> };
+
+export function GET(req: Request, ctx: Ctx) {
+  return v1SiteProxy("public", req, async () => (await import("@/server/site-handlers/public/short-link")).GET(req, ctx));
 }

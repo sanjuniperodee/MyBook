@@ -16,8 +16,8 @@ import { applyGender } from "@/lib/content/gender";
 import { chapterTitle, countQuestions, getTheme } from "@/lib/content/themes";
 import { getCurrentUser } from "@/server/auth";
 import { siteReviews } from "@/server/reviews";
-import { container } from "@/server/container";
-import { isValidSlug, whatsappLink } from "@/modules/marketing/domain/links";
+import { siteChrome } from "@/server/site-chrome";
+import { isValidSlug, whatsappLink } from "@/shared/domain/links";
 import { formatPrice, getVisiblePlans, productionDays, registrationOpen, site } from "@/config/site";
 import { getLocale, getMessages } from "@/i18n/server";
 import { socialMeta } from "@/lib/seo";
@@ -55,7 +55,7 @@ export default async function LoveAdPage({ searchParams }: { searchParams: Promi
     getLocale(),
     getMessages(),
     siteReviews(6, THEME),
-    container().marketing.service.shopWhatsapp().catch(() => site.contacts.whatsapp.replace(/\D/g, "")),
+    siteChrome().then((c) => c.shopWhatsappDigits),
   ]);
   const c = adLoveCopy(locale);
 

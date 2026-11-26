@@ -8,16 +8,14 @@ import { LandingHeader } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
 import { GiftCardVisual } from "@/components/GiftCardVisual";
 import { getCurrentUser } from "@/server/auth";
-import { container } from "@/server/container";
-import { manualPaymentProps } from "@/server/requisites";
-import { isOnlinePayment, redeemUrl } from "@/modules/ordering";
-import { env } from "@/config/env";
+import { ApiClientError } from "@mybook/contracts";
+import { localGiftStatus } from "@/server/v1-local-bridge-public";
+import { v1WebRead } from "@/server/v1-web-client";
 import { formatPrice, site } from "@/config/site";
 import { parseDay } from "@/lib/occasions";
 import { getLocale, getMessages } from "@/i18n/server";
 import { planName } from "@/i18n/labels";
 import { messagesFor } from "@/i18n/messages";
-import { kaspiPaymentProps } from "@/app/api/payments/kaspi/view";
 import { GiftPayment } from "./GiftPayment";
 import { CopyLink } from "./CopyLink";
 
@@ -27,11 +25,26 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function GiftStatusPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  const [gift, user, locale, m] = await Promise.all([container().ordering.queries.giftByToken(token), getCurrentUser(), getLocale(), getMessages()]);
+  const [user, locale, m] = await Promise.all([getCurrentUser(), getLocale(), getMessages()]);
+  // Сертификат по секретной ссылке — через API v1 (Раздел 4); на сервере с БД — тем же сборщиком напрямую.
+  const gift = await v1WebRead({
+    name: "public.giftStatus",
+    section: "public",
+    locale,
+    local: () => localGiftStatus(token, m),
+    viaApi: async (api) => {
+      try {
+        return await api.webGiftStatus({ token, locale });
+      } catch (err) {
+        if (err instanceof ApiClientError && err.status === 404) return null;
+        throw err;
+      }
+    },
+  });
   if (!gift) notFound();
   const t = m.gift.status;
   const paid = gift.status === "paid" && gift.promo;
-  const kaspi = gift.status === "pending_payment" ? await kaspiPaymentProps({ kind: "gift", id: gift.id }, gift.buyerPhone) : null;
+  const kaspi = gift.payment?.kaspi ?? null;
   const redeemed = !!gift.promo && gift.promo.usedCount > 0;
 
   const rows: [string, string][] = [
@@ -76,8 +89,8 @@ export default async function GiftStatusPage({ params }: { params: Promise<{ tok
                 amountLabel={formatPrice(gift.amount)}
                 currency={gift.currency}
                 email={gift.buyerEmail}
-                online={isOnlinePayment() ? { publicId: env.cloudpayments.publicId } : null}
-                manual={await manualPaymentProps(m)}
+                online={gift.payment?.online ?? null}
+                manual={gift.payment?.manual ?? null}
                 unavailable={m.common.manualPayment.unavailable}
                 claimed={!!gift.paymentClaimedAt}
                 kaspi={kaspi}
@@ -94,7 +107,7 @@ export default async function GiftStatusPage({ params }: { params: Promise<{ tok
                       <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-success" aria-hidden />
                       <p>
                         {t.codeBefore} <b className="tracking-wide">{gift.promo!.code}</b> {t.codeAfter(gift.buyerEmail)}
-                        {gift.promo!.expiresAt ? t.validUntil(m.common.untilFull(gift.promo!.expiresAt)) : null}
+                        {gift.promo!.expiresAt ? t.validUntil(m.common.untilFull(new Date(gift.promo!.expiresAt))) : null}
                       </p>
                     </li>
                     {gift.recipientEmail ? (
@@ -118,7 +131,7 @@ export default async function GiftStatusPage({ params }: { params: Promise<{ tok
                   <p className="mt-1 text-sm text-muted">{t.linkText}</p>
                   <div className="mt-4">
                     {/* Текст для получателя — на языке сертификата */}
-                    <CopyLink url={redeemUrl(gift.promo!.code, gift.locale)} text={messagesFor(gift.locale).gift.status.share(gift.recipientName)} />
+                    <CopyLink url={gift.redeemUrl!} text={messagesFor(gift.locale).gift.status.share(gift.recipientName)} />
                   </div>
                 </section>
               </>

@@ -14590,6 +14590,552 @@
         },
         "x-auth": "none"
       }
+    },
+    "/api/v1/web/site/catalog": {
+      "get": {
+        "operationId": "webSiteCatalog",
+        "tags": [
+          "web-public"
+        ],
+        "summary": "Цены и тарифы из админки, переключатели сайта и реквизиты продавца (сайт без БД подтягивает их каждые 10 с)",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebSiteCatalog"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "none"
+      }
+    },
+    "/api/v1/web/site/chrome": {
+      "get": {
+        "operationId": "webSiteChrome",
+        "tags": [
+          "web-public"
+        ],
+        "summary": "Виджет связи в подвале и номер WhatsApp магазина",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebSiteChrome"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "none"
+      }
+    },
+    "/api/v1/web/reviews/showcase": {
+      "get": {
+        "operationId": "webReviewsShowcase",
+        "tags": [
+          "web-public"
+        ],
+        "summary": "Витрина отзывов сайта (по теме книги) и сводная оценка",
+        "security": [],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 24
+            }
+          },
+          {
+            "name": "theme",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebReviewsShowcase"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "none"
+      }
+    },
+    "/api/v1/web/invite/welcome": {
+      "get": {
+        "operationId": "webInviteWelcome",
+        "tags": [
+          "web-public"
+        ],
+        "summary": "От кого приглашение и какая скидка (код из cookie приглашения)",
+        "security": [],
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebInviteWelcome"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "none"
+      }
+    },
+    "/api/v1/web/gifts/{token}": {
+      "get": {
+        "operationId": "webGiftStatus",
+        "tags": [
+          "web-public"
+        ],
+        "summary": "Страница сертификата по секретной ссылке: состояние, код после оплаты, способы оплаты",
+        "security": [],
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "locale",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ru",
+                "kk",
+                "uz",
+                "en"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebGiftStatus"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "none"
+      }
+    },
+    "/api/v1/web/gifts": {
+      "post": {
+        "operationId": "webGiftCreate",
+        "tags": [
+          "web-public"
+        ],
+        "summary": "Купить сертификат (форма уже проверена сайтом; покупатель может быть без аккаунта)",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebGiftCreateBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebGiftCreated"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "none"
+      }
+    },
+    "/api/v1/web/gifts/claim": {
+      "post": {
+        "operationId": "webGiftClaim",
+        "tags": [
+          "web-public"
+        ],
+        "summary": "«Я оплатил(а)» переводом за сертификат (с лимитом по IP)",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebGiftClaimBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebGiftClaimResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "none"
+      }
+    },
+    "/api/v1/web/redeem": {
+      "get": {
+        "operationId": "webRedeemCheck",
+        "tags": [
+          "web-public"
+        ],
+        "summary": "Проверка кода сертификата или промокода на странице активации",
+        "security": [],
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebRedeemCheck"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "none"
+      }
+    },
+    "/api/v1/web/letter-invite/{token}": {
+      "get": {
+        "operationId": "webLetterInvite",
+        "tags": [
+          "web-public"
+        ],
+        "summary": "Приглашение написать письмо в книгу по ссылке автора (без фото обложки)",
+        "security": [],
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebLetterInvite"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "none"
+      }
+    },
+    "/api/v1/web/review-page/{orderId}": {
+      "get": {
+        "operationId": "webReviewPage",
+        "tags": [
+          "web-public"
+        ],
+        "summary": "Страница отзыва к заказу: по подписанной ссылке из письма или владельцу заказа",
+        "security": [],
+        "parameters": [
+          {
+            "name": "orderId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "t",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 300
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebReviewPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "none"
+      }
+    },
+    "/api/v1/web/unsubscribe": {
+      "get": {
+        "operationId": "webUnsubscribeLink",
+        "tags": [
+          "web-public"
+        ],
+        "summary": "Проверка подписи ссылки отписки из письма",
+        "security": [],
+        "parameters": [
+          {
+            "name": "u",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "t",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebUnsubscribeLink"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "none"
+      },
+      "post": {
+        "operationId": "webUnsubscribe",
+        "tags": [
+          "web-public"
+        ],
+        "summary": "Отписаться от писем по подписанной ссылке",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebUnsubscribeBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "none"
+      }
     }
   },
   "components": {
@@ -46936,6 +47482,958 @@
         },
         "required": [
           "claimed",
+          "token"
+        ],
+        "additionalProperties": false
+      },
+      "WebSiteCatalog": {
+        "type": "object",
+        "properties": {
+          "overrides": {
+            "anyOf": [
+              {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {}
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "registration": {
+            "type": "boolean"
+          },
+          "giftNote": {
+            "type": "boolean"
+          },
+          "seller": {
+            "type": "object",
+            "properties": {
+              "legalName": {
+                "type": "string"
+              },
+              "bin": {
+                "type": "string"
+              },
+              "phone": {
+                "type": "string"
+              },
+              "whatsapp": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "overrides",
+          "registration",
+          "giftNote",
+          "seller"
+        ],
+        "additionalProperties": false
+      },
+      "WebSiteChrome": {
+        "type": "object",
+        "properties": {
+          "widget": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "chat": {
+                    "type": "boolean"
+                  },
+                  "whatsapp": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "enabled",
+                  "chat",
+                  "whatsapp"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "shopWhatsappDigits": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "widget",
+          "shopWhatsappDigits"
+        ],
+        "additionalProperties": false
+      },
+      "WebPublicReview": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "rating": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "text": {
+            "type": "string"
+          },
+          "authorName": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "theme": {
+            "type": "string"
+          },
+          "locale": {
+            "type": "string"
+          },
+          "photo": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "width": {
+                    "type": "number"
+                  },
+                  "height": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "width",
+                  "height"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "publishedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "rating",
+          "text",
+          "authorName",
+          "city",
+          "theme",
+          "locale",
+          "photo",
+          "publishedAt"
+        ],
+        "additionalProperties": false
+      },
+      "WebReviewsShowcase": {
+        "type": "object",
+        "properties": {
+          "reviews": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebPublicReview"
+            }
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "count": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "average": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "count",
+                  "average"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "reviews",
+          "summary"
+        ],
+        "additionalProperties": false
+      },
+      "WebInviteWelcome": {
+        "type": "object",
+        "properties": {
+          "welcome": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  },
+                  "percent": {
+                    "type": "number"
+                  },
+                  "from": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "code",
+                  "percent",
+                  "from"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "welcome"
+        ],
+        "additionalProperties": false
+      },
+      "WebGiftStatus": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "number": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "token": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending_payment",
+              "paid",
+              "cancelled"
+            ]
+          },
+          "plan": {
+            "type": "string",
+            "enum": [
+              "digital",
+              "hardcover",
+              "premium"
+            ]
+          },
+          "amount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "currency": {
+            "type": "string"
+          },
+          "locale": {
+            "type": "string",
+            "enum": [
+              "ru",
+              "kk",
+              "uz",
+              "en"
+            ]
+          },
+          "buyerName": {
+            "type": "string"
+          },
+          "buyerEmail": {
+            "type": "string"
+          },
+          "recipientName": {
+            "type": "string"
+          },
+          "recipientEmail": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "sendAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sentAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "paymentClaimedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "promo": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  },
+                  "usedCount": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "expiresAt": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "code",
+                  "usedCount",
+                  "expiresAt"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "redeemUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "payment": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "online": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "publicId": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "publicId"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "manual": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "title": {
+                            "type": "string"
+                          },
+                          "steps": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "required": [
+                          "title",
+                          "steps"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "kaspi": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "initial": {
+                            "anyOf": [
+                              {
+                                "$ref": "#/components/schemas/WebKaspiInvoiceView"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "defaultPhone": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "initial",
+                          "defaultPhone"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "online",
+                  "manual",
+                  "kaspi"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "number",
+          "token",
+          "status",
+          "plan",
+          "amount",
+          "currency",
+          "locale",
+          "buyerName",
+          "buyerEmail",
+          "recipientName",
+          "recipientEmail",
+          "message",
+          "sendAt",
+          "sentAt",
+          "paymentClaimedAt",
+          "promo",
+          "redeemUrl",
+          "payment"
+        ],
+        "additionalProperties": false
+      },
+      "WebGiftCreateBody": {
+        "type": "object",
+        "properties": {
+          "plan": {
+            "type": "string",
+            "enum": [
+              "digital",
+              "hardcover",
+              "premium"
+            ]
+          },
+          "buyerName": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "buyerEmail": {
+            "type": "string",
+            "maxLength": 320
+          },
+          "buyerPhone": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "recipientName": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "recipientEmail": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 320
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sendAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 10
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "locale": {
+            "type": "string",
+            "enum": [
+              "ru",
+              "kk",
+              "uz",
+              "en"
+            ]
+          },
+          "buyerLocale": {
+            "type": "string",
+            "enum": [
+              "ru",
+              "kk",
+              "uz",
+              "en"
+            ]
+          }
+        },
+        "required": [
+          "plan",
+          "buyerName",
+          "buyerEmail",
+          "buyerPhone",
+          "recipientName",
+          "recipientEmail",
+          "sendAt",
+          "message",
+          "locale",
+          "buyerLocale"
+        ],
+        "additionalProperties": false
+      },
+      "WebGiftCreated": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "ok": {
+                "type": "boolean",
+                "const": true
+              },
+              "token": {
+                "type": "string"
+              },
+              "amount": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "ok",
+              "token",
+              "amount"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "ok": {
+                "type": "boolean",
+                "const": false
+              },
+              "error": {
+                "type": "string",
+                "enum": [
+                  "giftPastDate"
+                ]
+              }
+            },
+            "required": [
+              "ok",
+              "error"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "WebGiftClaimResponse": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "additionalProperties": false
+      },
+      "WebRedeemCheck": {
+        "type": "object",
+        "properties": {
+          "check": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WebPromoPreview"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "ok": {
+                    "type": "boolean",
+                    "const": false
+                  },
+                  "error": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "ok",
+                  "error"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "gift": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "locale": {
+                    "type": "string",
+                    "enum": [
+                      "ru",
+                      "kk",
+                      "uz",
+                      "en"
+                    ]
+                  },
+                  "plan": {
+                    "type": "string",
+                    "enum": [
+                      "digital",
+                      "hardcover",
+                      "premium"
+                    ]
+                  },
+                  "recipientName": {
+                    "type": "string"
+                  },
+                  "buyerName": {
+                    "type": "string"
+                  },
+                  "message": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "locale",
+                  "plan",
+                  "recipientName",
+                  "buyerName",
+                  "message"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "check",
+          "gift"
+        ],
+        "additionalProperties": false
+      },
+      "WebLetterInvite": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "theme": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "authorName": {
+            "type": "string"
+          },
+          "recipientName": {
+            "type": "string"
+          },
+          "inviteText": {
+            "type": "string"
+          },
+          "coverTemplate": {
+            "type": "string"
+          },
+          "coverLines": {
+            "type": "boolean"
+          },
+          "format": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "theme",
+          "title",
+          "authorName",
+          "recipientName",
+          "inviteText",
+          "coverTemplate",
+          "coverLines",
+          "format"
+        ],
+        "additionalProperties": false
+      },
+      "WebReviewPage": {
+        "type": "object",
+        "properties": {
+          "number": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "book": {
+            "type": "object",
+            "properties": {
+              "theme": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "coverTemplate": {
+                "type": "string"
+              },
+              "coverLines": {
+                "type": "boolean"
+              },
+              "format": {
+                "type": "string"
+              },
+              "authorName": {
+                "type": "string"
+              },
+              "recipientName": {
+                "type": "string"
+              },
+              "hideRecipientOnCover": {
+                "type": "boolean"
+              },
+              "namesOnCover": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "theme",
+              "title",
+              "coverTemplate",
+              "coverLines",
+              "format",
+              "authorName",
+              "recipientName",
+              "hideRecipientOnCover",
+              "namesOnCover"
+            ],
+            "additionalProperties": false
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "defaultName": {
+                    "type": "string"
+                  },
+                  "review": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "rating": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "text": {
+                            "type": "string"
+                          },
+                          "authorName": {
+                            "type": "string"
+                          },
+                          "city": {
+                            "type": "string"
+                          },
+                          "consent": {
+                            "type": "boolean"
+                          },
+                          "hasPhoto": {
+                            "type": "boolean"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "new",
+                              "published",
+                              "hidden"
+                            ]
+                          },
+                          "thankYouCode": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "rating",
+                          "text",
+                          "authorName",
+                          "city",
+                          "consent",
+                          "hasPhoto",
+                          "status",
+                          "thankYouCode"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "defaultName",
+                  "review"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "number",
+          "book",
+          "state"
+        ],
+        "additionalProperties": false
+      },
+      "WebUnsubscribeLink": {
+        "type": "object",
+        "properties": {
+          "valid": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "valid"
+        ],
+        "additionalProperties": false
+      },
+      "WebUnsubscribeBody": {
+        "type": "object",
+        "properties": {
+          "u": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "t": {
+            "type": "string",
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "u",
+          "t"
+        ],
+        "additionalProperties": false
+      },
+      "WebGiftClaimBody": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "maxLength": 200
+          }
+        },
+        "required": [
           "token"
         ],
         "additionalProperties": false

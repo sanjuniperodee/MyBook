@@ -6,7 +6,7 @@ import { useMessages } from "@/i18n/client";
 import { getInteriorDesign } from "@/lib/book/interiors";
 import type { PhotoPlace } from "@/lib/book/photo-place";
 import type { TocLines } from "@/lib/book/toc";
-import { MAX_PHOTOS } from "@/modules/authoring/domain/Photo";
+import { MAX_PHOTOS } from "@/shared/domain/photos";
 import { ensureLayoutRev2, patchBook, patchPhotos, reorderPhotos, syncLayout, uploadPhotos, type LayoutSync, type PhotoPatch, type PhotoRows } from "./api";
 import {
   applyPatch,

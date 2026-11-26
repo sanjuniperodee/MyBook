@@ -23,7 +23,7 @@ export async function reviewAccess(orderId: string, token: string | null | undef
  * Отзывы для витрины сайта (по теме книги — для её страницы). Сводная оценка — только когда отзывов
  * достаточно. Сбой базы не должен ронять маркетинговую страницу — тогда блок просто не показывается.
  */
-export async function siteReviews(limit: number, theme?: string) {
+export async function siteReviewsLocal(limit: number, theme?: string) {
   const queries = container().feedback.queries;
   try {
     const [reviews, summary] = await Promise.all([queries.showcase(limit, theme), queries.summary(theme)]);
@@ -32,4 +32,19 @@ export async function siteReviews(limit: number, theme?: string) {
     log.error("site reviews", err);
     return { reviews: [], summary: null };
   }
+}
+
+/** Витрина отзывов для страниц сайта: на сервере с БД — напрямую, на сайте без БД — через API v1 (Раздел 4). */
+export async function siteReviews(limit: number, theme?: string) {
+  const { v1WebRead } = await import("./v1-web-client");
+  return v1WebRead({
+    name: "public.reviewsShowcase",
+    section: "public",
+    sessionCookie: null,
+    local: () => siteReviewsLocal(limit, theme),
+    viaApi: async (api) => {
+      const r = await api.webReviewsShowcase({ limit, ...(theme ? { theme } : {}) });
+      return { reviews: r.reviews.map((x) => ({ ...x, publishedAt: x.publishedAt ? new Date(x.publishedAt) : null })), summary: r.summary };
+    },
+  });
 }

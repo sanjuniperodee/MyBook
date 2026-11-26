@@ -12,6 +12,16 @@ import * as kaspiInvoiceItem from "@/server/site-handlers/payments/kaspi-invoice
 import * as cloudpayments from "@/server/site-handlers/payments/cloudpayments-webhook";
 import * as orderFile from "@/server/site-handlers/orders/file";
 import * as orderRenderProgress from "@/server/site-handlers/orders/render-progress";
+import * as giftPdf from "@/server/site-handlers/public/gift-pdf";
+import * as letterSubmit from "@/server/site-handlers/public/letter-submit";
+import * as reviewSubmit from "@/server/site-handlers/public/review-submit";
+import * as reviewPhoto from "@/server/site-handlers/public/review-photo";
+import * as siteChat from "@/server/site-handlers/public/site-chat";
+import * as siteCallback from "@/server/site-handlers/public/site-callback";
+import * as calendarFeed from "@/server/site-handlers/public/calendar-feed";
+import * as chatAvatar from "@/server/site-handlers/public/chat-avatar";
+import * as inviteLink from "@/server/site-handlers/public/invite-link";
+import * as shortLink from "@/server/site-handlers/public/short-link";
 import * as gowa from "@/app/api/integrations/gowa/route";
 import * as zadarma from "@/app/api/integrations/zadarma/route";
 import * as google from "@/app/api/integrations/google/webhook/route";
@@ -71,6 +81,18 @@ const table: [string, RouteModule][] = [
   ["/api/payments/cloudpayments/{event}", cloudpayments as RouteModule],
   ["/api/orders/{id}/files/{kind}", orderFile as RouteModule],
   ["/api/orders/{id}/render-progress", orderRenderProgress as RouteModule],
+  // Публичные страницы (Раздел 4): сертификат, письма близких по ссылке, отзывы, чат сайта, iCal, ссылки /r и /go.
+  ["/api/gifts/{token}/pdf", giftPdf as RouteModule],
+  ["/api/letters/{token}", letterSubmit as RouteModule],
+  ["/api/reviews/photo/{id}", reviewPhoto as RouteModule],
+  ["/api/reviews/{orderId}", reviewSubmit as RouteModule],
+  ["/api/chat/callback", siteCallback as RouteModule],
+  ["/api/chat", siteChat as RouteModule],
+  ["/api/calendar/{token}", calendarFeed as RouteModule],
+  ["/api/chat-avatar/{file}", chatAvatar as RouteModule],
+  // /r/<код> и /go/<ссылка> вне /api: прокси шлёт их на /api/v1/site/r/… и /api/v1/site/go/….
+  ["/api/r/{code}", inviteLink as RouteModule],
+  ["/api/go/{slug}", shortLink as RouteModule],
   ["/api/integrations/gowa", gowa as RouteModule],
   ["/api/integrations/zadarma", zadarma as RouteModule],
   ["/api/integrations/google/webhook", google as RouteModule],

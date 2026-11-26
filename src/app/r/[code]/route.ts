@@ -1,39 +1,7 @@
-import { NextResponse, type NextRequest } from "next/server";
-import { env, isSecureCookie } from "@/config/env";
-import { LOCALE_HEADER, localizePath } from "@/i18n/config";
-import { INVITE_COOKIE } from "@/modules/referrals";
-import { container } from "@/server/container";
-import { trustedClientIp, rateLimit } from "@/server/rateLimit";
-import { SOURCE_COOKIE } from "@/proxy";
-import { INVITE_CAMPAIGN_PREFIX } from "@/modules/marketing/domain/links";
+import { v1SiteProxy } from "@/server/v1-proxy";
 
-const MONTH = 60 * 60 * 24 * 30;
+type Ctx = { params: Promise<{ code: string }> };
 
-/**
- * Ссылка-приглашение /r/<код>: запоминаем код (скидка подставится при оформлении), отмечаем источник
- * «приглашение» для аналитики и ведём на главную — там друга встретит «Асель дарит вам 10%».
- * Неизвестный или недействующий код — просто главная.
- */
-export async function GET(req: NextRequest, { params }: { params: Promise<{ code: string }> }) {
-  const { code } = await params;
-  // /kk/r/<код> (ссылка от казахоязычного клиента) ведёт на казахскую главную.
-  const home = localizePath("/", req.headers.get(LOCALE_HEADER) === "kk" ? "kk" : "ru");
-  const plain = NextResponse.redirect(new URL(home, env.appUrl), { status: 302, headers: { "Cache-Control": "no-store" } });
-  if (!/^[A-Za-z0-9_-]{3,40}$/.test(code) || !(await rateLimit(`invite:${await trustedClientIp()}`, 60, 600_000))) return plain;
-  const welcome = await container().referrals.service.welcome(code);
-  if (!welcome) return plain;
-  // Кампания визита — код-приглашение: виджет сайта передаст его в первом сообщении WhatsApp, и покупка из чата тоже
-  // принесёт награду другу (contacts-d7).
-  const landing = new URL(home, env.appUrl);
-  landing.searchParams.set("utm_campaign", `${INVITE_CAMPAIGN_PREFIX}${welcome.code}`);
-  const res = NextResponse.redirect(landing, { status: 302, headers: { "Cache-Control": "no-store" } });
-  res.cookies.set(INVITE_COOKIE, welcome.code, { httpOnly: true, sameSite: "lax", secure: isSecureCookie, maxAge: MONTH, path: "/" });
-  if (!req.cookies.has(SOURCE_COOKIE))
-    res.cookies.set(SOURCE_COOKIE, JSON.stringify({ source: "invite", medium: "referral", campaign: welcome.code, landing: "/r", at: new Date().toISOString().slice(0, 10) }), {
-      maxAge: 60 * 60 * 24 * 60,
-      sameSite: "lax",
-      path: "/",
-      httpOnly: true,
-    });
-  return res;
+export function GET(req: Request, ctx: Ctx) {
+  return v1SiteProxy("public", req, async () => (await import("@/server/site-handlers/public/invite-link")).GET(req, ctx));
 }

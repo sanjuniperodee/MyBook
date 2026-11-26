@@ -9,8 +9,7 @@ export const CITY_MAX = 40;
 export const PUBLIC_TEXT_MIN = 20;
 /** Оценка, при которой отзыв сразу уходит поддержке: клиента нужно услышать, пока он не ушёл расстроенным. */
 export const LOW_RATING = 3;
-/** Благодарность за любой отзыв (не только за хороший): персональная скидка на следующую книгу. */
-export const THANK_YOU = { percent: 10, validDays: 60 } as const;
+export { THANK_YOU } from "@/shared/domain/reviews";
 /** Сводная оценка на сайте — только когда отзывов достаточно, чтобы она что-то значила. */
 export const AGGREGATE_MIN_COUNT = 5;
 

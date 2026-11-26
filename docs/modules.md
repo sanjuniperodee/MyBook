@@ -12,16 +12,16 @@
 |---|---|---:|---:|
 | [access](#access) | Access: сотрудники, роли и права, правила безопасности, журнал. | 16 / 866 | 48 |
 | [assistant](#assistant) | AI-помощник (Claude, ChatGPT, DeepSeek или свой OpenAI-совместимый сервер). | 24 / 2314 | 23 |
-| [authoring](#authoring) | Authoring: книги, вопросы, оглавление своей книги, фото, письма близких. | 29 / 3882 | 52 |
+| [authoring](#authoring) | Authoring: книги, вопросы, оглавление своей книги, фото, письма близких. | 29 / 3881 | 52 |
 | [automation](#automation) | Автоматизации (цифровая воронка CRM). | 16 / 1987 | 9 |
 | [boards](#boards) | Доски задач: доски отделов, личные и проектные, колонки с лимитами, карточки (задачи CRM) с исполнителями, метками, чек-листами, комментариями и вложениями, правила досок, календарь, личная iCal-ссылка и Google Календарь сотрудника. | 15 / 3218 | 15 |
 | [clients](#clients) | Клиенты CRM: профиль клиента, задачи и заметки менеджеров. | 10 / 1167 | 29 |
-| [feedback](#feedback) | Отзывы: отзыв клиента о книге, благодарность автору, модерация и витрина. | 13 / 693 | 6 |
+| [feedback](#feedback) | Отзывы: отзыв клиента о книге, благодарность автору, модерация и витрина. | 13 / 692 | 5 |
 | [identity](#identity) | Identity: учётные записи, вход, пароли, второй фактор. | 18 / 1126 | 19 |
-| [marketing](#marketing) | Маркетинг: каналы привлечения, короткие ссылки, предложения из чата. | 10 / 596 | 13 |
-| [messaging](#messaging) | Переписка: единый инбокс, бот-квалификатор, виджет на сайте. | 60 / 16694 | 152 |
+| [marketing](#marketing) | Маркетинг: каналы привлечения, короткие ссылки, предложения из чата. | 10 / 577 | 12 |
+| [messaging](#messaging) | Переписка: единый инбокс, бот-квалификатор, виджет на сайте. | 60 / 16694 | 151 |
 | [notifications](#notifications) | Уведомления: автописьма, напоминания из CRM, отписка. | 10 / 707 | 6 |
-| [ordering](#ordering) | Заказы. Остальной код видит только его. | 48 / 5671 | 86 |
+| [ordering](#ordering) | Заказы. Остальной код видит только его. | 48 / 5671 | 84 |
 | [production](#production) | Производство: вёрстка PDF книги и сертификатов, предпросмотры полос и обложек, файлы для типографии, очередь сборки. В container — previews (BookPreviewService) и printFiles. | 43 / 5606 | 0 |
 | [referrals](#referrals) | Приглашения: код для друзей, награда за их заказы и покупки из чата. | 10 / 358 | 3 |
 | [reporting](#reporting) | Отчёты CRM — сторона чтения (CQRS): сводные выборки по нескольким контекстам для страниц (дашборд, аналитика, поиск, «Мой день»). Только чтение, без бизнес-правил: команды идут через модули контекстов. | 44 / 4494 | 57 |
@@ -98,7 +98,7 @@ Authoring: книги, вопросы, оглавление своей книг�
 - Фасад: `FeedbackModule` → `container().feedback`
 - Публичное: `reviews`, `queries`, `photoFile`
 - Таблицы: `reviews`
-- Тесты (2): `api-v1.test.ts`, `feedback.test.ts`
+- Тесты (3): `api-v1-web-public.test.ts`, `api-v1.test.ts`, `feedback.test.ts`
 
 ## identity
 
@@ -148,7 +148,7 @@ Identity: учётные записи, вход, пароли, второй фа
 - Фасад: `OrderingModule` → `container().ordering`
 - Публичное: `orders`, `invoices`, `invoiceLifecycle`, `payments`, `promos`, `gifts`, `queries`, `cloudPayments`, `kaspi`, `kaspiSetup`, `kaspiWatch`, `mailer`, `verifyKaspiWebhook`, `kaspiRecipient`, `deliverDueGifts`, `resendGift`, `giftPdf`
 - Таблицы: `orders`, `order_payments`, `promo_codes`, `gift_cards`, `payment_invoices`, `order_events`
-- Тесты (40): `agreement-gifts.test.ts`, `api-v1-web-orders.test.ts`, `automation.test.ts`, `catalog.test.ts`, `checkout-quote.test.ts`, `client-push-events.test.ts`, `cloudpayments.test.ts`, `deal-invoice-payments.integration.test.ts`, `deal-invoice-payments.test.ts`, `deal-lifecycle.integration.test.ts`, `deal-lifecycle.test.ts`, `delivery-abroad.test.ts`, `errors.test.ts`, `gift-receipt.integration.test.ts`, `i18n.test.ts`, `invoice-access.test.ts`, `invoice-crm-actions.test.ts`, `invoice-crm.integration.test.ts`, `kaspi-watch.test.ts`, `kaspi.integration.test.ts`, `kaspi.test.ts`, `occasions.test.ts`, `order-money.test.ts`, `order-payments.test.ts`, `order-terms.test.ts`, `ordering-ports.test.ts`, `ordering.test.ts`, `pay-routes.test.ts`, `payments-settings.integration.test.ts`, `print.test.ts`, `promo-stats.integration.test.ts`, `referrals.test.ts`, `review-fixes.test.ts`, `sales-guards.test.ts`, `server-adapters-actions.test.ts`, `server-adapters.test.ts`, `server-routes-payments.test.ts`, `settings-actions.test.ts`, `time.test.ts`, `tools.test.ts`
+- Тесты (41): `agreement-gifts.test.ts`, `api-v1-web-orders.test.ts`, `api-v1-web-public.test.ts`, `automation.test.ts`, `catalog.test.ts`, `checkout-quote.test.ts`, `client-push-events.test.ts`, `cloudpayments.test.ts`, `deal-invoice-payments.integration.test.ts`, `deal-invoice-payments.test.ts`, `deal-lifecycle.integration.test.ts`, `deal-lifecycle.test.ts`, `delivery-abroad.test.ts`, `errors.test.ts`, `gift-receipt.integration.test.ts`, `i18n.test.ts`, `invoice-access.test.ts`, `invoice-crm-actions.test.ts`, `invoice-crm.integration.test.ts`, `kaspi-watch.test.ts`, `kaspi.integration.test.ts`, `kaspi.test.ts`, `occasions.test.ts`, `order-money.test.ts`, `order-payments.test.ts`, `order-terms.test.ts`, `ordering-ports.test.ts`, `ordering.test.ts`, `pay-routes.test.ts`, `payments-settings.integration.test.ts`, `print.test.ts`, `promo-stats.integration.test.ts`, `referrals.test.ts`, `review-fixes.test.ts`, `sales-guards.test.ts`, `server-adapters-actions.test.ts`, `server-adapters.test.ts`, `server-routes-payments.test.ts`, `settings-actions.test.ts`, `time.test.ts`, `tools.test.ts`
 
 ## production
 

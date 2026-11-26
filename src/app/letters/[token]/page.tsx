@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { container } from "@/server/container";
+import { ApiClientError } from "@mybook/contracts";
+import { localLetterInvite } from "@/server/v1-local-bridge-public";
+import { v1WebRead } from "@/server/v1-web-client";
 import { bookKind } from "@/lib/content/kinds";
 import { inviteRecipient } from "@/lib/content/letter-invite";
 import { PlainSheet, PlainShell } from "@/components/landing/PlainShell";
@@ -16,7 +18,20 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function LetterPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   if (!/^[A-Za-z0-9_-]{10,40}$/.test(token)) notFound();
-  const book = await container().authoring.queries.bookByInviteToken(token);
+  const book = await v1WebRead({
+    name: "public.letterInvite",
+    section: "public",
+    sessionCookie: null,
+    local: () => localLetterInvite(token),
+    viaApi: async (api) => {
+      try {
+        return await api.webLetterInvite({ token });
+      } catch (err) {
+        if (err instanceof ApiClientError && err.status === 404) return null;
+        throw err;
+      }
+    },
+  });
   if (!book) notFound();
   const t = (await getMessages()).gift.letter;
   const author = book.authorName.trim();

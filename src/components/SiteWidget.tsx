@@ -5,7 +5,7 @@ import { ArrowLeft, MessageCircle, MessagesSquare, PhoneCall, SendHorizontal, X 
 import { useMessages } from "@/i18n/client";
 import { cn } from "@/lib/class-names";
 import { useAutosize } from "@/components/ui/useAutosize";
-import { widgetCode } from "@/modules/marketing/domain/links";
+import { widgetCode } from "@/shared/domain/links";
 
 interface Msg {
   id: string;

@@ -1,4 +1,6 @@
 import type { Attribution, ChannelKey } from "@/shared/domain/channels";
+import { INVITE_CAMPAIGN_PREFIX, whatsappLink } from "@/shared/domain/links";
+export { INVITE_CAMPAIGN_PREFIX, isValidSlug, whatsappLink, widgetCode } from "@/shared/domain/links";
 
 /** Короткая рекламная ссылка: ведёт на сайт с UTM-метками или в WhatsApp с кодом ссылки. */
 export interface TrackedLink {
@@ -28,7 +30,6 @@ export const sourcePresets: { key: ChannelKey; label: string; source: string; me
   { key: "offline", label: "Листовка / QR", source: "offline", medium: "qr" },
 ];
 
-export const isValidSlug = (slug: string) => /^[a-z0-9-]{1,40}$/i.test(slug);
 
 export function linkAttribution(l: Pick<TrackedLink, "slug" | "utmSource" | "utmMedium" | "utmCampaign" | "utmContent">): Attribution {
   return {
@@ -59,32 +60,12 @@ export function linkTarget(l: TrackedLink, appUrl: string, whatsappNumber: strin
   return buildSiteUrl(appUrl, l.targetPath, { source: l.utmSource, medium: l.utmMedium, campaign: l.utmCampaign, content: l.utmContent }, l.slug);
 }
 
-/** Ссылка в WhatsApp с первым сообщением и кодом ссылки в нём — по коду CRM узнаёт источник заявки (linkCodeFromText). */
-export function whatsappLink(whatsappNumber: string, text: string, code: string) {
-  return `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(`${text} (код: ${code})`)}`;
-}
 
 /** Код ссылки в первом сообщении WhatsApp: «… (код: insta-bio)» или «#insta-bio». */
-/**
- * Код источника в сообщении из виджета сайта (chats-19): «site-<кампания>» — по utm_campaign визита, иначе
- * «site-<страница>» («site-gift», «site-home»). Латиница, цифры и дефис, не длиннее, чем берёт linkCodeFromText.
- */
-export function widgetCode(campaign: string | null | undefined, path: string): string {
-  const slug = (v: string) =>
-    v
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 34);
-  const page = path.replace(/^\/(kk)(\/|$)/, "/").replace(/^\/+|\/+$/g, "") || "home";
-  return `site-${slug(campaign ?? "") || slug(page) || "home"}`;
-}
 
 /** Код из виджета сайта — что после «site-» (кампания или страница); другой код — null. */
 export const widgetCodeTail = (code: string) => (code.startsWith("site-") && code.length > 5 ? code.slice(5) : null);
 
-/** Кампания визита по ссылке-приглашению /r/<код> (contacts-d7): так виджет сайта передаёт код в первом сообщении. */
-export const INVITE_CAMPAIGN_PREFIX = "invite-";
 
 /** Код-приглашение из хвоста кода виджета («invite-asel-7k2q» → ASEL-7K2Q); не приглашение — null. */
 export const inviteFromWidgetTail = (tail: string) =>

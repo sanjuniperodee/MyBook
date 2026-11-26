@@ -7,9 +7,10 @@ import { getCurrentUser } from "@/server/auth";
 import { trustedClientIp, rateLimit } from "@/server/rateLimit";
 import { toIsoDay } from "@/lib/occasions";
 import { queueEvent } from "@/server/track";
-import { OrderingError } from "@/modules/ordering";
-import { container } from "@/server/container";
+import { ApiClientError } from "@mybook/contracts";
 import { ensureCatalog } from "@/server/catalog";
+import { localGiftClaim, localGiftCreate } from "@/server/v1-local-bridge-public";
+import { v1WebAction } from "@/server/v1-web-client";
 import { getVisiblePlans, type PlanId } from "@/config/site";
 
 export interface GiftFormState {
@@ -35,46 +36,69 @@ const schema = (e: GiftErrors) =>
 export async function createGiftAction(_: GiftFormState, form: FormData): Promise<GiftFormState> {
   await ensureCatalog();
   const e = (await getMessages()).gift.form.errors;
-  if (!await rateLimit(`gift:${await trustedClientIp()}`, 10, 60 * 60_000)) return { error: e.tooMany };
   const parsed = schema(e).safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const d = parsed.data;
   const locale = isLocale(d.locale) ? d.locale : "ru";
   if (d.delivery === "email" && !d.recipientEmail) return { error: e.needEmail };
   if (d.sendAt && d.sendAt < toIsoDay(new Date())) return { error: e.pastDate };
-  const user = await getCurrentUser();
-  let gift;
-  try {
-    gift = await container().ordering.gifts.purchase({
-      plan: d.plan,
-      buyerUserId: user?.id ?? null,
-      buyerName: d.buyerName,
-      buyerEmail: d.buyerEmail,
-      buyerPhone: d.buyerPhone,
-      recipientName: d.recipientName,
-      recipientEmail: d.delivery === "email" ? d.recipientEmail || null : null,
-      sendAt: d.delivery === "email" && d.sendAt ? d.sendAt : null,
-      message: d.message,
-      locale,
-      buyerLocale: await getLocale(),
-    });
-  } catch (err) {
-    if (OrderingError.is(err) && err.code === "giftPastDate") return { error: e.pastDate };
-    throw err;
-  }
-  await queueEvent("gift_checkout", gift.amount);
-  return lredirect(`/gift/${gift.token}`);
+  const buyerLocale = await getLocale();
+  const body = {
+    plan: d.plan,
+    buyerName: d.buyerName,
+    buyerEmail: d.buyerEmail,
+    buyerPhone: d.buyerPhone,
+    recipientName: d.recipientName,
+    recipientEmail: d.delivery === "email" ? d.recipientEmail || null : null,
+    sendAt: d.delivery === "email" && d.sendAt ? d.sendAt : null,
+    message: d.message,
+    locale,
+    buyerLocale,
+  };
+  // Лимит — там, где выполняется покупка: здесь (сервер с БД) или в обработчике API v1 (webGiftCreate).
+  const outcome = await v1WebAction({
+    section: "public",
+    locale: buyerLocale,
+    viaApi: async (api) => {
+      try {
+        return await api.webGiftCreate({ body });
+      } catch (err) {
+        if (err instanceof ApiClientError && err.status === 429) return { ok: false as const, error: "tooMany" as const };
+        throw err;
+      }
+    },
+    local: async () => {
+      if (!(await rateLimit(`gift:${await trustedClientIp()}`, 10, 60 * 60_000))) return { ok: false as const, error: "tooMany" as const };
+      const user = await getCurrentUser();
+      return localGiftCreate(body, user?.id ?? null);
+    },
+  });
+  if (!outcome.ok) return { error: outcome.error === "tooMany" ? e.tooMany : e.pastDate };
+  await queueEvent("gift_checkout", outcome.amount);
+  return lredirect(`/gift/${outcome.token}`);
 }
 
 /** Покупатель сообщил об оплате переводом. */
 export async function claimGiftPaymentAction(rawToken: string): Promise<{ error?: string } | void> {
-  // Кнопку «Я оплатил(а)» нажимают по ссылке из письма без входа: лимит не даёт перебирать токены. Упёрлись в лимит —
-  // покупатель видит, почему ничего не произошло, а не немую кнопку.
-  if (!await rateLimit(`gift-claim:${await trustedClientIp()}`, 20, 600_000)) return { error: (await getMessages()).common.errors.tooMany };
   // Токен сертификата — 24 знака base64url (randomBytes(18)); мусор до базы не доходит.
   const token = z.string().regex(/^[\w-]{16,64}$/).safeParse(rawToken);
   if (!token.success) return; // как и для неизвестного токена
-  const gift = await container().ordering.gifts.claimPayment(token.data);
-  if (!gift) return;
-  return lredirect(`/gift/${gift.token}`);
+  const tooMany = { error: (await getMessages()).common.errors.tooMany };
+  // Кнопку «Я оплатил(а)» нажимают по ссылке из письма без входа: лимит не даёт перебирать токены. Упёрлись в лимит —
+  // покупатель видит, почему ничего не произошло, а не немую кнопку. Лимит — там, где выполняется действие.
+  const outcome = await v1WebAction({
+    section: "public",
+    viaApi: async (api) => {
+      try {
+        return await api.webGiftClaim({ body: { token: token.data } });
+      } catch (err) {
+        if (err instanceof ApiClientError && err.status === 429) return null;
+        throw err;
+      }
+    },
+    local: async () => ((await rateLimit(`gift-claim:${await trustedClientIp()}`, 20, 600_000)) ? localGiftClaim(token.data) : null),
+  });
+  if (!outcome) return tooMany;
+  if (!outcome.token) return;
+  return lredirect(`/gift/${outcome.token}`);
 }
