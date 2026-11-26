@@ -81,7 +81,8 @@ const SCHEMA_WORDS = /\b(?:lost_reason|delivered(?:_quote|_message)?|quote|messa
 
 /** Причина для ленты: без частей, где модель рассуждает о полях ответа («поэтому lost_reason пустой»). */
 export function cleanReason(reason: string): string {
-  const parts = reason.split(/(?<=[.;!?])\s+|;\s*/).filter((p) => p.trim() && !SCHEMA_WORDS.test(p));
+  // Части — по «;» и по концу предложения (знак остаётся у своей части; без lookbehind — его нет в старом Safari).
+  const parts = (reason.match(/[^.;!?]+[.!?]*/g) ?? []).filter((p) => p.trim() && !SCHEMA_WORDS.test(p)).map((p) => p.trim());
   return parts.join(" ").replace(/[;,\s]+$/, "").trim();
 }
 
