@@ -65,6 +65,9 @@ describe("ИИ ведёт этапы: что ИИ делает сам, а что
     expect(decide("work", "lost", { quoteFromClient: false })).toBe("propose");
     expect(decide("work", "lost", { confidence: 0.7 })).toBe("propose");
     expect(decide("work", "lost", { lostReason: null })).toBeNull();
+    // С этапов оплаты и книги (у сделки деньги клиента) — только предложение.
+    expect(decide("book", "lost")).toBe("propose");
+    expect(decide("ready", "lost")).toBe("propose");
   });
 
   it("деньги и книга (этапы с вехой и оплатой), откат назад и возврат из отказа — только предложением", () => {
