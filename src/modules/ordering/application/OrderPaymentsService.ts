@@ -2,6 +2,7 @@ import type { Actor, Clock, UnitOfWork } from "@/shared/application";
 import { storeTimeZone } from "@/shared/domain/time";
 import { receiptProblem, receiptUsedText, safeReceiptName, sniffReceipt, type ReceiptCheck } from "@/shared/domain/receipt";
 import { ORDER_MONEY_LABELS, OrderingError, type OrderPaymentRecord, type OrderPaymentRepository, type OrderRepository } from "../domain";
+import type { LayoutSource } from "./ports";
 
 /** Файлы чеков заказа в хранилище (orders/<заказ>/payments/<id>.<тип>). */
 export interface ReceiptFiles {
@@ -82,6 +83,8 @@ export class OrderPaymentsService {
     private readonly clock: Clock,
     /** Хэш чека и где он уже приложен: один перевод — один платёж (фиктивную «доплату» тем же чеком не записать). */
     private readonly checkReceipt: ReceiptCheck = noReceiptCheck,
+    /** Книга сейчас — в печать с постоплатой только согласованный клиентом макет. */
+    private readonly layout: LayoutSource = { current: async () => null },
   ) {}
 
   /**
@@ -281,7 +284,7 @@ export class OrderPaymentsService {
     return this.uow.run(async () => {
       const order = await this.orders.lockById(orderId);
       if (!order) throw new OrderingError("orderNotFound");
-      order.startPostpay(reason.trim().slice(0, 200), actor.label, this.clock.now());
+      order.startPostpay(reason.trim().slice(0, 200), actor.label, this.clock.now(), await this.layout.current(order.bookId));
       await this.orders.save(order);
       this.uow.track(order);
       return order;

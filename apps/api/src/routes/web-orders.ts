@@ -7,7 +7,7 @@ import { ordersApi } from "@/server/api-v1/orders";
 import { getCurrentUser } from "@/server/auth";
 import type { Handlers } from "../app";
 
-type Route = "webCheckoutPage" | "webPromoCheck" | "webOrderPlace" | "webOrdersList" | "webOrderDetail" | "webPayPage" | "webPayViewed" | "webPayClaim";
+type Route = "webCheckoutPage" | "webPromoCheck" | "webOrderPlace" | "webOrdersList" | "webOrderDetail" | "webOrderLayoutApprove" | "webPayPage" | "webPayViewed" | "webPayClaim";
 
 export const webOrdersHandlers: Pick<Handlers, Route> = {
   async webCheckoutPage({ req, user, input }) {
@@ -25,6 +25,9 @@ export const webOrdersHandlers: Pick<Handlers, Route> = {
   },
   async webOrderDetail({ req, user, input }) {
     return ordersApi.webOrderDetail({ input, staff: null, user: user!, book: null, req });
+  },
+  async webOrderLayoutApprove({ req, user, input }) {
+    return ordersApi.webOrderLayoutApprove({ input, staff: null, user: user!, book: null, req });
   },
   async webPayPage({ req, input }) {
     return ordersApi.webPayPage({ input, staff: null, user: null, book: null, req });

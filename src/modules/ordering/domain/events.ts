@@ -42,11 +42,13 @@ export type OrderRepriced = DomainEvent<"ordering.order_repriced", OrderRef & { 
 export type PaymentClaimed = DomainEvent<"ordering.payment_claimed", OrderRef>;
 /** Готова вёрстка / печатные файлы книги по заказу (первая сборка printSpec). */
 export type PrintFilesReady = DomainEvent<"ordering.print_files_ready", OrderRef & { pageCount: number }>;
+/** Покупатель согласовал итоговый макет (again — повторно, после правок): ответственному — уведомление, пакет — пересобрать из этой версии. */
+export type LayoutApproved = DomainEvent<"ordering.layout_approved", OrderRef & { fingerprint: string; again: boolean }>;
 export type GiftCardPurchased = DomainEvent<"ordering.gift_purchased", { giftId: string }>;
 export type GiftCardPaid = DomainEvent<"ordering.gift_paid", { giftId: string; actor: string }>;
 export type GiftPaymentClaimed = DomainEvent<"ordering.gift_payment_claimed", { giftId: string }>;
 
-export type OrderingEvent = DealInvoiceEvent | OrderPlaced | OrderPaid | OrderOverpaid | PostpayDue | OrderStatusChanged | TrackingAdded | OrderCancelled | OrderRepriced | PaymentClaimed | PrintFilesReady | GiftCardPurchased | GiftCardPaid | GiftPaymentClaimed;
+export type OrderingEvent = DealInvoiceEvent | OrderPlaced | OrderPaid | OrderOverpaid | PostpayDue | OrderStatusChanged | TrackingAdded | OrderCancelled | OrderRepriced | PaymentClaimed | PrintFilesReady | LayoutApproved | GiftCardPurchased | GiftCardPaid | GiftPaymentClaimed;
 
 export const OrderingEvents = {
   orderPlaced: (p: OrderPlaced["payload"]): OrderPlaced => domainEvent("ordering.order_placed", p),
@@ -59,6 +61,7 @@ export const OrderingEvents = {
   orderRepriced: (p: OrderRepriced["payload"]): OrderRepriced => domainEvent("ordering.order_repriced", p),
   paymentClaimed: (p: PaymentClaimed["payload"]): PaymentClaimed => domainEvent("ordering.payment_claimed", p),
   printFilesReady: (p: PrintFilesReady["payload"]): PrintFilesReady => domainEvent("ordering.print_files_ready", p),
+  layoutApproved: (p: LayoutApproved["payload"]): LayoutApproved => domainEvent("ordering.layout_approved", p),
   giftPurchased: (p: GiftCardPurchased["payload"]): GiftCardPurchased => domainEvent("ordering.gift_purchased", p),
   giftPaid: (p: GiftCardPaid["payload"]): GiftCardPaid => domainEvent("ordering.gift_paid", p),
   giftPaymentClaimed: (p: GiftPaymentClaimed["payload"]): GiftPaymentClaimed => domainEvent("ordering.gift_payment_claimed", p),

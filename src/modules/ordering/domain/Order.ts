@@ -6,6 +6,7 @@ import { OrderingEvents, type OrderRef } from "./events";
 import { isPaid } from "./OrderStatus";
 import type { OrderPrintSpec, OrderStatus } from "@/shared/domain/orders";
 import type { PromoCode } from "./PromoCode";
+import { layoutApprovalRefusal, layoutApprovalRequired, layoutBlock, type CurrentLayout, type LayoutApproval } from "./layoutApproval";
 
 export interface OrderContact {
   name: string;
@@ -58,6 +59,8 @@ export interface OrderProps {
   postpay: boolean;
   /** Сколько денег получено по заказу (журнал оплат) — учёт денег, не выручка. */
   receivedAmount: number;
+  /** Согласование итогового макета клиентом (layoutApproval.ts). */
+  layoutApproval: LayoutApproval;
   createdAt: Date;
 }
 
@@ -150,6 +153,7 @@ export class Order extends AggregateRoot<OrderProps> {
       paidAt: null,
       postpay: false,
       receivedAmount: 0,
+      layoutApproval: { required: plan.printed, approvedAt: null, fingerprint: null, revokedAt: null },
       createdAt: now,
     });
     const promoNote = input.promo ? `, промокод ${input.promo.code} (${input.promo.describe(input.formatMoney)})` : "";
@@ -222,6 +226,9 @@ export class Order extends AggregateRoot<OrderProps> {
   get postpay() {
     return this.props.postpay;
   }
+  get layoutApproval(): LayoutApproval {
+    return this.props.layoutApproval;
+  }
   /**
    * Сколько можно вернуть клиенту: по отменённому заказу — всё полученное; по живому — только переплату (полученное сверх
    * «к оплате»). Остальное — оплата самого заказа: вернуть её — значит отменить заказ (иначе оплаченный заказ останется
@@ -293,8 +300,9 @@ export class Order extends AggregateRoot<OrderProps> {
    * Постоплата: ждущий оплаты заказ — в печать без денег (договорились, что клиент заплатит после). В выручку не попадает,
    * пока деньги не покроют «к оплате»; доставлен без полной оплаты — задача «получить постоплату».
    */
-  startPostpay(reason: string, actor: string, now: Date) {
+  startPostpay(reason: string, actor: string, now: Date, current: CurrentLayout | null = null) {
     if (this.props.status !== "pending_payment") throw new OrderingError("paymentRule", "В печать с постоплатой — только заказ, который ждёт оплаты");
+    this.assertLayoutForPrint(current);
     const from = this.props.status;
     this.props.status = "in_production";
     this.props.postpay = true;
@@ -317,7 +325,7 @@ export class Order extends AggregateRoot<OrderProps> {
    * Смена статуса сотрудником (канбан, карточка заказа). Оплата и отмена идут через свои методы,
    * чтобы сработали их правила (промокод, блокировка книги, события).
    */
-  changeStatus(to: OrderStatus, actor: string, note: string, now: Date): { cancelled: boolean; releasePromo: boolean } {
+  changeStatus(to: OrderStatus, actor: string, note: string, now: Date, current: CurrentLayout | null = null): { cancelled: boolean; releasePromo: boolean } {
     const from = this.props.status;
     const none = { cancelled: false, releasePromo: false };
     if (to === from) {
@@ -335,6 +343,8 @@ export class Order extends AggregateRoot<OrderProps> {
     if (from === "cancelled" && !this.props.paidAt) throw new OrderingError("paymentRule", "Заказ отменён и не оплачен: оформите новый заказ или примите оплату по нему отдельно");
     // Неоплаченный заказ не уходит в печать и дальше в обход: оплата или явная постоплата (иначе деньги «потеряются»).
     if (from === "pending_payment" && to !== "paid") throw new OrderingError("paymentRule", "Заказ не оплачен: примите оплату или отправьте в печать с постоплатой");
+    // В печать — только согласованный клиентом макет (та же проверка, что у печатных файлов).
+    if (to === "in_production") this.assertLayoutForPrint(current);
     this.props.status = to;
     if (to === "paid" && !this.props.paidAt) this.props.paidAt = now;
     this.log(to, note, actor, now);
@@ -469,6 +479,7 @@ export class Order extends AggregateRoot<OrderProps> {
       throw new OrderingError("paymentRule", `Оплата заказа подтверждена без денег в журнале (записано ${formatPrice(received)} из ${formatPrice(before.amount)}): сначала приложите оплату с чеком в «Оплате», потом меняйте цену`);
     const planBefore = this.props.plan;
     this.props.plan = plan.id;
+    if (plan.id !== planBefore) this.syncLayoutRequirement();
     this.props.quantity = plan.printed ? this.props.quantity : 1;
     this.props.delivery = delivery;
     if (!plan.printed) {
@@ -609,6 +620,7 @@ export class Order extends AggregateRoot<OrderProps> {
     if (short > 0) throw new OrderingError("paymentRule", `Не хватает ${formatPrice(short)}: сначала примите доплату в «Оплате» заказа, потом переведите в печатную`);
     const planBefore = this.props.plan;
     this.props.plan = plan.id;
+    if (plan.id !== planBefore) this.syncLayoutRequirement();
     this.props.quantity = 1;
     this.props.price = price;
     const received = this.props.receivedAmount;
@@ -618,6 +630,45 @@ export class Order extends AggregateRoot<OrderProps> {
     this.log(null, `${input.planName(planBefore)} → ${input.planName(plan.id)}, зачтено ${formatPrice(credited)}, к доплате ${formatPrice(outstanding)}${prepaid > 0 ? ` (предоплата по сделке ${formatPrice(price.prepaidAmount ?? 0)} учтена)` : ""}${overpaid > 0 ? `; переплата ${formatPrice(overpaid)} — к возврату` : ""}`, actor, now);
     this.record(OrderingEvents.orderRepriced({ ...this.ref(), previousAmount: before.amount, previousPlan: planBefore, actor }));
     return { due: price.amount, credited, outstanding, overpaid };
+  }
+
+  /**
+   * Покупатель согласовал макет: запоминаем отпечаток книги, какой она сейчас. Повтор с той же версией — без записи (false).
+   * Нельзя, пока книга открыта для правок, и у заказа без согласования (электронный, отправлен, отменён).
+   */
+  approveLayout(current: CurrentLayout, now: Date): boolean {
+    const refusal = layoutApprovalRefusal({ status: this.props.status, layoutApproval: this.props.layoutApproval }, current);
+    if (refusal) throw new OrderingError(refusal);
+    const a = this.props.layoutApproval;
+    if (a.approvedAt && a.fingerprint === current.fingerprint) return false;
+    const again = !!a.approvedAt || !!a.revokedAt;
+    this.props.layoutApproval = { required: true, approvedAt: now, fingerprint: current.fingerprint, revokedAt: null };
+    this.log(null, `Клиент согласовал макет${again ? " повторно" : ""} (версия ${current.fingerprint}): книга уйдёт в печать как есть`, "customer", now);
+    this.record(OrderingEvents.layoutApproved({ ...this.ref(), fingerprint: current.fingerprint!, again }));
+    return true;
+  }
+
+  /**
+   * Согласие клиента больше не действует — книгу открыли для правок: печатные файлы закрыты, пока клиент не согласует
+   * заново (даже если ничего не поменяет).
+   */
+  revokeLayoutApproval(actor: string, now: Date) {
+    const a = this.props.layoutApproval;
+    // Не согласовывали — сбрасывать нечего: макет и так ждёт согласования.
+    if (!a.required || !a.approvedAt) return;
+    this.props.layoutApproval = { ...a, approvedAt: null, fingerprint: null, revokedAt: now };
+    this.log(null, "Согласование макета сброшено: книга открыта для правок — клиент должен согласовать заново", actor, now);
+  }
+
+  /** Печать без согласования клиента (или изменённой после него книги) — отказ с тем же текстом, что у файлов. */
+  private assertLayoutForPrint(current: CurrentLayout | null) {
+    const block = layoutBlock(this.props.layoutApproval, current);
+    if (block) throw new OrderingError(block);
+  }
+
+  /** Тариф сменился: печатному заказу до печати нужно согласование, электронному — нет. */
+  private syncLayoutRequirement() {
+    this.props.layoutApproval = { ...this.props.layoutApproval, required: layoutApprovalRequired(this.isPrinted, this.props.status) };
   }
 
   recordPrintSpec(spec: OrderPrintSpec) {

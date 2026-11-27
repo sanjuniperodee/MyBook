@@ -106,8 +106,12 @@ beforeEach(async () => {
 const ORDER = "0f000000-0000-4000-8000-000000000001";
 
 const OFFICE = "10.1.2.0/24";
-const orders = new Map<string, { id: string; number: number; userId: string; bookId: string; status: string; plan: string }>();
-let built: { kind: string; force: boolean }[] = [];
+type OrderRow = { id: string; number: number; userId: string; bookId: string; status: string; plan: string; book?: { status: string }; layoutApprovalRequired?: boolean; layoutApprovedAt?: Date | null; layoutApprovedFingerprint?: string | null; layoutApprovalRevokedAt?: Date | null };
+const orders = new Map<string, OrderRow>();
+/** Что собирали: пакет для типографии (package, с версией fp, если просили) и ключи файлов к выдаче. */
+let built: { kind: string; force: boolean; fp?: string }[] = [];
+/** Книга сейчас для согласования макета (отпечаток печати и открыта ли для правок). */
+let bookNow = { fingerprint: "fp-1", bookOpen: false };
 
 async function download(kind: string, query = "") {
   const { GET } = await import("@/server/site-handlers/orders/file");
@@ -123,10 +127,15 @@ describe("Доступ к файлам чужого заказа", () => {
     resetContainer();
     orders.clear();
     built = [];
-    fake.ordering = { queries: { orderDetails: async (id: string) => orders.get(id) ?? null } };
+    bookNow = { fingerprint: "fp-1", bookOpen: false };
+    fake.ordering = { queries: { orderDetails: async (id: string) => orders.get(id) ?? null }, orders: { currentLayout: async () => bookNow, recordPrintSpec: async () => {} } };
     fake.printFiles = {
-      fileKey: async (_job: unknown, kind: string, opts: { force: boolean }) => {
-        built.push({ kind, force: opts.force });
+      prepare: async (_job: unknown, opts: { force?: boolean; fingerprint?: string }) => {
+        built.push({ kind: "package", force: !!opts.force, fp: opts.fingerprint });
+        return null;
+      },
+      fileKey: async (_job: unknown, kind: string, opts: { force?: boolean; fingerprint?: string }) => {
+        built.push({ kind, force: !!opts.force, fp: opts.fingerprint });
         return `orders/${ORDER}/${kind}`;
       },
       openKey: async (key: string) => {
@@ -154,6 +163,7 @@ describe("Доступ к файлам чужого заказа", () => {
     expect(await download("block")).toMatchObject({ status: 200, body: "file:block" });
     expect(built).toEqual([
       { kind: "reading", force: false },
+      { kind: "package", force: false },
       { kind: "block", force: false },
     ]);
   });
@@ -169,7 +179,8 @@ describe("Доступ к файлам чужого заказа", () => {
     expect(await download("reading")).toMatchObject({ status: 404, body: "orderNotFound" });
     signIn(client);
     await download("reading", "?regenerate=1");
-    expect(built.map((b) => b.force)).toEqual([true, true, false]);
+    // Пересборка печатного — пакетом (package), выдача файла — из него.
+    expect(built.map((b) => `${b.kind}:${b.force}`)).toEqual(["reading:true", "package:true", "block:false", "reading:false"]);
   });
 
   it("сотрудник с правами, но не из разрешённой сети или без обязательной 2FA — как чужой клиент: 404, файлы не собираются", async () => {
@@ -187,7 +198,10 @@ describe("Доступ к файлам чужого заказа", () => {
     expect(built).toEqual([]);
     signIn({ ...pavel, ...withTwoFactor });
     expect(await download("block", "?regenerate=1")).toMatchObject({ status: 200, body: "file:block" });
-    expect(built).toEqual([{ kind: "block", force: true }]);
+    expect(built).toEqual([
+      { kind: "package", force: true },
+      { kind: "block", force: false },
+    ]);
   });
 
   it("без входа — 401, неизвестный вид файла — 404 (и для имён свойств объекта вроде toString)", async () => {
@@ -197,6 +211,57 @@ describe("Доступ к файлам чужого заказа", () => {
     expect(await download("constructor")).toMatchObject({ status: 404, body: "notFound" });
     resetRequest();
     expect(await download("reading")).toMatchObject({ status: 401, body: "unauthorized" });
+  });
+
+  describe("файлы для типографии — только после согласования макета клиентом", () => {
+    const approved = { layoutApprovedAt: new Date("2026-11-27T10:00:00Z"), layoutApprovedFingerprint: "fp-1", layoutApprovalRevokedAt: null };
+    const order = (extra: Partial<OrderRow>, status = "paid") =>
+      orders.set(ORDER, { id: ORDER, number: 101, userId: client.id, bookId: "b1", status, plan: "hardcover", book: { status: "ordered" }, layoutApprovalRequired: true, layoutApprovedAt: null, layoutApprovedFingerprint: null, layoutApprovalRevokedAt: null, ...extra });
+    beforeEach(() => signIn(pavel));
+
+    it("не согласовано — 403 «Клиент ещё не согласовал макет» на блок, обложку, каркас и техзадание; пакет не собирается; PDF для чтения — можно, из текущей версии", async () => {
+      order({});
+      for (const kind of ["block", "cover", "layout", "spec"]) expect(await download(kind)).toMatchObject({ status: 403, body: "layoutNotApproved" });
+      expect(built).toEqual([]);
+      signIn(client);
+      expect(await download("reading")).toMatchObject({ status: 200, body: "file:reading" });
+      expect(built).toEqual([{ kind: "reading", force: false, fp: "fp-1" }]);
+    });
+
+    it("согласовано — файлы есть, пакет — из согласованной версии (fp); книгу изменили после — 403 «изменён после согласования»", async () => {
+      order(approved);
+      expect(await download("block")).toMatchObject({ status: 200, body: "file:block" });
+      expect(built).toEqual([
+        { kind: "package", force: false, fp: "fp-1" },
+        { kind: "block", force: false },
+      ]);
+      built = [];
+      bookNow = { fingerprint: "fp-2", bookOpen: false };
+      expect(await download("cover")).toMatchObject({ status: 403, body: "layoutChanged" });
+      expect(built).toEqual([]);
+    });
+
+    it("книгу открыли для правок — 409; закрыли без правок — согласие сброшено, всё равно 403, пока клиент не согласует заново", async () => {
+      order(approved);
+      bookNow = { fingerprint: "fp-1", bookOpen: true };
+      expect(await download("block")).toMatchObject({ status: 409, body: "layoutBookEditing" });
+      // «Открыть для правок» сбросило согласие (Order.revokeLayoutApproval), книгу закрыли, ничего не поменяв.
+      bookNow = { fingerprint: "fp-1", bookOpen: false };
+      order({ layoutApprovalRevokedAt: new Date("2026-11-27T11:00:00Z") });
+      expect(await download("block")).toMatchObject({ status: 403, body: "layoutNotApproved" });
+      order({ ...approved, layoutApprovedAt: new Date("2026-11-27T12:00:00Z") });
+      expect(await download("block")).toMatchObject({ status: 200, body: "file:block" });
+    });
+
+    it("заказ без согласования (уже был в печати к выпуску) — файлы как раньше, без проверки версии", async () => {
+      order({ layoutApprovalRequired: false }, "in_production");
+      bookNow = { fingerprint: "fp-other", bookOpen: true };
+      expect(await download("block")).toMatchObject({ status: 200, body: "file:block" });
+      expect(built).toEqual([
+        { kind: "package", force: false },
+        { kind: "block", force: false },
+      ]);
+    });
   });
 });
 

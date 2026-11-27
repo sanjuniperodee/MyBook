@@ -38,6 +38,7 @@ function toDomain(r: Row): Order {
     paidAt: r.paidAt,
     postpay: r.postpay,
     receivedAmount: r.receivedAmount,
+    layoutApproval: { required: r.layoutApprovalRequired, approvedAt: r.layoutApprovedAt, fingerprint: r.layoutApprovedFingerprint, revokedAt: r.layoutApprovalRevokedAt },
     createdAt: r.createdAt,
   });
 }
@@ -81,6 +82,10 @@ function toRow(order: Order) {
     paidAt: s.paidAt,
     postpay: s.postpay,
     receivedAmount: s.receivedAmount,
+    layoutApprovalRequired: s.layoutApproval.required,
+    layoutApprovedAt: s.layoutApproval.approvedAt,
+    layoutApprovedFingerprint: s.layoutApproval.fingerprint,
+    layoutApprovalRevokedAt: s.layoutApproval.revokedAt,
   };
 }
 

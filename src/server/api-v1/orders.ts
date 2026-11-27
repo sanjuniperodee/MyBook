@@ -15,6 +15,7 @@ import { checkoutModel, checkoutQuote, checkoutSchema, placeOrder } from "@/serv
 import { container } from "@/server/container";
 import { actionError } from "@/server/errors";
 import { invoiceView } from "@/server/kaspi-view";
+import { layoutView } from "@/server/order-layout";
 import { kaspiInvoice, orderModel, ordersList } from "@/server/order-view";
 import { rateLimit, trustedClientIp } from "@/server/rateLimit";
 import {
@@ -187,6 +188,13 @@ const clientOrdersApi: OrdersApiHandlers<ClientRoute> = {
     const detail = await localOrderDetailDto(input.orderId, user!, locale, messagesFor(locale));
     if (!detail) throw new HttpError(404, "orderNotFound");
     return detail;
+  },
+
+  /** Покупатель согласовал макет своего заказа — текущую версию книги (после «Открыть для правок» — заново). */
+  async webOrderLayoutApprove({ user, input }) {
+    const orders = container().ordering.orders;
+    const order = await orders.approveLayout(input.orderId, user!.id);
+    return layoutView(order.layoutApproval, await orders.currentLayout(order.bookId));
   },
 
   async webPayPage({ input }) {

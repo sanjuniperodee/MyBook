@@ -303,9 +303,30 @@ export const OrderFileLink = z.object({ kind: z.string(), label: z.string(), url
  * (сначала ?prepare=1 — 204, когда готов; ход — progressUrl). Пересборка — тот же маршрут блока с ?prepare=1&regenerate=1:
  * вёрстка идёт процессом сайта, параметры печати и запись в журнал — как у кнопки «Перегенерировать файлы».
  */
+/**
+ * Согласование итогового макета клиентом: notRequired — не нужно (электронный тариф, заказ старше 27.11.2026), editing —
+ * книга открыта для правок, pending — ждёт согласования (again — повторного, после правок), changed — книгу изменили после
+ * согласования, approved — согласована эта версия (approvedAt). Печатные файлы и ZIP — только при notRequired/approved.
+ */
+export const OrderLayoutApproval = z
+  .object({
+    state: z.enum(["notRequired", "editing", "pending", "changed", "approved"]),
+    again: z.boolean(),
+    approvedAt: z.string().nullable(),
+  })
+  .register(schemas, { id: "OrderLayoutApproval" });
+
+/** То же для сотрудника: почему печатные файлы закрыты (null — открыты) и страница заказа клиента — отправить ему вручную. */
+export const StaffOrderLayoutApproval = OrderLayoutApproval.extend({
+  blocked: z.string().nullable(),
+  clientUrl: z.string(),
+}).register(schemas, { id: "StaffOrderLayoutApproval" });
+
 export const OrderFiles = z
   .object({
     canFiles: z.boolean(),
+    /** Согласование макета клиентом: печатные файлы и пакет закрыты, пока layout.blocked не null. */
+    layout: StaffOrderLayoutApproval,
     /** Параметры печати последней сборки; null — файлов ещё не собирали. */
     spec: z.object({ format: z.string(), pages: z.number().int(), spineMm: z.number(), coverWidthMm: z.number(), coverHeightMm: z.number(), generatedAt: z.string() }).nullable(),
     files: z.array(OrderFileLink),

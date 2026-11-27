@@ -2,11 +2,13 @@
 export {
   BookPreviewService,
   PrintFilesService,
+  PrintLayoutChangedError,
   RasterizerMissingError,
   type BookRenderer,
   type FileStore,
   type PageRaster,
   type PrintFileKind,
+  type PrintFileOptions,
   type PrintJob,
   type PrintSpec,
   type RenderQueue,

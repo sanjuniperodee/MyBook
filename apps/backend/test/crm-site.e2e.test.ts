@@ -3,6 +3,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import { StaffContext } from "@/modules/access/domain/StaffContext";
 import { BoardsError } from "@/modules/boards";
 import { isPhoneEmail } from "@/modules/identity";
+import { OrderingError } from "@/modules/ordering";
 import { GowaError, MediaUnavailableError, MessageActionError, type Attachment, type BotMaterial, type Conversation } from "@/modules/messaging";
 import { SupportError } from "@/modules/support";
 import type { LiveEvent } from "@/modules/workspace";
@@ -110,6 +111,7 @@ describe("Контекст 5B: 28 не-денежных маршрутов са�
   let supportCreateError: SupportError | null = null;
   let liveListener: ((e: LiveEvent) => void) | null = null;
   let liveUnsubscribed = 0;
+  let layoutRefusal: "layoutNotApproved" | "layoutChanged" | "layoutBookEditing" | null = null;
 
   const sampleMaterial: BotMaterial = {
     id: MAT_ID,
@@ -262,7 +264,11 @@ describe("Контекст 5B: 28 не-денежных маршрутов са�
       findOrderDetails: async (id) =>
         id === ORDER_ID ? { id: ORDER_ID, bookId: BOOK_ID, number: 1042, plan: "hardcover", quantity: 1 } : null,
       canSeeOrder: async (staff, id) => id === ORDER_ID && staff.scope === "all",
-      preparePrintFiles: async () => {},
+      // Пакет — только согласованного клиентом макета: layoutRefusal — что ответил бы общий код (order-layout.ts).
+      preparePrintPackage: async (orderId) => {
+        if (layoutRefusal) throw new OrderingError(layoutRefusal);
+        return { orderId, bookId: BOOK_ID, number: 1042, plan: "hardcover", quantity: 1 };
+      },
       getPrintFile: async (_job, kind) => Buffer.from(`FILE:${kind}`),
 
       audit: async (_staff, action, entity, _id, details) => {
@@ -761,6 +767,17 @@ describe("Контекст 5B: 28 не-денежных маршрутов са�
     expect(pkg.headers["content-disposition"]).toBe('attachment; filename="order-1042.zip"');
     expect(pkg.headers["cache-control"]).toBe("private, no-store");
     expect(pkg.rawPayload.subarray(0, 2).toString("ascii")).toBe("PK");
+    // Клиент не согласовал макет / книгу изменили после согласования / книга открыта для правок — пакета нет, отказ с кодом.
+    for (const [refusal, status, error] of [
+      ["layoutNotApproved", 403, "Клиент ещё не согласовал макет"],
+      ["layoutChanged", 403, "Макет изменён после согласования — нужно согласовать заново"],
+      ["layoutBookEditing", 409, "Книга открыта для правок — согласовать макет можно, когда правки закончены"],
+    ] as const) {
+      layoutRefusal = refusal;
+      const refused = await app.inject({ method: "GET", url: `/api/admin/orders/${ORDER_ID}/package`, headers: asOwner });
+      expect([refused.statusCode, refused.json()]).toEqual([status, { error, code: refusal }]);
+    }
+    layoutRefusal = null;
   });
 
   it("9 экспортов CSV и vCard: права, аудит, заголовки, 405 и оба префикса", async () => {

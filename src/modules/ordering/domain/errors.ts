@@ -32,7 +32,11 @@ export type OrderingErrorCode =
   | "kaspiUnavailable"
   | "invalidAmount"
   | "receiptInvalid"
-  | "paymentRule";
+  | "paymentRule"
+  | "layoutNotApproved"
+  | "layoutChanged"
+  | "layoutBookEditing"
+  | "layoutNotNeeded";
 
 export const OrderingError = contextError<OrderingErrorCode>("ordering", "OrderingError");
 export type OrderingError = InstanceType<typeof OrderingError>;

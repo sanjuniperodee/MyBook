@@ -1,7 +1,7 @@
 import type { Locale } from "@/i18n/config";
 import type { AgreementGift } from "@/shared/domain/agreementGifts";
 import type { OrderPrintSpec } from "@/shared/domain/orders";
-import type { KaspiHistoryOp, KaspiMethod, KaspiPaymentView } from "../domain";
+import type { CurrentLayout, KaspiHistoryOp, KaspiMethod, KaspiPaymentView } from "../domain";
 
 /** Что заказу нужно знать о книге (контекст Authoring). */
 export interface BookGateway {
@@ -11,6 +11,16 @@ export interface BookGateway {
   unlock(bookId: string): Promise<void>;
   /** Открыть/закрыть книгу для правок клиентом (по просьбе исправить опечатку). */
   toggleEditing(bookId: string): Promise<"draft" | "ordered">;
+  /** Книга открыта для правок (статус «черновик»): макет не согласовать, печатные файлы закрыты. */
+  isOpenForEdits(bookId: string): Promise<boolean>;
+}
+
+/**
+ * Книга сейчас для согласования макета: отпечаток печати и открыта ли она для правок. null — не знаем (книги нет,
+ * не подключено) — тогда заказ, которому нужно согласование, в печать не уходит.
+ */
+export interface LayoutSource {
+  current(bookId: string): Promise<CurrentLayout | null>;
 }
 
 /** Клиенты и сотрудники (контексты Identity и Access). */
@@ -42,7 +52,9 @@ export interface PrintJob {
 
 /** Файлы для типографии (контекст Production). */
 export interface PrintFiles {
-  prepare(job: PrintJob, opts?: { force?: boolean }): Promise<OrderPrintSpec | null>;
+  prepare(job: PrintJob, opts?: { force?: boolean; fingerprint?: string }): Promise<OrderPrintSpec | null>;
+  /** Отпечаток версии книги для печати сейчас; null — книги нет. */
+  fingerprint(bookId: string): Promise<string | null>;
   /** После оплаты: готовит файлы заранее; сбой не бросается, а пишется в лог. spec — параметры собранного сейчас пакета для печати. */
   warmUp(job: PrintJob): Promise<{ status: "rendered" | "cached" | "failed"; spec: OrderPrintSpec | null }>;
 }

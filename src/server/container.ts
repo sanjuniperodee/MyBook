@@ -499,6 +499,7 @@ export class Container {
         lockForOrder: (bookId) => this.authoring.ordering.lockForOrder(bookId),
         unlock: (bookId) => this.authoring.ordering.unlock(bookId),
         toggleEditing: (bookId) => this.authoring.ordering.toggleEditing(bookId),
+        isOpenForEdits: (bookId) => this.authoring.ordering.isOpenForEdits(bookId),
       },
       agreements: { agreementFor: (userId) => this.sales.agreementFor(userId), attachOrder: (dealId, orderId) => this.sales.attachAgreementOrder(dealId, orderId) },
       kaspiConfig,

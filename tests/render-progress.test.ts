@@ -182,7 +182,7 @@ describe("ход сборки в PrintFilesService и BookPreviewService", () =>
     await t.printFiles.ensure(job, "reading");
     await t.printFiles.ensure(job, "reading");
     expect(t.renderer.calls).toEqual(["package:b1:7", "reading:b1"]);
-    expect(t.files.keys()).toEqual(["orders/o1/block.pdf", "orders/o1/cover.pdf", "orders/o1/layout.pdf", "orders/o1/reading.pdf", "orders/o1/spec.txt"]);
+    expect(t.files.keys()).toEqual(["orders/o1/block.pdf", "orders/o1/cover.pdf", "orders/o1/layout.pdf", "orders/o1/package.fp", "orders/o1/reading.pdf", "orders/o1/spec.txt"]);
     expect(get).not.toHaveBeenCalled();
     // force пересобирает поверх кэша — кнопка «Перегенерировать».
     await t.printFiles.ensure(job, "block", { force: true });

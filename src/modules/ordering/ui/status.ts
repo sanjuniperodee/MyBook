@@ -61,3 +61,4 @@ export const orderStatusDot: Record<OrderStatus, string> = {
   delivered: "bg-muted",
   cancelled: "bg-danger",
 };
+

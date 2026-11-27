@@ -62,6 +62,11 @@ function orderingText(m: Messages, err: DomainError): string | null {
     receiptInvalid: m.api.receiptInvalid,
     // Правило денег по заказу для сотрудника (не оплачен — в печать только с постоплатой и т. п.): текст в самой ошибке.
     paymentRule: err.message,
+    // Согласование макета клиентом (layoutApproval.ts): печатные файлы и печать закрыты.
+    layoutNotApproved: m.api.layoutNotApproved,
+    layoutChanged: m.api.layoutChanged,
+    layoutBookEditing: m.api.layoutBookEditing,
+    layoutNotNeeded: m.api.layoutNotNeeded,
   };
   return has(texts, err.code) ? texts[err.code as OrderingErrorCode] : messageText(err);
 }

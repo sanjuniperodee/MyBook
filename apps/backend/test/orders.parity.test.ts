@@ -11,7 +11,7 @@ import { ORDERS_API_PORTS, type OrdersApiRoute } from "../src/modules/orders/ord
 import { bootTestApp, sessionOf, testUser } from "./app";
 
 /**
- * Контекст 7A («заказы и деньги API v1»): все 46 маршрутов байт в байт у Nest и mybook-api — без входа, клиентом,
+ * Контекст 7A («заказы и деньги API v1»): все 47 маршрутов байт в байт у Nest и mybook-api — без входа, клиентом,
  * сотрудником без прав и с успешным ответом. Обе стороны зовут один общий код (src/server/api-v1/orders.ts), поэтому
  * тест сверяет то, что у процессов своё: вход, права, книгу, разбор входа, ответ (ETag/304, no-store), ошибки.
  */
@@ -49,7 +49,7 @@ const staffAccess: StaffAccessPort = {
   },
 };
 
-const shared = vi.hoisted(() => ({ refuse: null as string | null, allowRate: true, viewed: 0 }));
+const shared = vi.hoisted(() => ({ refuse: null as string | null, allowRate: true, viewed: 0, layoutRefusal: null as "layoutBookEditing" | "layoutNotApproved" | "layoutNotNeeded" | null }));
 
 /** Ответ-заглушка по схеме контракта маршрута: проходит проверку ответа у обоих процессов. */
 const sample = async (route: string) => {
@@ -74,6 +74,11 @@ const orderRow = {
   promoCode: null,
   itemsAmount: 29000,
   printSpec: null,
+  // Печатный заказ ждёт согласования макета клиентом: crmOrderFiles показывает, почему файлы закрыты.
+  layoutApprovalRequired: true,
+  layoutApprovedAt: null,
+  layoutApprovedFingerprint: null,
+  layoutApprovalRevokedAt: null,
   book: { id: BOOK_ID, status: "ordered" },
   contactName: "Асель",
   contactPhone: "+77011234567",
@@ -101,7 +106,18 @@ const mockContainer = {
       payOrder: async () => ({ id: INVOICE_ID }),
       status: async () => ({ id: INVOICE_ID }),
     },
-    orders: { claimPayment: async () => {}, cancelByCustomer: async () => {} },
+    orders: {
+      claimPayment: async () => {},
+      cancelByCustomer: async () => {},
+      currentLayout: async () => ({ fingerprint: "fp-approved", bookOpen: false }),
+      // Согласование макета: только свой заказ (чужой — как будто его нет); отказ домена — shared.layoutRefusal.
+      approveLayout: async (orderId: string, userId: string) => {
+        const { OrderingError } = await import("@/modules/ordering/domain/errors");
+        if (orderId !== ORDER_ID || userId !== CLIENT.id) throw new OrderingError("orderNotFound");
+        if (shared.layoutRefusal) throw new OrderingError(shared.layoutRefusal);
+        return { bookId: BOOK_ID, layoutApproval: { required: true, approvedAt: PAID_AT, fingerprint: "fp-approved", revokedAt: null } };
+      },
+    },
   },
   access: { queries: { allStaff: async () => [{ id: OWNER.id, name: "Айгерим", email: "owner@mybooks.kz" }] } },
   reporting: {
@@ -264,6 +280,7 @@ const CASES: Record<OrdersApiRoute, Case> = {
   webOrderPlace: { method: "POST", url: "/api/v1/web/orders", body: { bookId: BOOK_ID, plan: "hardcover", quantity: 1, ...contact, delivery: "pickup", consent: true, locale: "ru" }, who: asClient },
   webOrdersList: { method: "GET", url: "/api/v1/web/orders?locale=ru", who: asClient },
   webOrderDetail: { method: "GET", url: `/api/v1/web/orders/${ORDER_ID}?locale=ru`, who: asClient },
+  webOrderLayoutApprove: { method: "POST", url: `/api/v1/web/orders/${ORDER_ID}/layout-approval`, who: asClient },
   webPayPage: { method: "GET", url: "/api/v1/web/pay/pay-token", who: {} },
   webPayViewed: { method: "POST", url: "/api/v1/web/pay/pay-token/viewed", who: {} },
   webPayClaim: { method: "POST", url: "/api/v1/web/pay/claim", body: { token: "pay-token", locale: "ru" }, who: {} },
@@ -347,9 +364,9 @@ async function collect(run: (key: OrdersApiRoute, c: Case) => Promise<{ nestRes:
   return { failed, statuses };
 }
 
-describe("побайтовый паритет NestJS ↔ mybook-api: Контекст 7A — 46 маршрутов заказов и денег", () => {
-  it("маршруты общего кода и Nest — одни и те же 46, у каждого есть случай и маршрут контракта", () => {
-    expect(ORDERS_API_ROUTES).toHaveLength(46);
+describe("побайтовый паритет NestJS ↔ mybook-api: Контекст 7A — 47 маршрутов заказов и денег", () => {
+  it("маршруты общего кода и Nest — одни и те же 47, у каждого есть случай и маршрут контракта", () => {
+    expect(ORDERS_API_ROUTES).toHaveLength(47);
     expect(Object.keys(CASES).sort()).toEqual([...ORDERS_API_ROUTES].sort());
     for (const key of ORDERS_API_ROUTES) {
       const def = v1[key];
@@ -397,5 +414,20 @@ describe("побайтовый паритет NestJS ↔ mybook-api: Конте�
     expect(shared.viewed).toBe(0);
     await assertRouteParity({ nest: app, legacy, method: "POST", url: "/api/v1/web/pay/pay-token/viewed", headers: asClient });
     expect(shared.viewed).toBe(2);
+  });
+
+  it("согласование макета: отказы домена (книга открыта для правок, книги нет, заказ без печати) — те же статусы и тексты", async () => {
+    const url = `/api/v1/web/orders/${ORDER_ID}/layout-approval`;
+    for (const [refusal, status] of [["layoutBookEditing", 409], ["layoutNotApproved", 403], ["layoutNotNeeded", 409]] as const) {
+      shared.layoutRefusal = refusal;
+      const { nestRes } = await assertRouteParity({ nest: app, legacy, method: "POST", url, headers: asClient });
+      expect([nestRes.statusCode, (nestRes.json() as { code?: string }).code], refusal).toEqual([status, refusal]);
+    }
+    shared.layoutRefusal = null;
+    const { nestRes } = await assertRouteParity({ nest: app, legacy, method: "POST", url, headers: asClient });
+    expect(nestRes.json()).toEqual({ state: "approved", again: false, approvedAt: PAID_AT.toISOString() });
+    // Чужой заказ — 404, как будто его нет.
+    const other = await assertRouteParity({ nest: app, legacy, method: "POST", url, headers: asOther });
+    expect(other.nestRes.statusCode).toBe(404);
   });
 });

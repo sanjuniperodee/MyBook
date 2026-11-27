@@ -173,6 +173,11 @@ export class BookOrderingService {
     return this.books.setStatus(bookId, "draft");
   }
 
+  /** Книга открыта для правок (черновик) — для согласования макета заказа. */
+  async isOpenForEdits(bookId: string): Promise<boolean> {
+    return (await this.books.findById(bookId))?.status === "draft";
+  }
+
   /** Сотрудник временно открывает заказанную книгу для правок (и закрывает обратно). */
   async toggleEditing(bookId: string): Promise<"draft" | "ordered"> {
     const book = await this.books.findById(bookId);

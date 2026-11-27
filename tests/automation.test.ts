@@ -673,6 +673,7 @@ describe("Статус заказа и трек-номер для правил (
     const t = orderingSetup();
     const o = await t.place();
     await t.svc.confirmPayment({ orderId: o.id, paymentId: null }, orderingAdmin);
+    await t.svc.approveLayout(o.id, "user-1");
     await t.svc.changeStatus({ orderId: o.id, to: "in_production" }, orderingAdmin);
     t.uow.published.length = 0;
     const tracking = () => t.uow.published.filter((e) => e.type === "ordering.tracking_added").map((e) => e.payload as { trackingNumber: string; afterShipping: boolean });

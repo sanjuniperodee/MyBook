@@ -40,6 +40,7 @@ import { expenseCategories, expenseCategoryKeys, expenseGroupKeys, expenseGroupO
 import { ORDER_STATUSES } from "@/shared/domain/orders";
 import { staffLabel } from "@/shared/domain/staff";
 import { storeTimeZone } from "@/shared/domain/time";
+import { staffLayoutView } from "@/server/order-layout";
 import { refused, type OrdersApiHandlers } from "./types";
 
 /** Заказ, который сотрудник видит («только свои» — заказы своих клиентов); иначе 404. */
@@ -211,6 +212,7 @@ export const crmMoneyApi: OrdersApiHandlers<CrmRoute> = {
     const canFiles = can(staff, "orders.files");
     return {
       canFiles,
+      layout: await staffLayoutView(order),
       spec: spec
         ? { format: getFormat(spec.format).short, pages: spec.pageCount, spineMm: spec.spineMm, coverWidthMm: spec.coverWidthMm, coverHeightMm: spec.coverHeightMm, generatedAt: spec.generatedAt }
         : null,

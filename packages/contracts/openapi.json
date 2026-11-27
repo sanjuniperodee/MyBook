@@ -14444,6 +14444,50 @@
         "x-auth": "user"
       }
     },
+    "/api/v1/web/orders/{orderId}/layout-approval": {
+      "post": {
+        "operationId": "webOrderLayoutApprove",
+        "tags": [
+          "web-orders"
+        ],
+        "summary": "Покупатель согласует итоговый макет своего печатного заказа: запоминается текущая версия книги (после правок — заново), без согласования файлы для типографии не выдаются",
+        "parameters": [
+          {
+            "name": "orderId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderLayoutApproval"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      }
+    },
     "/api/v1/web/pay/{token}": {
       "get": {
         "operationId": "webPayPage",
@@ -32508,11 +32552,85 @@
         ],
         "additionalProperties": false
       },
+      "OrderLayoutApproval": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "notRequired",
+              "editing",
+              "pending",
+              "changed",
+              "approved"
+            ]
+          },
+          "again": {
+            "type": "boolean"
+          },
+          "approvedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "state",
+          "again",
+          "approvedAt"
+        ],
+        "additionalProperties": false
+      },
+      "StaffOrderLayoutApproval": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "notRequired",
+              "editing",
+              "pending",
+              "changed",
+              "approved"
+            ]
+          },
+          "again": {
+            "type": "boolean"
+          },
+          "approvedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "blocked": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "clientUrl": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "again",
+          "approvedAt",
+          "blocked",
+          "clientUrl"
+        ],
+        "additionalProperties": false
+      },
       "OrderFiles": {
         "type": "object",
         "properties": {
           "canFiles": {
             "type": "boolean"
+          },
+          "layout": {
+            "$ref": "#/components/schemas/StaffOrderLayoutApproval"
           },
           "spec": {
             "anyOf": [
@@ -32582,6 +32700,7 @@
         },
         "required": [
           "canFiles",
+          "layout",
           "spec",
           "files",
           "packageUrl",
@@ -47403,6 +47522,9 @@
               }
             ]
           },
+          "layout": {
+            "$ref": "#/components/schemas/OrderLayoutApproval"
+          },
           "order": {
             "$ref": "#/components/schemas/WebOrderDetailOrder"
           }
@@ -47419,6 +47541,7 @@
           "review",
           "upgrade",
           "payment",
+          "layout",
           "order"
         ],
         "additionalProperties": false

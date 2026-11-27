@@ -4,6 +4,7 @@
  */
 import { z } from "zod";
 import { Ok, iso, route, schemas, uuid, type RouteDef } from "./core";
+import { OrderLayoutApproval } from "./crm";
 import { WebAgreementBook, WebDealAgreement, WebLocale } from "./web-cabinet";
 
 const OrderStatusSchema = z.enum(["pending_payment", "paid", "in_production", "shipped", "delivered", "cancelled"]);
@@ -274,6 +275,11 @@ export const WebOrderDetailResponse = z
           .nullable(),
       })
       .nullable(),
+    /**
+     * Согласование итогового макета (печатный заказ): пока не согласовано — блок «Проверьте макет перед печатью»; книга
+     * сейчас — превью и PDF для чтения из текущей версии. Без печати — state notRequired.
+     */
+    layout: OrderLayoutApproval,
     order: WebOrderDetailOrder,
   })
   .register(schemas, { id: "WebOrderDetailResponse" });
@@ -380,6 +386,16 @@ export const webOrdersRoutes = {
     params: z.object({ orderId: uuid }),
     query: LocaleQuery,
     response: WebOrderDetailResponse,
+  }),
+  webOrderLayoutApprove: route({
+    method: "POST",
+    path: "/api/v1/web/orders/{orderId}/layout-approval",
+    auth: "user",
+    tag: "web-orders",
+    summary:
+      "Покупатель согласует итоговый макет своего печатного заказа: запоминается текущая версия книги (после правок — заново), без согласования файлы для типографии не выдаются",
+    params: z.object({ orderId: uuid }),
+    response: OrderLayoutApproval,
   }),
   webPayPage: route({
     method: "GET",

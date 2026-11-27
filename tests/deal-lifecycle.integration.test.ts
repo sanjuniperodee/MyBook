@@ -64,7 +64,7 @@ run("жизнь сделки: деньги и счета (PostgreSQL)", () => {
     },
   };
   const invoices = new DealInvoicesService(new DrizzleDealInvoiceRepository(), invoiceSales, uow, systemClock);
-  const books = { checkoutInfo: async () => ({ status: "draft" as const, blockingIssue: null, estimatedPages: 40 }), lockForOrder: async () => true, unlock: async () => {}, toggleEditing: async () => "draft" as const };
+  const books = { checkoutInfo: async () => ({ status: "draft" as const, blockingIssue: null, estimatedPages: 40 }), lockForOrder: async () => true, unlock: async () => {}, toggleEditing: async () => "draft" as const, isOpenForEdits: async () => false };
   const people = { rememberPhoneIfMissing: async () => {}, activeStaff: async () => null };
   const orders = new OrdersService(new DrizzleOrderRepository(), new DrizzlePromoCodeRepository(), books, people, { prepare: async () => null }, { provider: () => "manual", currency: () => "KZT" }, { agreementFor: agreementForClient, attachOrder: attachAgreementOrder }, uow, systemClock, undefined, lifecycle);
 

@@ -16,6 +16,8 @@ export interface OrderPrintSpec {
   coverWidthMm: number;
   coverHeightMm: number;
   generatedAt: string;
+  /** Из какой версии книги собраны (отпечаток печати); у сборок до 27.11.2026 — нет. */
+  fingerprint?: string;
 }
 
 export type GiftStatus = "pending_payment" | "paid" | "cancelled";

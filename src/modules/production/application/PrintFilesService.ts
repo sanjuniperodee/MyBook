@@ -28,6 +28,27 @@ export interface PrintSpec {
   coverWidthMm: number;
   coverHeightMm: number;
   generatedAt: string;
+  /** Отпечаток версии книги для печати (printFingerprint), из которой собран пакет; у пакетов до 27.11.2026 — нет. */
+  fingerprint?: string;
+}
+
+/** Как готовить печатный файл: force — собрать заново; fingerprint — нужен файл ровно этой версии книги (иначе — пересобрать). */
+export interface PrintFileOptions {
+  force?: boolean;
+  fingerprint?: string;
+}
+
+const LAYOUT_CHANGED = Symbol.for("mybook.print-layout-changed");
+
+/** Пакет просили из согласованной версии книги, а собрался из другой: книгу изменили, пока ждали сборку. */
+export class PrintLayoutChangedError extends Error {
+  readonly [LAYOUT_CHANGED] = true;
+  constructor(readonly expected: string, readonly actual: string | undefined) {
+    super(`print package fingerprint ${actual ?? "—"} ≠ approved ${expected}`);
+  }
+  static is(err: unknown): err is PrintLayoutChangedError {
+    return typeof err === "object" && err !== null && (err as Record<symbol, unknown>)[LAYOUT_CHANGED] === true;
+  }
 }
 
 /** Порт рендера: PDF блока, обложки и читательской версии. report — рендер докладывает, какой этап начался (RenderProgress). */
@@ -43,6 +64,8 @@ export interface BookRenderer {
   preview(bookId: string): Promise<ScreenDraft | null>;
   /** Текст книги одним файлом. */
   manuscript(bookId: string): Promise<{ title: string; text: string } | null>;
+  /** Отпечаток версии книги для печати сейчас (без рендера); null — книги нет. */
+  printFingerprint(bookId: string): Promise<string | null>;
 }
 
 /** Экранная сборка книги до рендера: отпечаток считается сразу, сама вёрстка — по render(). */
@@ -114,6 +137,21 @@ export class PrintFilesService {
     return `orders/${orderId}/${kind === "spec" ? "spec.txt" : `${kind}.pdf`}`;
   }
 
+  /** Из какой версии книги собраны файлы: пакет для печати (package) или читательская версия (reading). */
+  private fpKey(orderId: string, of: "package" | "reading") {
+    return `orders/${orderId}/${of}.fp`;
+  }
+
+  private async builtFrom(orderId: string, of: "package" | "reading"): Promise<string | null> {
+    const key = this.fpKey(orderId, of);
+    return (await this.files.exists(key)) ? (await this.files.get(key)).toString("utf8").trim() : null;
+  }
+
+  /** Отпечаток версии книги для печати сейчас — с ним сверяется согласие клиента. */
+  fingerprint(bookId: string): Promise<string | null> {
+    return this.renderer.printFingerprint(bookId);
+  }
+
   /** Сборка в очереди рендера под ключом key; ход виден через RenderProgress. */
   private render<T>(key: string, kind: RenderKind, task: (report: RenderReport) => Promise<T>): Promise<T> {
     this.progress.queued(key, kind);
@@ -121,9 +159,11 @@ export class PrintFilesService {
   }
 
   /** Сгенерировать файлы для печати (или взять готовые). Возвращает параметры печати, если рендерили. */
-  async prepare(job: PrintJob, opts: { force?: boolean } = {}): Promise<PrintSpec | null> {
+  async prepare(job: PrintJob, opts: PrintFileOptions = {}): Promise<PrintSpec | null> {
     const keys = { block: this.key(job.orderId, "block"), cover: this.key(job.orderId, "cover"), spec: this.key(job.orderId, "spec") };
-    const ready = async () => (await this.files.exists(keys.block)) && (await this.files.exists(keys.cover)) && (await this.files.exists(keys.spec));
+    // Нужна определённая версия (согласованная клиентом) — пакет из другой версии или без отметки версии не готов.
+    const ready = async () =>
+      (await this.files.exists(keys.block)) && (await this.files.exists(keys.cover)) && (await this.files.exists(keys.spec)) && (!opts.fingerprint || (await this.builtFrom(job.orderId, "package")) === opts.fingerprint);
     if (!opts.force && (await ready())) return null;
     return this.render(`print:${job.orderId}`, "package", async (report) => {
       // Пока задача ждала очереди, пакет мог собрать другой процесс (прогрев после оплаты в mybook-worker) — не повторяем.
@@ -134,20 +174,35 @@ export class PrintFilesService {
       await this.files.put(keys.cover, pkg.cover);
       await this.files.put(keys.spec, pkg.spec);
       await this.files.put(this.key(job.orderId, "layout"), pkg.layout);
+      // Отметка версии — последней: по ней видно, из какой книги собран пакет (и что он записан целиком).
+      if (pkg.printSpec.fingerprint) await this.files.put(this.fpKey(job.orderId, "package"), Buffer.from(pkg.printSpec.fingerprint));
+      else await this.files.deletePrefix(this.fpKey(job.orderId, "package"));
       // Читательская версия собрана из той же книги: после пересборки пакета старую не отдаём, при запросе она соберётся заново.
       await this.files.deletePrefix(this.key(job.orderId, "reading"));
+      if (opts.fingerprint && pkg.printSpec.fingerprint !== opts.fingerprint) throw new PrintLayoutChangedError(opts.fingerprint, pkg.printSpec.fingerprint);
       return pkg.printSpec;
     });
   }
 
-  async getFile(job: PrintJob, kind: PrintFileKind, opts: { force?: boolean } = {}): Promise<Buffer> {
+  /**
+   * Готова ли читательская версия: файл есть и (просили версию) собран из неё. Отметку версии читательской версии
+   * пишет только её сборка с fingerprint — без отметки файл считается собранным неизвестно из чего.
+   */
+  private async readingReady(job: PrintJob, opts: PrintFileOptions) {
+    if (opts.force || !(await this.files.exists(this.key(job.orderId, "reading")))) return false;
+    return !opts.fingerprint || (await this.builtFrom(job.orderId, "reading")) === opts.fingerprint;
+  }
+
+  async getFile(job: PrintJob, kind: PrintFileKind, opts: PrintFileOptions = {}): Promise<Buffer> {
     const key = this.key(job.orderId, kind);
     if (kind === "reading") {
-      if (!opts.force && (await this.files.exists(key))) return this.files.get(key);
+      if (await this.readingReady(job, opts)) return this.files.get(key);
       return this.render(`reading:${job.orderId}`, "reading", async (report) => {
         const pdf = await this.renderer.renderReading(job.bookId, report);
         if (!pdf) throw new Error(`book ${job.bookId} not found`);
         await this.files.put(key, pdf);
+        if (opts.fingerprint) await this.files.put(this.fpKey(job.orderId, "reading"), Buffer.from(opts.fingerprint));
+        else await this.files.deletePrefix(this.fpKey(job.orderId, "reading"));
         return pdf;
       });
     }
@@ -166,10 +221,10 @@ export class PrintFilesService {
    * Подготовить файл, не читая его в память: страница ждёт готовности (показывая ход сборки), а само скачивание
    * потом идёт из кэша. Сборка и кэш — те же, что у getFile.
    */
-  async ensure(job: PrintJob, kind: PrintFileKind, opts: { force?: boolean } = {}): Promise<void> {
+  async ensure(job: PrintJob, kind: PrintFileKind, opts: PrintFileOptions = {}): Promise<void> {
     const key = this.key(job.orderId, kind);
     if (kind === "reading") {
-      if (opts.force || !(await this.files.exists(key))) await this.getFile(job, kind, opts);
+      if (!(await this.readingReady(job, opts))) await this.getFile(job, kind, opts);
       return;
     }
     await this.prepare(job, opts);
@@ -177,7 +232,7 @@ export class PrintFilesService {
   }
 
   /** Ключ готового файла в хранилище (собирает, если нужно, как ensure). */
-  async fileKey(job: PrintJob, kind: PrintFileKind, opts: { force?: boolean } = {}): Promise<string> {
+  async fileKey(job: PrintJob, kind: PrintFileKind, opts: PrintFileOptions = {}): Promise<string> {
     await this.ensure(job, kind, opts);
     return this.key(job.orderId, kind);
   }

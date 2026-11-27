@@ -83,7 +83,7 @@ class FakeRenderer implements BookRenderer {
     await this.onReport?.(report);
     const n = this.step("package", bookId);
     if (n === null) return null;
-    const printSpec: PrintSpec = { format: "a5", pageCount: 64 + n, spineMm: 8, coverWidthMm: 316, coverHeightMm: 216, generatedAt: "2026-10-01T10:00:00.000Z" };
+    const printSpec: PrintSpec = { format: "a5", pageCount: 64 + n, spineMm: 8, coverWidthMm: 316, coverHeightMm: 216, generatedAt: "2026-10-01T10:00:00.000Z", fingerprint: this.books.get(bookId)?.fingerprint };
     return { interior: Buffer.from(`block#${n}`), cover: Buffer.from(`cover#${n}`), layout: Buffer.from(`layout#${n}`), spec: Buffer.from(`spec#${n}`), printSpec };
   }
   async renderLayout(bookId: string, block: Buffer, cover: Buffer, report?: RenderReport) {
@@ -96,6 +96,10 @@ class FakeRenderer implements BookRenderer {
     await this.onReport?.(report);
     const n = this.step("reading", bookId);
     return n === null ? null : Buffer.from(`reading#${n}`);
+  }
+  /** Отпечаток печати — тот же fingerprint книги (правка книги в тесте — его смена). */
+  async printFingerprint(bookId: string) {
+    return this.books.get(bookId)?.fingerprint ?? null;
   }
   async preview(bookId: string) {
     this.calls.push(`preview:${bookId}`);

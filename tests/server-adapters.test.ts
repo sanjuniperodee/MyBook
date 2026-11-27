@@ -102,6 +102,11 @@ describe("api(): перевод ошибок в HTTP", () => {
       invoiceNotFound: 404,
       chapterNotFound: 404,
       fileNotFound: 404,
+      // Согласование макета клиентом: печатные файлы закрыты (403), книга открыта для правок или согласовывать нечего (409).
+      layoutNotApproved: 403,
+      layoutChanged: 403,
+      layoutBookEditing: 409,
+      layoutNotNeeded: 409,
     };
     const statuses: Record<string, number> = {};
     for (const code of Object.keys(ru)) statuses[code] = (await failWith(new DomainError(code))).status;

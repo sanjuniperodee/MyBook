@@ -135,7 +135,10 @@ describe("Order.changeTerms оплаченного заказа: руковод�
 
   it("цена выше полученного у заказа в печати: статус прежний, остаток ждём как постоплату; доставленному — задача", () => {
     const o = paidOrder(27000);
-    o.changeStatus("in_production", "admin", "", now);
+    // В печать — после согласования макета клиентом.
+    const book = { fingerprint: "fp", bookOpen: false };
+    o.approveLayout(book, now);
+    o.changeStatus("in_production", "admin", "", now, book);
     o.changeStatus("delivered", "admin", "", now);
     o.pullEvents();
     o.changeTerms({ plan: "hardcover", agreedTotal: null, discount: null, planName, settled }, "owner", now);

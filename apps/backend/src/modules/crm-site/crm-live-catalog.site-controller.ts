@@ -203,14 +203,8 @@ export class CrmLiveCatalogSiteController {
       if (!order || !(await this.ports.canSeeOrder(staff, order.id))) {
         throw new ApiError(404, "orderNotFound");
       }
-      const job = {
-        orderId: order.id,
-        bookId: order.bookId,
-        number: order.number,
-        plan: order.plan,
-        quantity: order.quantity,
-      };
-      await this.ports.preparePrintFiles(job);
+      // Только согласованный клиентом макет, пакет — из согласованной версии книги (тот же код, что у mybook-api).
+      const job = await this.ports.preparePrintPackage(order.id);
       const [block, cover, layout, spec] = await Promise.all([
         this.ports.getPrintFile(job, "block"),
         this.ports.getPrintFile(job, "cover"),

@@ -7,6 +7,7 @@ import {
   type DealInvoiceExtraMoney,
   type DealInvoicePaid,
   type DealInvoiceViewed,
+  type LayoutApproved,
   type OrderCancelled,
   type OrderOverpaid,
   type OrderPaid,
@@ -149,6 +150,17 @@ export function registerSubscriptions(c: Container) {
       if (d) await orderTask(e.payload.orderId, `Рассчитать доставку (${d.method === "abroad" ? "другая страна: " : ""}${[d.country, d.city].filter(Boolean).join(", ") || "адрес не указан"}) по заказу №${e.payload.number} и согласовать с клиентом стоимость и оплату`);
     },
     "crm.task.delivery_abroad",
+  );
+  // Клиент согласовал макет: ответственному заказа (или сделки; никого — всем с заказами) — печатные файлы открыты.
+  c.bus.subscribe<LayoutApproved>(
+    "ordering.layout_approved",
+    async (e) => {
+      const order = await c.ordering.queries.orderDetails(e.payload.orderId);
+      const assignee = order?.assigneeId ?? (await c.sales.deals.byOrder(e.payload.orderId)).find((d) => d.assigneeId)?.assigneeId ?? null;
+      const title = `Клиент ${e.payload.again ? "повторно " : ""}согласовал макет заказа №${e.payload.number}`;
+      await (await notify()).staffNotifier.notifyOwnerOr(assignee, "orders.view", { kind: "deal", title, body: "Файлы для типографии можно скачать", link: `/admin/orders/${e.payload.orderId}` });
+    },
+    "crm.notify.layout_approved",
   );
   c.bus.subscribe<PaymentClaimed>("ordering.payment_claimed", (e) => tellManager(e.payload.orderId, () => `Проверьте оплату заказа №${e.payload.number}`, (t) => `${t} · клиент сообщил, что оплатил`), "crm.notify.payment_claimed");
 

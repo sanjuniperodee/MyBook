@@ -9,7 +9,7 @@ import { sessionToken } from "../../core/auth/session";
 import { clientIp } from "../../core/http/client-ip";
 import { requestLocale } from "../../core/http/request";
 
-/** Порт Контекста 7A («заказы и деньги API v1» — 46 маршрутов). */
+/** Порт Контекста 7A («заказы и деньги API v1» — 47 маршрутов). */
 export const ORDERS_API_PORTS = Symbol("OrdersApiPorts");
 
 /** Маршруты контекста 7A — те же, что `ORDERS_API_ROUTES` общего кода (src/server/api-v1/orders.ts). */
@@ -28,6 +28,7 @@ export type OrdersApiRoute =
   | "webOrderPlace"
   | "webOrdersList"
   | "webOrderDetail"
+  | "webOrderLayoutApprove"
   | "webPayPage"
   | "webPayViewed"
   | "webPayClaim"

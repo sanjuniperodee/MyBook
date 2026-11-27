@@ -303,7 +303,7 @@ export async function localOrderDetailDto(
   const paid = isPaid(order.status);
   const reviewable = own && canReview({ status: order.status, plan: order.plan, paid });
 
-  const [review, upgrade, payment] = await Promise.all([
+  const [review, upgrade, payment, layout] = await Promise.all([
     own ? c.feedback.queries.byOrder(order.id) : null,
     own && !plan?.printed && order.status === "paid" ? c.ordering.orders.upgradeOffer(order.id, user.id) : null,
     own && order.status === "pending_payment"
@@ -313,6 +313,11 @@ export async function localOrderDetailDto(
           kaspi,
         }))
       : null,
+    // Согласование макета: книга сейчас — только заказам, которым оно нужно.
+    import("./order-layout").then(async ({ orderLayout, layoutView }) => {
+      const { approval, current } = await orderLayout(order);
+      return layoutView(approval, current);
+    }),
   ]);
 
   return {
@@ -327,6 +332,7 @@ export async function localOrderDetailDto(
     review: review ? { rating: review.rating, status: review.status, thankYouCode: review.thankYouCode ?? null } : null,
     upgrade: upgrade ? { bookId: upgrade.bookId, orderId: upgrade.orderId, number: upgrade.number, credit: upgrade.credit } : null,
     payment,
+    layout,
     order: {
       id: order.id,
       number: order.number,

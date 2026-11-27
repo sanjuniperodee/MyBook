@@ -84,6 +84,7 @@ describe("actionError(): ошибка домена в server action → текс
     const ordering = {
       bookNotFound: 1, alreadyOrdered: 1, upgradeUnavailable: 1, planUnavailable: 1, notReady: 1, promoGone: 1, empty: 1, notFound: 1, expired: 1, used: 1, ownCode: 1, firstOrderOnly: 1, orderNotFound: 1,
       invalidTransition: 1, promoExists: 1, giftNotFound: 1, giftPastDate: 1, giftNeedEmail: 1, staffNotFound: 1, notPayable: 1, phoneInvalid: 1, invoiceNotFound: 1, kaspiNotConnected: 1, kaspiUnavailable: 1, kaspiSessionShared: 1, invalidAmount: 1, receiptInvalid: 1, paymentRule: 1,
+      layoutNotApproved: 1, layoutChanged: 1, layoutBookEditing: 1, layoutNotNeeded: 1,
     } satisfies Record<OrderingErrorCode, 1>;
     for (const locale of ["ru", "kk"]) {
       request.cookies.set("mb_locale", locale);

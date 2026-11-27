@@ -12,7 +12,7 @@
 |---|---|---:|---:|
 | [access](#access) | Access: сотрудники, роли и права, правила безопасности, журнал. | 16 / 852 | 52 |
 | [assistant](#assistant) | AI-помощник (Claude, ChatGPT, DeepSeek или свой OpenAI-совместимый сервер). | 25 / 2550 | 23 |
-| [authoring](#authoring) | Authoring: книги, вопросы, оглавление своей книги, фото, письма близких. | 40 / 7857 | 52 |
+| [authoring](#authoring) | Authoring: книги, вопросы, оглавление своей книги, фото, письма близких. | 40 / 7862 | 52 |
 | [automation](#automation) | Автоматизации (цифровая воронка CRM). | 16 / 1987 | 9 |
 | [boards](#boards) | Доски задач: доски отделов, личные и проектные, колонки с лимитами, карточки (задачи CRM) с исполнителями, метками, чек-листами, комментариями и вложениями, правила досок, календарь, личная iCal-ссылка и Google Календарь сотрудника. | 15 / 3218 | 15 |
 | [clients](#clients) | Клиенты CRM: профиль клиента, задачи и заметки менеджеров. | 10 / 1179 | 29 |
@@ -21,8 +21,8 @@
 | [marketing](#marketing) | Маркетинг: каналы привлечения, короткие ссылки, предложения из чата. | 10 / 577 | 12 |
 | [messaging](#messaging) | Переписка: единый инбокс, бот-квалификатор, виджет на сайте. | 61 / 16810 | 153 |
 | [notifications](#notifications) | Уведомления: автописьма, напоминания из CRM, отписка. | 10 / 707 | 6 |
-| [ordering](#ordering) | Заказы. Остальной код видит только его. | 48 / 5666 | 92 |
-| [production](#production) | Производство: вёрстка PDF книги и сертификатов, предпросмотры полос и обложек, файлы для типографии, очередь сборки. В container — previews (BookPreviewService) и printFiles. | 43 / 5598 | 0 |
+| [ordering](#ordering) | Заказы. Остальной код видит только его. | 49 / 5924 | 95 |
+| [production](#production) | Производство: вёрстка PDF книги и сертификатов, предпросмотры полос и обложек, файлы для типографии, очередь сборки. В container — previews (BookPreviewService) и printFiles. | 44 / 5709 | 0 |
 | [referrals](#referrals) | Приглашения: код для друзей, награда за их заказы и покупки из чата. | 10 / 358 | 3 |
 | [reporting](#reporting) | Отчёты CRM — сторона чтения (CQRS): сводные выборки по нескольким контекстам для страниц (дашборд, аналитика, поиск, «Мой день»). Только чтение, без бизнес-правил: команды идут через модули контекстов. | 47 / 4577 | 61 |
 | [sales](#sales) | Продажи: сделки, воронки, этапы, дубли, воронка по действиям на сайте. | 30 / 3247 | 109 |
@@ -148,7 +148,7 @@ Identity: учётные записи, вход, пароли, второй фа
 - Фасад: `OrderingModule` → `container().ordering`
 - Публичное: `orders`, `invoices`, `invoiceLifecycle`, `payments`, `promos`, `gifts`, `queries`, `cloudPayments`, `kaspi`, `kaspiSetup`, `kaspiWatch`, `mailer`, `verifyKaspiWebhook`, `kaspiRecipient`, `deliverDueGifts`, `resendGift`, `giftPdf`
 - Таблицы: `orders`, `order_payments`, `promo_codes`, `gift_cards`, `payment_invoices`, `order_events`
-- Тесты (43): `agreement-gifts.test.ts`, `api-v1-web-orders.test.ts`, `api-v1-web-public.test.ts`, `architecture-web-db.test.ts`, `automation.test.ts`, `catalog.test.ts`, `checkout-quote.test.ts`, `client-push-events.test.ts`, `cloudpayments.test.ts`, `deal-invoice-payments.integration.test.ts`, `deal-invoice-payments.test.ts`, `deal-lifecycle.integration.test.ts`, `deal-lifecycle.test.ts`, `delivery-abroad.test.ts`, `errors.test.ts`, `gift-receipt.integration.test.ts`, `i18n.test.ts`, `invoice-access.test.ts`, `invoice-crm-actions.test.ts`, `invoice-crm.integration.test.ts`, `kaspi-watch.test.ts`, `kaspi.integration.test.ts`, `kaspi.test.ts`, `occasions.test.ts`, `order-money.test.ts`, `order-payments.test.ts`, `order-terms.test.ts`, `ordering-ports.test.ts`, `ordering.test.ts`, `pay-routes.test.ts`, `payments-settings.integration.test.ts`, `print.test.ts`, `promo-stats.integration.test.ts`, `referrals.test.ts`, `review-fixes.test.ts`, `sales-guards.test.ts`, `server-adapters-actions.test.ts`, `server-adapters.test.ts`, `server-routes-payments.test.ts`, `settings-actions.test.ts`, `time.test.ts`, `tools.test.ts`, `web-v1-strangler.test.ts`
+- Тесты (44): `agreement-gifts.test.ts`, `api-v1-web-orders.test.ts`, `api-v1-web-public.test.ts`, `architecture-web-db.test.ts`, `automation.test.ts`, `catalog.test.ts`, `checkout-quote.test.ts`, `client-push-events.test.ts`, `cloudpayments.test.ts`, `deal-invoice-payments.integration.test.ts`, `deal-invoice-payments.test.ts`, `deal-lifecycle.integration.test.ts`, `deal-lifecycle.test.ts`, `delivery-abroad.test.ts`, `errors.test.ts`, `gift-receipt.integration.test.ts`, `i18n.test.ts`, `invoice-access.test.ts`, `invoice-crm-actions.test.ts`, `invoice-crm.integration.test.ts`, `kaspi-watch.test.ts`, `kaspi.integration.test.ts`, `kaspi.test.ts`, `layout-approval.test.ts`, `occasions.test.ts`, `order-money.test.ts`, `order-payments.test.ts`, `order-terms.test.ts`, `ordering-ports.test.ts`, `ordering.test.ts`, `pay-routes.test.ts`, `payments-settings.integration.test.ts`, `print.test.ts`, `promo-stats.integration.test.ts`, `referrals.test.ts`, `review-fixes.test.ts`, `sales-guards.test.ts`, `server-adapters-actions.test.ts`, `server-adapters.test.ts`, `server-routes-payments.test.ts`, `settings-actions.test.ts`, `time.test.ts`, `tools.test.ts`, `web-v1-strangler.test.ts`
 
 ## production
 
@@ -157,7 +157,7 @@ Identity: учётные записи, вход, пароли, второй фа
 - Папка: `src/modules/production` (application, infrastructure)
 - Фасад: нет класса-фасада (функции из index.ts)
 - Таблицы: своих нет
-- Тесты (39): `book-build.test.ts`, `chapter-opener-left.test.tsx`, `chapter-start.test.tsx`, `characterization/covers.test.ts`, `characterization/fingerprint.test.ts`, `characterization/render.test.ts`, `cover-back-color.test.tsx`, `cover-emoji.test.tsx`, `cover-lines.test.tsx`, `cover-reverse.test.tsx`, `design-polish.test.tsx`, `end-text.test.tsx`, `fixtures.test.ts`, `gallery-title.test.tsx`, `i18n.test.ts`, `linebreak.test.tsx`, `page-layout.test.ts`, `pages-spreads.test.ts`, `paginate.test.tsx`, `pdf-critical.test.ts`, `pdf-drafts.test.ts`, `pdf-flow.test.ts`, `pdf-frames.test.tsx`, `pdf-media.test.tsx`, `pdf-opener-limits.test.ts`, `pdf-photos.test.tsx`, `pdf-pool-limits.test.ts`, `pdf-tree-parity.test.ts`, `pdf.test.tsx`, `photo-crop.test.ts`, `preview-page-numbers.test.ts`, `preview-pdf-parity.test.tsx`, `print-kinds.test.tsx`, `print-spec.test.ts`, `production.test.ts`, `render-progress.test.ts`, `title-page.test.tsx`, `toc.test.ts`, `verse-stanzas.test.tsx`
+- Тесты (40): `book-build.test.ts`, `chapter-opener-left.test.tsx`, `chapter-start.test.tsx`, `characterization/covers.test.ts`, `characterization/fingerprint.test.ts`, `characterization/render.test.ts`, `cover-back-color.test.tsx`, `cover-emoji.test.tsx`, `cover-lines.test.tsx`, `cover-reverse.test.tsx`, `design-polish.test.tsx`, `end-text.test.tsx`, `fixtures.test.ts`, `gallery-title.test.tsx`, `i18n.test.ts`, `layout-approval.test.ts`, `linebreak.test.tsx`, `page-layout.test.ts`, `pages-spreads.test.ts`, `paginate.test.tsx`, `pdf-critical.test.ts`, `pdf-drafts.test.ts`, `pdf-flow.test.ts`, `pdf-frames.test.tsx`, `pdf-media.test.tsx`, `pdf-opener-limits.test.ts`, `pdf-photos.test.tsx`, `pdf-pool-limits.test.ts`, `pdf-tree-parity.test.ts`, `pdf.test.tsx`, `photo-crop.test.ts`, `preview-page-numbers.test.ts`, `preview-pdf-parity.test.tsx`, `print-kinds.test.tsx`, `print-spec.test.ts`, `production.test.ts`, `render-progress.test.ts`, `title-page.test.tsx`, `toc.test.ts`, `verse-stanzas.test.tsx`
 
 ## referrals
 

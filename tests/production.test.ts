@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { BookPreviewService, RasterizerMissingError } from "@/modules/production";
 import { job, setup } from "./doubles/production";
 
-const printKeys = ["orders/o1/block.pdf", "orders/o1/cover.pdf", "orders/o1/layout.pdf", "orders/o1/spec.txt"];
+const printKeys = ["orders/o1/block.pdf", "orders/o1/cover.pdf", "orders/o1/layout.pdf", "orders/o1/package.fp", "orders/o1/spec.txt"];
 
 describe("PrintFilesService: файлы для типографии", () => {
   it("первый раз рендерит пакет в очереди print:<заказ> и кладёт четыре файла, второй — берёт из кэша", async () => {

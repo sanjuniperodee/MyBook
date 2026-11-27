@@ -72,6 +72,15 @@ export const orders = pgTable(
     postpay: boolean("postpay").notNull().default(false),
     /** Сколько денег получено по заказу (сумма order_payments) — учёт денег, не выручка. */
     receivedAmount: integer("received_amount").notNull().default(0),
+    /**
+     * Согласование итогового макета клиентом (ordering/domain/layoutApproval.ts): нужно ли (печатный тариф; заказам,
+     * которые к 27.11.2026 были в печати и дальше, — нет), когда и какую версию книги (отпечаток печати) клиент согласовал,
+     * когда согласие сбросили («Открыть для правок»). Без согласования печатные файлы не выдаются.
+     */
+    layoutApprovalRequired: boolean("layout_approval_required").notNull().default(false),
+    layoutApprovedAt: timestamp("layout_approved_at", { withTimezone: true }),
+    layoutApprovedFingerprint: text("layout_approved_fingerprint"),
+    layoutApprovalRevokedAt: timestamp("layout_approval_revoked_at", { withTimezone: true }),
     ...timestamps,
   },
   (t) => [

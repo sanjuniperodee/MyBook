@@ -9,7 +9,7 @@ import { BookAccess, BookAccessGuard, type AccessibleBook } from "../identity/bo
 import { ORDERS_API_PORTS, ordersCallMeta, type OrdersApiPorts } from "./orders.tokens";
 
 /**
- * Оформление, заказы и оплата по ссылке для веба (8 маршрутов section "orders"; страница оплаты — без входа).
+ * Оформление, заказы, согласование макета и оплата по ссылке для веба (9 маршрутов section "orders"; страница оплаты — без входа).
  * Вход, права (@Permissions — те же наборы, что apiStaff в mybook-api) и книга (BookAccessGuard) — guard-ами;
  * сам маршрут — общий код mybook-api через порт.
  */
@@ -45,6 +45,11 @@ export class WebOrdersController {
   @Endpoint("webOrderDetail")
   webOrderDetail(@Req() req: FastifyRequest, @Input() input: Parsed<"webOrderDetail">): Promise<Output<"webOrderDetail"> | Response> {
     return this.ports.run(ordersCallMeta(req, this.config), "webOrderDetail", input);
+  }
+
+  @Endpoint("webOrderLayoutApprove")
+  webOrderLayoutApprove(@Req() req: FastifyRequest, @Input() input: Parsed<"webOrderLayoutApprove">): Promise<Output<"webOrderLayoutApprove"> | Response> {
+    return this.ports.run(ordersCallMeta(req, this.config), "webOrderLayoutApprove", input);
   }
 
   @Endpoint("webPayPage")

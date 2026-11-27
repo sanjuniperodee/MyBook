@@ -44,8 +44,8 @@ function setup(opts: { checkReceipts?: boolean } = {}) {
     const order = used ? await base.orders.findById(used.orderId) : null;
     return { sha256, use: used ? { source: "order", number: order?.number ?? 0, amount: used.amount, paidAt: used.paidAt, orderId: used.orderId } : null };
   };
-  const money = new OrderPaymentsService(base.orders, payments, { put: async (k, b) => void files.set(k, b), remove: async (k) => void files.delete(k), read: async (k) => files.get(k) ?? null }, uow, c, opts.checkReceipts ? checkReceipt : undefined);
-  const svc = new OrdersService(base.orders, base.promos, base.books, { activeStaff: async () => null, rememberPhoneIfMissing: async () => {} } as never, { prepare: async () => null }, { provider: () => "manual", currency: () => "KZT" }, { agreementFor: async () => null }, uow, c, money);
+  const money = new OrderPaymentsService(base.orders, payments, { put: async (k, b) => void files.set(k, b), remove: async (k) => void files.delete(k), read: async (k) => files.get(k) ?? null }, uow, c, opts.checkReceipts ? checkReceipt : undefined, base.books.layout);
+  const svc = new OrdersService(base.orders, base.promos, base.books, { activeStaff: async () => null, rememberPhoneIfMissing: async () => {} } as never, { prepare: async () => null }, { provider: () => "manual", currency: () => "KZT" }, { agreementFor: async () => null }, uow, c, money, undefined, base.books.layout);
   const order = async () => {
     const o = await base.place();
     return o;
@@ -174,6 +174,9 @@ describe("Деньги по заказу", () => {
     const t = setup();
     const o = await t.order();
     await expect(t.svc.changeStatus({ orderId: o.id, to: "in_production" }, admin)).rejects.toMatchObject({ code: "paymentRule" });
+    // В печать с постоплатой — тоже только согласованный клиентом макет.
+    await expect(t.money.startPostpay(o.id, "договорились", admin)).rejects.toMatchObject({ code: "layoutNotApproved" });
+    await t.svc.approveLayout(o.id, "user-1");
     await t.money.startPostpay(o.id, "договорились", admin);
     let fresh = (await t.orders.findById(o.id))!;
     expect([fresh.status, fresh.postpay, fresh.isSettled]).toEqual(["in_production", true, false]);

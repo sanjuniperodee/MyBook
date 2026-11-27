@@ -56,6 +56,11 @@ const STATUS_BY_CODE = new Map<string, number>([
   // Оглавление своей книги: операция не для этой книги и устаревший вид у клиента — конфликт состояния.
   ["outlineNotAllowed", 409],
   ["outlineOutdated", 409],
+  // Согласование макета клиентом: печатные файлы и печать закрыты, пока клиент не согласует эту версию книги.
+  ["layoutNotApproved", 403],
+  ["layoutChanged", 403],
+  ["layoutBookEditing", 409],
+  ["layoutNotNeeded", 409],
 ]);
 
 export function domainStatus(code: string): number {

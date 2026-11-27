@@ -3,7 +3,7 @@ import type { AgreementGift } from "@/shared/domain/agreementGifts";
 import type { AggregateRoot, DomainEvent } from "@/shared/domain";
 import { GiftCard, Order, PromoCode, type GiftCardRepository, type OrderRepository, type PromoCodeRepository } from "@/modules/ordering/domain";
 import { OrdersService } from "@/modules/ordering/application/OrdersService";
-import type { BookGateway, PeopleGateway } from "@/modules/ordering/application/ports";
+import type { BookGateway, LayoutSource, PeopleGateway } from "@/modules/ordering/application/ports";
 
 // ─── тестовые двойники ─────────────────────────────────────────────────────
 
@@ -153,8 +153,9 @@ export class MemGifts implements GiftCardRepository {
   save = async (g: GiftCard) => void this.rows.set(g.id, g.snapshot());
 }
 
-class MemBooks implements BookGateway {
-  books = new Map<string, { userId: string; status: "draft" | "ordered"; blocking: string | null }>();
+export class MemBooks implements BookGateway {
+  /** fp — отпечаток печати книги сейчас (по умолчанию fp-<id>): правка книги в тесте — смена fp. */
+  books = new Map<string, { userId: string; status: "draft" | "ordered"; blocking: string | null; fp?: string }>();
   snapshot = () => new Map([...this.books].map(([k, v]) => [k, { ...v }]));
   restore = (s: unknown) => (this.books = s as typeof this.books);
   async checkoutInfo(bookId: string, userId: string) {
@@ -176,6 +177,16 @@ class MemBooks implements BookGateway {
     b.status = b.status === "draft" ? "ordered" : "draft";
     return b.status;
   }
+  async isOpenForEdits(bookId: string) {
+    return this.books.get(bookId)?.status === "draft";
+  }
+  /** Книга сейчас для согласования макета (LayoutSource). */
+  layout: LayoutSource = {
+    current: async (bookId) => {
+      const b = this.books.get(bookId);
+      return b ? { fingerprint: b.fp ?? `fp-${bookId}`, bookOpen: b.status === "draft" } : null;
+    },
+  };
 }
 
 const staff: Record<string, { name: string; email: string }> = {
@@ -194,7 +205,7 @@ export function setup() {
   const uow = new FakeUow([orders, promos, books]);
   let agreement: { dealId: string; dealNumber: number; agreedTotal: number; prepaid: number; deadline: string | null; plan: string | null; gifts?: AgreementGift[] } | null = null;
   const agreements = { agreementFor: async () => agreement };
-  const svc = new OrdersService(orders, promos, books, people, { prepare: async () => null }, { provider: () => "manual", currency: () => "KZT" }, agreements, uow, c);
+  const svc = new OrdersService(orders, promos, books, people, { prepare: async () => null }, { provider: () => "manual", currency: () => "KZT" }, agreements, uow, c, undefined, undefined, books.layout);
   books.books.set("book-1", { userId: "user-1", status: "draft", blocking: null });
   const place = (extra: Partial<Parameters<OrdersService["place"]>[0]> = {}) =>
     svc.place({

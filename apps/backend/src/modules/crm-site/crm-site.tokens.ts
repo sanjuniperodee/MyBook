@@ -158,7 +158,11 @@ export interface CrmSitePorts {
   unsubscribePush(userId: string, endpoint: string): Promise<void>;
   findOrderDetails(orderId: string): Promise<OrderPackageInfo | null>;
   canSeeOrder(staff: StaffMember, orderId: string): Promise<boolean>;
-  preparePrintFiles(job: PrintJob): Promise<void>;
+  /**
+   * Пакет для типографии к выдаче (src/server/order-layout.ts): макет согласован клиентом и книга та же — иначе ошибка
+   * домена с кодом отказа (layoutNotApproved/layoutChanged/layoutBookEditing); пакет — из согласованной версии.
+   */
+  preparePrintPackage(orderId: string): Promise<PrintJob>;
   getPrintFile(job: PrintJob, kind: Exclude<PrintFileKind, "reading">): Promise<Buffer>;
 
   // ─── Экспорты и аудит ───────────────────────────────────────────────────

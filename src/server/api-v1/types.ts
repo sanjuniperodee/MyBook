@@ -6,7 +6,7 @@ import type { BookRow } from "@/modules/authoring";
 import type { Staff } from "@/server/access";
 import type { User } from "@/shared/infrastructure/db/schema";
 
-/** Маршруты контекста 7A — все 46. */
+/** Маршруты контекста 7A — все 47. */
 export const ORDERS_API_ROUTES = [
   "cabinetCheckout",
   "cabinetCheckoutQuote",
@@ -22,6 +22,7 @@ export const ORDERS_API_ROUTES = [
   "webOrderPlace",
   "webOrdersList",
   "webOrderDetail",
+  "webOrderLayoutApprove",
   "webPayPage",
   "webPayViewed",
   "webPayClaim",

@@ -6,6 +6,7 @@ import { deletePrefix, fileExists, getFile, listFiles, openStoredFile, publish, 
 import { dedupe, withRenderSlot } from "@/modules/production/infrastructure/pdf/queue";
 import type { BookBundle } from "@/modules/production/infrastructure/pdf/render";
 import { inPdfThread } from "@/modules/production/infrastructure/pdf/pool";
+import { printFingerprint } from "@/modules/production/infrastructure/pdf/printFingerprint";
 import type { BookRenderer, FileStore, PrintSpec, RenderQueue } from "../application/PrintFilesService";
 
 /** Из потока PDF буферы приходят как Uint8Array — оборачиваем без копирования. */
@@ -46,8 +47,10 @@ export function reactPdfRenderer(load: BookBundleSource): BookRenderer {
     async renderPrintPackage(bookId, order, report) {
       const bundle = await load(bookId);
       if (!bundle) return null;
+      // Версия — по той же книге, что уходит в вёрстку: пакет помечен ровно тем, из чего собран.
+      const fingerprint = printFingerprint(bundle);
       const pkg = await inPdfThread({ task: "printPackage", bundle, order }, report);
-      const printSpec: PrintSpec = { format: bundle.book.format, pageCount: pkg.pageCount, spineMm: pkg.spineMm, coverWidthMm: pkg.coverWidthMm, coverHeightMm: pkg.coverHeightMm, generatedAt: new Date().toISOString() };
+      const printSpec: PrintSpec = { format: bundle.book.format, pageCount: pkg.pageCount, spineMm: pkg.spineMm, coverWidthMm: pkg.coverWidthMm, coverHeightMm: pkg.coverHeightMm, generatedAt: new Date().toISOString(), fingerprint };
       return { interior: buf(pkg.interior), cover: buf(pkg.cover), layout: buf(pkg.layout), spec: buf(pkg.spec), printSpec };
     },
     async renderLayout(bookId, block, cover, report) {
@@ -79,6 +82,10 @@ export function reactPdfRenderer(load: BookBundleSource): BookRenderer {
     async manuscript(bookId) {
       const bundle = await load(bookId);
       return bundle ? (await pdf()).plainText(bundle) : null;
+    },
+    async printFingerprint(bookId) {
+      const bundle = await load(bookId);
+      return bundle ? printFingerprint(bundle) : null;
     },
   };
 }

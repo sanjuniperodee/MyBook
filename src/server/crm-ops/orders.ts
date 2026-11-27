@@ -5,6 +5,7 @@ import { container } from "@/server/container";
 import { uuid } from "@/server/input";
 import { ORDER_STATUSES as orderStatuses } from "@/shared/domain/orders";
 import { isPhoneEmail } from "@/modules/identity/domain/Login";
+import { staffLayoutView } from "@/server/order-layout";
 import { op } from "./op";
 
 /** Сборщики страниц заказов CRM (ADR 0012, A5 — Раздел 5): список с числами на чипах и карточка заказа. */
@@ -60,6 +61,8 @@ export const reads = {
     const canEdit = can(staff, "orders.edit");
     const termsOpen = canEdit && order.status !== "cancelled" && (!order.paidAt || can(staff, "orders.reprice_paid"));
     const [notice, maxDiscount] = await Promise.all([canEdit ? noticeFacts(order) : null, termsOpen ? discountLimit(staff) : null]);
-    return { order, stats, admins, crm, kaspiInvoices, moneyRows, built, payForms, notice, maxDiscount };
+    // Согласование макета клиентом: кнопки печатных файлов закрыты, пока layout.blocked; ссылка — на заказ в кабинете клиента.
+    const layout = await staffLayoutView(order);
+    return { order, stats, admins, crm, kaspiInvoices, moneyRows, built, payForms, notice, maxDiscount, layout };
   }),
 };

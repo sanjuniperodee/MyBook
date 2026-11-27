@@ -7,9 +7,12 @@ import { formatPrice, getPlan } from "@/config/site";
 import type { Locale } from "@/i18n/config";
 import { planName } from "@/i18n/labels";
 import { checkoutTerms, Order, OrderingError, type OrderContact, type OrderDelivery, type OrderRepository, type PromoCodeRepository } from "../domain";
-import type { AgreementGateway, BookGateway, PaymentSettings, PeopleGateway, PrintFiles } from "./ports";
+import type { AgreementGateway, BookGateway, LayoutSource, PaymentSettings, PeopleGateway, PrintFiles } from "./ports";
 import type { OrderPaymentsService } from "./OrderPaymentsService";
 import type { DealInvoiceLifecycle } from "./DealInvoiceLifecycle";
+
+/** Источник книги не подключён — не знаем, какая она: печать заказов с согласованием закрыта. */
+export const unknownLayout: LayoutSource = { current: async () => null };
 
 export interface PlaceOrderCommand {
   userId: string;
@@ -70,7 +73,14 @@ export class OrdersService {
     private readonly money?: Pick<OrderPaymentsService, "recordOnline">,
     /** Счета из чата по сделке договорённости: заказ закрывает открытый счёт в своей транзакции. */
     private readonly dealInvoices?: Pick<DealInvoiceLifecycle, "closeForOrder">,
+    /** Книга сейчас — для согласования макета и проверки перед печатью. */
+    private readonly layout: LayoutSource = unknownLayout,
   ) {}
+
+  /** Книга заказа сейчас: отпечаток печати и открыта ли для правок (для проверки согласования макета). */
+  currentLayout(bookId: string) {
+    return this.layout.current(bookId);
+  }
 
   /** Договорённая цена и предоплата клиента по ручной сделке (для страницы оформления и расчёта заказа). */
   agreementFor(userId: string) {
@@ -204,7 +214,8 @@ export class OrdersService {
 
   async changeStatus(cmd: { orderId: string; to: OrderStatus; note?: string }, actor: Actor): Promise<Order> {
     return this.mutate(cmd.orderId, async (order, now) => {
-      const r = order.changeStatus(cmd.to, actor.label, cmd.note ?? "", now);
+      const current = cmd.to === "in_production" ? await this.layout.current(order.bookId) : null;
+      const r = order.changeStatus(cmd.to, actor.label, cmd.note ?? "", now, current);
       if (r.cancelled) await this.afterCancel(order, r.releasePromo);
     });
   }
@@ -213,7 +224,8 @@ export class OrdersService {
   async update(cmd: UpdateOrderCommand, actor: Actor): Promise<Order> {
     return this.mutate(cmd.orderId, async (order, now) => {
       if (cmd.trackingNumber !== undefined) order.setTrackingNumber(cmd.trackingNumber, actor.label);
-      const r = order.changeStatus(cmd.status, actor.label, cmd.note ?? "", now);
+      const current = cmd.status === "in_production" ? await this.layout.current(order.bookId) : null;
+      const r = order.changeStatus(cmd.status, actor.label, cmd.note ?? "", now, current);
       if (r.cancelled) await this.afterCancel(order, r.releasePromo);
     });
   }
@@ -297,10 +309,33 @@ export class OrdersService {
     });
   }
 
+  /**
+   * Открыть книгу для правок (или закрыть обратно). Открыли — согласие клиента с макетом сброшено: печатные файлы закрыты
+   * сразу, а после правок клиент согласует книгу заново, даже если ничего не поменял.
+   */
   async toggleBookEditing(orderId: string, actor: Actor) {
     return this.mutate(orderId, async (order, now) => {
       const next = await this.books.toggleEditing(order.bookId);
       order.addNote(next === "draft" ? "Книга открыта для правок" : "Книга снова закрыта для правок", actor.label, now);
+      if (next === "draft") order.revokeLayoutApproval(actor.label, now);
+    });
+  }
+
+  /**
+   * Покупатель согласовал итоговый макет своего заказа: запоминается отпечаток книги, какой она сейчас. Только свой заказ;
+   * книга открыта для правок — отказ (сначала закончить правки). Под блокировкой заказа.
+   */
+  async approveLayout(orderId: string, userId: string): Promise<Order> {
+    return this.uow.run(async () => {
+      const found = await this.orders.findOwned(orderId, userId);
+      if (!found) throw new OrderingError("orderNotFound");
+      const order = (await this.orders.lockById(orderId))!;
+      const current = await this.layout.current(order.bookId);
+      if (!current) throw new OrderingError("layoutNotApproved");
+      order.approveLayout(current, this.clock.now());
+      await this.orders.save(order);
+      this.uow.track(order);
+      return order;
     });
   }
 

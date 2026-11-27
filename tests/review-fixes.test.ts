@@ -42,6 +42,7 @@ function setupSnapshot() {
     paymentProvider: "manual",
     postpay: false,
     receivedAmount: 0,
+    layoutApproval: { required: false, approvedAt: null, fingerprint: null, revokedAt: null },
     paymentId: null,
     paymentClaimedAt: null,
     contact: { name: "", phone: "", email: "" },

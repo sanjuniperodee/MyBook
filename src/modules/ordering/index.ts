@@ -4,7 +4,7 @@ import { toIsoDay } from "@/lib/occasions";
 import { getPlan } from "@/config/site";
 import { runInBackground } from "@/shared/infrastructure/background";
 import { checkReceipt } from "@/shared/infrastructure/receiptUses";
-import { DealInvoiceLifecycle, DealInvoicesService, GiftsService, KaspiPaymentsService, KaspiSetupService, KaspiWatchService, OrderPaymentsService, OrdersService, PromoService, type InvoiceSales, type KaspiAiPacks, type KaspiWatchSettingKey, type AgreementGateway, type BookGateway, type GiftPdfRenderer, type KaspiConfigStore, type PrintFiles } from "./application";
+import { DealInvoiceLifecycle, DealInvoicesService, GiftsService, KaspiPaymentsService, KaspiSetupService, KaspiWatchService, OrderPaymentsService, OrdersService, PromoService, type InvoiceSales, type KaspiAiPacks, type KaspiWatchSettingKey, type AgreementGateway, type BookGateway, type GiftPdfRenderer, type KaspiConfigStore, type LayoutSource, type PrintFiles } from "./application";
 import type { OrderingEvent } from "./domain";
 import { DrizzleGiftCardRepository } from "./infrastructure/persistence/DrizzleGiftCardRepository";
 import { DrizzleOrderRepository } from "./infrastructure/persistence/DrizzleOrderRepository";
@@ -89,9 +89,16 @@ export class OrderingModule {
     const promoRepo = new DrizzlePromoCodeRepository();
     const giftRepo = new DrizzleGiftCardRepository();
     this.invoices = new DealInvoicesService(new DrizzleDealInvoiceRepository(), deps.invoiceSales, deps.uow, deps.clock);
-    this.payments = new OrderPaymentsService(orderRepo, new DrizzleOrderPaymentRepository(), storageReceiptFiles, deps.uow, deps.clock, checkReceipt);
+    // Книга сейчас для согласования макета: отпечаток печати (Production) и открыта ли для правок (Authoring).
+    const layout: LayoutSource = {
+      current: async (bookId) => {
+        const [fingerprint, bookOpen] = await Promise.all([deps.printFiles.fingerprint(bookId), deps.books.isOpenForEdits(bookId)]);
+        return { fingerprint, bookOpen };
+      },
+    };
+    this.payments = new OrderPaymentsService(orderRepo, new DrizzleOrderPaymentRepository(), storageReceiptFiles, deps.uow, deps.clock, checkReceipt, layout);
     this.invoiceLifecycle = new DealInvoiceLifecycle(new DrizzleDealInvoiceLifecycleStore(), deps.uow);
-    this.orders = new OrdersService(orderRepo, promoRepo, deps.books, new DrizzlePeopleGateway(), deps.printFiles, envPaymentSettings, deps.agreements, deps.uow, deps.clock, this.payments, this.invoiceLifecycle);
+    this.orders = new OrdersService(orderRepo, promoRepo, deps.books, new DrizzlePeopleGateway(), deps.printFiles, envPaymentSettings, deps.agreements, deps.uow, deps.clock, this.payments, this.invoiceLifecycle, layout);
     this.promos = new PromoService(promoRepo, orderRepo, deps.clock);
     this.gifts = new GiftsService(giftRepo, promoRepo, randomCodes, envPaymentSettings, deps.uow, deps.clock, () => toIsoDay(deps.clock.now()), storageReceiptFiles);
     // Счета из чата для платёжных систем: P<n> в CloudPayments и цель deal_invoice в Kaspi.
@@ -165,6 +172,20 @@ export class OrderingModule {
         }, this.deps.logger);
       },
       "ordering.print.warm_up_postpay",
+    );
+    // Клиент согласовал макет — пакет для типографии собираем из согласованной версии заранее (прежний собран при оплате,
+    // до правок): сотрудник скачает сразу. Сбой — не беда: скачивание само пересоберёт пакет из согласованной версии.
+    on(
+      "ordering.layout_approved",
+      async (e) => {
+        runInBackground(async () => {
+          const order = await this.orders.findByNumber(e.payload.number);
+          if (!order) return;
+          const spec = await this.deps.printFiles.prepare({ orderId: e.payload.orderId, bookId: e.payload.bookId, number: e.payload.number, plan: e.payload.plan, quantity: order.snapshot().quantity }, { fingerprint: e.payload.fingerprint });
+          if (spec) await this.orders.recordPrintSpec(e.payload.orderId, spec);
+        }, this.deps.logger);
+      },
+      "ordering.print.approved_layout",
     );
   }
 

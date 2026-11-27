@@ -2,6 +2,8 @@ import type { Provider } from "@nestjs/common";
 import { getSetting, subscribe, syncMobileBadge, vapidKeys } from "@/modules/workspace";
 import { audit, canSeeOrder } from "@/server/access";
 import { convertAudio } from "@/server/audio-convert";
+import { OrderingError } from "@/modules/ordering";
+import { preparePrintPackage } from "@/server/order-layout";
 import { boardsApi } from "@/server/boards-api";
 import type { Container } from "@/server/container";
 import { runCrmOp } from "@/server/crm-ops/registry";
@@ -93,8 +95,10 @@ export const legacyCrmSitePorts: Provider<CrmSitePorts> = {
     unsubscribePush: (userId, endpoint) => c.workspace.inbox.unsubscribe(userId, endpoint),
     findOrderDetails: async (orderId) => (await c.ordering.queries.orderDetails(orderId)) ?? null,
     canSeeOrder: (staff, orderId) => canSeeOrder(toLegacyStaff(staff), orderId),
-    preparePrintFiles: async (job) => {
-      await c.printFiles.prepare(job);
+    preparePrintPackage: async (orderId) => {
+      const order = await c.ordering.queries.orderDetails(orderId);
+      if (!order) throw new OrderingError("orderNotFound");
+      return (await preparePrintPackage(order)).job;
     },
     getPrintFile: (job, kind) => c.printFiles.getFile(job, kind),
 

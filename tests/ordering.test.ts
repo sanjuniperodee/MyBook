@@ -197,6 +197,7 @@ function setupSnapshot() {
     paymentProvider: "manual",
     postpay: false,
     receivedAmount: 0,
+    layoutApproval: { required: false, approvedAt: null, fingerprint: null, revokedAt: null },
     paymentId: null,
     paymentClaimedAt: null,
     contact: { name: "", phone: "", email: "" },
@@ -307,6 +308,8 @@ describe("Ordering: отмена и статусы", () => {
     const { place, svc, uow, orders } = setup();
     const o = await place();
     await svc.changeStatus({ orderId: o.id, to: "paid" }, admin);
+    // Печатный заказ уходит в печать после согласования макета клиентом.
+    await svc.approveLayout(o.id, "user-1");
     await svc.changeStatus({ orderId: o.id, to: "in_production", note: "в типографии" }, admin);
     expect(uow.types()).toContain("ordering.order_status_changed");
     expect(orders.history.at(-1)).toMatchObject({ status: "in_production", note: "в типографии" });

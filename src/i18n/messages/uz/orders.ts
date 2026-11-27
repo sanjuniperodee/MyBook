@@ -98,6 +98,22 @@ export const orders: typeof ru = {
     quotedPrice: "alohida hisoblanadi",
     quotedNote: "Yetkazib berish alohida to‘lanadi: uning narxi alohida hisoblanadi — menejer uni manzilingiz bo‘yicha hisoblab, sizga yozadi va usul bilan muddatni kelishadi.",
     preview: "Maketni ko‘rish",
+    /** Согласование итогового макета клиентом перед печатью (печатный заказ). */
+    layout: {
+      title: "Chop etishdan oldin maketni tekshiring",
+      text: "Kitob sahifalari va muqovasini ko‘ring — bosmaxonaga aynan shu ko‘rinishda ketadi. Hammasi to‘g‘ri bo‘lsa, maketni tasdiqlang: roziligingizsiz kitobni chop etmaymiz.",
+      pages: "Sahifalarni ko‘rish",
+      pdf: "Kitob PDF fayli",
+      approve: "Hammasi to‘g‘ri, tasdiqlayman",
+      confirm: "Tasdiqlagandan keyin kitob shu holicha chop etishga ketadi. Maketni tasdiqlaysizmi?",
+      fixes: "Tuzatish kerak — menejerga yozing",
+      again: "Kitob tuzatildi — maketni yana tekshirib, qaytadan tasdiqlang.",
+      editing: "Kitob tuzatish uchun ochiq. Tugatgach, menejerga yozing — u kitobni yopadi, keyin shu yerda maketni tekshirib, tasdiqlash mumkin bo‘ladi.",
+      changed: "Tasdiqlangandan keyin kitob o‘zgardi — maketni yana tekshirib, qaytadan tasdiqlang.",
+      approved: (date: string) => `Maket tasdiqlandi: ${date}`,
+      approvedNote: "Kitob shu ko‘rinishda chop etishga ketadi. Biror narsani o‘zgartirish kerak bo‘lsa — menejerga yozing.",
+      failed: "Maketni tasdiqlab bo‘lmadi. Qaytadan urinib ko‘ring.",
+    },
     questions: "Buyurtma bo‘yicha savollar:",
   },
   payment: {

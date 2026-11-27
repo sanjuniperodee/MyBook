@@ -98,6 +98,22 @@ export const orders: typeof ru = {
     quotedPrice: "calculated individually",
     quotedNote: "Delivery is paid separately: its cost is calculated individually — the manager will work it out for your address, write to you and agree the method and timing.",
     preview: "View the layout",
+    /** Согласование итогового макета клиентом перед печатью (печатный заказ). */
+    layout: {
+      title: "Check the layout before printing",
+      text: "Look through the pages and the cover — this is exactly how the book will go to the printer. If everything is right, approve the layout: we don’t print the book without your approval.",
+      pages: "View the pages",
+      pdf: "Book PDF",
+      approve: "All good, approve",
+      confirm: "Once approved, the book goes to print as it is. Approve the layout?",
+      fixes: "Need changes — message your manager",
+      again: "The book was edited — please check the layout again and approve it once more.",
+      editing: "The book is open for edits. When you’re done, message your manager — they’ll close the book, and you can then check and approve the layout here.",
+      changed: "The book changed after approval — please check the layout again and approve it once more.",
+      approved: (date: string) => `Layout approved on ${date}`,
+      approvedNote: "The book will be printed as it is. If something needs changing, message your manager.",
+      failed: "Couldn’t approve the layout. Please try again.",
+    },
     questions: "Questions about your order:",
   },
   payment: {
