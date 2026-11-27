@@ -85,14 +85,17 @@ describe("код перехода и разбор адреса лендинга"
 
   it("текст сообщения по креативу: регистр не важен, неизвестный или пустой — «Здравствуйте! Хочу книгу»", () => {
     expect(adCreativeText("nurtik")).toBe("Здравствуйте! Хочу книгу в подарок. Подскажите, как заказать?");
-    expect(adCreativeText(" NurTik ")).toBe(AD_CREATIVES.nurtik);
+    expect(adCreativeText(" NurTik ")).toBe(AD_CREATIVES.nurtik.ru);
     expect(adCreativeText("predmetnaya")).toBe("Здравствуйте! Интересует книга в подарок. Хочу узнать подробности.");
     expect(adCreativeText("NOVYIGOD")).toBe("Здравствуйте! Хочу книгу в подарок на Новый год.");
     expect(adCreativeText("smmsidya")).toBe("Здравствуйте! Хочу заказать книгу в подарок. Расскажите, как это работает.");
-    for (const c of [null, undefined, "", "abc", "constructor", "__proto__", "toString"]) expect(adCreativeText(c)).toBe(AD_DEFAULT_TEXT);
-    expect(AD_DEFAULT_TEXT).toBe("Здравствуйте! Хочу книгу");
+    for (const c of [null, undefined, "", "abc", "constructor", "__proto__", "toString"]) expect(adCreativeText(c)).toBe(AD_DEFAULT_TEXT.ru);
+    expect(AD_DEFAULT_TEXT.ru).toBe("Здравствуйте! Хочу книгу");
+    // Фраза — на языке страницы; казахской ещё нет (ждёт согласования) — русская.
+    for (const [c, p] of Object.entries(AD_CREATIVES)) expect(adCreativeText(c, "kk")).toBe(p.kk ?? p.ru);
+    expect(adCreativeText(null, "kk")).toBe(AD_DEFAULT_TEXT.kk ?? AD_DEFAULT_TEXT.ru);
     // Слова — латиница в нижнем регистре (их сверяют с адресом без учёта регистра); код перехода разбирается после каждой фразы.
-    for (const [c, text] of Object.entries(AD_CREATIVES)) {
+    for (const [c, { ru: text }] of Object.entries(AD_CREATIVES)) {
       expect(c).toMatch(/^[a-z0-9-]+$/);
       const code = newLandingCode();
       expect(linkCodeFromText(new URL(whatsappLink("77775932124", text, code)).searchParams.get("text")!)).toBe(code);
@@ -100,7 +103,7 @@ describe("код перехода и разбор адреса лендинга"
   });
 
   it("ссылка WhatsApp лендинга — только фраза, без кода перехода", () => {
-    const url = new URL(landingWhatsappUrl("77775932124", AD_CREATIVES.nurtik));
+    const url = new URL(landingWhatsappUrl("77775932124", AD_CREATIVES.nurtik.ru));
     expect(url.origin + url.pathname).toBe("https://wa.me/77775932124");
     expect(url.searchParams.get("text")).toBe("Здравствуйте! Хочу книгу в подарок. Подскажите, как заказать?");
     expect(url.search).not.toMatch(/%D0%BA%D0%BE%D0%B4|lp[a-z2-9]{6}/);
