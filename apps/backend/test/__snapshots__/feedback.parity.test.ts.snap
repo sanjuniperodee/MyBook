@@ -1,0 +1,185 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Feedback) > 401 (ru/kk/en), 400 (невалидный UUID), 403 (чужой Origin), 404 (чужой заказ) и 405 совпадают байт в байт 1`] = `
+{
+  "body": "{"error":"Нужно войти в аккаунт","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "GET /api/v1/orders/33333333-3333-4333-8333-333333333333/review",
+  "status": 401,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Feedback) > 401 (ru/kk/en), 400 (невалидный UUID), 403 (чужой Origin), 404 (чужой заказ) и 405 совпадают байт в байт 2`] = `
+{
+  "body": "{"error":"Аккаунтқа кіру керек","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "GET /api/v1/orders/33333333-3333-4333-8333-333333333333/review",
+  "status": 401,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Feedback) > 401 (ru/kk/en), 400 (невалидный UUID), 403 (чужой Origin), 404 (чужой заказ) и 405 совпадают байт в байт 3`] = `
+{
+  "body": "{"error":"Please log in to your account","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "GET /api/v1/orders/33333333-3333-4333-8333-333333333333/review",
+  "status": 401,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Feedback) > 401 (ru/kk/en), 400 (невалидный UUID), 403 (чужой Origin), 404 (чужой заказ) и 405 совпадают байт в байт 4`] = `
+{
+  "body": "{"error":"Некорректные данные","code":"badData"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "GET /api/v1/orders/not-a-uuid/review",
+  "status": 400,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Feedback) > 401 (ru/kk/en), 400 (невалидный UUID), 403 (чужой Origin), 404 (чужой заказ) и 405 совпадают байт в байт 5`] = `
+{
+  "body": "{"error":"Отзыв не найден","code":"reviewNotFound"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "GET /api/v1/orders/33333333-3333-4333-8333-333333333333/review",
+  "status": 404,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Feedback) > 401 (ru/kk/en), 400 (невалидный UUID), 403 (чужой Origin), 404 (чужой заказ) и 405 совпадают байт в байт 6`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "PUT /api/v1/orders/33333333-3333-4333-8333-333333333333/review",
+  "status": 403,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Feedback) > 401 (ru/kk/en), 400 (невалидный UUID), 403 (чужой Origin), 404 (чужой заказ) и 405 совпадают байт в байт 7`] = `
+{
+  "body": "",
+  "headers": {
+    "allow": "GET, PUT",
+  },
+  "request": "PATCH /api/v1/orders/33333333-3333-4333-8333-333333333333/review",
+  "status": 405,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Feedback) > GET /review совпадает байт в байт на 200 (с ETag и 304) и при canReview: false 1`] = `
+{
+  "body": "{"canReview":true,"defaultName":"Айгерим","review":{"rating":5,"text":"Мама плакала от счастья","authorName":"Айгерим","city":"Алматы","consent":true,"status":"new","photoUrl":null,"thankYouCode":"THANKS-7Q"},"coverUrl":"/api/books/book-1/cover-image?w=480&v=5e41ac226e7c","labels":{"order":"Заказ №1042","title":"Как вам книга?","subtitle":"Пара слов от вас — и другим будет проще решиться написать свою книгу.","ratingAria":"Оценка книги","ratings":["Разочарованы","Не очень","Нормально","Хорошо","В восторге"],"textLabel":"Ваш отзыв","textHigh":"Как прошло вручение? Что сказал получатель, что вы почувствовали?","textLow":"Что пошло не так? Расскажите — мы свяжемся с вами и всё исправим.","photo":"Фото с книгой","photoHint":"Необязательно. Момент вручения или книга в руках — такие фото трогают больше всего.","photoChoose":"Выбрать фото","photoRemove":"Убрать","photoAttached":"Фото приложено","name":"Ваше имя","city":"Город","cityPlaceholder":"Например, Алматы","consent":"Можно показать отзыв на сайте — с именем и городом","submit":"Отправить отзыв","update":"Сохранить изменения","editable":"Мы ещё не проверили отзыв — его можно поправить.","chooseRating":"Поставьте оценку","thanksTitle":"Спасибо за отзыв!","thanksHigh":"Нам очень приятно. Такие истории — главная причина, почему мы делаем книги.","thanksLow":"Спасибо за честность. Отзыв уже у нас — поддержка свяжется с вами в ближайшее время.","promoTitle":"Подарок от нас — 10% на следующую книгу","promoText":"Промокод действует 60 дней. Им можно поделиться: книга маме, папе или другу пишется так же просто.","copy":"Копировать","copied":"Скопировано","locked":"Отзыв принят — спасибо! Если хотите что-то поправить, напишите нам.","notYet":"Отзыв можно будет оставить, когда книга будет у вас.","card":{"title":"Как вам книга?","text":"Оцените книгу — это минута. В благодарность — промокод на 10% на следующую.","button":"Оценить книгу","done":"Спасибо за отзыв!","code":"Ваш промокод","edit":"Изменить отзыв"}},"limits":{"text":2000,"authorName":40,"city":40}}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""0bmpHYjpQMgquYjJRM_T96he-lM"",
+  },
+  "request": "GET /api/v1/orders/33333333-3333-4333-8333-333333333333/review",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Feedback) > GET /review совпадает байт в байт на 200 (с ETag и 304) и при canReview: false 2`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""0bmpHYjpQMgquYjJRM_T96he-lM"",
+  },
+  "request": "GET /api/v1/orders/33333333-3333-4333-8333-333333333333/review",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Feedback) > GET /review совпадает байт в байт на 200 (с ETag и 304) и при canReview: false 3`] = `
+{
+  "body": "{"canReview":false,"defaultName":"","review":null,"coverUrl":"/api/books/book-1/cover-image?w=480&v=5e41ac226e7c","labels":{"order":"Заказ №1042","title":"Как вам книга?","subtitle":"Пара слов от вас — и другим будет проще решиться написать свою книгу.","ratingAria":"Оценка книги","ratings":["Разочарованы","Не очень","Нормально","Хорошо","В восторге"],"textLabel":"Ваш отзыв","textHigh":"Как прошло вручение? Что сказал получатель, что вы почувствовали?","textLow":"Что пошло не так? Расскажите — мы свяжемся с вами и всё исправим.","photo":"Фото с книгой","photoHint":"Необязательно. Момент вручения или книга в руках — такие фото трогают больше всего.","photoChoose":"Выбрать фото","photoRemove":"Убрать","photoAttached":"Фото приложено","name":"Ваше имя","city":"Город","cityPlaceholder":"Например, Алматы","consent":"Можно показать отзыв на сайте — с именем и городом","submit":"Отправить отзыв","update":"Сохранить изменения","editable":"Мы ещё не проверили отзыв — его можно поправить.","chooseRating":"Поставьте оценку","thanksTitle":"Спасибо за отзыв!","thanksHigh":"Нам очень приятно. Такие истории — главная причина, почему мы делаем книги.","thanksLow":"Спасибо за честность. Отзыв уже у нас — поддержка свяжется с вами в ближайшее время.","promoTitle":"Подарок от нас — 10% на следующую книгу","promoText":"Промокод действует 60 дней. Им можно поделиться: книга маме, папе или другу пишется так же просто.","copy":"Копировать","copied":"Скопировано","locked":"Отзыв принят — спасибо! Если хотите что-то поправить, напишите нам.","notYet":"Отзыв можно будет оставить, когда книга будет у вас.","card":{"title":"Как вам книга?","text":"Оцените книгу — это минута. В благодарность — промокод на 10% на следующую.","button":"Оценить книгу","done":"Спасибо за отзыв!","code":"Ваш промокод","edit":"Изменить отзыв"}},"limits":{"text":2000,"authorName":40,"city":40}}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""zwdI_lxo040seEFmpGJI1nZFVKY"",
+  },
+  "request": "GET /api/v1/orders/33333333-3333-4333-8333-333333333333/review",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Feedback) > GET /review совпадает байт в байт на 200 (с ETag и 304) и при canReview: false 4`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""zwdI_lxo040seEFmpGJI1nZFVKY"",
+  },
+  "request": "GET /api/v1/orders/33333333-3333-4333-8333-333333333333/review",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Feedback) > PUT /review и DELETE /review/photo совпадают байт в байт на 200, 400, 409 и 429 1`] = `
+{
+  "body": "{"rating":5,"text":"Мама плакала от счастья","authorName":"Айгерим","city":"Алматы","consent":true,"status":"new","photoUrl":null,"thankYouCode":"THANKS-7Q"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "PUT /api/v1/orders/33333333-3333-4333-8333-333333333333/review",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Feedback) > PUT /review и DELETE /review/photo совпадают байт в байт на 200, 400, 409 и 429 2`] = `
+{
+  "body": "{"error":"Некорректные данные","code":"badData"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "PUT /api/v1/orders/33333333-3333-4333-8333-333333333333/review",
+  "status": 400,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Feedback) > PUT /review и DELETE /review/photo совпадают байт в байт на 200, 400, 409 и 429 3`] = `
+{
+  "body": "{"error":"Отзыв уже проверен — изменить его нельзя. Напишите нам, если нужно что-то поправить","code":"reviewLocked"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "PUT /api/v1/orders/33333333-3333-4333-8333-333333333333/review",
+  "status": 409,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Feedback) > PUT /review и DELETE /review/photo совпадают байт в байт на 200, 400, 409 и 429 4`] = `
+{
+  "body": "{"error":"Слишком много отправок подряд. Попробуйте чуть позже.","code":"reviewRate"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "PUT /api/v1/orders/33333333-3333-4333-8333-333333333333/review",
+  "status": 429,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Feedback) > PUT /review и DELETE /review/photo совпадают байт в байт на 200, 400, 409 и 429 5`] = `
+{
+  "body": "{"rating":5,"text":"Мама плакала от счастья","authorName":"Айгерим","city":"Алматы","consent":true,"status":"new","photoUrl":null,"thankYouCode":"THANKS-7Q"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "DELETE /api/v1/orders/33333333-3333-4333-8333-333333333333/review/photo",
+  "status": 200,
+}
+`;

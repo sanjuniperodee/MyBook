@@ -1,0 +1,828 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 5 маршрутов досок, вложений задач и поддержки (включая НОЛЬ next/headers и after() в Nest) 1`] = `
+{
+  "body": "{"boards":[{"id":"66661111-1111-4111-8111-111111111111","name":"Производство"}],"templates":[{"key":"sales","name":"Продажи"}]}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "GET /api/admin/boards",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 5 маршрутов досок, вложений задач и поддержки (включая НОЛЬ next/headers и after() в Nest) 2`] = `
+{
+  "body": "{"id":"66661111-1111-4111-8111-111111111111","columns":[],"cards":[]}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "GET /api/v1/site/admin/boards/66661111-1111-4111-8111-111111111111?done=1",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 5 маршрутов досок, вложений задач и поддержки (включая НОЛЬ next/headers и after() в Nest) 3`] = `
+{
+  "body": "{"id":"66661111-1111-4111-8111-111111111111"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/admin/boards",
+  "status": 201,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 5 маршрутов досок, вложений задач и поддержки (включая НОЛЬ next/headers и after() в Nest) 4`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "PATCH /api/admin/boards/columns/66661111-1111-4111-8111-111111111111",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 5 маршрутов досок, вложений задач и поддержки (включая НОЛЬ next/headers и after() в Nest) 5`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "PUT /api/admin/boards/cards/dddd1111-1111-4111-8111-111111111111/watch",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 5 маршрутов досок, вложений задач и поддержки (включая НОЛЬ next/headers и after() в Nest) 6`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "DELETE /api/admin/boards/views/66661111-1111-4111-8111-111111111111",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 5 маршрутов досок, вложений задач и поддержки (включая НОЛЬ next/headers и after() в Nest) 7`] = `
+{
+  "body": "{"id":"att:note.txt"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/admin/boards/cards/dddd1111-1111-4111-8111-111111111111/files",
+  "status": 201,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 5 маршрутов досок, вложений задач и поддержки (включая НОЛЬ next/headers и after() в Nest) 8`] = `
+{
+  "body": "{"error":"Не найдено","code":"notFound"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "GET /api/admin/boards/unknown/path",
+  "status": 404,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 5 маршрутов досок, вложений задач и поддержки (включая НОЛЬ next/headers и after() в Nest) 9`] = `
+{
+  "body": "PART",
+  "headers": {
+    "cache-control": "private, max-age=3600",
+    "content-disposition": "attachment; filename*=UTF-8''%D1%84%D0%B0%D0%B9%D0%BB.pdf",
+    "content-range": "bytes 0-3/8",
+    "content-type": "application/pdf",
+    "x-content-type-options": "nosniff",
+  },
+  "request": "GET /api/admin/tasks/dddd1111-1111-4111-8111-111111111111/files/eeee1111-1111-4111-8111-111111111111?download=1",
+  "status": 206,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 5 маршрутов досок, вложений задач и поддержки (включая НОЛЬ next/headers и after() в Nest) 10`] = `
+{
+  "body": "{"error":"Нет прав на карточку"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "GET /api/admin/tasks/dddd1111-1111-4111-8111-111111111111/files/eeee1111-1111-4111-8111-111111111111",
+  "status": 403,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 5 маршрутов досок, вложений задач и поддержки (включая НОЛЬ next/headers и after() в Nest) 11`] = `
+{
+  "body": "{"number":99,"phone":"+77012223344"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/admin/support",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 5 маршрутов досок, вложений задач и поддержки (включая НОЛЬ next/headers и after() в Nest) 12`] = `
+{
+  "body": "{"error":"Опишите проблему подробнее"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/admin/support",
+  "status": 400,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 5 маршрутов досок, вложений задач и поддержки (включая НОЛЬ next/headers и after() в Nest) 13`] = `
+{
+  "body": "FILE:support/s1.png",
+  "headers": {
+    "cache-control": "private, max-age=3600",
+    "content-disposition": "attachment; filename*=UTF-8''%D1%81%D0%BA%D1%80%D0%B8%D0%BD.png",
+    "content-type": "image/png",
+    "x-content-type-options": "nosniff",
+  },
+  "request": "GET /api/admin/support/ffff1111-1111-4111-8111-111111111111/files/1-abc?download=1",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 5 маршрутов досок, вложений задач и поддержки (включая НОЛЬ next/headers и after() в Nest) 14`] = `
+{
+  "body": "{"error":"Не найдено","code":"notFound"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "GET /api/admin/support/ffff1111-1111-4111-8111-111111111111/files/1-abc",
+  "status": 404,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 5 маршрутов досок, вложений задач и поддержки (включая НОЛЬ next/headers и after() в Nest) 15`] = `
+{
+  "body": "{"tickets":[{"number":99,"release":"v2","count":1}]}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/support/release",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 5 маршрутов досок, вложений задач и поддержки (включая НОЛЬ next/headers и after() в Nest) 16`] = `
+{
+  "body": "{"error":"forbidden"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/support/release",
+  "status": 403,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 5 маршрутов досок, вложений задач и поддержки (включая НОЛЬ next/headers и after() в Nest) 17`] = `
+{
+  "body": "{"error":"bad request"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/support/release",
+  "status": 400,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 7 маршрутов чатов и материалов бота 1`] = `
+{
+  "body": "{"items":[{"op":"chats.inbox","args":{"f":"open","q":"test"}}]}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "GET /api/admin/chats/inbox?f=open&q=test",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 7 маршрутов чатов и материалов бота 2`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "GET /api/v1/site/admin/chats/inbox",
+  "status": 403,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 7 маршрутов чатов и материалов бота 3`] = `
+{
+  "body": "",
+  "headers": {
+    "allow": "GET",
+  },
+  "request": "POST /api/admin/chats/inbox",
+  "status": 405,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 7 маршрутов чатов и материалов бота 4`] = `
+{
+  "body": "{"results":[{"name":"a.jpg","id":"bbbb1111-1111-4111-8111-111111111111","status":"sent"}]}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/admin/chats/aaaa1111-1111-4111-8111-111111111111/files",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 7 маршрутов чатов и материалов бота 5`] = `
+{
+  "body": "{"error":"В подписи номер карты. Оплата — только через счёт или ссылку из CRM, контакты клиента — через CRM. Уберите это из подписи; если номер действительно нужен (например, курьера) — отправьте его сообщением с причиной.","code":"sensitiveCaption"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/admin/chats/aaaa1111-1111-4111-8111-111111111111/files",
+  "status": 400,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 7 маршрутов чатов и материалов бота 6`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/admin/chats/aaaa2222-2222-4222-8222-222222222222/files",
+  "status": 403,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 7 маршрутов чатов и материалов бота 7`] = `
+{
+  "body": "{"messages":[{"id":"bbbb1111-1111-4111-8111-111111111111","direction":"in","type":"text","text":"aaaa1111-1111-4111-8111-111111111111:30:","mediaUrl":null,"transcript":null,"gateway":false,"status":"delivered","error":null,"internal":false,"edited":false,"deleted":false,"author":null,"authorId":null,"replyTo":null,"at":"2026-11-26T10:00:00.000Z"}],"more":false}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "GET /api/admin/chats/aaaa1111-1111-4111-8111-111111111111/messages?limit=30",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 7 маршрутов чатов и материалов бота 8`] = `
+{
+  "body": "{"error":"Не найдено","code":"notFound"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "GET /api/admin/chats/aaaa2222-2222-4222-8222-222222222222/messages",
+  "status": 404,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 7 маршрутов чатов и материалов бота 9`] = `
+{
+  "body": "{"error":"Некорректный запрос","code":"badRequest"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "GET /api/admin/chats/bad/messages",
+  "status": 400,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 7 маршрутов чатов и материалов бота 10`] = `
+{
+  "body": "{"id":"bbbb1111-1111-4111-8111-111111111111","status":"sent","error":null,"converted":true}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/admin/chats/aaaa1111-1111-4111-8111-111111111111/voice",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 7 маршрутов чатов и материалов бота 11`] = `
+{
+  "body": "{"error":"Запись пустая"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/admin/chats/aaaa1111-1111-4111-8111-111111111111/voice",
+  "status": 400,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 7 маршрутов чатов и материалов бота 12`] = `
+{
+  "body": "PART",
+  "headers": {
+    "cache-control": "private, max-age=86400",
+    "content-range": "bytes 0-3/10",
+    "content-type": "audio/ogg",
+    "x-content-type-options": "nosniff",
+  },
+  "request": "GET /api/admin/chats/messages/bbbb1111-1111-4111-8111-111111111111/media",
+  "status": 206,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 7 маршрутов чатов и материалов бота 13`] = `
+{
+  "body": "gateway err",
+  "headers": {
+    "content-type": "text/plain; charset=utf-8",
+  },
+  "request": "GET /api/admin/chats/messages/bbbb1111-1111-4111-8111-111111111111/media",
+  "status": 502,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 7 маршрутов чатов и материалов бота 14`] = `
+{
+  "body": "{"material":{"id":"mat12345","kind":"image","key":"bot-media/mat.jpg","name":"book.jpg","mime":"image/jpeg","size":4,"caption":"Пример","lang":"ru","about":"","on":true}}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/admin/bot/materials",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 7 маршрутов чатов и материалов бота 15`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/admin/bot/materials",
+  "status": 403,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 7 маршрутов чатов и материалов бота 16`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, max-age=3600",
+    "content-disposition": "inline; filename*=UTF-8''%D0%BF%D1%80%D0%B8%D0%BC%D0%B5%D1%80%20%D0%BA%D0%BD%D0%B8%D0%B3%D0%B8.jpg",
+    "content-type": "image/jpeg",
+  },
+  "request": "GET /api/admin/bot/materials/mat12345",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 7 маршрутов чатов и материалов бота 17`] = `
+{
+  "body": "{"error":"Не найдено","code":"notFound"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "GET /api/admin/bot/materials/nope",
+  "status": 404,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: все 9 экспортов CSV и vCard 1`] = `
+{
+  "body": "﻿Имя;E-mail;Телефон;Теги;Регистрация;Последний визит;Книг;Лучший прогресс (ответов);Заказов;LTV;Последний заказ;Ответственный;Канал;Повод;Последняя книга
+Асель;asel@example.kz;+77010001122;vip;2026-11-26T10:00:00.000Z;2026-11-26T10:00:00.000Z;2;15;1;29000;2026-11-26T10:00:00.000Z;Данияр;Instagram;День рождения;2026-11-26T10:00:00.000Z
+",
+  "headers": {
+    "cache-control": "no-store",
+    "content-disposition": "attachment; filename="clients-2026-11-26.csv"",
+    "content-type": "text/csv; charset=utf-8",
+  },
+  "request": "GET /api/admin/export/clients?segment=vip",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: все 9 экспортов CSV и vCard 2`] = `
+{
+  "body": "﻿День;Категория;Что;"Сумма, ₸";Количество;Заметка;Внёс
+2026-11-20;Печать книг;Печать;12000;1;;Айгерим
+",
+  "headers": {
+    "cache-control": "no-store",
+    "content-disposition": "attachment; filename="expenses-2026-11-01_2026-11-26.csv"",
+    "content-type": "text/csv; charset=utf-8",
+  },
+  "request": "GET /api/admin/export/expenses?p=month",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: все 9 экспортов CSV и vCard 3`] = `
+{
+  "body": "﻿День;"Сумма, ₸";Способ;Что;Сделка / заказ;Клиент;Ответственный;Принял;Операция;Проверено
+",
+  "headers": {
+    "cache-control": "no-store",
+    "content-disposition": "attachment; filename="finance-2026-11-01_2026-11-26.csv"",
+    "content-type": "text/csv; charset=utf-8",
+  },
+  "request": "GET /api/admin/export/finance?p=month",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: все 9 экспортов CSV и vCard 4`] = `
+{
+  "body": "﻿День;Заявки;Нецелевые;Счета;Оплаты;"Конверсия, %";"Первые оплаты, ₸";"По договорам, ₸";"Средний договор, ₸";"Реклама, ₸";"Заявка, ₸";"Покупатель, ₸";"Доля рекламы, %"
+2026-11-01;0;0;0;0;;0;0;;0;;;
+2026-11-02;0;0;0;0;;0;0;;0;;;
+2026-11-03;0;0;0;0;;0;0;;0;;;
+2026-11-04;0;0;0;0;;0;0;;0;;;
+2026-11-05;0;0;0;0;;0;0;;0;;;
+2026-11-06;0;0;0;0;;0;0;;0;;;
+2026-11-07;0;0;0;0;;0;0;;0;;;
+2026-11-08;0;0;0;0;;0;0;;0;;;
+2026-11-09;0;0;0;0;;0;0;;0;;;
+2026-11-10;0;0;0;0;;0;0;;0;;;
+2026-11-11;0;0;0;0;;0;0;;0;;;
+2026-11-12;0;0;0;0;;0;0;;0;;;
+2026-11-13;0;0;0;0;;0;0;;0;;;
+2026-11-14;0;0;0;0;;0;0;;0;;;
+2026-11-15;0;0;0;0;;0;0;;0;;;
+2026-11-16;0;0;0;0;;0;0;;0;;;
+2026-11-17;0;0;0;0;;0;0;;0;;;
+2026-11-18;0;0;0;0;;0;0;;0;;;
+2026-11-19;0;0;0;0;;0;0;;0;;;
+2026-11-20;0;0;0;0;;0;0;;4000;;;
+2026-11-21;0;0;0;0;;0;0;;0;;;
+2026-11-22;0;0;0;0;;0;0;;0;;;
+2026-11-23;0;0;0;0;;0;0;;0;;;
+2026-11-24;0;0;0;0;;0;0;;0;;;
+2026-11-25;0;0;0;0;;0;0;;0;;;
+2026-11-26;0;0;0;0;;0;0;;0;;;
+",
+  "headers": {
+    "cache-control": "no-store",
+    "content-disposition": "attachment; filename="leads-2026-11-01_2026-11-26.csv"",
+    "content-type": "text/csv; charset=utf-8",
+  },
+  "request": "GET /api/admin/export/leads?p=month",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: все 9 экспортов CSV и vCard 5`] = `
+{
+  "body": "﻿Номер;Создан;Оплачен;Статус;Тариф;Кол-во;Книги;Скидка;Промокод;Доставка;Итого;Валюта;Имя;Телефон;E-mail;Способ доставки;Страна;Город;Адрес;Индекс;Нужна к;Трек-номер;Комментарий
+1042;2026-11-26T10:00:00.000Z;2026-11-26T10:00:00.000Z;Оплачен;Твёрдая обложка;1;29000;0;;2000;31000;KZT;Асель;+77010001122;asel@example.kz;courier;KZ;Алматы;Абая 1;050000;2026-12-01;;
+",
+  "headers": {
+    "cache-control": "no-store",
+    "content-disposition": "attachment; filename="orders-2026-11-26.csv"",
+    "content-type": "text/csv; charset=utf-8",
+  },
+  "request": "GET /api/admin/export/orders?status=paid",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: все 9 экспортов CSV и vCard 6`] = `
+{
+  "body": "﻿Дата оплаты;"Сумма, ₸";Откуда;Тип;Заказ / сделка;Клиент;Телефон;Менеджер;Чек приложен
+2026-11-26T10:00:00.000Z;29000;заказ на сайте;kaspi;№1042;Асель;+77010001122;Данияр;да
+",
+  "headers": {
+    "cache-control": "no-store",
+    "content-disposition": "attachment; filename="payments-2026-11-26.csv"",
+    "content-type": "text/csv; charset=utf-8",
+  },
+  "request": "GET /api/admin/export/payments?days=30",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: все 9 экспортов CSV и vCard 7`] = `
+{
+  "body": "﻿Период;"Выручка, ₸";"Себестоимость, ₸";"Реклама, ₸";"Команда, ₸";"Прочее, ₸";"Расходы всего, ₸";"Прибыль, ₸"
+1 нояб.;0;0;0;0;0;0;0
+2 нояб.;0;0;0;0;0;0;0
+3 нояб.;0;0;0;0;0;0;0
+4 нояб.;0;0;0;0;0;0;0
+5 нояб.;0;0;0;0;0;0;0
+6 нояб.;0;0;0;0;0;0;0
+7 нояб.;0;0;0;0;0;0;0
+8 нояб.;0;0;0;0;0;0;0
+9 нояб.;0;0;0;0;0;0;0
+10 нояб.;0;0;0;0;0;0;0
+11 нояб.;0;0;0;0;0;0;0
+12 нояб.;0;0;0;0;0;0;0
+13 нояб.;0;0;0;0;0;0;0
+14 нояб.;0;0;0;0;0;0;0
+15 нояб.;0;0;0;0;0;0;0
+16 нояб.;0;0;0;0;0;0;0
+17 нояб.;0;0;0;0;0;0;0
+18 нояб.;0;0;0;0;0;0;0
+19 нояб.;0;0;0;0;0;0;0
+20 нояб.;0;0;0;0;0;0;0
+21 нояб.;0;0;0;0;0;0;0
+22 нояб.;0;0;0;0;0;0;0
+23 нояб.;0;0;0;0;0;0;0
+24 нояб.;0;0;0;0;0;0;0
+25 нояб.;0;0;0;0;0;0;0
+26 нояб.;0;0;0;0;0;0;0
+Итого;0;0;0;0;0;0;0
+",
+  "headers": {
+    "cache-control": "no-store",
+    "content-disposition": "attachment; filename="profit-2026-11-01_2026-11-26.csv"",
+    "content-type": "text/csv; charset=utf-8",
+  },
+  "request": "GET /api/admin/export/profit?p=month",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: все 9 экспортов CSV и vCard 8`] = `
+{
+  "body": "﻿Дата продажи;Сделка;Дата заявки;Клиент;Телефон;Город;Источник;Менеджер;Тариф;Книг;Кому;К дате;"Цена, ₸";"Оплачено, ₸";"Остаток, ₸";Форма оплаты;"Комиссия банка, ₸";"На счёт, ₸";Состояние;Этап;Способ оплаты;Заказ
+",
+  "headers": {
+    "cache-control": "no-store",
+    "content-disposition": "attachment; filename="sales-2026-11-01_2026-11-26.csv"",
+    "content-type": "text/csv; charset=utf-8",
+  },
+  "request": "GET /api/admin/export/sales?p=month",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: все 9 экспортов CSV и vCard 9`] = `
+{
+  "body": "BEGIN:VCARD
+VERSION:3.0
+FN:Асель · MB7 · День рождения
+N:;Асель · MB7 · День рождения;;;
+TEL;TYPE=CELL,PREF:+77010001122
+TEL;TYPE=CELL:+77010001133
+NOTE:MyBooks CRM
+END:VCARD
+",
+  "headers": {
+    "cache-control": "no-store",
+    "content-disposition": "attachment; filename="mybooks-clients-2026-11-26.vcf"",
+    "content-type": "text/vcard; charset=utf-8",
+  },
+  "request": "GET /api/admin/export/vcard?since=2026-11-01",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: все 9 экспортов CSV и vCard 10`] = `
+{
+  "body": "﻿День;Заявки;Нецелевые;Счета;Оплаты;"Конверсия, %";"Первые оплаты, ₸";"По договорам, ₸";"Средний договор, ₸"
+2026-11-01;0;0;0;0;;0;0;
+2026-11-02;0;0;0;0;;0;0;
+2026-11-03;0;0;0;0;;0;0;
+2026-11-04;0;0;0;0;;0;0;
+2026-11-05;0;0;0;0;;0;0;
+2026-11-06;0;0;0;0;;0;0;
+2026-11-07;0;0;0;0;;0;0;
+2026-11-08;0;0;0;0;;0;0;
+2026-11-09;0;0;0;0;;0;0;
+2026-11-10;0;0;0;0;;0;0;
+2026-11-11;0;0;0;0;;0;0;
+2026-11-12;0;0;0;0;;0;0;
+2026-11-13;0;0;0;0;;0;0;
+2026-11-14;0;0;0;0;;0;0;
+2026-11-15;0;0;0;0;;0;0;
+2026-11-16;0;0;0;0;;0;0;
+2026-11-17;0;0;0;0;;0;0;
+2026-11-18;0;0;0;0;;0;0;
+2026-11-19;0;0;0;0;;0;0;
+2026-11-20;0;0;0;0;;0;0;
+2026-11-21;0;0;0;0;;0;0;
+2026-11-22;0;0;0;0;;0;0;
+2026-11-23;0;0;0;0;;0;0;
+2026-11-24;0;0;0;0;;0;0;
+2026-11-25;0;0;0;0;;0;0;
+2026-11-26;0;0;0;0;;0;0;
+",
+  "headers": {
+    "cache-control": "no-store",
+    "content-disposition": "attachment; filename="leads-2026-11-01_2026-11-26.csv"",
+    "content-type": "text/csv; charset=utf-8",
+  },
+  "request": "GET /api/admin/export/leads?p=month",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: все 9 экспортов CSV и vCard 11`] = `
+{
+  "body": "﻿Дата продажи;Сделка;Дата заявки;Клиент;Телефон;Город;Источник;Менеджер;Тариф;Книг;Кому;К дате;"Цена, ₸";"Оплачено, ₸";"Остаток, ₸";Форма оплаты;Состояние;Этап;Способ оплаты;Заказ
+",
+  "headers": {
+    "cache-control": "no-store",
+    "content-disposition": "attachment; filename="sales-2026-11-01_2026-11-26.csv"",
+    "content-type": "text/csv; charset=utf-8",
+  },
+  "request": "GET /api/admin/export/sales?p=month",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: все 9 экспортов CSV и vCard 12`] = `
+{
+  "body": "﻿Дата оплаты;"Сумма, ₸";Откуда;Тип;Заказ / сделка;Клиент;Телефон;Менеджер;Чек приложен
+2026-11-26T10:00:00.000Z;29000;заказ на сайте;kaspi;№1042;Асель;+7 701 ••• •• 22;Данияр;да
+",
+  "headers": {
+    "cache-control": "no-store",
+    "content-disposition": "attachment; filename="payments-2026-11-26.csv"",
+    "content-type": "text/csv; charset=utf-8",
+  },
+  "request": "GET /api/admin/export/payments?days=30",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: каталог (2), live/SSE, уведомления, push и ZIP-пакет заказа (5) 1`] = `
+{
+  "body": "	",
+  "headers": {
+    "cache-control": "private, max-age=3600",
+    "content-type": "image/jpeg",
+    "x-content-type-options": "nosniff",
+  },
+  "request": "GET /api/admin/catalog/photo?u=https%3A%2F%2Fmmg.whatsapp.net%2Fok.jpg",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: каталог (2), live/SSE, уведомления, push и ZIP-пакет заказа (5) 2`] = `
+{
+  "body": "{"error":"Не найдено","code":"notFound"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "GET /api/admin/catalog/photo?u=https%3A%2F%2Fbad.example%2Fa.jpg",
+  "status": 404,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: каталог (2), live/SSE, уведомления, push и ZIP-пакет заказа (5) 3`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, max-age=3600",
+    "content-type": "image/webp",
+    "x-content-type-options": "nosniff",
+  },
+  "request": "GET /api/admin/catalog/555/image",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: каталог (2), live/SSE, уведомления, push и ZIP-пакет заказа (5) 4`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "GET /api/admin/catalog/555/image",
+  "status": 403,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: каталог (2), live/SSE, уведомления, push и ZIP-пакет заказа (5) 5`] = `
+{
+  "body": "{"error":"Не найдено","code":"notFound"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "GET /api/admin/catalog/abc/image",
+  "status": 404,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: каталог (2), live/SSE, уведомления, push и ZIP-пакет заказа (5) 6`] = `
+{
+  "body": "{"counters":{"attention":1,"tasks":2,"chats":3,"calls":0,"deals":4,"reviews":0,"finance":1},"unread":5,"notifications":[],"ringing":[]}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "GET /api/admin/live",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: каталог (2), live/SSE, уведомления, push и ZIP-пакет заказа (5) 7`] = `
+{
+  "body": "",
+  "headers": {
+    "allow": "GET",
+  },
+  "request": "POST /api/admin/live/stream",
+  "status": 405,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: каталог (2), live/SSE, уведомления, push и ZIP-пакет заказа (5) 8`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/admin/notifications",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: каталог (2), live/SSE, уведомления, push и ZIP-пакет заказа (5) 9`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/admin/notifications",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: каталог (2), live/SSE, уведомления, push и ZIP-пакет заказа (5) 10`] = `
+{
+  "body": "{"publicKey":"PARITY-VAPID-KEY"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "GET /api/admin/push",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: каталог (2), live/SSE, уведомления, push и ZIP-пакет заказа (5) 11`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/admin/push",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: каталог (2), live/SSE, уведомления, push и ZIP-пакет заказа (5) 12`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "DELETE /api/admin/push",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: каталог (2), live/SSE, уведомления, push и ZIP-пакет заказа (5) 13`] = `
+{
+  "body": "",
+  "headers": {
+    "allow": "GET, POST, DELETE",
+  },
+  "request": "PUT /api/admin/push",
+  "status": 405,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: каталог (2), live/SSE, уведомления, push и ZIP-пакет заказа (5) 14`] = `
+{
+  "body": "base64(602):UEsDBBQACAAIAABQel0AAAAAAAAAAAAAAAAUAAAAb3JkZXItMTA0Mi9ibG9jay5wZGYLCPL0C7FKyslPzgYAUEsHCG7WvNcNAAAACwAAAFBLAwQUAAgACAAAUHpdAAAAAAAAAAAAAAAAFAAAAG9yZGVyLTEwNDIvY292ZXIucGRmCwjy9AuxSs4vSy0CAFBLBwiJx6/ZDQAAAAsAAABQSwMEFAAIAAgAAFB6XQAAAAAAAAAAAAAAABUAAABvcmRlci0xMDQyL2xheW91dC5wZGYLCPL0C7HKSazMLy0BAFBLBwgYwQRFDgAAAAwAAABQSwMEFAAIAAgAAFB6XQAAAAAAAAAAAAAAABMAAABvcmRlci0xMDQyL3NwZWMudHh0Cwjy9AuxKi5ITQYAUEsHCMhyGLkMAAAACgAAAFBLAQItAxQACAAIAABQel1u1rzXDQAAAAsAAAAUAAAAAAAAAAAAIACkgQAAAABvcmRlci0xMDQyL2Jsb2NrLnBkZlBLAQItAxQACAAIAABQel2Jx6/ZDQAAAAsAAAAUAAAAAAAAAAAAIACkgU8AAABvcmRlci0xMDQyL2NvdmVyLnBkZlBLAQItAxQACAAIAABQel0YwQRFDgAAAAwAAAAVAAAAAAAAAAAAIACkgZ4AAABvcmRlci0xMDQyL2xheW91dC5wZGZQSwECLQMUAAgACAAAUHpdyHIYuQwAAAAKAAAAEwAAAAAAAAAAACAApIHvAAAAb3JkZXItMTA0Mi9zcGVjLnR4dFBLBQYAAAAABAAEAAgBAAA8AQAAAAA=",
+  "headers": {
+    "cache-control": "private, no-store",
+    "content-disposition": "attachment; filename="order-1042.zip"",
+    "content-type": "application/zip",
+  },
+  "request": "GET /api/admin/orders/99991111-1111-4111-8111-111111111111/package",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: каталог (2), live/SSE, уведомления, push и ZIP-пакет заказа (5) 15`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "GET /api/admin/orders/99991111-1111-4111-8111-111111111111/package",
+  "status": 403,
+}
+`;

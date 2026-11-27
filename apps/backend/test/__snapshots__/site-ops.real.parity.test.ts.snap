@@ -1,0 +1,147 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`паритет NestJS ↔ mybook-api: Контекст 7B с настоящими обработчиками сайта > чек оплаты сделки: без входа, клиент, без права, без 2FA, чужая сделка, нет чека и сам файл — байт в байт 1`] = `
+{
+  "body": "{"error":"Нужно войти в аккаунт","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "GET /api/admin/receipts/dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+  "status": 401,
+}
+`;
+
+exports[`паритет NestJS ↔ mybook-api: Контекст 7B с настоящими обработчиками сайта > чек оплаты сделки: без входа, клиент, без права, без 2FA, чужая сделка, нет чека и сам файл — байт в байт 2`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "GET /api/admin/receipts/dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+  "status": 403,
+}
+`;
+
+exports[`паритет NestJS ↔ mybook-api: Контекст 7B с настоящими обработчиками сайта > чек оплаты сделки: без входа, клиент, без права, без 2FA, чужая сделка, нет чека и сам файл — байт в байт 3`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "GET /api/admin/receipts/dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+  "status": 403,
+}
+`;
+
+exports[`паритет NestJS ↔ mybook-api: Контекст 7B с настоящими обработчиками сайта > чек оплаты сделки: без входа, клиент, без права, без 2FA, чужая сделка, нет чека и сам файл — байт в байт 4`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "GET /api/admin/receipts/dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+  "status": 403,
+}
+`;
+
+exports[`паритет NestJS ↔ mybook-api: Контекст 7B с настоящими обработчиками сайта > чек оплаты сделки: без входа, клиент, без права, без 2FA, чужая сделка, нет чека и сам файл — байт в байт 5`] = `
+{
+  "body": "jpeg-bytes",
+  "headers": {
+    "cache-control": "private, no-store",
+    "content-disposition": "inline; filename*=UTF-8''%D0%A7%D0%B5%D0%BA%20Kaspi.jpg",
+    "content-type": "image/jpeg",
+    "x-content-type-options": "nosniff",
+  },
+  "request": "GET /api/admin/receipts/dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+  "status": 200,
+}
+`;
+
+exports[`паритет NestJS ↔ mybook-api: Контекст 7B с настоящими обработчиками сайта > чек оплаты сделки: без входа, клиент, без права, без 2FA, чужая сделка, нет чека и сам файл — байт в байт 6`] = `
+{
+  "body": "{"error":"Не найдено","code":"notFound"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "GET /api/admin/receipts/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+  "status": 404,
+}
+`;
+
+exports[`паритет NestJS ↔ mybook-api: Контекст 7B с настоящими обработчиками сайта > чек оплаты сделки: без входа, клиент, без права, без 2FA, чужая сделка, нет чека и сам файл — байт в байт 7`] = `
+{
+  "body": "{"error":"Некорректный запрос","code":"badRequest"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "GET /api/admin/receipts/not-a-uuid",
+  "status": 400,
+}
+`;
+
+exports[`паритет NestJS ↔ mybook-api: Контекст 7B с настоящими обработчиками сайта > чужой метод — 405 с тем же Allow 1`] = `
+{
+  "body": "",
+  "headers": {
+    "allow": "POST",
+  },
+  "request": "PUT /api/payments/kaspi/webhook",
+  "status": 405,
+}
+`;
+
+exports[`паритет NestJS ↔ mybook-api: Контекст 7B с настоящими обработчиками сайта > чужой метод — 405 с тем же Allow 2`] = `
+{
+  "body": "",
+  "headers": {
+    "allow": "GET",
+  },
+  "request": "POST /api/admin/receipts/dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+  "status": 405,
+}
+`;
+
+exports[`паритет NestJS ↔ mybook-api: Контекст 7B с настоящими обработчиками сайта > чужой метод — 405 с тем же Allow 3`] = `
+{
+  "body": "",
+  "headers": {
+    "allow": "GET",
+  },
+  "request": "DELETE /api/admin/calls/whatsapp/live",
+  "status": 405,
+}
+`;
+
+exports[`паритет NestJS ↔ mybook-api: Контекст 7B с настоящими обработчиками сайта > чужой метод — 405 с тем же Allow 4`] = `
+{
+  "body": "",
+  "headers": {
+    "allow": "GET",
+  },
+  "request": "POST /api/admin/calls/whatsapp/live",
+  "status": 405,
+}
+`;
+
+exports[`паритет NestJS ↔ mybook-api: Контекст 7B с настоящими обработчиками сайта > чужой метод — 405 с тем же Allow 5`] = `
+{
+  "body": "",
+  "headers": {
+    "allow": "GET",
+  },
+  "request": "POST /api/v1/site/admin/calls/whatsapp/live",
+  "status": 405,
+}
+`;
+
+exports[`паритет NestJS ↔ mybook-api: Контекст 7B с настоящими обработчиками сайта > чужой метод — 405 с тем же Allow 6`] = `
+{
+  "body": "",
+  "headers": {
+    "allow": "GET, DELETE",
+  },
+  "request": "PATCH /api/v1/site/payments/kaspi/invoices/dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+  "status": 405,
+}
+`;

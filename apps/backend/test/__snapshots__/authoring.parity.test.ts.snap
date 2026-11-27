@@ -1,0 +1,1188 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > books (5), book-model (1) и wizard (2): 200, ETag/304, 400, 401, 403, 404, 405, 409 1`] = `
+{
+  "body": "sha256(11086):56af4d6fd8723cdcd36dad15356a09ea43dd4a242b530a96a625aa9c1c0afd63 {"themes":[{"id":"love","kind":"gift","recipient":"required","name":"Любимому человеку","short":"Любимому","description":"История вашей любви: знакомство, первые свидания, мечты и слова, которые давно хотелось сказать.","emoji":"❤","recipientLabel":"Имя любимого человека","recipientPlaceholder":"Нап…",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""pmFKIlaJhu9EMubl5DEHJznlo6Q"",
+  },
+  "request": "GET /api/v1/themes",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > books (5), book-model (1) и wizard (2): 200, ETag/304, 400, 401, 403, 404, 405, 409 2`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""pmFKIlaJhu9EMubl5DEHJznlo6Q"",
+  },
+  "request": "GET /api/v1/themes",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > books (5), book-model (1) и wizard (2): 200, ETag/304, 400, 401, 403, 404, 405, 409 3`] = `
+{
+  "body": "sha256(11391):2c9cfe5f659ace243cd74bb4b36c3d644452a71c0f8c9488fb8740349ac3c8cf {"themes":[{"id":"love","kind":"gift","recipient":"required","name":"Сүйікті адамға","short":"Сүйіктіге","description":"Махаббатыңыздың тарихы: танысу, алғашқы кездесулер, армандар және көптен айтқыңыз келген сөздер.","emoji":"❤","recipientLabel":"Сүйікті адамның есімі","recipientPlaceholder":"Мысал…",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""PuoEdNm_zSMwgBcDpJPYph3-h5o"",
+  },
+  "request": "GET /api/v1/themes?locale=kk",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > books (5), book-model (1) и wizard (2): 200, ETag/304, 400, 401, 403, 404, 405, 409 4`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""PuoEdNm_zSMwgBcDpJPYph3-h5o"",
+  },
+  "request": "GET /api/v1/themes?locale=kk",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > books (5), book-model (1) и wizard (2): 200, ETag/304, 400, 401, 403, 404, 405, 409 5`] = `
+{
+  "body": "{"id":"aaaa1111-1111-4111-8111-111111111111"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/books",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > books (5), book-model (1) и wizard (2): 200, ETag/304, 400, 401, 403, 404, 405, 409 6`] = `
+{
+  "body": "{"error":"Укажите имя получателя","code":"badData"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/books",
+  "status": 400,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > books (5), book-model (1) и wizard (2): 200, ETag/304, 400, 401, 403, 404, 405, 409 7`] = `
+{
+  "body": "{"books":[{"id":"aaaa1111-1111-4111-8111-111111111111","title":"Наша история","theme":"love","status":"draft","authorName":"Алия","recipientName":"Марат","updatedAt":"2026-11-25T10:00:00.000Z","answered":1,"total":2,"words":12,"photos":2,"coverTemplate":"linen","coverPhotoUrl":"/api/photos/cccc1111-1111-4111-8111-111111111111?size=thumb","order":null},{"id":"aaaa2222-2222-4222-8222-222222222222","title":"Наша история","theme":"love","status":"ordered","authorName":"Алия","recipientName":"Марат","updatedAt":"2026-11-25T10:00:00.000Z","answered":1,"total":2,"words":12,"photos":2,"coverTemplate":"linen","coverPhotoUrl":"/api/photos/cccc1111-1111-4111-8111-111111111111?size=thumb","order":{"id":"eeee1111-1111-4111-8111-111111111111","number":501,"status":"paid","printed":true}}]}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""du2QF13MKB_ETfHocpesXtmI6WI"",
+  },
+  "request": "GET /api/v1/books",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > books (5), book-model (1) и wizard (2): 200, ETag/304, 400, 401, 403, 404, 405, 409 8`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""du2QF13MKB_ETfHocpesXtmI6WI"",
+  },
+  "request": "GET /api/v1/books",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > books (5), book-model (1) и wizard (2): 200, ETag/304, 400, 401, 403, 404, 405, 409 9`] = `
+{
+  "body": "{"book":{"id":"aaaa1111-1111-4111-8111-111111111111","title":"Наша история","theme":"love","status":"draft","language":"ru","kind":"gift"},"editable":true,"chapters":[{"key":"meeting","title":"Разное","epigraph":"","own":false}],"questions":[{"id":"bbbb1111-1111-4111-8111-111111111111","chapter":"meeting","chapterTitle":"Разное","prompt":"Как вы познакомились?","hint":"Вспомните первый день","defaultTitle":"Первая встреча","displayText":null,"hideHeading":false,"answer":"Мы встретились в Алматы осенним вечером и сразу разговорились на три часа.","media":[],"isCustom":false,"pageBreak":false},{"id":"bbbb2222-2222-4222-8222-222222222222","chapter":"meeting","chapterTitle":"Разное","prompt":"Что запомнилось больше всего?","hint":null,"defaultTitle":"Главный момент","displayText":null,"hideHeading":false,"answer":"","media":[],"isCustom":false,"pageBreak":false}],"photos":[{"id":"cccc1111-1111-4111-8111-111111111111","width":1600,"height":1200,"caption":"Осень в горах","layout":"full","questionId":null,"thumbUrl":"/api/photos/cccc1111-1111-4111-8111-111111111111?size=thumb","url":"/api/photos/cccc1111-1111-4111-8111-111111111111?size=view"},{"id":"cccc2222-2222-4222-8222-222222222222","width":1200,"height":1600,"caption":"Прогулка","layout":"bleed","questionId":"bbbb1111-1111-4111-8111-111111111111","thumbUrl":"/api/photos/cccc2222-2222-4222-8222-222222222222?size=thumb","url":"/api/photos/cccc2222-2222-4222-8222-222222222222?size=view"}],"maxPhotos":120}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""WQ7tK-Cyr8tYfu413zjAWGsnhfs"",
+  },
+  "request": "GET /api/v1/books/aaaa1111-1111-4111-8111-111111111111/editor",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > books (5), book-model (1) и wizard (2): 200, ETag/304, 400, 401, 403, 404, 405, 409 10`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""WQ7tK-Cyr8tYfu413zjAWGsnhfs"",
+  },
+  "request": "GET /api/v1/books/aaaa1111-1111-4111-8111-111111111111/editor",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > books (5), book-model (1) и wizard (2): 200, ETag/304, 400, 401, 403, 404, 405, 409 11`] = `
+{
+  "body": "{"error":"Книга не найдена","code":"bookNotFound"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "GET /api/v1/books/aaaa1111-1111-4111-8111-111111111111/editor",
+  "status": 404,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > books (5), book-model (1) и wizard (2): 200, ETag/304, 400, 401, 403, 404, 405, 409 12`] = `
+{
+  "body": "{"ok":true,"updatedAt":"2026-11-26T10:00:00.000Z"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "PATCH /api/v1/books/aaaa1111-1111-4111-8111-111111111111/questions/bbbb1111-1111-4111-8111-111111111111",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > books (5), book-model (1) и wizard (2): 200, ETag/304, 400, 401, 403, 404, 405, 409 13`] = `
+{
+  "body": "sha256(4429):3afc7b6e47640571348f5cdf3bea3af13220587d3737c44b8dd44299203c189e {"pageCount":48,"dims":{"w":145,"h":207,"d":2.3,"boardMm":0.45,"block":{"w":142,"h":201,"d":1.4},"spread":{"w":346.3,"h":247},"rects":{"front":{"x":181.3,"y":20,"w":145,"h":207},"back":{"x":20,"y":20,"w":145,"h":207},"spine":{"x":172,"y":20,"w":2.3,"h":207}}},"spreadUrl":"/api/books/aaaa1111-1111-41…",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""i7_iejK-zKsX61qm81Elh8fbyK4"",
+  },
+  "request": "GET /api/v1/books/aaaa1111-1111-4111-8111-111111111111/model",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > books (5), book-model (1) и wizard (2): 200, ETag/304, 400, 401, 403, 404, 405, 409 14`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""i7_iejK-zKsX61qm81Elh8fbyK4"",
+  },
+  "request": "GET /api/v1/books/aaaa1111-1111-4111-8111-111111111111/model",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > books (5), book-model (1) и wizard (2): 200, ETag/304, 400, 401, 403, 404, 405, 409 15`] = `
+{
+  "body": "sha256(4561):2e8bfe581b929324bd0d4930238e5fa549994cc74a4535ff0101640d4764a106 {"pageCount":64,"dims":{"w":145,"h":207,"d":2.8,"boardMm":0.45,"block":{"w":142,"h":201,"d":1.9},"spread":{"w":346.8,"h":247},"rects":{"front":{"x":181.8,"y":20,"w":145,"h":207},"back":{"x":20,"y":20,"w":145,"h":207},"spine":{"x":172,"y":20,"w":2.8,"h":207}}},"spreadUrl":"/api/books/aaaa1111-1111-41…",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""CcB8MQwcZ6oVtPZ6NpCgh4qqvM8"",
+  },
+  "request": "GET /api/v1/books/aaaa1111-1111-4111-8111-111111111111/model?pages=64",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > books (5), book-model (1) и wizard (2): 200, ETag/304, 400, 401, 403, 404, 405, 409 16`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""CcB8MQwcZ6oVtPZ6NpCgh4qqvM8"",
+  },
+  "request": "GET /api/v1/books/aaaa1111-1111-4111-8111-111111111111/model?pages=64",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > books (5), book-model (1) и wizard (2): 200, ETag/304, 400, 401, 403, 404, 405, 409 17`] = `
+{
+  "body": "sha256(29954):54c7f150077d25d3241a2276df61ea11a91c9c4b28b89268b4026cf3f0d783cd {"themes":[{"id":"love","kind":"gift","group":"gift","recipient":"required","name":"Любимому человеку","description":"История вашей любви: знакомство, первые свидания, мечты и слова, которые давно хотелось сказать.","questionsLabel":"176 вопросов","coverUrl":"/api/covers/peony-a5-lite.webp?v=dev","r…",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""9Rp5rR87208xFeiSY3HfsTPQA4c"",
+  },
+  "request": "GET /api/v1/books/new",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > books (5), book-model (1) и wizard (2): 200, ETag/304, 400, 401, 403, 404, 405, 409 18`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""9Rp5rR87208xFeiSY3HfsTPQA4c"",
+  },
+  "request": "GET /api/v1/books/new",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > books (5), book-model (1) и wizard (2): 200, ETag/304, 400, 401, 403, 404, 405, 409 19`] = `
+{
+  "body": "sha256(30374):d14b915afaf741ba0ba4c7ea807d3368f6504c51bd1ee43f16f0324099b907fd {"themes":[{"id":"love","kind":"gift","group":"gift","recipient":"required","name":"Сүйікті адамға","description":"Махаббатыңыздың тарихы: танысу, алғашқы кездесулер, армандар және көптен айтқыңыз келген сөздер.","questionsLabel":"176 сұрақ","coverUrl":"/api/covers/peony-a5-lite.webp?v=dev","recipie…",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""ypLtnalphLnca0xUS_EXPAWipro"",
+  },
+  "request": "GET /api/v1/books/new",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > books (5), book-model (1) и wizard (2): 200, ETag/304, 400, 401, 403, 404, 405, 409 20`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""ypLtnalphLnca0xUS_EXPAWipro"",
+  },
+  "request": "GET /api/v1/books/new",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > books (5), book-model (1) и wizard (2): 200, ETag/304, 400, 401, 403, 404, 405, 409 21`] = `
+{
+  "body": "{"text":"До годовщины через 201 день. Чтобы успеть с доставкой, закажите книгу до 2 июня."}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""i68XWgIUzNYprFsU8zZKe8EZnIs"",
+  },
+  "request": "GET /api/v1/occasions/deadline?occasion=anniversary&date=2027-06-15",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > books (5), book-model (1) и wizard (2): 200, ETag/304, 400, 401, 403, 404, 405, 409 22`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""i68XWgIUzNYprFsU8zZKe8EZnIs"",
+  },
+  "request": "GET /api/v1/occasions/deadline?occasion=anniversary&date=2027-06-15",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > books (5), book-model (1) и wizard (2): 200, ETag/304, 400, 401, 403, 404, 405, 409 23`] = `
+{
+  "body": "{"text":null}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""fR9CySQY7Zyi-jTVD_Xwd1OaPzk"",
+  },
+  "request": "GET /api/v1/occasions/deadline?occasion=nope&date=2027-06-15",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > books (5), book-model (1) и wizard (2): 200, ETag/304, 400, 401, 403, 404, 405, 409 24`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""fR9CySQY7Zyi-jTVD_Xwd1OaPzk"",
+  },
+  "request": "GET /api/v1/occasions/deadline?occasion=nope&date=2027-06-15",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > books (5), book-model (1) и wizard (2): 200, ETag/304, 400, 401, 403, 404, 405, 409 25`] = `
+{
+  "body": "{"error":"Нужно войти в аккаунт","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "GET /api/v1/books",
+  "status": 401,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > books (5), book-model (1) и wizard (2): 200, ETag/304, 400, 401, 403, 404, 405, 409 26`] = `
+{
+  "body": "{"error":"Аккаунтқа кіру керек","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "GET /api/v1/books",
+  "status": 401,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > books (5), book-model (1) и wizard (2): 200, ETag/304, 400, 401, 403, 404, 405, 409 27`] = `
+{
+  "body": "{"error":"Please log in to your account","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "GET /api/v1/books",
+  "status": 401,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > books (5), book-model (1) и wizard (2): 200, ETag/304, 400, 401, 403, 404, 405, 409 28`] = `
+{
+  "body": "{"error":"Некорректные данные","code":"badData"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "GET /api/v1/books/not-a-uuid/editor",
+  "status": 400,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > books (5), book-model (1) и wizard (2): 200, ETag/304, 400, 401, 403, 404, 405, 409 29`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "PATCH /api/v1/books/aaaa1111-1111-4111-8111-111111111111/questions/bbbb1111-1111-4111-8111-111111111111",
+  "status": 403,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > books (5), book-model (1) и wizard (2): 200, ETag/304, 400, 401, 403, 404, 405, 409 30`] = `
+{
+  "body": "",
+  "headers": {
+    "allow": "PATCH",
+  },
+  "request": "GET /api/v1/books/aaaa1111-1111-4111-8111-111111111111/questions/bbbb1111-1111-4111-8111-111111111111",
+  "status": 405,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > books (5), book-model (1) и wizard (2): 200, ETag/304, 400, 401, 403, 404, 405, 409 31`] = `
+{
+  "body": "{"error":"Книга уже передана в печать и не может быть изменена","code":"bookLocked"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "PATCH /api/v1/books/aaaa2222-2222-4222-8222-222222222222/questions/bbbb1111-1111-4111-8111-111111111111",
+  "status": 409,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > cover (5 маршрутов) и preview (2 маршрута): 200, 400, 404, 409, ETag/304 1`] = `
+{
+  "body": "sha256(62109):e8a13a1bd1b36d24ef8ba555b1aefb584f9245f0f601a877d6be86e1e48afbca {"cover":{"template":"linen","lines":true,"title":"Наша история","subtitle":"Воспоминания","namesOnCover":"","hideRecipientOnCover":false,"authorName":"Алия","recordedBy":"","recipientName":"Марат","kind":"gift","recipientLabel":"Имя любимого человека","autoNames":"Алия & Марат","year":2027,"photoId…",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""7uoTi-TR6kdJlvzFnJ3keWf5ieM"",
+  },
+  "request": "GET /api/v1/books/aaaa1111-1111-4111-8111-111111111111/cover",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > cover (5 маршрутов) и preview (2 маршрута): 200, 400, 404, 409, ETag/304 2`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""7uoTi-TR6kdJlvzFnJ3keWf5ieM"",
+  },
+  "request": "GET /api/v1/books/aaaa1111-1111-4111-8111-111111111111/cover",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > cover (5 маршрутов) и preview (2 маршрута): 200, 400, 404, 409, ETag/304 3`] = `
+{
+  "body": "sha256(62636):d610f353518ad1f4e5edf7a25267c26db53332d8975e8e0393a1c5d353a07699 {"cover":{"template":"linen","lines":true,"title":"Наша история","subtitle":"Воспоминания","namesOnCover":"","hideRecipientOnCover":false,"authorName":"Алия","recordedBy":"","recipientName":"Марат","kind":"gift","recipientLabel":"Имя любимого человека","autoNames":"Алия & Марат","year":2027,"photoId…",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""IIC6T62eT51a5YoGLKrymcl-B1g"",
+  },
+  "request": "GET /api/v1/books/aaaa1111-1111-4111-8111-111111111111/cover",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > cover (5 маршрутов) и preview (2 маршрута): 200, 400, 404, 409, ETag/304 4`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""IIC6T62eT51a5YoGLKrymcl-B1g"",
+  },
+  "request": "GET /api/v1/books/aaaa1111-1111-4111-8111-111111111111/cover",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > cover (5 маршрутов) и preview (2 маршрута): 200, 400, 404, 409, ETag/304 5`] = `
+{
+  "body": "sha256(62109):e8a13a1bd1b36d24ef8ba555b1aefb584f9245f0f601a877d6be86e1e48afbca {"cover":{"template":"linen","lines":true,"title":"Наша история","subtitle":"Воспоминания","namesOnCover":"","hideRecipientOnCover":false,"authorName":"Алия","recordedBy":"","recipientName":"Марат","kind":"gift","recipientLabel":"Имя любимого человека","autoNames":"Алия & Марат","year":2027,"photoId…",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "PATCH /api/v1/books/aaaa1111-1111-4111-8111-111111111111/cover",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > cover (5 маршрутов) и preview (2 маршрута): 200, 400, 404, 409, ETag/304 6`] = `
+{
+  "body": "{"error":"Книга уже передана в печать и не может быть изменена","code":"bookLocked"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "PATCH /api/v1/books/aaaa2222-2222-4222-8222-222222222222/cover",
+  "status": 409,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > cover (5 маршрутов) и preview (2 маршрута): 200, 400, 404, 409, ETag/304 7`] = `
+{
+  "body": "sha256(62109):e8a13a1bd1b36d24ef8ba555b1aefb584f9245f0f601a877d6be86e1e48afbca {"cover":{"template":"linen","lines":true,"title":"Наша история","subtitle":"Воспоминания","namesOnCover":"","hideRecipientOnCover":false,"authorName":"Алия","recordedBy":"","recipientName":"Марат","kind":"gift","recipientLabel":"Имя любимого человека","autoNames":"Алия & Марат","year":2027,"photoId…",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "PUT /api/v1/books/aaaa1111-1111-4111-8111-111111111111/cover/design",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > cover (5 маршрутов) и preview (2 маршрута): 200, 400, 404, 409, ETag/304 8`] = `
+{
+  "body": "sha256(62109):e8a13a1bd1b36d24ef8ba555b1aefb584f9245f0f601a877d6be86e1e48afbca {"cover":{"template":"linen","lines":true,"title":"Наша история","subtitle":"Воспоминания","namesOnCover":"","hideRecipientOnCover":false,"authorName":"Алия","recordedBy":"","recipientName":"Марат","kind":"gift","recipientLabel":"Имя любимого человека","autoNames":"Алия & Марат","year":2027,"photoId…",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/books/aaaa1111-1111-4111-8111-111111111111/cover/design/init",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > cover (5 маршрутов) и preview (2 маршрута): 200, 400, 404, 409, ETag/304 9`] = `
+{
+  "body": "sha256(62109):e8a13a1bd1b36d24ef8ba555b1aefb584f9245f0f601a877d6be86e1e48afbca {"cover":{"template":"linen","lines":true,"title":"Наша история","subtitle":"Воспоминания","namesOnCover":"","hideRecipientOnCover":false,"authorName":"Алия","recordedBy":"","recipientName":"Марат","kind":"gift","recipientLabel":"Имя любимого человека","autoNames":"Алия & Марат","year":2027,"photoId…",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/books/aaaa1111-1111-4111-8111-111111111111/cover/design/init",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > cover (5 маршрутов) и preview (2 маршрута): 200, 400, 404, 409, ETag/304 10`] = `
+{
+  "body": "{"error":"Некорректный запрос","code":"badRequest"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/books/aaaa1111-1111-4111-8111-111111111111/cover/design/init",
+  "status": 400,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > cover (5 маршрутов) и preview (2 маршрута): 200, 400, 404, 409, ETag/304 11`] = `
+{
+  "body": "sha256(62109):e8a13a1bd1b36d24ef8ba555b1aefb584f9245f0f601a877d6be86e1e48afbca {"cover":{"template":"linen","lines":true,"title":"Наша история","subtitle":"Воспоминания","namesOnCover":"","hideRecipientOnCover":false,"authorName":"Алия","recordedBy":"","recipientName":"Марат","kind":"gift","recipientLabel":"Имя любимого человека","autoNames":"Алия & Марат","year":2027,"photoId…",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/books/aaaa1111-1111-4111-8111-111111111111/cover/design/reset",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > cover (5 маршрутов) и preview (2 маршрута): 200, 400, 404, 409, ETag/304 12`] = `
+{
+  "body": "sha256(62109):e8a13a1bd1b36d24ef8ba555b1aefb584f9245f0f601a877d6be86e1e48afbca {"cover":{"template":"linen","lines":true,"title":"Наша история","subtitle":"Воспоминания","namesOnCover":"","hideRecipientOnCover":false,"authorName":"Алия","recordedBy":"","recipientName":"Марат","kind":"gift","recipientLabel":"Имя любимого человека","autoNames":"Алия & Марат","year":2027,"photoId…",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/books/aaaa1111-1111-4111-8111-111111111111/cover/design/reset",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > cover (5 маршрутов) и preview (2 маршрута): 200, 400, 404, 409, ETag/304 13`] = `
+{
+  "body": "{"status":"ready","build":{"fp":"abc123fp","pageCount":48,"contentPages":42,"trimMm":{"w":145,"h":207},"pages":[{"n":1,"kind":"front","chapterKey":null},{"n":2,"kind":"opener","chapterKey":"meeting"},{"n":3,"kind":"text","chapterKey":"meeting"}],"chapterPages":{"meeting":2},"imageBase":"/api/books/aaaa1111-1111-4111-8111-111111111111/pages/abc123fp","imageWidths":[480,800,1200,1600]},"error":null,"retryInMs":null,"pdfUrl":"/api/books/aaaa1111-1111-4111-8111-111111111111/preview"}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""-H3Ql-J7X96Oaiy4c_bDK-Oo0nY"",
+  },
+  "request": "GET /api/v1/books/aaaa1111-1111-4111-8111-111111111111/build",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > cover (5 маршрутов) и preview (2 маршрута): 200, 400, 404, 409, ETag/304 14`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""-H3Ql-J7X96Oaiy4c_bDK-Oo0nY"",
+  },
+  "request": "GET /api/v1/books/aaaa1111-1111-4111-8111-111111111111/build",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > cover (5 маршрутов) и preview (2 маршрута): 200, 400, 404, 409, ETag/304 15`] = `
+{
+  "body": "{"status":"failed","build":{"fp":"abc123fp","pageCount":48,"contentPages":42,"trimMm":{"w":145,"h":207},"pages":[{"n":1,"kind":"front","chapterKey":null},{"n":2,"kind":"opener","chapterKey":"meeting"},{"n":3,"kind":"text","chapterKey":"meeting"}],"chapterPages":{"meeting":2},"imageBase":"/api/books/aaaa1111-1111-4111-8111-111111111111/pages/abc123fp","imageWidths":[480,800,1200,1600]},"error":"renderFailed","retryInMs":30000,"pdfUrl":"/api/books/aaaa1111-1111-4111-8111-111111111111/preview"}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""_XGojUCbR1ACB8rk1zlqllIEDCM"",
+  },
+  "request": "GET /api/v1/books/aaaa1111-1111-4111-8111-111111111111/build?retry=1",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > cover (5 маршрутов) и preview (2 маршрута): 200, 400, 404, 409, ETag/304 16`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""_XGojUCbR1ACB8rk1zlqllIEDCM"",
+  },
+  "request": "GET /api/v1/books/aaaa1111-1111-4111-8111-111111111111/build?retry=1",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > cover (5 маршрутов) и preview (2 маршрута): 200, 400, 404, 409, ETag/304 17`] = `
+{
+  "body": "{"error":"Книга не найдена","code":"bookNotFound"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "GET /api/v1/books/aaaa1111-1111-4111-8111-111111111111/build",
+  "status": 404,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > cover (5 маршрутов) и preview (2 маршрута): 200, 400, 404, 409, ETag/304 18`] = `
+{
+  "body": "{"progress":{"state":"running","stage":"flow","percent":43,"etaMs":3200,"overrun":false,"ahead":0}}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""-T_3ry-bCRQpax8bffnWqWM2Ogc"",
+  },
+  "request": "GET /api/v1/books/aaaa1111-1111-4111-8111-111111111111/build/progress",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > cover (5 маршрутов) и preview (2 маршрута): 200, 400, 404, 409, ETag/304 19`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""-T_3ry-bCRQpax8bffnWqWM2Ogc"",
+  },
+  "request": "GET /api/v1/books/aaaa1111-1111-4111-8111-111111111111/build/progress",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > cover (5 маршрутов) и preview (2 маршрута): 200, 400, 404, 409, ETag/304 20`] = `
+{
+  "body": "{"progress":null}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""_dyhRQT5jw_potp7T7OQWvpmR4U"",
+  },
+  "request": "GET /api/v1/books/aaaa1111-1111-4111-8111-111111111111/build/progress",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > cover (5 маршрутов) и preview (2 маршрута): 200, 400, 404, 409, ETag/304 21`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""_dyhRQT5jw_potp7T7OQWvpmR4U"",
+  },
+  "request": "GET /api/v1/books/aaaa1111-1111-4111-8111-111111111111/build/progress",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > letters (6 маршрутов): 200, ETag/304 и 404 1`] = `
+{
+  "body": "sha256(4170):d0c922fb169ef794767fc1da968b7e55ff89f66a8029f2360020e087012f0b63 {"letters":[{"id":"dddd1111-1111-4111-8111-111111111111","authorName":"Дана","relation":"сестра","text":"Желаю вам счастья и долгих лет!","status":"approved","createdAt":"2026-11-10T10:00:00.000Z"},{"id":"dddd2222-2222-4222-8222-222222222222","authorName":"Арман","relation":"друг","text":"Пусть кажд…",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""st4jNFsQty2HHLdKCK0Qh-eB2NM"",
+  },
+  "request": "GET /api/v1/books/aaaa1111-1111-4111-8111-111111111111/letters",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > letters (6 маршрутов): 200, ETag/304 и 404 2`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""st4jNFsQty2HHLdKCK0Qh-eB2NM"",
+  },
+  "request": "GET /api/v1/books/aaaa1111-1111-4111-8111-111111111111/letters",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > letters (6 маршрутов): 200, ETag/304 и 404 3`] = `
+{
+  "body": "sha256(4293):76e6059ecc72f0753f5cbe9dd52ad3a229d01c1c301ca84cf273cdc0bb01a322 {"letters":[{"id":"dddd1111-1111-4111-8111-111111111111","authorName":"Дана","relation":"сестра","text":"Желаю вам счастья и долгих лет!","status":"approved","createdAt":"2026-11-10T10:00:00.000Z"},{"id":"dddd2222-2222-4222-8222-222222222222","authorName":"Арман","relation":"друг","text":"Пусть кажд…",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""SXdO_iA-sVSuFT57v9OqhKa0k3E"",
+  },
+  "request": "GET /api/v1/books/aaaa1111-1111-4111-8111-111111111111/letters",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > letters (6 маршрутов): 200, ETag/304 и 404 4`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""SXdO_iA-sVSuFT57v9OqhKa0k3E"",
+  },
+  "request": "GET /api/v1/books/aaaa1111-1111-4111-8111-111111111111/letters",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > letters (6 маршрутов): 200, ETag/304 и 404 5`] = `
+{
+  "body": "{"enabled":true,"url":"http://localhost:3000/letters/inv-token-123","text":"","shareText":"Я готовлю книгу-сюрприз — её получит Марат. Напишите, пожалуйста, пару тёплых слов — они войдут в книгу: http://localhost:3000/letters/inv-token-123"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/books/aaaa1111-1111-4111-8111-111111111111/letters/invite",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > letters (6 маршрутов): 200, ETag/304 и 404 6`] = `
+{
+  "body": "{"enabled":true,"url":"http://localhost:3000/letters/inv-token-123","text":"","shareText":"Я готовлю книгу-сюрприз — её получит Марат. Напишите, пожалуйста, пару тёплых слов — они войдут в книгу: http://localhost:3000/letters/inv-token-123"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "PUT /api/v1/books/aaaa1111-1111-4111-8111-111111111111/letters/invite-text",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > letters (6 маршрутов): 200, ETag/304 и 404 7`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "PUT /api/v1/books/aaaa1111-1111-4111-8111-111111111111/letters/order",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > letters (6 маршрутов): 200, ETag/304 и 404 8`] = `
+{
+  "body": "{"letter":{"id":"dddd1111-1111-4111-8111-111111111111","authorName":"Дана","relation":"сестра","text":"Желаю вам счастья и долгих лет!","status":"approved","createdAt":"2026-11-10T10:00:00.000Z"}}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "PATCH /api/v1/books/aaaa1111-1111-4111-8111-111111111111/letters/dddd1111-1111-4111-8111-111111111111",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > letters (6 маршрутов): 200, ETag/304 и 404 9`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "DELETE /api/v1/books/aaaa1111-1111-4111-8111-111111111111/letters/dddd2222-2222-4222-8222-222222222222",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > photos (3), photo-editor (3) и dictation (1): 200, 400, 409, 413, 429, 502 1`] = `
+{
+  "body": "{"photos":[{"id":"cccc1111-1111-4111-8111-111111111111","width":1600,"height":1200,"caption":"Осень в горах","layout":"full","questionId":null,"thumbUrl":"/api/photos/cccc1111-1111-4111-8111-111111111111?size=thumb","url":"/api/photos/cccc1111-1111-4111-8111-111111111111?size=view"}],"errors":["bad.gif: формат не поддерживается","broken.jpg: на фото видны зелёные квадраты. Так бывает, когда телефон готовит много больших снимков сразу, — это не ваша вина. Удалите это фото и загрузите его ещё раз отдельно."]}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/books/aaaa1111-1111-4111-8111-111111111111/photos",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > photos (3), photo-editor (3) и dictation (1): 200, 400, 409, 413, 429, 502 2`] = `
+{
+  "body": "{"error":"Слишком много загрузок подряд. Подождите немного.","code":"photosRate"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/books/aaaa1111-1111-4111-8111-111111111111/photos",
+  "status": 429,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > photos (3), photo-editor (3) и dictation (1): 200, 400, 409, 413, 429, 502 3`] = `
+{
+  "body": "{"photo":{"id":"cccc1111-1111-4111-8111-111111111111","width":1600,"height":1200,"caption":"Осень в горах","layout":"full","questionId":null,"thumbUrl":"/api/photos/cccc1111-1111-4111-8111-111111111111?size=thumb","url":"/api/photos/cccc1111-1111-4111-8111-111111111111?size=view"},"layoutRev":2}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "PATCH /api/v1/books/aaaa1111-1111-4111-8111-111111111111/photos/cccc1111-1111-4111-8111-111111111111",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > photos (3), photo-editor (3) и dictation (1): 200, 400, 409, 413, 429, 502 4`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "DELETE /api/v1/books/aaaa1111-1111-4111-8111-111111111111/photos/cccc1111-1111-4111-8111-111111111111",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > photos (3), photo-editor (3) и dictation (1): 200, 400, 409, 413, 429, 502 5`] = `
+{
+  "body": "sha256(7055):9c7b6b9bd4e3f96cfefc2f72240331332dfc4d4213e36a9bc8ff86e907a41dfb {"bookId":"aaaa1111-1111-4111-8111-111111111111","photoId":"cccc1111-1111-4111-8111-111111111111","editable":true,"edited":false,"version":"v1","width":1600,"height":1200,"originalWidth":2000,"originalHeight":1500,"originalUrl":"/api/photos/cccc1111-1111-4111-8111-111111111111?size=original&v=v1","t…",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""-OEXx8K46u00ddQM7_Vd7D1BlMc"",
+  },
+  "request": "GET /api/v1/books/aaaa1111-1111-4111-8111-111111111111/photos/cccc1111-1111-4111-8111-111111111111/editor",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > photos (3), photo-editor (3) и dictation (1): 200, 400, 409, 413, 429, 502 6`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""-OEXx8K46u00ddQM7_Vd7D1BlMc"",
+  },
+  "request": "GET /api/v1/books/aaaa1111-1111-4111-8111-111111111111/photos/cccc1111-1111-4111-8111-111111111111/editor",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > photos (3), photo-editor (3) и dictation (1): 200, 400, 409, 413, 429, 502 7`] = `
+{
+  "body": "{"error":"Книга уже передана в печать и не может быть изменена","code":"bookLocked"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "GET /api/v1/books/aaaa2222-2222-4222-8222-222222222222/photos/cccc1111-1111-4111-8111-111111111111/editor",
+  "status": 409,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > photos (3), photo-editor (3) и dictation (1): 200, 400, 409, 413, 429, 502 8`] = `
+{
+  "body": "{"photoId":"cccc1111-1111-4111-8111-111111111111","width":1600,"height":1200,"edited":true,"version":"cccc1111-1111-4111-8111-111111111111_v1","thumbUrl":"/api/photos/cccc1111-1111-4111-8111-111111111111?size=thumb&v=cccc1111-1111-4111-8111-111111111111_v1","url":"/api/photos/cccc1111-1111-4111-8111-111111111111?size=view&v=cccc1111-1111-4111-8111-111111111111_v1"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "PUT /api/v1/books/aaaa1111-1111-4111-8111-111111111111/photos/cccc1111-1111-4111-8111-111111111111/editor",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > photos (3), photo-editor (3) и dictation (1): 200, 400, 409, 413, 429, 502 9`] = `
+{
+  "body": "{"error":"Список фото устарел, обновите страницу","code":"photosOutdated"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "PUT /api/v1/books/aaaa1111-1111-4111-8111-111111111111/photos/cccc1111-1111-4111-8111-111111111111/editor",
+  "status": 409,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > photos (3), photo-editor (3) и dictation (1): 200, 400, 409, 413, 429, 502 10`] = `
+{
+  "body": "{"photoId":"cccc1111-1111-4111-8111-111111111111","width":1600,"height":1200,"edited":false,"version":"cccc1111-1111-4111-8111-111111111111_v1","thumbUrl":"/api/photos/cccc1111-1111-4111-8111-111111111111?size=thumb&v=cccc1111-1111-4111-8111-111111111111_v1","url":"/api/photos/cccc1111-1111-4111-8111-111111111111?size=view&v=cccc1111-1111-4111-8111-111111111111_v1"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "DELETE /api/v1/books/aaaa1111-1111-4111-8111-111111111111/photos/cccc1111-1111-4111-8111-111111111111/editor",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > photos (3), photo-editor (3) и dictation (1): 200, 400, 409, 413, 429, 502 11`] = `
+{
+  "body": "{"text":"Привет, мир!"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/books/aaaa1111-1111-4111-8111-111111111111/dictation",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > photos (3), photo-editor (3) и dictation (1): 200, 400, 409, 413, 429, 502 12`] = `
+{
+  "body": "{"error":"Некорректный запрос","code":"badRequest"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/books/aaaa1111-1111-4111-8111-111111111111/dictation",
+  "status": 400,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > photos (3), photo-editor (3) и dictation (1): 200, 400, 409, 413, 429, 502 13`] = `
+{
+  "body": "{"error":"Слишком много записей подряд. Подождите немного и попробуйте снова.","code":"dictationRate"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/books/aaaa1111-1111-4111-8111-111111111111/dictation",
+  "status": 429,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > photos (3), photo-editor (3) и dictation (1): 200, 400, 409, 413, 429, 502 14`] = `
+{
+  "body": "{"error":"Не удалось распознать запись — попробуйте ещё раз.","code":"dictationFailed"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/books/aaaa1111-1111-4111-8111-111111111111/dictation",
+  "status": 502,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > web-book-pages (9 маршрутов): 200 (draft & ordered), ETag/304, 404 чужой книги 1`] = `
+{
+  "body": "{"book":{"id":"aaaa1111-1111-4111-8111-111111111111","userId":"11111111-1111-4111-8111-111111111111","theme":"love","status":"draft","title":"Наша история","subtitle":"Воспоминания","authorName":"Алия","authorGender":"f","recordedBy":"","recipientName":"Марат","recipientGender":"m","namesOnCover":"","hideRecipientOnCover":false,"coverLines":true,"coverTemplate":"linen","coverPhotoId":"cccc1111-1111-4111-8111-111111111111","coverPhotoExtra":[],"backText":"С любовью навсегда","backLayout":"quote","backPhotoId":null,"backPhotoExtra":[],"photoFrames":{},"dedication":"Моему мужу","interior":"classic","interiorStyle":{},"coverDesign":null,"coverBack":null,"format":"a5","photoPlacement":"chapters","showToc":true,"tocMode":"chapters","tocLines":{},"layoutRev":2,"paginationRev":2,"inviteToken":"inv-token-123","inviteText":"","endText":null,"chapterStart":"page","titlePage":true,"language":"ru","occasion":"anniversary","occasionDate":"2027-06-15","createdAt":"2026-11-01T10:00:00.000Z","updatedAt":"2026-11-25T10:00:00.000Z"}}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""lJSyxF8osRaFAbN0xdjRGcriyZs"",
+  },
+  "request": "GET /api/v1/web/books/aaaa1111-1111-4111-8111-111111111111",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > web-book-pages (9 маршрутов): 200 (draft & ordered), ETag/304, 404 чужой книги 2`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""lJSyxF8osRaFAbN0xdjRGcriyZs"",
+  },
+  "request": "GET /api/v1/web/books/aaaa1111-1111-4111-8111-111111111111",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > web-book-pages (9 маршрутов): 200 (draft & ordered), ETag/304, 404 чужой книги 3`] = `
+{
+  "body": "{"stats":{"answered":1,"total":2,"words":12,"photos":2,"estimatedPages":34,"printedPages":40,"emptyChapters":0},"photos":[{"id":"cccc1111-1111-4111-8111-111111111111","width":1600,"height":1200},{"id":"cccc2222-2222-4222-8222-222222222222","width":1200,"height":1600}],"printedPages":48,"agreement":null,"letterStats":{"approved":1,"pending":1},"letters":{"href":"/books/aaaa1111-1111-4111-8111-111111111111/letters","title":"Письма близких","text":"1 в книге, 1 ждут решения","action":"Разобрать письма (1)"},"kind":"gift","blank":false,"editable":true,"percent":50,"chapters":[{"key":"meeting","title":"Разное","total":2,"answered":1,"firstId":"bbbb1111-1111-4111-8111-111111111111","firstOpenId":"bbbb2222-2222-4222-8222-222222222222"}],"nav":{"kind":"gift","answered":1,"total":2,"words":12,"photos":2,"letters":{"approved":1,"pending":1},"coverReady":true,"ordered":false,"paid":false,"order":null,"steps":[{"key":"questions","status":"partial","fraction":0.1},{"key":"photos","status":"done","fraction":1},{"key":"pages","status":"done","fraction":1},{"key":"cover","status":"done","fraction":1},{"key":"preview","status":"todo","fraction":0},{"key":"order","status":"todo","fraction":0}],"textDone":false,"ready":false,"current":"questions"},"rows":[{"key":"write","href":"/books/aaaa1111-1111-4111-8111-111111111111/questions","title":"Написать","value":"1 ответ из 2, 12 слов","action":"Продолжить","bar":50,"status":"partial","fraction":0.1,"active":true},{"key":"photos","href":"/books/aaaa1111-1111-4111-8111-111111111111/photos","title":"Фото","value":"2 фото","action":"Управлять","status":"done","fraction":1,"active":false},{"key":"design","href":"/books/aaaa1111-1111-4111-8111-111111111111/cover","title":"Оформить","value":"Лён, Классика","action":"Изменить","status":"done","fraction":1,"active":false},{"key":"order","href":"/books/aaaa1111-1111-4111-8111-111111111111/preview","title":"Заказать","value":"Страницы так, как их напечатают","action":"Оформить","status":"todo","fraction":0,"active":false}],"card":{"eyebrow":"Следующий вопрос · Разное","title":"Что запомнилось больше всего?","serif":true,"lang":"ru","primary":{"href":"/books/aaaa1111-1111-4111-8111-111111111111/questions?s=bbbb2222-2222-4222-8222-222222222222","label":"Ответить","icon":true}},"needs":[],"hasErrors":false,"deadline":{"days":201,"daysShort":"дн.","tone":"calm","headline":"Годовщина — 15 июня, через 201 день","line":"Оформите заказ до 2 июня (через 188 дней) — книга успеет с курьерской доставкой. Хороший темп — 1 ответ в день.","icon":"clock","changeLabel":"Изменить дату"},"preview":{"href":"/books/aaaa1111-1111-4111-8111-111111111111/preview","tab":"Макет и 3D","cta":"Смотреть макет и 3D-книгу"}}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""xwKavm_B1hUt53Kd3ulrXO4Ii-s"",
+  },
+  "request": "GET /api/v1/web/books/aaaa1111-1111-4111-8111-111111111111/hub?locale=ru",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > web-book-pages (9 маршрутов): 200 (draft & ordered), ETag/304, 404 чужой книги 4`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""xwKavm_B1hUt53Kd3ulrXO4Ii-s"",
+  },
+  "request": "GET /api/v1/web/books/aaaa1111-1111-4111-8111-111111111111/hub?locale=ru",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > web-book-pages (9 маршрутов): 200 (draft & ordered), ETag/304, 404 чужой книги 5`] = `
+{
+  "body": "{"nav":{"kind":"gift","answered":1,"total":2,"words":12,"photos":2,"letters":{"approved":1,"pending":1},"coverReady":true,"ordered":false,"paid":false,"order":null,"steps":[{"key":"questions","status":"partial","fraction":0.1},{"key":"photos","status":"done","fraction":1},{"key":"pages","status":"done","fraction":1},{"key":"cover","status":"done","fraction":1},{"key":"preview","status":"todo","fraction":0},{"key":"order","status":"todo","fraction":0}],"textDone":false,"ready":false,"current":"questions"},"orderState":null}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""tH1dHvOZtqg2b1iYV598JQLJKVs"",
+  },
+  "request": "GET /api/v1/web/books/aaaa1111-1111-4111-8111-111111111111/nav?locale=kk",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > web-book-pages (9 маршрутов): 200 (draft & ordered), ETag/304, 404 чужой книги 6`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""tH1dHvOZtqg2b1iYV598JQLJKVs"",
+  },
+  "request": "GET /api/v1/web/books/aaaa1111-1111-4111-8111-111111111111/nav?locale=kk",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > web-book-pages (9 маршрутов): 200 (draft & ordered), ETag/304, 404 чужой книги 7`] = `
+{
+  "body": "{"epigraphs":{},"book":{"id":"aaaa1111-1111-4111-8111-111111111111","format":"a5","interior":"classic","interiorStyle":{},"dedication":"Моему мужу","showToc":true,"tocMode":"chapters","tocLines":{},"photoPlacement":"chapters","title":"Наша история","language":"ru","names":["Алия","Марат"],"theme":"love","kind":"gift","authorGender":"f","recipientGender":"m","layoutRev":2,"paginationRev":2,"chapterStart":"page","titlePage":true,"coverPhotoId":"cccc1111-1111-4111-8111-111111111111","coverPhotoExtra":[],"backPhotoId":null,"backPhotoExtra":[],"coverPhotos":{"front":[],"back":[]}},"proofreadAi":true,"writerAi":false,"initialQuestions":[{"id":"bbbb1111-1111-4111-8111-111111111111","chapter":"meeting","chapterTitle":"Разное","prompt":"Как вы познакомились?","hint":"Вспомните первый день","defaultTitle":"Первая встреча","displayText":null,"hideHeading":false,"answer":"Мы встретились в Алматы осенним вечером и сразу разговорились на три часа.","media":[],"isCustom":false},{"id":"bbbb2222-2222-4222-8222-222222222222","chapter":"meeting","chapterTitle":"Разное","prompt":"Что запомнилось больше всего?","hint":null,"defaultTitle":"Главный момент","displayText":null,"hideHeading":false,"answer":"","media":[],"isCustom":false}],"chapters":[{"key":"meeting","title":"Разное","epigraph":"","own":false}],"initialPhotos":[{"id":"cccc1111-1111-4111-8111-111111111111","width":1600,"height":1200,"caption":"Осень в горах","layout":"full","questionId":null,"inline":null,"crop":null,"chapter":"meeting","opener":true,"onCover":null},{"id":"cccc2222-2222-4222-8222-222222222222","width":1200,"height":1600,"caption":"Прогулка","layout":"bleed","questionId":"bbbb1111-1111-4111-8111-111111111111","inline":null,"crop":null,"chapter":null,"opener":false,"onCover":null}],"maxPhotos":120,"letters":[{"id":"dddd1111-1111-4111-8111-111111111111","authorName":"Дана","relation":"сестра","text":"Желаю вам счастья и долгих лет!"}],"editable":true}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""IQfF9WilV_RFvb0oPBRnB0GE3qc"",
+  },
+  "request": "GET /api/v1/web/books/aaaa1111-1111-4111-8111-111111111111/pages/questions",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > web-book-pages (9 маршрутов): 200 (draft & ordered), ETag/304, 404 чужой книги 8`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""IQfF9WilV_RFvb0oPBRnB0GE3qc"",
+  },
+  "request": "GET /api/v1/web/books/aaaa1111-1111-4111-8111-111111111111/pages/questions",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > web-book-pages (9 маршрутов): 200 (draft & ordered), ETag/304, 404 чужой книги 9`] = `
+{
+  "body": "{"book":{"id":"aaaa1111-1111-4111-8111-111111111111","interior":"classic","format":"a5","language":"ru","blank":false,"photoPlacement":"chapters","galleryTitle":"Наши моменты","editable":true,"layoutRev":2},"photos":[{"id":"cccc1111-1111-4111-8111-111111111111","width":1600,"height":1200,"caption":"Осень в горах","layout":"full","questionId":null,"chapter":"meeting","opener":true,"crop":null,"version":"cccc1111-1111-4111-8111-111111111111_v1","edited":true},{"id":"cccc2222-2222-4222-8222-222222222222","width":1200,"height":1600,"caption":"Прогулка","layout":"bleed","questionId":"bbbb1111-1111-4111-8111-111111111111","chapter":null,"opener":false,"crop":null,"version":"cccc2222-2222-4222-8222-222222222222","edited":false}],"places":[{"id":"cccc1111-1111-4111-8111-111111111111","place":{"kind":"after","chapterKey":"meeting","auto":false,"onCover":null}},{"id":"cccc2222-2222-4222-8222-222222222222","place":{"kind":"answer","chapterKey":"meeting","questionId":"bbbb1111-1111-4111-8111-111111111111","auto":false,"onCover":null}}],"chapters":[{"key":"meeting","title":"Разное","number":1,"epigraph":"","printed":true},{"key":"__letters","title":"Письма близких","number":2,"epigraph":"Слова тех, кто любит вас","printed":true}],"answers":[{"id":"bbbb1111-1111-4111-8111-111111111111","title":"Первая встреча","chapterKey":"meeting"},{"id":"bbbb2222-2222-4222-8222-222222222222","title":"Главный момент","chapterKey":"meeting"}],"tocLines":{},"losses":{"cccc2222-2222-4222-8222-222222222222":0,"cccc1111-1111-4111-8111-111111111111":0},"maxPhotos":120}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""4CcQtb0cDIArYxdWE1NBhF0Qy0c"",
+  },
+  "request": "GET /api/v1/web/books/aaaa1111-1111-4111-8111-111111111111/pages/photos?locale=ru",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > web-book-pages (9 маршрутов): 200 (draft & ordered), ETag/304, 404 чужой книги 10`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""4CcQtb0cDIArYxdWE1NBhF0Qy0c"",
+  },
+  "request": "GET /api/v1/web/books/aaaa1111-1111-4111-8111-111111111111/pages/photos?locale=ru",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > web-book-pages (9 маршрутов): 200 (draft & ordered), ETag/304, 404 чужой книги 11`] = `
+{
+  "body": "{"letters":[{"id":"dddd1111-1111-4111-8111-111111111111","authorName":"Дана","relation":"сестра","text":"Желаю вам счастья и долгих лет!","status":"approved","createdAt":"2026-11-10T10:00:00.000Z"},{"id":"dddd2222-2222-4222-8222-222222222222","authorName":"Арман","relation":"друг","text":"Пусть каждый день радует вас!","status":"pending","createdAt":"2026-11-11T10:00:00.000Z"}]}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""8xz0HBhaEaqPndGuBOeD1nFtn0A"",
+  },
+  "request": "GET /api/v1/web/books/aaaa1111-1111-4111-8111-111111111111/pages/letters",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > web-book-pages (9 маршрутов): 200 (draft & ordered), ETag/304, 404 чужой книги 12`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""8xz0HBhaEaqPndGuBOeD1nFtn0A"",
+  },
+  "request": "GET /api/v1/web/books/aaaa1111-1111-4111-8111-111111111111/pages/letters",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > web-book-pages (9 маршрутов): 200 (draft & ordered), ETag/304, 404 чужой книги 13`] = `
+{
+  "body": "{"defaultTitle":"Наша история","pages":48,"recipientLabel":"Имя любимого человека","sample":{"language":"ru","title":"Наша история","subtitle":"Воспоминания","author":"Алия","year":2026,"dedication":"Моему мужу","dedicationPlaceholder":"Здесь будет посвящение — напишите его ниже","chapter":{"number":1,"title":"Разное"},"entries":[{"heading":"Первая встреча","paragraphs":["Мы встретились в Алматы осенним вечером и сразу разговорились на три часа."],"photos":[{"id":"cccc2222-2222-4222-8222-222222222222","url":"/api/photos/cccc2222-2222-4222-8222-222222222222?size=view","width":1200,"height":1600,"caption":"Прогулка","inline":null}]}],"tail":true,"folio":7,"toc":[{"key":"c:meeting","title":"Разное","number":1,"level":0,"page":6}],"tocAll":[{"key":"c:meeting","pageKey":"meeting","kind":"chapter","number":1,"label":"Разное","first":true,"page":6},{"key":"q:bbbb1111-1111-4111-8111-111111111111","pageKey":"q:bbbb1111-1111-4111-8111-111111111111","kind":"section","number":null,"label":"Первая встреча","parent":"c:meeting","page":7}],"tocMode":"chapters","tocLines":{},"showToc":true,"endText":null,"titlePage":true,"photos":[{"url":"/api/photos/cccc2222-2222-4222-8222-222222222222?size=full","width":1200,"height":1600,"caption":"Прогулка"}],"opener":{"url":"/api/photos/cccc1111-1111-4111-8111-111111111111?size=view"}},"photos":[{"id":"cccc1111-1111-4111-8111-111111111111","width":1600,"height":1200,"opener":true},{"id":"cccc2222-2222-4222-8222-222222222222","width":1200,"height":1600,"opener":false}],"places":[{"id":"cccc1111-1111-4111-8111-111111111111","place":{"kind":"after","chapterKey":"meeting","auto":false,"onCover":null}},{"id":"cccc2222-2222-4222-8222-222222222222","place":{"kind":"answer","chapterKey":"meeting","questionId":"bbbb1111-1111-4111-8111-111111111111","auto":false,"onCover":null}}],"placeNames":{"chapters":[{"key":"meeting","title":"Разное"},{"key":"meeting","title":"Разное"}],"answers":[{"id":"bbbb1111-1111-4111-8111-111111111111","title":"Первая встреча"},{"id":"bbbb2222-2222-4222-8222-222222222222","title":"Главный момент"}]}}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""pv0N3QsJ-bQijQfiqRZHMB_YU38"",
+  },
+  "request": "GET /api/v1/web/books/aaaa1111-1111-4111-8111-111111111111/pages/cover?locale=ru",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > web-book-pages (9 маршрутов): 200 (draft & ordered), ETag/304, 404 чужой книги 14`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""pv0N3QsJ-bQijQfiqRZHMB_YU38"",
+  },
+  "request": "GET /api/v1/web/books/aaaa1111-1111-4111-8111-111111111111/pages/cover?locale=ru",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > web-book-pages (9 маршрутов): 200 (draft & ordered), ETag/304, 404 чужой книги 15`] = `
+{
+  "body": "{"sample":{"language":"ru","title":"Наша история","subtitle":"Воспоминания","author":"Алия","year":2026,"dedication":"Моему мужу","dedicationPlaceholder":"Здесь будет посвящение — напишите его ниже","chapter":{"number":1,"title":"Разное"},"entries":[{"heading":"Первая встреча","paragraphs":["Мы встретились в Алматы осенним вечером и сразу разговорились на три часа."],"photos":[{"id":"cccc2222-2222-4222-8222-222222222222","url":"/api/photos/cccc2222-2222-4222-8222-222222222222?size=view","width":1200,"height":1600,"caption":"Прогулка","inline":null}]}],"tail":true,"folio":3,"toc":[{"key":"c:meeting","title":"Разное","number":1,"level":0,"page":2},{"key":"c:__letters","title":"Письма близких","number":2,"level":0,"page":10}],"tocAll":[{"key":"c:meeting","pageKey":"meeting","kind":"chapter","number":1,"label":"Разное","first":true,"page":2},{"key":"q:bbbb1111-1111-4111-8111-111111111111","pageKey":"q:bbbb1111-1111-4111-8111-111111111111","kind":"section","number":null,"label":"Первая встреча","parent":"c:meeting","page":7},{"key":"c:__letters","pageKey":"__letters","kind":"chapter","number":2,"label":"Письма близких","epigraph":"Слова тех, кто любит вас","page":10},{"key":"q:dddd1111-1111-4111-8111-111111111111","pageKey":"q:dddd1111-1111-4111-8111-111111111111","kind":"section","number":null,"label":"Дана, сестра","parent":"c:__letters","page":11}],"tocMode":"chapters","tocLines":{},"showToc":true,"endText":null,"titlePage":true,"photos":[{"url":"/api/photos/cccc2222-2222-4222-8222-222222222222?size=full","width":1200,"height":1600,"caption":"Прогулка"}],"opener":{"url":"/api/photos/cccc1111-1111-4111-8111-111111111111?size=view"}},"exactPages":{"meeting":2},"stories":{"bbbb1111-1111-4111-8111-111111111111":{"title":"Первая встреча","displayText":null,"hidden":false,"pageBreak":false},"bbbb2222-2222-4222-8222-222222222222":{"title":"Главный момент","displayText":null,"hidden":false,"pageBreak":false}},"photos":{"book":{"id":"aaaa1111-1111-4111-8111-111111111111","interior":"classic","format":"a5","language":"ru","blank":false,"photoPlacement":"chapters","galleryTitle":"Наши моменты","editable":true,"layoutRev":2},"photos":[{"id":"cccc1111-1111-4111-8111-111111111111","width":1600,"height":1200,"caption":"Осень в горах","layout":"full","questionId":null,"chapter":"meeting","opener":true,"crop":null},{"id":"cccc2222-2222-4222-8222-222222222222","width":1200,"height":1600,"caption":"Прогулка","layout":"bleed","questionId":"bbbb1111-1111-4111-8111-111111111111","chapter":null,"opener":false,"crop":null}],"places":[{"id":"cccc1111-1111-4111-8111-111111111111","place":{"kind":"after","chapterKey":"meeting","auto":false,"onCover":null}},{"id":"cccc2222-2222-4222-8222-222222222222","place":{"kind":"answer","chapterKey":"meeting","questionId":"bbbb1111-1111-4111-8111-111111111111","auto":false,"onCover":null}}],"chapters":[{"key":"meeting","title":"Разное","number":1,"epigraph":"","printed":true}],"answers":[{"id":"bbbb1111-1111-4111-8111-111111111111","title":"Первая встреча","chapterKey":"meeting"},{"id":"bbbb2222-2222-4222-8222-222222222222","title":"Главный момент","chapterKey":"meeting"}],"fit":{},"maxPhotos":120}}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""TSEn91L_U09RPoN-IslMmyXFYwA"",
+  },
+  "request": "GET /api/v1/web/books/aaaa1111-1111-4111-8111-111111111111/pages/pages?locale=ru",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > web-book-pages (9 маршрутов): 200 (draft & ordered), ETag/304, 404 чужой книги 16`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""TSEn91L_U09RPoN-IslMmyXFYwA"",
+  },
+  "request": "GET /api/v1/web/books/aaaa1111-1111-4111-8111-111111111111/pages/pages?locale=ru",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > web-book-pages (9 маршрутов): 200 (draft & ordered), ETag/304, 404 чужой книги 17`] = `
+{
+  "body": "{"flipbook":{"cover":{"template":"linen","format":"a5","title":"Наша история","subtitle":"Воспоминания","names":"Алия & Марат","photos":[]},"formatId":"a5","title":"Наша история","model":{"brand":"MYBOOKS","back":{"layout":"quote","text":"С любовью навсегда","signature":"Алия","names":"Алия & Марат","year":2027,"photos":[]},"backPhotos":[]}},"editable":true}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""NWzOVbrye9PfxUxOTOCGDkX3BvE"",
+  },
+  "request": "GET /api/v1/web/books/aaaa1111-1111-4111-8111-111111111111/pages/preview",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > web-book-pages (9 маршрутов): 200 (draft & ordered), ETag/304, 404 чужой книги 18`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""NWzOVbrye9PfxUxOTOCGDkX3BvE"",
+  },
+  "request": "GET /api/v1/web/books/aaaa1111-1111-4111-8111-111111111111/pages/preview",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > web-book-pages (9 маршрутов): 200 (draft & ordered), ETag/304, 404 чужой книги 19`] = `
+{
+  "body": "{"stats":{"answered":1,"total":2,"words":12,"photos":2,"estimatedPages":34,"printedPages":40,"emptyChapters":0},"photos":[{"id":"cccc1111-1111-4111-8111-111111111111","width":1600,"height":1200},{"id":"cccc2222-2222-4222-8222-222222222222","width":1200,"height":1600}],"printedPages":48,"agreement":null,"letterStats":{"approved":1,"pending":1},"letters":{"href":"/books/aaaa2222-2222-4222-8222-222222222222/letters","title":"Письма близких","text":"1 в книге, 1 ждут решения","action":"Разобрать письма (1)"},"kind":"gift","blank":false,"editable":false,"percent":50,"chapters":[{"key":"meeting","title":"Разное","total":2,"answered":1,"firstId":"bbbb1111-1111-4111-8111-111111111111","firstOpenId":"bbbb2222-2222-4222-8222-222222222222"}],"nav":{"kind":"gift","answered":1,"total":2,"words":12,"photos":2,"letters":{"approved":1,"pending":1},"coverReady":true,"ordered":true,"paid":true,"order":{"id":"eeee1111-1111-4111-8111-111111111111","number":501,"status":"paid","plan":"classic"},"steps":[{"key":"questions","status":"partial","fraction":0.1},{"key":"photos","status":"done","fraction":1},{"key":"pages","status":"done","fraction":1},{"key":"cover","status":"done","fraction":1},{"key":"preview","status":"done","fraction":1},{"key":"order","status":"done","fraction":1}],"textDone":false,"ready":false,"current":null},"rows":[{"key":"write","href":"/books/aaaa2222-2222-4222-8222-222222222222/questions","title":"Написать","value":"1 ответ из 2, 12 слов","action":"Открыть","bar":50,"status":"partial","fraction":0.1,"active":false},{"key":"photos","href":"/books/aaaa2222-2222-4222-8222-222222222222/photos","title":"Фото","value":"2 фото","action":"Управлять","status":"done","fraction":1,"active":false},{"key":"design","href":"/books/aaaa2222-2222-4222-8222-222222222222/cover","title":"Оформить","value":"Лён, Классика","action":"Изменить","status":"done","fraction":1,"active":false},{"key":"order","href":"/orders/eeee1111-1111-4111-8111-111111111111","title":"Заказать","value":"Оплачен","action":"Открыть заказ","status":"done","fraction":1,"active":false}],"card":{"eyebrow":"Заказ №501","title":"Оплачен","text":"Книга передана в печать, поэтому редактирование закрыто. Если нужно что-то поправить — напишите в поддержку, мы откроем доступ.","primary":{"href":"/orders/eeee1111-1111-4111-8111-111111111111","label":"Открыть заказ"}},"needs":[],"hasErrors":false,"deadline":null,"preview":{"href":"/books/aaaa2222-2222-4222-8222-222222222222/preview","tab":"Макет и 3D","cta":"Смотреть макет и 3D-книгу"}}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""N7BEvNlmF4L0Uo8fZXH1CFVvOHo"",
+  },
+  "request": "GET /api/v1/web/books/aaaa2222-2222-4222-8222-222222222222/hub",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > web-book-pages (9 маршрутов): 200 (draft & ordered), ETag/304, 404 чужой книги 20`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""N7BEvNlmF4L0Uo8fZXH1CFVvOHo"",
+  },
+  "request": "GET /api/v1/web/books/aaaa2222-2222-4222-8222-222222222222/hub",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > web-book-pages (9 маршрутов): 200 (draft & ordered), ETag/304, 404 чужой книги 21`] = `
+{
+  "body": "{"nav":{"kind":"gift","answered":1,"total":2,"words":12,"photos":2,"letters":{"approved":1,"pending":1},"coverReady":true,"ordered":true,"paid":true,"order":{"id":"eeee1111-1111-4111-8111-111111111111","number":501,"status":"paid","plan":"classic"},"steps":[{"key":"questions","status":"partial","fraction":0.1},{"key":"photos","status":"done","fraction":1},{"key":"pages","status":"done","fraction":1},{"key":"cover","status":"done","fraction":1},{"key":"preview","status":"done","fraction":1},{"key":"order","status":"done","fraction":1}],"textDone":false,"ready":false,"current":null},"orderState":{"label":"Оплачен","tone":"success"}}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""kzeO2G0e2KS-3GHsxSe6a8Nez9s"",
+  },
+  "request": "GET /api/v1/web/books/aaaa2222-2222-4222-8222-222222222222/nav",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > web-book-pages (9 маршрутов): 200 (draft & ordered), ETag/304, 404 чужой книги 22`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""kzeO2G0e2KS-3GHsxSe6a8Nez9s"",
+  },
+  "request": "GET /api/v1/web/books/aaaa2222-2222-4222-8222-222222222222/nav",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Authoring, часть 1 — все 37 маршрутов) > web-book-pages (9 маршрутов): 200 (draft & ordered), ETag/304, 404 чужой книги 23`] = `
+{
+  "body": "{"error":"Книга не найдена","code":"bookNotFound"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "GET /api/v1/web/books/aaaa1111-1111-4111-8111-111111111111",
+  "status": 404,
+}
+`;

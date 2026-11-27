@@ -324,6 +324,8 @@ let app: NestFastifyApplication;
 let legacy: ReturnType<typeof createLegacyTestApp>;
 
 beforeAll(async () => {
+  // Отчёты денег считают период от «сейчас»: часы закреплены, ожидаемые ответы не зависят от дня прогона.
+  vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-11-26T10:00:00Z") });
   const ports = (legacyOrdersPorts as { useFactory: () => unknown }).useFactory();
   ({ app } = await bootTestApp({
     users: ALL_USERS,
@@ -344,7 +346,10 @@ beforeAll(async () => {
   });
 });
 
-afterAll(() => app.close());
+afterAll(async () => {
+  await app.close();
+  vi.useRealTimers();
+});
 
 beforeEach(() => {
   shared.refuse = null;

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { NestFastifyApplication } from "@nestjs/platform-fastify";
 import { expect } from "vitest";
 import type { CurrentUser } from "@/modules/identity";
@@ -73,6 +74,23 @@ export function createLegacyTestApp(opts: {
   return createApp(merged, auth, opts.siteRoutes);
 }
 
+/** Заголовки, которые сверяет ожидаемый ответ (снимок): формат, кэш, файлы, переходы и cookie. */
+export const EXPECTED_HEADERS = ["content-type", "cache-control", "etag", "allow", "location", "content-disposition", "content-range", "content-encoding", "vary", "x-robots-tag", "x-content-type-options"] as const;
+
+const BODY_INLINE_MAX = 4096;
+
+/**
+ * Тело как в снимке: короткое — текстом UTF-8 байт в байт (двоичное — base64); длинное (PDF, картинки, большие JSON) —
+ * длиной и sha256 всех байт с началом текста для читаемости: подмена любого байта всё равно ломает сверку.
+ */
+export function expectedBody(bytes: Buffer): string {
+  const text = bytes.toString("utf8");
+  const isText = Buffer.from(text, "utf8").equals(bytes);
+  if (bytes.length <= BODY_INLINE_MAX) return isText ? text : `base64(${bytes.length}):${bytes.toString("base64")}`;
+  const sha = createHash("sha256").update(bytes).digest("hex");
+  return `sha256(${bytes.length}):${sha}${isText ? ` ${text.slice(0, 300)}…` : ""}`;
+}
+
 function asArray(value: string | string[] | number | undefined): string[] {
   if (value === undefined) return [];
   return Array.isArray(value) ? value.map(String) : [String(value)];
@@ -118,6 +136,14 @@ export async function assertRouteParity(opts: ParityRequest) {
     expect(nestRes.headers.etag).toBe(legacyRes.headers.get("etag") ?? undefined);
     expect(nestRes.headers.allow).toBe(legacyRes.headers.get("allow") ?? undefined);
     expect(asArray(nestRes.headers["set-cookie"])).toEqual(legacyRes.headers.getSetCookie());
+    // Запись ожидаемых ответов (шаг 7 ADR 0014): ответ прежнего mybook-api — в снимок для Nest-only проверки.
+    const headersOut: Record<string, string> = {};
+    for (const h of EXPECTED_HEADERS) {
+      const v = legacyRes.headers.get(h);
+      if (v !== null) headersOut[h] = v;
+    }
+    const cookies = legacyRes.headers.getSetCookie();
+    expect({ request: `${opts.method} ${opts.url}`, status: legacyRes.status, headers: headersOut, ...(cookies.length ? { cookies } : {}), body: expectedBody(legacyBytes) }).toMatchSnapshot();
 
     return { nestRes, legacyRes, bytes: nestBytes };
   };

@@ -1,0 +1,1186 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 10 маршрутов сайта (@SiteRoute) > GET /api/gifts/{token}/pdf, GET /api/calendar/{token}, GET /api/chat-avatar/{file} 1`] = `
+{
+  "body": "%PDF",
+  "headers": {
+    "cache-control": "private, no-store",
+    "content-disposition": "attachment; filename="mybooks-sertifikat-17.pdf"",
+    "content-type": "application/pdf",
+  },
+  "request": "GET /api/gifts/Gift_token_abcdefghijklmn/pdf",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 10 маршрутов сайта (@SiteRoute) > GET /api/gifts/{token}/pdf, GET /api/calendar/{token}, GET /api/chat-avatar/{file} 2`] = `
+{
+  "body": "%PDF",
+  "headers": {
+    "cache-control": "private, no-store",
+    "content-disposition": "attachment; filename="mybooks-sertifikat-17.pdf"",
+    "content-type": "application/pdf",
+  },
+  "request": "GET /api/v1/site/gifts/Gift_token_abcdefghijklmn/pdf",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 10 маршрутов сайта (@SiteRoute) > GET /api/gifts/{token}/pdf, GET /api/calendar/{token}, GET /api/chat-avatar/{file} 3`] = `
+{
+  "body": "",
+  "headers": {},
+  "request": "GET /api/gifts/missing/pdf",
+  "status": 404,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 10 маршрутов сайта (@SiteRoute) > GET /api/gifts/{token}/pdf, GET /api/calendar/{token}, GET /api/chat-avatar/{file} 4`] = `
+{
+  "body": "",
+  "headers": {
+    "allow": "GET",
+  },
+  "request": "POST /api/gifts/Gift_token_abcdefghijklmn/pdf",
+  "status": 405,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 10 маршрутов сайта (@SiteRoute) > GET /api/gifts/{token}/pdf, GET /api/calendar/{token}, GET /api/chat-avatar/{file} 5`] = `
+{
+  "body": "BEGIN:VCALENDAR
+VERSION:2.0
+END:VCALENDAR
+",
+  "headers": {
+    "cache-control": "private, max-age=300",
+    "content-disposition": "inline; filename="mybooks-crm.ics"",
+    "content-type": "text/calendar; charset=utf-8",
+  },
+  "request": "GET /api/calendar/cal_token_1234567890abcdef.ics",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 10 маршрутов сайта (@SiteRoute) > GET /api/gifts/{token}/pdf, GET /api/calendar/{token}, GET /api/chat-avatar/{file} 6`] = `
+{
+  "body": "BEGIN:VCALENDAR
+VERSION:2.0
+END:VCALENDAR
+",
+  "headers": {
+    "cache-control": "private, max-age=300",
+    "content-disposition": "inline; filename="mybooks-crm.ics"",
+    "content-type": "text/calendar; charset=utf-8",
+  },
+  "request": "GET /api/v1/site/calendar/cal_token_1234567890abcdef.ICS",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 10 маршрутов сайта (@SiteRoute) > GET /api/gifts/{token}/pdf, GET /api/calendar/{token}, GET /api/chat-avatar/{file} 7`] = `
+{
+  "body": "Not found",
+  "headers": {
+    "content-type": "text/plain;charset=UTF-8",
+  },
+  "request": "GET /api/calendar/revoked.ics",
+  "status": 404,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 10 маршрутов сайта (@SiteRoute) > GET /api/gifts/{token}/pdf, GET /api/calendar/{token}, GET /api/chat-avatar/{file} 8`] = `
+{
+  "body": "",
+  "headers": {
+    "allow": "GET",
+  },
+  "request": "POST /api/calendar/revoked.ics",
+  "status": 405,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 10 маршрутов сайта (@SiteRoute) > GET /api/gifts/{token}/pdf, GET /api/calendar/{token}, GET /api/chat-avatar/{file} 9`] = `
+{
+  "body": "RIFF",
+  "headers": {
+    "cache-control": "private, max-age=31536000, immutable",
+    "content-type": "image/webp",
+    "x-content-type-options": "nosniff",
+  },
+  "request": "GET /api/chat-avatar/ok.webp",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 10 маршрутов сайта (@SiteRoute) > GET /api/gifts/{token}/pdf, GET /api/calendar/{token}, GET /api/chat-avatar/{file} 10`] = `
+{
+  "body": "RIFF",
+  "headers": {
+    "cache-control": "private, max-age=31536000, immutable",
+    "content-type": "image/webp",
+    "x-content-type-options": "nosniff",
+  },
+  "request": "GET /api/v1/site/chat-avatar/ok.webp",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 10 маршрутов сайта (@SiteRoute) > GET /api/gifts/{token}/pdf, GET /api/calendar/{token}, GET /api/chat-avatar/{file} 11`] = `
+{
+  "body": "",
+  "headers": {},
+  "request": "GET /api/chat-avatar/bad.webp",
+  "status": 404,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 10 маршрутов сайта (@SiteRoute) > GET /api/gifts/{token}/pdf, GET /api/calendar/{token}, GET /api/chat-avatar/{file} 12`] = `
+{
+  "body": "",
+  "headers": {
+    "allow": "GET",
+  },
+  "request": "DELETE /api/chat-avatar/ok.webp",
+  "status": 405,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 10 маршрутов сайта (@SiteRoute) > GET /api/reviews/photo/{id} и POST /api/reviews/{orderId}: фото, права, multipart, CSRF, 400/403/404/409/413/429/405 1`] = `
+{
+  "body": "base64(4):/9j/2Q==",
+  "headers": {
+    "cache-control": "public, max-age=86400",
+    "content-type": "image/jpeg",
+  },
+  "request": "GET /api/reviews/photo/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 10 маршрутов сайта (@SiteRoute) > GET /api/reviews/photo/{id} и POST /api/reviews/{orderId}: фото, права, multipart, CSRF, 400/403/404/409/413/429/405 2`] = `
+{
+  "body": "",
+  "headers": {},
+  "request": "GET /api/reviews/photo/not-a-uuid",
+  "status": 404,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 10 маршрутов сайта (@SiteRoute) > GET /api/reviews/photo/{id} и POST /api/reviews/{orderId}: фото, права, multipart, CSRF, 400/403/404/409/413/429/405 3`] = `
+{
+  "body": "",
+  "headers": {},
+  "request": "GET /api/reviews/photo/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+  "status": 404,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 10 маршрутов сайта (@SiteRoute) > GET /api/reviews/photo/{id} и POST /api/reviews/{orderId}: фото, права, multipart, CSRF, 400/403/404/409/413/429/405 4`] = `
+{
+  "body": "",
+  "headers": {},
+  "request": "GET /api/reviews/photo/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+  "status": 404,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 10 маршрутов сайта (@SiteRoute) > GET /api/reviews/photo/{id} и POST /api/reviews/{orderId}: фото, права, multipart, CSRF, 400/403/404/409/413/429/405 5`] = `
+{
+  "body": "base64(4):/9j/2Q==",
+  "headers": {
+    "cache-control": "private, no-store",
+    "content-type": "image/jpeg",
+  },
+  "request": "GET /api/reviews/photo/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 10 маршрутов сайта (@SiteRoute) > GET /api/reviews/photo/{id} и POST /api/reviews/{orderId}: фото, права, multipart, CSRF, 400/403/404/409/413/429/405 6`] = `
+{
+  "body": "base64(4):/9j/2Q==",
+  "headers": {
+    "cache-control": "private, no-store",
+    "content-type": "image/jpeg",
+  },
+  "request": "GET /api/reviews/photo/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 10 маршрутов сайта (@SiteRoute) > GET /api/reviews/photo/{id} и POST /api/reviews/{orderId}: фото, права, multipart, CSRF, 400/403/404/409/413/429/405 7`] = `
+{
+  "body": "",
+  "headers": {
+    "allow": "GET",
+  },
+  "request": "POST /api/reviews/photo/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+  "status": 405,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 10 маршрутов сайта (@SiteRoute) > GET /api/reviews/photo/{id} и POST /api/reviews/{orderId}: фото, права, multipart, CSRF, 400/403/404/409/413/429/405 8`] = `
+{
+  "body": "{"status":"new","thankYouCode":"THX-1","hasPhoto":true}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/reviews/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 10 маршрутов сайта (@SiteRoute) > GET /api/reviews/photo/{id} и POST /api/reviews/{orderId}: фото, права, multipart, CSRF, 400/403/404/409/413/429/405 9`] = `
+{
+  "body": "{"status":"new","thankYouCode":"THX-1","hasPhoto":true}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/site/reviews/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 10 маршрутов сайта (@SiteRoute) > GET /api/reviews/photo/{id} и POST /api/reviews/{orderId}: фото, права, multipart, CSRF, 400/403/404/409/413/429/405 10`] = `
+{
+  "body": "{"error":"Некорректный запрос","code":"badRequest"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/reviews/not-a-uuid",
+  "status": 400,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 10 маршрутов сайта (@SiteRoute) > GET /api/reviews/photo/{id} и POST /api/reviews/{orderId}: фото, права, multipart, CSRF, 400/403/404/409/413/429/405 11`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/reviews/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  "status": 403,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 10 маршрутов сайта (@SiteRoute) > GET /api/reviews/photo/{id} и POST /api/reviews/{orderId}: фото, права, multipart, CSRF, 400/403/404/409/413/429/405 12`] = `
+{
+  "body": "{"error":"Отзыв уже проверен — изменить его нельзя. Напишите нам, если нужно что-то поправить","code":"reviewLocked"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/reviews/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  "status": 409,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 10 маршрутов сайта (@SiteRoute) > GET /api/reviews/photo/{id} и POST /api/reviews/{orderId}: фото, права, multipart, CSRF, 400/403/404/409/413/429/405 13`] = `
+{
+  "body": "{"error":"Слишком много отправок подряд. Попробуйте чуть позже.","code":"reviewRate"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/reviews/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  "status": 429,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 10 маршрутов сайта (@SiteRoute) > GET /api/reviews/photo/{id} и POST /api/reviews/{orderId}: фото, права, multipart, CSRF, 400/403/404/409/413/429/405 14`] = `
+{
+  "body": "",
+  "headers": {
+    "allow": "POST",
+  },
+  "request": "GET /api/reviews/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  "status": 405,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 10 маршрутов сайта (@SiteRoute) > POST /api/chat/callback, GET/POST /api/chat, GET /api/r/{code} и GET /api/go/{slug} 1`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/chat/callback",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 10 маршрутов сайта (@SiteRoute) > POST /api/chat/callback, GET/POST /api/chat, GET /api/r/{code} и GET /api/go/{slug} 2`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/chat/callback",
+  "status": 403,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 10 маршрутов сайта (@SiteRoute) > POST /api/chat/callback, GET/POST /api/chat, GET /api/r/{code} и GET /api/go/{slug} 3`] = `
+{
+  "body": "{"error":"Укажите номер телефона, чтобы мы могли перезвонить","code":"widgetPhone"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/chat/callback",
+  "status": 400,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 10 маршрутов сайта (@SiteRoute) > POST /api/chat/callback, GET/POST /api/chat, GET /api/r/{code} и GET /api/go/{slug} 4`] = `
+{
+  "body": "{"error":"Чат сейчас недоступен — напишите нам в WhatsApp","code":"widgetOff"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/chat/callback",
+  "status": 403,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 10 маршрутов сайта (@SiteRoute) > POST /api/chat/callback, GET/POST /api/chat, GET /api/r/{code} и GET /api/go/{slug} 5`] = `
+{
+  "body": "",
+  "headers": {
+    "allow": "POST",
+  },
+  "request": "GET /api/chat/callback",
+  "status": 405,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 10 маршрутов сайта (@SiteRoute) > POST /api/chat/callback, GET/POST /api/chat, GET /api/r/{code} и GET /api/go/{slug} 6`] = `
+{
+  "body": "{"messages":[]}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "GET /api/chat",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 10 маршрутов сайта (@SiteRoute) > POST /api/chat/callback, GET/POST /api/chat, GET /api/r/{code} и GET /api/go/{slug} 7`] = `
+{
+  "body": "{"messages":[{"id":"m1","mine":false,"text":"Здравствуйте!","at":"2026-11-20T10:00:00.000Z"}]}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "GET /api/chat?after=2026-11-20T09:00:00.000Z",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 10 маршрутов сайта (@SiteRoute) > POST /api/chat/callback, GET/POST /api/chat, GET /api/r/{code} и GET /api/go/{slug} 8`] = `
+{
+  "body": "{"ok":true}",
+  "cookies": [
+    "mb_chat=fixed_fresh_visitor_token_123456; Path=/; Expires=Tue, 25 May 2027 10:00:00 GMT; Max-Age=15552000; HttpOnly; SameSite=lax",
+  ],
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/chat",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 10 маршрутов сайта (@SiteRoute) > POST /api/chat/callback, GET/POST /api/chat, GET /api/r/{code} и GET /api/go/{slug} 9`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/site/chat",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 10 маршрутов сайта (@SiteRoute) > POST /api/chat/callback, GET/POST /api/chat, GET /api/r/{code} и GET /api/go/{slug} 10`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/chat",
+  "status": 403,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 10 маршрутов сайта (@SiteRoute) > POST /api/chat/callback, GET/POST /api/chat, GET /api/r/{code} и GET /api/go/{slug} 11`] = `
+{
+  "body": "{"error":"Напишите сообщение","code":"widgetText"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/chat",
+  "status": 400,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 10 маршрутов сайта (@SiteRoute) > POST /api/chat/callback, GET/POST /api/chat, GET /api/r/{code} и GET /api/go/{slug} 12`] = `
+{
+  "body": "",
+  "headers": {
+    "allow": "GET, POST",
+  },
+  "request": "DELETE /api/chat",
+  "status": 405,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 10 маршрутов сайта (@SiteRoute) > POST /api/chat/callback, GET/POST /api/chat, GET /api/r/{code} и GET /api/go/{slug} 13`] = `
+{
+  "body": "",
+  "cookies": [
+    "mb_invite=ASEL-7K2Q; Path=/; Expires=Sat, 26 Dec 2026 10:00:00 GMT; Max-Age=2592000; HttpOnly; SameSite=lax",
+    "mb_src=%7B%22source%22%3A%22invite%22%2C%22medium%22%3A%22referral%22%2C%22campaign%22%3A%22ASEL-7K2Q%22%2C%22landing%22%3A%22%2Fr%22%2C%22at%22%3A%222026-11-26%22%7D; Path=/; Expires=Mon, 25 Jan 2027 10:00:00 GMT; Max-Age=5184000; HttpOnly; SameSite=lax",
+  ],
+  "headers": {
+    "cache-control": "no-store",
+    "location": "http://localhost:3000/kk?utm_campaign=invite-ASEL-7K2Q",
+  },
+  "request": "GET /api/r/ASEL-7K2Q",
+  "status": 302,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 10 маршрутов сайта (@SiteRoute) > POST /api/chat/callback, GET/POST /api/chat, GET /api/r/{code} и GET /api/go/{slug} 14`] = `
+{
+  "body": "",
+  "cookies": [
+    "mb_invite=ASEL-7K2Q; Path=/; Expires=Sat, 26 Dec 2026 10:00:00 GMT; Max-Age=2592000; HttpOnly; SameSite=lax",
+  ],
+  "headers": {
+    "cache-control": "no-store",
+    "location": "http://localhost:3000/?utm_campaign=invite-ASEL-7K2Q",
+  },
+  "request": "GET /api/v1/site/r/ASEL-7K2Q",
+  "status": 302,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 10 маршрутов сайта (@SiteRoute) > POST /api/chat/callback, GET/POST /api/chat, GET /api/r/{code} и GET /api/go/{slug} 15`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "no-store",
+    "location": "http://localhost:3000/",
+  },
+  "request": "GET /api/r/NOPE-1234",
+  "status": 302,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 10 маршрутов сайта (@SiteRoute) > POST /api/chat/callback, GET/POST /api/chat, GET /api/r/{code} и GET /api/go/{slug} 16`] = `
+{
+  "body": "",
+  "headers": {
+    "allow": "GET",
+  },
+  "request": "POST /api/r/ASEL-7K2Q",
+  "status": 405,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 10 маршрутов сайта (@SiteRoute) > POST /api/chat/callback, GET/POST /api/chat, GET /api/r/{code} и GET /api/go/{slug} 17`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "no-store",
+    "location": "https://mybooks.kz/?utm_source=instagram&lnk=insta",
+  },
+  "request": "GET /api/go/insta",
+  "status": 302,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 10 маршрутов сайта (@SiteRoute) > POST /api/chat/callback, GET/POST /api/chat, GET /api/r/{code} и GET /api/go/{slug} 18`] = `
+{
+  "body": "",
+  "headers": {
+    "location": "http://localhost:3000/",
+  },
+  "request": "GET /api/v1/site/go/missing",
+  "status": 302,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 10 маршрутов сайта (@SiteRoute) > POST /api/chat/callback, GET/POST /api/chat, GET /api/r/{code} и GET /api/go/{slug} 19`] = `
+{
+  "body": "",
+  "headers": {
+    "allow": "GET",
+  },
+  "request": "POST /api/go/insta",
+  "status": 405,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 10 маршрутов сайта (@SiteRoute) > POST /api/letters/{token}: 200, 400 (битый JSON и zod), 404 домена, 429 и 405 1`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/letters/invite_token_1234",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 10 маршрутов сайта (@SiteRoute) > POST /api/letters/{token}: 200, 400 (битый JSON и zod), 404 домена, 429 и 405 2`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/site/letters/invite_token_1234",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 10 маршрутов сайта (@SiteRoute) > POST /api/letters/{token}: 200, 400 (битый JSON и zod), 404 домена, 429 и 405 3`] = `
+{
+  "body": "{"error":"Некорректный запрос","code":"badRequest"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/letters/invite_token_1234",
+  "status": 400,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 10 маршрутов сайта (@SiteRoute) > POST /api/letters/{token}: 200, 400 (битый JSON и zod), 404 домена, 429 и 405 4`] = `
+{
+  "body": "{"error":"Напишите хотя бы пару предложений","code":"letterShort"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/letters/invite_token_1234",
+  "status": 400,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 10 маршрутов сайта (@SiteRoute) > POST /api/letters/{token}: 200, 400 (битый JSON и zod), 404 домена, 429 и 405 5`] = `
+{
+  "body": "{"error":"Ссылка недействительна или приём писем закрыт","code":"letterClosed"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/letters/invite_token_1234",
+  "status": 404,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 10 маршрутов сайта (@SiteRoute) > POST /api/letters/{token}: 200, 400 (битый JSON и zod), 404 домена, 429 и 405 6`] = `
+{
+  "body": "{"error":"Слишком много писем с этого устройства. Попробуйте позже.","code":"letterRate"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/letters/invite_token_1234",
+  "status": 429,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 10 маршрутов сайта (@SiteRoute) > POST /api/letters/{token}: 200, 400 (битый JSON и zod), 404 домена, 429 и 405 7`] = `
+{
+  "body": "",
+  "headers": {
+    "allow": "POST",
+  },
+  "request": "GET /api/letters/invite_token_1234",
+  "status": 405,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 13 контрактных маршрутов Контекста 3 > webAnswerFilePage, webSiteCatalog, webSiteChrome, webReviewsShowcase и webInviteWelcome 1`] = `
+{
+  "body": "{"found":{"file":{"kind":"video","status":"ready","hasPoster":true,"width":1280,"height":720,"durationSec":45},"bookTitle":"Наша книга","authorName":"Айгерим","caption":"Поздравление"}}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""zNymQjJhmzxAwSeFnMtDU6R-GcI"",
+  },
+  "request": "GET /api/v1/web/answer-files/AbCdEf1234",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 13 контрактных маршрутов Контекста 3 > webAnswerFilePage, webSiteCatalog, webSiteChrome, webReviewsShowcase и webInviteWelcome 2`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""zNymQjJhmzxAwSeFnMtDU6R-GcI"",
+  },
+  "request": "GET /api/v1/web/answer-files/AbCdEf1234",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 13 контрактных маршрутов Контекста 3 > webAnswerFilePage, webSiteCatalog, webSiteChrome, webReviewsShowcase и webInviteWelcome 3`] = `
+{
+  "body": "{"found":null}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""OqpXZucT_21VN-1xdsMghDDYlTE"",
+  },
+  "request": "GET /api/v1/web/answer-files/123456789012",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 13 контрактных маршрутов Контекста 3 > webAnswerFilePage, webSiteCatalog, webSiteChrome, webReviewsShowcase и webInviteWelcome 4`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""OqpXZucT_21VN-1xdsMghDDYlTE"",
+  },
+  "request": "GET /api/v1/web/answer-files/123456789012",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 13 контрактных маршрутов Контекста 3 > webAnswerFilePage, webSiteCatalog, webSiteChrome, webReviewsShowcase и webInviteWelcome 5`] = `
+{
+  "body": "{"error":"Некорректные данные","code":"badData"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "GET /api/v1/web/answer-files/short",
+  "status": 400,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 13 контрактных маршрутов Контекста 3 > webAnswerFilePage, webSiteCatalog, webSiteChrome, webReviewsShowcase и webInviteWelcome 6`] = `
+{
+  "body": "{"overrides":{"hardcover":{"price":31000}},"registration":true,"giftNote":false,"seller":{"legalName":"ИП MyBooks","bin":"123","phone":"+77010000000","whatsapp":"77010000000"}}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""LJgI5OaAaRNtLYk9QmD2_GyWkyo"",
+  },
+  "request": "GET /api/v1/web/site/catalog",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 13 контрактных маршрутов Контекста 3 > webAnswerFilePage, webSiteCatalog, webSiteChrome, webReviewsShowcase и webInviteWelcome 7`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""LJgI5OaAaRNtLYk9QmD2_GyWkyo"",
+  },
+  "request": "GET /api/v1/web/site/catalog",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 13 контрактных маршрутов Контекста 3 > webAnswerFilePage, webSiteCatalog, webSiteChrome, webReviewsShowcase и webInviteWelcome 8`] = `
+{
+  "body": "{"widget":{"enabled":true,"chat":true,"whatsapp":"77010000000"},"shopWhatsappDigits":"77015554433"}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""9ggs7ZSsaRzhIKK9N29B_NwWfak"",
+  },
+  "request": "GET /api/v1/web/site/chrome",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 13 контрактных маршрутов Контекста 3 > webAnswerFilePage, webSiteCatalog, webSiteChrome, webReviewsShowcase и webInviteWelcome 9`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""9ggs7ZSsaRzhIKK9N29B_NwWfak"",
+  },
+  "request": "GET /api/v1/web/site/chrome",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 13 контрактных маршрутов Контекста 3 > webAnswerFilePage, webSiteCatalog, webSiteChrome, webReviewsShowcase и webInviteWelcome 10`] = `
+{
+  "body": "{"reviews":[{"id":"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","rating":5,"text":"Очень трогательно, мама плакала","authorName":"Дина","city":"Астана","theme":"mom","locale":"ru","photo":{"width":800,"height":600},"publishedAt":"2026-11-20T10:00:00.000Z"}],"summary":{"count":12,"average":4.9}}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""bz_qGdAbFaqGi2aFL4E1I5N6AMk"",
+  },
+  "request": "GET /api/v1/web/reviews/showcase?limit=6&theme=mom",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 13 контрактных маршрутов Контекста 3 > webAnswerFilePage, webSiteCatalog, webSiteChrome, webReviewsShowcase и webInviteWelcome 11`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""bz_qGdAbFaqGi2aFL4E1I5N6AMk"",
+  },
+  "request": "GET /api/v1/web/reviews/showcase?limit=6&theme=mom",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 13 контрактных маршрутов Контекста 3 > webAnswerFilePage, webSiteCatalog, webSiteChrome, webReviewsShowcase и webInviteWelcome 12`] = `
+{
+  "body": "{"reviews":[{"id":"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","rating":5,"text":"Очень трогательно, мама плакала","authorName":"Дина","city":"Астана","theme":"mom","locale":"ru","photo":{"width":800,"height":600},"publishedAt":"2026-11-20T10:00:00.000Z"}],"summary":null}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""Odr1Ot0_7TQIqLB7iAnjvj1ywSc"",
+  },
+  "request": "GET /api/v1/web/reviews/showcase",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 13 контрактных маршрутов Контекста 3 > webAnswerFilePage, webSiteCatalog, webSiteChrome, webReviewsShowcase и webInviteWelcome 13`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""Odr1Ot0_7TQIqLB7iAnjvj1ywSc"",
+  },
+  "request": "GET /api/v1/web/reviews/showcase",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 13 контрактных маршрутов Контекста 3 > webAnswerFilePage, webSiteCatalog, webSiteChrome, webReviewsShowcase и webInviteWelcome 14`] = `
+{
+  "body": "{"welcome":{"code":"ASEL-7K2Q","percent":10,"from":"Асель"}}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""dkvAqty4ZactJIoNr7PicTOVLgI"",
+  },
+  "request": "GET /api/v1/web/invite/welcome?code=ASEL-7K2Q",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 13 контрактных маршрутов Контекста 3 > webAnswerFilePage, webSiteCatalog, webSiteChrome, webReviewsShowcase и webInviteWelcome 15`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""dkvAqty4ZactJIoNr7PicTOVLgI"",
+  },
+  "request": "GET /api/v1/web/invite/welcome?code=ASEL-7K2Q",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 13 контрактных маршрутов Контекста 3 > webAnswerFilePage, webSiteCatalog, webSiteChrome, webReviewsShowcase и webInviteWelcome 16`] = `
+{
+  "body": "{"welcome":null}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""3wMjkjGwGNS9MX4LukTzps6LlKE"",
+  },
+  "request": "GET /api/v1/web/invite/welcome?code=bad%20code!",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 13 контрактных маршрутов Контекста 3 > webAnswerFilePage, webSiteCatalog, webSiteChrome, webReviewsShowcase и webInviteWelcome 17`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""3wMjkjGwGNS9MX4LukTzps6LlKE"",
+  },
+  "request": "GET /api/v1/web/invite/welcome?code=bad%20code!",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 13 контрактных маршрутов Контекста 3 > webGiftStatus, webGiftCreate, webGiftClaim и webRedeemCheck (включая 404, giftPastDate, 429) 1`] = `
+{
+  "body": "{"id":"cccccccc-cccc-4ccc-8ccc-cccccccccccc","number":17,"token":"Gift_token_abcdefghijklmn","status":"paid","plan":"hardcover","amount":29000,"currency":"KZT","locale":"kk","buyerName":"Асель","buyerEmail":"asel@mybooks.kz","recipientName":"Мама","recipientEmail":"mama@mybooks.kz","message":"С любовью","sendAt":"2026-12-01","sentAt":null,"paymentClaimedAt":"2026-11-20T10:00:00.000Z","promo":{"code":"GIFT-AAAA-BBBB","usedCount":0,"expiresAt":"2026-11-20T10:00:00.000Z"},"redeemUrl":"http://localhost:3000/kk/redeem?code=GIFT-AAAA-BBBB","payment":null}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""XXcOKxegAYPmGN_YWcRsXzrydmE"",
+  },
+  "request": "GET /api/v1/web/gifts/Gift_token_abcdefghijklmn",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 13 контрактных маршрутов Контекста 3 > webGiftStatus, webGiftCreate, webGiftClaim и webRedeemCheck (включая 404, giftPastDate, 429) 2`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""XXcOKxegAYPmGN_YWcRsXzrydmE"",
+  },
+  "request": "GET /api/v1/web/gifts/Gift_token_abcdefghijklmn",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 13 контрактных маршрутов Контекста 3 > webGiftStatus, webGiftCreate, webGiftClaim и webRedeemCheck (включая 404, giftPastDate, 429) 3`] = `
+{
+  "body": "{"id":"cccccccc-cccc-4ccc-8ccc-cccccccccccc","number":17,"token":"Gift_token_abcdefghijklmn","status":"pending_payment","plan":"hardcover","amount":29000,"currency":"KZT","locale":"kk","buyerName":"Асель","buyerEmail":"asel@mybooks.kz","recipientName":"Мама","recipientEmail":"mama@mybooks.kz","message":"С любовью","sendAt":"2026-12-01","sentAt":null,"paymentClaimedAt":"2026-11-20T10:00:00.000Z","promo":null,"redeemUrl":null,"payment":{"online":null,"manual":{"title":"Kaspi аударымы","steps":["Переведите на +7 701 555 44 33"]},"kaspi":{"initial":null,"defaultPhone":"+77011112233"}}}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""RCtwTsF26uxu6pLb2Lb0OywDjTE"",
+  },
+  "request": "GET /api/v1/web/gifts/Gift_token_abcdefghijklmn?locale=kk",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 13 контрактных маршрутов Контекста 3 > webGiftStatus, webGiftCreate, webGiftClaim и webRedeemCheck (включая 404, giftPastDate, 429) 4`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""RCtwTsF26uxu6pLb2Lb0OywDjTE"",
+  },
+  "request": "GET /api/v1/web/gifts/Gift_token_abcdefghijklmn?locale=kk",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 13 контрактных маршрутов Контекста 3 > webGiftStatus, webGiftCreate, webGiftClaim и webRedeemCheck (включая 404, giftPastDate, 429) 5`] = `
+{
+  "body": "{"error":"Invoice not found","code":"invoiceNotFound"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "GET /api/v1/web/gifts/unknown_token",
+  "status": 404,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 13 контрактных маршрутов Контекста 3 > webGiftStatus, webGiftCreate, webGiftClaim и webRedeemCheck (включая 404, giftPastDate, 429) 6`] = `
+{
+  "body": "{"ok":true,"token":"Gift_token_abcdefghijklmn","amount":29000}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/web/gifts",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 13 контрактных маршрутов Контекста 3 > webGiftStatus, webGiftCreate, webGiftClaim и webRedeemCheck (включая 404, giftPastDate, 429) 7`] = `
+{
+  "body": "{"ok":false,"error":"giftPastDate"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/web/gifts",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 13 контрактных маршрутов Контекста 3 > webGiftStatus, webGiftCreate, webGiftClaim и webRedeemCheck (включая 404, giftPastDate, 429) 8`] = `
+{
+  "body": "{"error":"Тым көп әрекет жасалды. Кейінірек қайталаңыз.","code":"tooMany"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/web/gifts",
+  "status": 429,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 13 контрактных маршрутов Контекста 3 > webGiftStatus, webGiftCreate, webGiftClaim и webRedeemCheck (включая 404, giftPastDate, 429) 9`] = `
+{
+  "body": "{"token":"Gift_token_abcdefghijklmn"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/web/gifts/claim",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 13 контрактных маршрутов Контекста 3 > webGiftStatus, webGiftCreate, webGiftClaim и webRedeemCheck (включая 404, giftPastDate, 429) 10`] = `
+{
+  "body": "{"token":null}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/web/gifts/claim",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 13 контрактных маршрутов Контекста 3 > webGiftStatus, webGiftCreate, webGiftClaim и webRedeemCheck (включая 404, giftPastDate, 429) 11`] = `
+{
+  "body": "{"error":"Тым көп әрекет жасалды. Кейінірек қайталаңыз.","code":"tooMany"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/web/gifts/claim",
+  "status": 429,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 13 контрактных маршрутов Контекста 3 > webGiftStatus, webGiftCreate, webGiftClaim и webRedeemCheck (включая 404, giftPastDate, 429) 12`] = `
+{
+  "body": "{"check":{"ok":true,"code":"GIFT-AAAA-BBBB","kind":"fixed","value":29000,"label":"29 000 ₸"},"gift":{"locale":"kk","plan":"hardcover","recipientName":"Мама","buyerName":"Асель","message":"С любовью"}}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""NKrEcTXJ-4-buAjaFoSpxiaHg5E"",
+  },
+  "request": "GET /api/v1/web/redeem?code=gift-aaaa-bbbb",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 13 контрактных маршрутов Контекста 3 > webGiftStatus, webGiftCreate, webGiftClaim и webRedeemCheck (включая 404, giftPastDate, 429) 13`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""NKrEcTXJ-4-buAjaFoSpxiaHg5E"",
+  },
+  "request": "GET /api/v1/web/redeem?code=gift-aaaa-bbbb",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 13 контрактных маршрутов Контекста 3 > webGiftStatus, webGiftCreate, webGiftClaim и webRedeemCheck (включая 404, giftPastDate, 429) 14`] = `
+{
+  "body": "{"check":{"ok":false,"error":"notFound"},"gift":null}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""og4mUtqNdt1ZdslqT8MuqJgR_ew"",
+  },
+  "request": "GET /api/v1/web/redeem?code=nope",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 13 контрактных маршрутов Контекста 3 > webGiftStatus, webGiftCreate, webGiftClaim и webRedeemCheck (включая 404, giftPastDate, 429) 15`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""og4mUtqNdt1ZdslqT8MuqJgR_ew"",
+  },
+  "request": "GET /api/v1/web/redeem?code=nope",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 13 контрактных маршрутов Контекста 3 > webLetterInvite, webReviewPage, webUnsubscribeLink и webUnsubscribe 1`] = `
+{
+  "body": "{"status":"draft","theme":"mom","title":"Мамина книга","authorName":"Алия","recipientName":"Мама","inviteText":"","coverTemplate":"linen","coverLines":true,"format":"a5"}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""-50SMYus48Os72qn58cSbo-_aiQ"",
+  },
+  "request": "GET /api/v1/web/letter-invite/invite_token_1234",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 13 контрактных маршрутов Контекста 3 > webLetterInvite, webReviewPage, webUnsubscribeLink и webUnsubscribe 2`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""-50SMYus48Os72qn58cSbo-_aiQ"",
+  },
+  "request": "GET /api/v1/web/letter-invite/invite_token_1234",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 13 контрактных маршрутов Контекста 3 > webLetterInvite, webReviewPage, webUnsubscribeLink и webUnsubscribe 3`] = `
+{
+  "body": "{"error":"Письмо не найдено","code":"letterNotFound"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "GET /api/v1/web/letter-invite/short",
+  "status": 404,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 13 контрактных маршрутов Контекста 3 > webLetterInvite, webReviewPage, webUnsubscribeLink и webUnsubscribe 4`] = `
+{
+  "body": "{"number":1042,"book":{"theme":"mom","title":"Наша история","coverTemplate":"linen","coverLines":true,"format":"a5","authorName":"Алия","recipientName":"Мама","hideRecipientOnCover":false,"namesOnCover":""},"state":{"defaultName":"Алия","review":{"rating":5,"text":"Чудесно","authorName":"Алия","city":"Алматы","consent":true,"hasPhoto":false,"status":"new","thankYouCode":"THX-1"}}}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""hukDddKQQBHfifgdVoCLTNRz0wE"",
+  },
+  "request": "GET /api/v1/web/review-page/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa?t=5hsPpGzbSgeH6PyIaSg2dT41rPz4Jplj",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 13 контрактных маршрутов Контекста 3 > webLetterInvite, webReviewPage, webUnsubscribeLink и webUnsubscribe 5`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""hukDddKQQBHfifgdVoCLTNRz0wE"",
+  },
+  "request": "GET /api/v1/web/review-page/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa?t=5hsPpGzbSgeH6PyIaSg2dT41rPz4Jplj",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 13 контрактных маршрутов Контекста 3 > webLetterInvite, webReviewPage, webUnsubscribeLink и webUnsubscribe 6`] = `
+{
+  "body": "{"number":1042,"book":{"theme":"mom","title":"Наша история","coverTemplate":"linen","coverLines":true,"format":"a5","authorName":"Алия","recipientName":"Мама","hideRecipientOnCover":false,"namesOnCover":""},"state":{"defaultName":"Алия","review":{"rating":5,"text":"Чудесно","authorName":"Алия","city":"Алматы","consent":true,"hasPhoto":false,"status":"new","thankYouCode":"THX-1"}}}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""hukDddKQQBHfifgdVoCLTNRz0wE"",
+  },
+  "request": "GET /api/v1/web/review-page/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 13 контрактных маршрутов Контекста 3 > webLetterInvite, webReviewPage, webUnsubscribeLink и webUnsubscribe 7`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""hukDddKQQBHfifgdVoCLTNRz0wE"",
+  },
+  "request": "GET /api/v1/web/review-page/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 13 контрактных маршрутов Контекста 3 > webLetterInvite, webReviewPage, webUnsubscribeLink и webUnsubscribe 8`] = `
+{
+  "body": "{"error":"Отзыв не найден","code":"reviewNotFound"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "GET /api/v1/web/review-page/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  "status": 404,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 13 контрактных маршрутов Контекста 3 > webLetterInvite, webReviewPage, webUnsubscribeLink и webUnsubscribe 9`] = `
+{
+  "body": "{"number":1042,"book":{"theme":"mom","title":"Наша история","coverTemplate":"linen","coverLines":true,"format":"a5","authorName":"Алия","recipientName":"Мама","hideRecipientOnCover":false,"namesOnCover":""},"state":null}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""y314GVh8o0uuDZiqkKX_fn9oPCo"",
+  },
+  "request": "GET /api/v1/web/review-page/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 13 контрактных маршрутов Контекста 3 > webLetterInvite, webReviewPage, webUnsubscribeLink и webUnsubscribe 10`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""y314GVh8o0uuDZiqkKX_fn9oPCo"",
+  },
+  "request": "GET /api/v1/web/review-page/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 13 контрактных маршрутов Контекста 3 > webLetterInvite, webReviewPage, webUnsubscribeLink и webUnsubscribe 11`] = `
+{
+  "body": "{"valid":true}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""3MDSGou3nIOvlBZElUyTiBbaRZY"",
+  },
+  "request": "GET /api/v1/web/unsubscribe?u=11111111-1111-4111-8111-111111111111&t=valid-sig",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 13 контрактных маршрутов Контекста 3 > webLetterInvite, webReviewPage, webUnsubscribeLink и webUnsubscribe 12`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""3MDSGou3nIOvlBZElUyTiBbaRZY"",
+  },
+  "request": "GET /api/v1/web/unsubscribe?u=11111111-1111-4111-8111-111111111111&t=valid-sig",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 13 контрактных маршрутов Контекста 3 > webLetterInvite, webReviewPage, webUnsubscribeLink и webUnsubscribe 13`] = `
+{
+  "body": "{"valid":false}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""z-y5G3b6F1BDJ1A7U6QoI6VUcbI"",
+  },
+  "request": "GET /api/v1/web/unsubscribe?u=11111111-1111-4111-8111-111111111111&t=wrong",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 13 контрактных маршрутов Контекста 3 > webLetterInvite, webReviewPage, webUnsubscribeLink и webUnsubscribe 14`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""z-y5G3b6F1BDJ1A7U6QoI6VUcbI"",
+  },
+  "request": "GET /api/v1/web/unsubscribe?u=11111111-1111-4111-8111-111111111111&t=wrong",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 13 контрактных маршрутов Контекста 3 > webLetterInvite, webReviewPage, webUnsubscribeLink и webUnsubscribe 15`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/web/unsubscribe",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api: 13 контрактных маршрутов Контекста 3 > webLetterInvite, webReviewPage, webUnsubscribeLink и webUnsubscribe 16`] = `
+{
+  "body": "",
+  "headers": {
+    "allow": "GET, POST",
+  },
+  "request": "DELETE /api/v1/web/unsubscribe",
+  "status": 405,
+}
+`;

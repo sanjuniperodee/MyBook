@@ -1,0 +1,947 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > аналитика (4) и настройки (3) совпадают байт в байт 1`] = `
+{
+  "body": "{"period":{"preset":"custom","label":"1–26 ноября 2026 г.","first":"2026-11-01","last":"2026-11-26","presets":[{"id":"today","label":"Сегодня"},{"id":"7d","label":"7 дней"},{"id":"month","label":"Месяц"},{"id":"prev","label":"Прошлый месяц"}]},"totals":{"count":1,"settled":1,"price":39900,"paid":39900,"rest":0,"fee":379},"rows":[{"id":"11111111-1111-4111-8111-111111111211","number":12,"day":"2026-11-11","client":"Алия","phone":"+7 700 123 45 67","city":"Алматы","channel":"WhatsApp","manager":"Директор","plan":"Твёрдая обложка","price":39900,"paid":39900,"rest":0,"state":"Книга не начата","method":"Kaspi","payForm":"Kaspi Gold","fee":379,"eventDate":"2026-12-25","orderId":null}],"canEdit":true,"payForms":["Kaspi Gold","Kaspi Рассрочка","Kaspi Red","Перевод","Наличные"],"showFees":true}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""GOEQUGg9iW_PcMs3EYBwKIytzno"",
+  },
+  "request": "GET /api/v1/crm/sales?p=custom&from=2026-11-01&to=2026-11-26",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > аналитика (4) и настройки (3) совпадают байт в байт 2`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""GOEQUGg9iW_PcMs3EYBwKIytzno"",
+  },
+  "request": "GET /api/v1/crm/sales?p=custom&from=2026-11-01&to=2026-11-26",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > аналитика (4) и настройки (3) совпадают байт в байт 3`] = `
+{
+  "body": "{"ok":true,"message":"Форма оплаты: Kaspi Gold"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "PUT /api/v1/crm/sales/11111111-1111-4111-8111-111111111211/pay-form",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > аналитика (4) и настройки (3) совпадают байт в байт 4`] = `
+{
+  "body": "{"period":{"preset":"custom","label":"1–26 ноября 2026 г.","first":"2026-11-01","last":"2026-11-26","presets":[{"id":"today","label":"Сегодня"},{"id":"7d","label":"7 дней"},{"id":"month","label":"Месяц"},{"id":"prev","label":"Прошлый месяц"}]},"pipelines":[{"id":"33333333-3333-4333-8333-333333333211","label":"Основная"}],"pipelineId":"33333333-3333-4333-8333-333333333211","flow":{"incoming":100000,"refunds":0,"fees":1000,"tax":3000,"net":96000,"other":10000,"profit":86000},"tiles":{"received":100000,"receivedDelta":1,"wonSum":100000,"wonSumDelta":1,"repeatRevenue":0,"created":10,"createdDelta":1,"repeatCreated":0,"won":3,"wonDelta":0.5,"repeatWon":0,"conversion":"30%","cycle":"20 мин","responseMedian":"5 мин","inSla":"100%","slaMinutes":15,"awaiting":0,"botFirst":2,"botMedian":"1 мин"},"funnel":{"base":10,"inWork":2,"rows":[{"id":"33333333-3333-4333-8333-333333333212","name":"Новая","kind":"open","reached":10,"prev":null,"conversion":null,"timeLabel":"10 мин"}]},"channels":[{"key":"whatsapp","label":"WhatsApp","created":10,"won":3,"revenue":100000}],"team":[],"longest":[],"calls":{"incoming":4,"outgoing":6,"missed":0,"handled":0,"talkMinutes":3,"unanswered":0,"asked":5},"lost":[]}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""UpHv4d6oeiA8og37DWlmgpyk4LQ"",
+  },
+  "request": "GET /api/v1/crm/analytics?p=custom&from=2026-11-01&to=2026-11-26",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > аналитика (4) и настройки (3) совпадают байт в байт 5`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""UpHv4d6oeiA8og37DWlmgpyk4LQ"",
+  },
+  "request": "GET /api/v1/crm/analytics?p=custom&from=2026-11-01&to=2026-11-26",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > аналитика (4) и настройки (3) совпадают байт в байт 6`] = `
+{
+  "body": "sha256(5815):2d72b93cd80464f0ed60eb1711836b25a185f6b8b30453fc44579c80c8c9d874 {"period":{"preset":"custom","label":"1–26 ноября 2026 г.","first":"2026-11-01","last":"2026-11-26","presets":[{"id":"today","label":"Сегодня"},{"id":"7d","label":"7 дней"},{"id":"month","label":"Месяц"},{"id":"prev","label":"Прошлый месяц"}]},"managers":[],"managerId":null,"showSpend":true,"totals"…",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""61ESC6HOzLBC09lVT8LBH5DEqE4"",
+  },
+  "request": "GET /api/v1/crm/leads?p=custom&from=2026-11-01&to=2026-11-26",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > аналитика (4) и настройки (3) совпадают байт в байт 7`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""61ESC6HOzLBC09lVT8LBH5DEqE4"",
+  },
+  "request": "GET /api/v1/crm/leads?p=custom&from=2026-11-01&to=2026-11-26",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > аналитика (4) и настройки (3) совпадают байт в байт 8`] = `
+{
+  "body": "{"canManage":true,"workDays":[1,2,3,4,5],"from":"09:00","to":"18:00","off":"16.12.2026","slaMinutes":15,"reassignMinutes":15,"autoDealFrom":"book_started","autoDealOptions":[{"id":"off","label":"не заводить (только заказы)"},{"id":"registered","label":"зарегистрировался"},{"id":"book_started","label":"начал книгу"},{"id":"book_half","label":"написал половину книги"},{"id":"book_ready","label":"почти закончил книгу"}],"mergeClosedDays":30,"maxDiscount":10,"unsorted":true,"digest":true,"autoLetters":true,"chatReward":false,"widgetEnabled":true,"widgetChat":true,"widgetHelp":true,"botMode":"off","botModes":[{"id":"off","label":"Выключен","hint":"Отвечают только менеджеры."},{"id":"always","label":"Всегда сразу","hint":"Бот отвечает на каждое новое обращение после короткой паузы и замолкает, как только напишет человек."},{"id":"fallback","label":"Если менеджер не ответил","hint":"В рабочее время бот ждёт ответа человека, ночью отвечает сразу."},{"id":"off_hours","label":"Только вне рабочего времени","hint":"Днём пишут менеджеры, ночью и в выходные — бот."}]}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""FOWBOoWsawLWlo3mdS-7-Py1Jaw"",
+  },
+  "request": "GET /api/v1/crm/settings/sales",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > аналитика (4) и настройки (3) совпадают байт в байт 9`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""FOWBOoWsawLWlo3mdS-7-Py1Jaw"",
+  },
+  "request": "GET /api/v1/crm/settings/sales",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > аналитика (4) и настройки (3) совпадают байт в байт 10`] = `
+{
+  "body": "{"ok":true,"message":"Сохранено"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "PUT /api/v1/crm/settings/sales",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > аналитика (4) и настройки (3) совпадают байт в байт 11`] = `
+{
+  "body": "{"ok":true,"message":"AI-продажник: если менеджер не ответил"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "PUT /api/v1/crm/settings/bot-mode",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > веб-CRM (3 маршрута), включая redirect, notFound и не-сотрудника, совпадают байт в байт 1`] = `
+{
+  "body": "{"staff":{"roleName":"Руководитель","roleKey":"owner","scope":"all","permissions":["deals.view","deals.edit","deals.delete","prices.discount_unlimited","orders.reprice_paid","chats.view","chats.send","catalog.manage","calls.view","calls.make","calls.recordings","clients.view","clients.edit","clients.create","clients.contacts","clients.reveal","clients.export","orders.view","orders.edit","orders.files","orders.payment_void","tasks.all","boards.manage","promo.manage","promo.give","gifts.manage","reviews.manage","analytics.view","finance.view","finance.manage","team.manage","settings.manage","audit.view"],"isOwner":true},"gate":null}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""1jLWjbqXtcDNg6dFmlDWvHR4Gac"",
+  },
+  "request": "GET /api/v1/web/crm/staff",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > веб-CRM (3 маршрута), включая redirect, notFound и не-сотрудника, совпадают байт в байт 2`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""1jLWjbqXtcDNg6dFmlDWvHR4Gac"",
+  },
+  "request": "GET /api/v1/web/crm/staff",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > веб-CRM (3 маршрута), включая redirect, notFound и не-сотрудника, совпадают байт в байт 3`] = `
+{
+  "body": "{"staff":null,"gate":null}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""oZzWLziKt6YjLDNvElz_AEs1ldk"",
+  },
+  "request": "GET /api/v1/web/crm/staff",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > веб-CRM (3 маршрута), включая redirect, notFound и не-сотрудника, совпадают байт в байт 4`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""oZzWLziKt6YjLDNvElz_AEs1ldk"",
+  },
+  "request": "GET /api/v1/web/crm/staff",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > веб-CRM (3 маршрута), включая redirect, notFound и не-сотрудника, совпадают байт в байт 5`] = `
+{
+  "body": "{"data":{"ok":true,"count":5}}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/web/crm/read/shell.layout",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > веб-CRM (3 маршрута), включая redirect, notFound и не-сотрудника, совпадают байт в байт 6`] = `
+{
+  "body": "{"data":{"ok":true}}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/web/crm/act/deals.move",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > веб-CRM (3 маршрута), включая redirect, notFound и не-сотрудника, совпадают байт в байт 7`] = `
+{
+  "body": "{"data":null,"redirect":"/admin/orders"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/web/crm/act/orders.go",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > веб-CRM (3 маршрута), включая redirect, notFound и не-сотрудника, совпадают байт в байт 8`] = `
+{
+  "body": "{"data":null,"notFound":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/web/crm/act/orders.miss",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > доски задач (19 маршрутов) + BoardsError совпадают байт в байт 1`] = `
+{
+  "body": "{"boards":[{"id":"11111111-1111-4111-8111-111111111201","name":"Доска CRM","description":null,"kind":"team","color":"wine","visibility":"all","isDefault":true,"canManage":true,"openCards":1}]}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""4NS83BvPqiEwghGB-ngcOozNiEM"",
+  },
+  "request": "GET /api/v1/boards",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > доски задач (19 маршрутов) + BoardsError совпадают байт в байт 2`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""4NS83BvPqiEwghGB-ngcOozNiEM"",
+  },
+  "request": "GET /api/v1/boards",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > доски задач (19 маршрутов) + BoardsError совпадают байт в байт 3`] = `
+{
+  "body": "{"board":{"id":"11111111-1111-4111-8111-111111111201","name":"Доска CRM","description":null,"kind":"team","color":"wine","visibility":"all","isDefault":true,"canManage":true},"columns":[{"id":"11111111-1111-4111-8111-111111111202","name":"Новые","done":false,"wipLimit":null}],"labels":[{"id":"11111111-1111-4111-8111-111111111204","name":"VIP","color":"wine"}],"cards":[{"id":"11111111-1111-4111-8111-111111111203","title":"Проверить заказ","kind":"task","boardId":"11111111-1111-4111-8111-111111111201","columnId":"11111111-1111-4111-8111-111111111202","position":1000,"priority":"normal","startAt":"2026-11-26T09:00:00.000Z","dueAt":"2026-11-28T12:00:00.000Z","doneAt":null,"archived":false,"coverColor":"teal","coverImage":null,"assigneeIds":["bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1"],"watcherIds":["bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1"],"labelIds":["11111111-1111-4111-8111-111111111204"],"checklistDone":0,"checklistTotal":1,"comments":1,"attachments":1,"hasDescription":true,"recurring":false,"links":[],"editable":true}],"staff":[{"id":"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1","label":"Директор"},{"id":"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2","label":"Алия"}],"doneDays":90}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""b_rJtQhiloJ0Lgi0BqwzTLohWh4"",
+  },
+  "request": "GET /api/v1/boards/11111111-1111-4111-8111-111111111201?done=1",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > доски задач (19 маршрутов) + BoardsError совпадают байт в байт 4`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""b_rJtQhiloJ0Lgi0BqwzTLohWh4"",
+  },
+  "request": "GET /api/v1/boards/11111111-1111-4111-8111-111111111201?done=1",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > доски задач (19 маршрутов) + BoardsError совпадают байт в байт 5`] = `
+{
+  "body": "{"id":"11111111-1111-4111-8111-111111111203","card":{"id":"11111111-1111-4111-8111-111111111203","title":"Проверить заказ","kind":"task","boardId":"11111111-1111-4111-8111-111111111201","columnId":"11111111-1111-4111-8111-111111111202","position":1000,"priority":"normal","startAt":"2026-11-26T09:00:00.000Z","dueAt":"2026-11-28T12:00:00.000Z","doneAt":null,"archived":false,"coverColor":"teal","coverImage":null,"assigneeIds":["bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1"],"watcherIds":["bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1"],"labelIds":["11111111-1111-4111-8111-111111111204"],"checklistDone":0,"checklistTotal":1,"comments":1,"attachments":1,"hasDescription":true,"recurring":false,"links":[],"editable":true}}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/cards",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > доски задач (19 маршрутов) + BoardsError совпадают байт в байт 6`] = `
+{
+  "body": "{"card":{"id":"11111111-1111-4111-8111-111111111203","title":"Проверить заказ","kind":"task","boardId":"11111111-1111-4111-8111-111111111201","columnId":"11111111-1111-4111-8111-111111111202","position":1000,"priority":"normal","startAt":"2026-11-26T09:00:00.000Z","dueAt":"2026-11-28T12:00:00.000Z","doneAt":null,"archived":false,"coverColor":"teal","coverImage":null,"assigneeIds":["bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1"],"watcherIds":["bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1"],"labelIds":["11111111-1111-4111-8111-111111111204"],"checklistDone":0,"checklistTotal":1,"comments":1,"attachments":1,"hasDescription":true,"recurring":false,"links":[],"editable":true},"description":"Описание карточки","createdById":"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1","createdAt":"2026-11-25T10:00:00.000Z","remindBeforeMin":60,"result":"","estimateMin":30,"spentMin":10,"board":{"id":"11111111-1111-4111-8111-111111111201","name":"Доска CRM"},"columns":[{"id":"11111111-1111-4111-8111-111111111202","name":"Новые","done":false,"wipLimit":null}],"labels":[{"id":"11111111-1111-4111-8111-111111111204","name":"VIP","color":"wine"}],"checklists":[{"id":"11111111-1111-4111-8111-111111111205","title":"Чек-лист","items":[{"id":"11111111-1111-4111-8111-111111111206","text":"Шаг 1","done":false,"assigneeId":null,"dueAt":null}]}],"comments":[{"id":"11111111-1111-4111-8111-111111111207","authorId":"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1","text":"Готово","createdAt":"2026-11-26T09:10:00.000Z","editedAt":null,"mine":true}],"files":[{"id":"11111111-1111-4111-8111-111111111208","name":"pic.png","mime":"image/png","size":2048,"url":"/api/admin/boards/files/11111111-1111-4111-8111-111111111208","isImage":true,"createdAt":"2026-11-26T09:15:00.000Z"}],"activity":[{"id":"11111111-1111-4111-8111-111111111299","actorId":"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1","kind":"created","text":"создал(а) карточку в «undefined»","createdAt":"2026-11-25T10:00:00.000Z"}]}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""FW6C03dtBS2U55r5dL0A8Eml7zs"",
+  },
+  "request": "GET /api/v1/cards/11111111-1111-4111-8111-111111111203",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > доски задач (19 маршрутов) + BoardsError совпадают байт в байт 7`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""FW6C03dtBS2U55r5dL0A8Eml7zs"",
+  },
+  "request": "GET /api/v1/cards/11111111-1111-4111-8111-111111111203",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > доски задач (19 маршрутов) + BoardsError совпадают байт в байт 8`] = `
+{
+  "body": "{"card":{"id":"11111111-1111-4111-8111-111111111203","title":"Проверить заказ","kind":"task","boardId":"11111111-1111-4111-8111-111111111201","columnId":"11111111-1111-4111-8111-111111111202","position":1000,"priority":"normal","startAt":"2026-11-26T09:00:00.000Z","dueAt":"2026-11-28T12:00:00.000Z","doneAt":null,"archived":false,"coverColor":"teal","coverImage":null,"assigneeIds":["bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1"],"watcherIds":["bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1"],"labelIds":["11111111-1111-4111-8111-111111111204"],"checklistDone":0,"checklistTotal":1,"comments":1,"attachments":1,"hasDescription":true,"recurring":false,"links":[],"editable":true}}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "PATCH /api/v1/cards/11111111-1111-4111-8111-111111111203",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > доски задач (19 маршрутов) + BoardsError совпадают байт в байт 9`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "DELETE /api/v1/cards/11111111-1111-4111-8111-111111111203",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > доски задач (19 маршрутов) + BoardsError совпадают байт в байт 10`] = `
+{
+  "body": "{"card":{"id":"11111111-1111-4111-8111-111111111203","title":"Проверить заказ","kind":"task","boardId":"11111111-1111-4111-8111-111111111201","columnId":"11111111-1111-4111-8111-111111111202","position":1000,"priority":"normal","startAt":"2026-11-26T09:00:00.000Z","dueAt":"2026-11-28T12:00:00.000Z","doneAt":null,"archived":false,"coverColor":"teal","coverImage":null,"assigneeIds":["bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1"],"watcherIds":["bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1"],"labelIds":["11111111-1111-4111-8111-111111111204"],"checklistDone":0,"checklistTotal":1,"comments":1,"attachments":1,"hasDescription":true,"recurring":false,"links":[],"editable":true}}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/cards/11111111-1111-4111-8111-111111111203/move",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > доски задач (19 маршрутов) + BoardsError совпадают байт в байт 11`] = `
+{
+  "body": "{"card":{"id":"11111111-1111-4111-8111-111111111203","title":"Проверить заказ","kind":"task","boardId":"11111111-1111-4111-8111-111111111201","columnId":"11111111-1111-4111-8111-111111111202","position":1000,"priority":"normal","startAt":"2026-11-26T09:00:00.000Z","dueAt":"2026-11-28T12:00:00.000Z","doneAt":null,"archived":false,"coverColor":"teal","coverImage":null,"assigneeIds":["bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1"],"watcherIds":["bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1"],"labelIds":["11111111-1111-4111-8111-111111111204"],"checklistDone":0,"checklistTotal":1,"comments":1,"attachments":1,"hasDescription":true,"recurring":false,"links":[],"editable":true}}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/cards/11111111-1111-4111-8111-111111111203/done",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > доски задач (19 маршрутов) + BoardsError совпадают байт в байт 12`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/cards/11111111-1111-4111-8111-111111111203/archive",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > доски задач (19 маршрутов) + BoardsError совпадают байт в байт 13`] = `
+{
+  "body": "{"card":{"id":"11111111-1111-4111-8111-111111111203","title":"Проверить заказ","kind":"task","boardId":"11111111-1111-4111-8111-111111111201","columnId":"11111111-1111-4111-8111-111111111202","position":1000,"priority":"normal","startAt":"2026-11-26T09:00:00.000Z","dueAt":"2026-11-28T12:00:00.000Z","doneAt":null,"archived":false,"coverColor":"teal","coverImage":null,"assigneeIds":["bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1"],"watcherIds":["bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1"],"labelIds":["11111111-1111-4111-8111-111111111204"],"checklistDone":0,"checklistTotal":1,"comments":1,"attachments":1,"hasDescription":true,"recurring":false,"links":[],"editable":true}}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "PUT /api/v1/cards/11111111-1111-4111-8111-111111111203/assignees",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > доски задач (19 маршрутов) + BoardsError совпадают байт в байт 14`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "PUT /api/v1/cards/11111111-1111-4111-8111-111111111203/watch",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > доски задач (19 маршрутов) + BoardsError совпадают байт в байт 15`] = `
+{
+  "body": "{"card":{"id":"11111111-1111-4111-8111-111111111203","title":"Проверить заказ","kind":"task","boardId":"11111111-1111-4111-8111-111111111201","columnId":"11111111-1111-4111-8111-111111111202","position":1000,"priority":"normal","startAt":"2026-11-26T09:00:00.000Z","dueAt":"2026-11-28T12:00:00.000Z","doneAt":null,"archived":false,"coverColor":"teal","coverImage":null,"assigneeIds":["bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1"],"watcherIds":["bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1"],"labelIds":["11111111-1111-4111-8111-111111111204"],"checklistDone":0,"checklistTotal":1,"comments":1,"attachments":1,"hasDescription":true,"recurring":false,"links":[],"editable":true}}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "PUT /api/v1/cards/11111111-1111-4111-8111-111111111203/labels/11111111-1111-4111-8111-111111111204",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > доски задач (19 маршрутов) + BoardsError совпадают байт в байт 16`] = `
+{
+  "body": "{"id":"11111111-1111-4111-8111-111111111205"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/cards/11111111-1111-4111-8111-111111111203/checklists",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > доски задач (19 маршрутов) + BoardsError совпадают байт в байт 17`] = `
+{
+  "body": "{"id":"11111111-1111-4111-8111-111111111206"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/checklists/11111111-1111-4111-8111-111111111205/items",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > доски задач (19 маршрутов) + BoardsError совпадают байт в байт 18`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "PATCH /api/v1/checklist-items/11111111-1111-4111-8111-111111111206",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > доски задач (19 маршрутов) + BoardsError совпадают байт в байт 19`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "DELETE /api/v1/checklist-items/11111111-1111-4111-8111-111111111206",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > доски задач (19 маршрутов) + BoardsError совпадают байт в байт 20`] = `
+{
+  "body": "{"id":"11111111-1111-4111-8111-111111111207"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/cards/11111111-1111-4111-8111-111111111203/comments",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > доски задач (19 маршрутов) + BoardsError совпадают байт в байт 21`] = `
+{
+  "body": "{"id":"11111111-1111-4111-8111-111111111208"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/cards/11111111-1111-4111-8111-111111111203/files",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > доски задач (19 маршрутов) + BoardsError совпадают байт в байт 22`] = `
+{
+  "body": "{"cards":[{"id":"11111111-1111-4111-8111-111111111203","title":"Проверить заказ","kind":"task","boardId":"11111111-1111-4111-8111-111111111201","columnId":"11111111-1111-4111-8111-111111111202","position":1000,"priority":"normal","startAt":"2026-11-26T09:00:00.000Z","dueAt":"2026-11-28T12:00:00.000Z","doneAt":null,"archived":false,"coverColor":"teal","coverImage":null,"assigneeIds":["bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1"],"watcherIds":["bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1"],"labelIds":["11111111-1111-4111-8111-111111111204"],"checklistDone":0,"checklistTotal":1,"comments":1,"attachments":1,"hasDescription":true,"recurring":false,"links":[],"editable":true}]}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""QKr0xzMs5oOxSgHmsFyajJEfVlE"",
+  },
+  "request": "GET /api/v1/tasks/calendar?from=2026-11-01T00:00:00Z&to=2026-11-30T23:59:59Z&boardId=11111111-1111-4111-8111-111111111201&mine=1",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > доски задач (19 маршрутов) + BoardsError совпадают байт в байт 23`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""QKr0xzMs5oOxSgHmsFyajJEfVlE"",
+  },
+  "request": "GET /api/v1/tasks/calendar?from=2026-11-01T00:00:00Z&to=2026-11-30T23:59:59Z&boardId=11111111-1111-4111-8111-111111111201&mine=1",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > доски задач (19 маршрутов) + BoardsError совпадают байт в байт 24`] = `
+{
+  "body": "{"error":"Нет доступа к карточке","code":"forbidden"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "GET /api/v1/cards/11111111-1111-4111-8111-111111111203",
+  "status": 403,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > книги (2) и поддержка (4) совпадают байт в байт на 200, 400 refused, 403 и 404 1`] = `
+{
+  "body": "{"filter":"all","filters":[{"id":"all","label":"Все"},{"id":"writing","label":"Пишутся"},{"id":"stalled","label":"Заброшены (14+ дн.)"},{"id":"ready","label":"Почти готовы"},{"id":"ordered","label":"Заказаны"}],"themes":[{"id":"love","label":"Любимому человеку"},{"id":"mom","label":"Маме"},{"id":"dad","label":"Папе"},{"id":"parents","label":"Родителям"},{"id":"family","label":"Семье"},{"id":"grandma","label":"Бабушке"},{"id":"grandpa","label":"Дедушке"},{"id":"daughterinlaw","label":"Снохе"},{"id":"child","label":"Дочери или сыну"},{"id":"sibling","label":"Брату или сестре"},{"id":"friend","label":"Другу или подруге"},{"id":"teacher","label":"Учителю"},{"id":"colleague","label":"Коллеге"},{"id":"boss","label":"Руководителю"},{"id":"autobiography","label":"Автобиография"},{"id":"blank","label":"Своя книга"}],"rows":[{"bookId":"11111111-1111-4111-8111-111111111210","title":"Книга папе","line":"Папе · Алия → Папа","ownerId":"11111111-1111-4111-8111-111111111209","owner":"Алия","status":"draft","progress":0.2857142857142857,"progressText":"10 из 35 ответов","idleDays":17,"stale":true,"photos":2,"occasion":"День рождения · 25 декабря","remindedLabel":null,"dealId":"11111111-1111-4111-8111-111111111211","dealNumber":12}],"remindable":["11111111-1111-4111-8111-111111111209"],"canRemind":true,"staleDays":14}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""16D46YaMoc9Xp6cOats5MHMmzHU"",
+  },
+  "request": "GET /api/v1/crm/books?f=all&theme=dad",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > книги (2) и поддержка (4) совпадают байт в байт на 200, 400 refused, 403 и 404 2`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""16D46YaMoc9Xp6cOats5MHMmzHU"",
+  },
+  "request": "GET /api/v1/crm/books?f=all&theme=dad",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > книги (2) и поддержка (4) совпадают байт в байт на 200, 400 refused, 403 и 404 3`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "GET /api/v1/crm/books",
+  "status": 403,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > книги (2) и поддержка (4) совпадают байт в байт на 200, 400 refused, 403 и 404 4`] = `
+{
+  "body": "{"sent":1,"skipped":0}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/crm/books/remind",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > книги (2) и поддержка (4) совпадают байт в байт на 200, 400 refused, 403 и 404 5`] = `
+{
+  "body": "{"tickets":[{"id":"11111111-1111-4111-8111-111111111212","number":55,"status":"new","statusLabel":"Новое","kindLabel":"Что-то не работает","urgent":false,"text":"Кнопка не отвечает","reporter":"Алия","attachments":0,"createdAt":"2026-11-26T08:00:00.000Z"}],"counts":{"new":1,"in_progress":0,"waiting":0,"done":0,"rejected":0},"statuses":[{"id":"new","label":"Новое"},{"id":"in_progress","label":"В работе"},{"id":"waiting","label":"Ждём ответа"},{"id":"done","label":"Исправлено"},{"id":"rejected","label":"Отклонено"}],"canManage":true}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""WJQnWB-nVvZfePLkaVv1-xwyyI0"",
+  },
+  "request": "GET /api/v1/crm/support?status=open",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > книги (2) и поддержка (4) совпадают байт в байт на 200, 400 refused, 403 и 404 6`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""WJQnWB-nVvZfePLkaVv1-xwyyI0"",
+  },
+  "request": "GET /api/v1/crm/support?status=open",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > книги (2) и поддержка (4) совпадают байт в байт на 200, 400 refused, 403 и 404 7`] = `
+{
+  "body": "{"id":"11111111-1111-4111-8111-111111111212","number":55,"status":"new","statusLabel":"Новое","statuses":[{"id":"new","label":"Новое"},{"id":"in_progress","label":"В работе"},{"id":"waiting","label":"Ждём ответа"},{"id":"done","label":"Исправлено"},{"id":"rejected","label":"Отклонено"}],"kindLabel":"Что-то не работает","urgent":false,"summary":"Суть: Кнопка не отвечает","description":"Кнопка не отвечает","place":"/admin","expected":"Кнопка сохраняет","reporter":"Алия","createdAt":"2026-11-26T08:00:00.000Z","files":[],"chatId":null,"chat":[],"resolution":"","devNote":"Заметка","commits":[],"history":[{"at":"2026-11-26T08:00:00.000Z","by":"Алия","text":"Создано"}],"notifiedAt":null,"notifyError":null,"canManage":true}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""kKmAjBYpebrHUI2kc7B2iuoRhGE"",
+  },
+  "request": "GET /api/v1/crm/support/55",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > книги (2) и поддержка (4) совпадают байт в байт на 200, 400 refused, 403 и 404 8`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""kKmAjBYpebrHUI2kc7B2iuoRhGE"",
+  },
+  "request": "GET /api/v1/crm/support/55",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > книги (2) и поддержка (4) совпадают байт в байт на 200, 400 refused, 403 и 404 9`] = `
+{
+  "body": "{"id":"11111111-1111-4111-8111-111111111212","number":55,"status":"new","statusLabel":"Новое","statuses":[{"id":"new","label":"Новое"},{"id":"in_progress","label":"В работе"},{"id":"waiting","label":"Ждём ответа"},{"id":"done","label":"Исправлено"},{"id":"rejected","label":"Отклонено"}],"kindLabel":"Что-то не работает","urgent":false,"summary":"Суть: Кнопка не отвечает","description":"Кнопка не отвечает","place":"/admin","expected":"Кнопка сохраняет","reporter":"Алия","createdAt":"2026-11-26T08:00:00.000Z","files":[],"chatId":null,"chat":[],"resolution":"","devNote":"","commits":[],"history":[{"at":"2026-11-26T08:00:00.000Z","by":"Алия","text":"Создано"}],"notifiedAt":null,"notifyError":null,"canManage":false}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""x4l71zS7tI7azig9GrUvZLR7YN0"",
+  },
+  "request": "GET /api/v1/crm/support/55",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > книги (2) и поддержка (4) совпадают байт в байт на 200, 400 refused, 403 и 404 10`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""x4l71zS7tI7azig9GrUvZLR7YN0"",
+  },
+  "request": "GET /api/v1/crm/support/55",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > книги (2) и поддержка (4) совпадают байт в байт на 200, 400 refused, 403 и 404 11`] = `
+{
+  "body": "{"ok":true,"message":"Сохранено, автору написали"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "PATCH /api/v1/crm/support/55",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > книги (2) и поддержка (4) совпадают байт в байт на 200, 400 refused, 403 и 404 12`] = `
+{
+  "body": "{"error":"Выберите статус из списка","code":"refused"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "PATCH /api/v1/crm/support/55",
+  "status": 400,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > книги (2) и поддержка (4) совпадают байт в байт на 200, 400 refused, 403 и 404 13`] = `
+{
+  "body": "{"ok":true,"message":"Автору написали"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/crm/support/55/notify",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > книги (2) и поддержка (4) совпадают байт в байт на 200, 400 refused, 403 и 404 14`] = `
+{
+  "body": "{"error":"Не найдено","code":"notFound"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "GET /api/v1/crm/support/999",
+  "status": 404,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > роли и 2FA (10 маршрутов) + ошибки 400/401/403/405 совпадают байт в байт 1`] = `
+{
+  "body": "sha256(4831):a910601ceaeb92e218e9a65d9cb777ff2d6887901adabca219287a69a4335778 {"roles":[{"id":"22222222-2222-4222-8222-222222222211","name":"Менеджер","scope":"own","permissions":["deals.view"],"system":false,"locked":false,"members":1,"isOwnRole":false},{"id":"22222222-2222-4222-8222-222222222212","name":"Руководитель","scope":"all","permissions":["deals.view","deals.edit","…",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""LLGlqTHb6pxruwFDtseTZaR1rl0"",
+  },
+  "request": "GET /api/v1/crm/roles",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > роли и 2FA (10 маршрутов) + ошибки 400/401/403/405 совпадают байт в байт 2`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""LLGlqTHb6pxruwFDtseTZaR1rl0"",
+  },
+  "request": "GET /api/v1/crm/roles",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > роли и 2FA (10 маршрутов) + ошибки 400/401/403/405 совпадают байт в байт 3`] = `
+{
+  "body": "{"ok":true,"message":"Роль сохранена"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/crm/roles",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > роли и 2FA (10 маршрутов) + ошибки 400/401/403/405 совпадают байт в байт 4`] = `
+{
+  "body": "{"ok":true,"message":"Роль удалена"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "DELETE /api/v1/crm/roles/22222222-2222-4222-8222-222222222211",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > роли и 2FA (10 маршрутов) + ошибки 400/401/403/405 совпадают байт в байт 5`] = `
+{
+  "body": "{"enabled":true,"since":"15 октября 2026 г.","backupLeft":2,"canDisable":true,"currentIp":"198.51.100.7","canManage":true,"require2fa":false,"ipAllowlist":"198.51.100.0/24","team":[{"id":"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1","name":"Директор","email":"owner@mybooks.kz","enabled":true,"since":"15 октября 2026 г.","disabled":false,"canReset":false},{"id":"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2","name":"Алия","email":"aliya@mybooks.kz","enabled":true,"since":"20 октября 2026 г.","disabled":false,"canReset":true}]}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""ioQNB9iLyKvshgXNJzsQoiupQ9M"",
+  },
+  "request": "GET /api/v1/crm/security",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > роли и 2FA (10 маршрутов) + ошибки 400/401/403/405 совпадают байт в байт 6`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""ioQNB9iLyKvshgXNJzsQoiupQ9M"",
+  },
+  "request": "GET /api/v1/crm/security",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > роли и 2FA (10 маршрутов) + ошибки 400/401/403/405 совпадают байт в байт 7`] = `
+{
+  "body": "{"enabled":true,"since":"20 октября 2026 г.","backupLeft":1,"canDisable":true,"currentIp":"198.51.100.7","canManage":false,"require2fa":false,"ipAllowlist":"","team":[]}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""0gf6tbrjCPPRD-D4EB-1Hapb4O8"",
+  },
+  "request": "GET /api/v1/crm/security",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > роли и 2FA (10 маршрутов) + ошибки 400/401/403/405 совпадают байт в байт 8`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""0gf6tbrjCPPRD-D4EB-1Hapb4O8"",
+  },
+  "request": "GET /api/v1/crm/security",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > роли и 2FA (10 маршрутов) + ошибки 400/401/403/405 совпадают байт в байт 9`] = `
+{
+  "body": "{"secret":"JBSWY3DPEHPK3PXP","otpauthUrl":"otpauth://totp/MyBooks:owner@mybooks.kz?secret=JBSWY3DPEHPK3PXP&issuer=MyBooks","qrDataUrl":"data:image/png;base64,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"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/crm/security/2fa/start",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > роли и 2FA (10 маршрутов) + ошибки 400/401/403/405 совпадают байт в байт 10`] = `
+{
+  "body": "{"codes":["1111-AAAA"]}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/crm/security/2fa/confirm",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > роли и 2FA (10 маршрутов) + ошибки 400/401/403/405 совпадают байт в байт 11`] = `
+{
+  "body": "{"codes":["2222-BBBB"]}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/crm/security/2fa/backup",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > роли и 2FA (10 маршрутов) + ошибки 400/401/403/405 совпадают байт в байт 12`] = `
+{
+  "body": "{"ok":true,"message":"2FA отключена"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/crm/security/2fa/disable",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > роли и 2FA (10 маршрутов) + ошибки 400/401/403/405 совпадают байт в байт 13`] = `
+{
+  "body": "{"ok":true,"message":"Сохранено"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "PATCH /api/v1/crm/security/rules",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > роли и 2FA (10 маршрутов) + ошибки 400/401/403/405 совпадают байт в байт 14`] = `
+{
+  "body": "{"ok":true,"message":"2FA сброшена"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/crm/security/staff/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2/reset-2fa",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > роли и 2FA (10 маршрутов) + ошибки 400/401/403/405 совпадают байт в байт 15`] = `
+{
+  "body": "{"error":"Системную роль удалить нельзя","code":"refused"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "DELETE /api/v1/crm/roles/22222222-2222-4222-8222-222222222211",
+  "status": 400,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > роли и 2FA (10 маршрутов) + ошибки 400/401/403/405 совпадают байт в байт 16`] = `
+{
+  "body": "{"error":"2FA уже включена","code":"refused"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/crm/security/2fa/start",
+  "status": 400,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > роли и 2FA (10 маршрутов) + ошибки 400/401/403/405 совпадают байт в байт 17`] = `
+{
+  "body": "{"error":"Нужно войти в аккаунт","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "GET /api/v1/crm/roles",
+  "status": 401,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > роли и 2FA (10 маршрутов) + ошибки 400/401/403/405 совпадают байт в байт 18`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "GET /api/v1/crm/roles",
+  "status": 403,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > роли и 2FA (10 маршрутов) + ошибки 400/401/403/405 совпадают байт в байт 19`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "GET /api/v1/crm/roles",
+  "status": 403,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > роли и 2FA (10 маршрутов) + ошибки 400/401/403/405 совпадают байт в байт 20`] = `
+{
+  "body": "{"error":"Некорректные данные","code":"badData"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "DELETE /api/v1/crm/roles/not-a-uuid",
+  "status": 400,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов) > роли и 2FA (10 маршрутов) + ошибки 400/401/403/405 совпадают байт в байт 21`] = `
+{
+  "body": "",
+  "headers": {
+    "allow": "GET",
+  },
+  "request": "DELETE /api/v1/crm/security",
+  "status": 405,
+}
+`;

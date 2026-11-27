@@ -1,0 +1,733 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > auth (5 маршрутов): authLogin, authSecondFactor, authLogout, authWebSession, me 1`] = `
+{
+  "body": "{"session":{"token":"tok-1","expiresAt":"2026-12-26T10:00:00.000Z","user":{"id":"11111111-1111-4111-8111-111111111111","name":"Айгерим","email":"aigerim@example.kz","phone":"+77011112233","locale":"ru","isStaff":false}},"secondFactorTicket":null}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/auth/login",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > auth (5 маршрутов): authLogin, authSecondFactor, authLogout, authWebSession, me 2`] = `
+{
+  "body": "{"session":null,"secondFactorTicket":"22222222-2222-4222-8222-222222222222.1795687500000.NS8k4DNYxEAXptgswmQRBLI9lCm6rkwVCbrm5mZoDmY"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/auth/login",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > auth (5 маршрутов): authLogin, authSecondFactor, authLogout, authWebSession, me 3`] = `
+{
+  "body": "{"error":"Логин немесе құпиясөз қате","code":"credentials"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/auth/login",
+  "status": 401,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > auth (5 маршрутов): authLogin, authSecondFactor, authLogout, authWebSession, me 4`] = `
+{
+  "body": "{"error":"Слишком много попыток входа. Подождите 15 минут.","code":"tooManyLogins"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/auth/login",
+  "status": 429,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > auth (5 маршрутов): authLogin, authSecondFactor, authLogout, authWebSession, me 5`] = `
+{
+  "body": "{"token":"tok-2fa","expiresAt":"2026-12-26T10:00:00.000Z","user":{"id":"11111111-1111-4111-8111-111111111111","name":"Айгерим","email":"aigerim@example.kz","phone":"+77011112233","locale":"ru","isStaff":false}}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/auth/2fa",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > auth (5 маршрутов): authLogin, authSecondFactor, authLogout, authWebSession, me 6`] = `
+{
+  "body": "{"error":"Время на ввод кода истекло. Войдите заново.","code":"twoFactorExpired"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/auth/2fa",
+  "status": 401,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > auth (5 маршрутов): authLogin, authSecondFactor, authLogout, authWebSession, me 7`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/auth/logout",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > auth (5 маршрутов): authLogin, authSecondFactor, authLogout, authWebSession, me 8`] = `
+{
+  "body": "{"cookie":"mb_session","token":"tok-web","expiresAt":"2026-11-26T22:00:00.000Z","baseUrl":"http://localhost:3000"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/auth/web-session",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > auth (5 маршрутов): authLogin, authSecondFactor, authLogout, authWebSession, me 9`] = `
+{
+  "body": "{"id":"11111111-1111-4111-8111-111111111111","name":"Айгерим","email":"aigerim@example.kz","phone":"+77011112233","locale":"ru","isStaff":false}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""u-eVZijA9npAiYVxtrvt2UzX92o"",
+  },
+  "request": "GET /api/v1/me",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > auth (5 маршрутов): authLogin, authSecondFactor, authLogout, authWebSession, me 10`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""u-eVZijA9npAiYVxtrvt2UzX92o"",
+  },
+  "request": "GET /api/v1/me",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > cabinet (5 маршрутов): cabinetShelf, cabinetBook, cabinetPhotos, cabinetHelp, cabinetHelpAsk 1`] = `
+{
+  "body": "{"books":[{"id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","title":"Мама","subtitle":"История семьи","kind":"Маме","blank":false,"ordered":false,"progress":13,"progressLabel":"Написано 5 из 40 вопросов","counts":"420 слов · 2 фото","updated":"Изменена 20 ноября 2026 г.","deadline":{"text":"До дня рождения 10 дней","tone":"calm"},"order":{"id":"dddddddd-dddd-4ddd-8ddd-dddddddddddd","number":77,"label":"Заказ №77","status":"paid","statusLabel":"Оплачен","tone":"success"},"started":true,"writeSectionId":"cccccccc-cccc-4ccc-8ccc-cccccccccccc","coverUrl":"/api/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/cover-image?w=480&v=faeb735529be","coverThumbUrl":"/api/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/cover-image?w=240&v=faeb735529be"}],"labels":{"newBook":"Новая книга","first":{"hello":"Здравствуйте, Айгерим!","text":"Давайте начнём вашу первую книгу. Это займёт меньше минуты — а дальше вы будете отвечать на вопросы в своём темпе.","create":"Создать книгу","coverTitle":"Ваша первая книга","steps":[{"title":"Выберите, для кого книга","text":"Любимому человеку, маме, о себе — от этого зависят вопросы и главы."},{"title":"Отвечайте на вопросы","text":"По одному в день, текстом или голосом. Всё сохраняется само."},{"title":"Оформите и закажите","text":"Обложка, фотографии, письма близких — и печать в твёрдом переплёте."}]}}}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""xmRdraaibY90BG4XYTvSCVC6cho"",
+  },
+  "request": "GET /api/v1/cabinet/shelf",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > cabinet (5 маршрутов): cabinetShelf, cabinetBook, cabinetPhotos, cabinetHelp, cabinetHelpAsk 2`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""xmRdraaibY90BG4XYTvSCVC6cho"",
+  },
+  "request": "GET /api/v1/cabinet/shelf",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > cabinet (5 маршрутов): cabinetShelf, cabinetBook, cabinetPhotos, cabinetHelp, cabinetHelpAsk 3`] = `
+{
+  "body": "{"id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","title":"Мама","subtitle":"История семьи","kind":"Маме","language":"ru","blank":false,"editable":true,"coverUrl":"/api/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/cover-image?w=480&v=e524be5138dd","coverThumbUrl":"/api/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/cover-image?w=240&v=e524be5138dd","card":{"eyebrow":"Следующий вопрос","title":"Какой момент запомнился больше всего?","text":null,"serif":true,"primary":{"href":"/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/questions?s=cccccccc-cccc-4ccc-8ccc-cccccccccccc","label":"Ответить"},"primaryWrite":true,"secondary":null,"moreText":null,"more":null},"deadline":null,"pathTitle":"Путь книги","steps":[{"key":"write","href":"/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/questions","title":"Написать","value":"5 из 40","action":"Продолжить","status":"partial","fraction":0.13,"bar":13,"active":true}],"needsTitle":"Стоит проверить","needsFix":"Исправить","needs":[],"chaptersTitle":"Главы","chaptersAside":"1 из 1 начаты","allChaptersLabel":"Все главы (1)","chapters":[{"key":"childhood","title":"Детство","label":"5/10","done":false,"percent":50,"sectionId":"cccccccc-cccc-4ccc-8ccc-cccccccccccc"}],"letters":{"href":"/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/letters","title":"Письма близких","text":"1 письмо","action":"Открыть","tab":"Письма"},"help":{"title":"Нужна помощь?","text":"Напишите нам в WhatsApp","url":"https://wa.me/77000000000"},"whereToStart":"С чего начать?","tips":["Начните с конкретного момента: где вы были, что видели, какая была погода.","Вспомните точную фразу — прямую речь приятно перечитывать.","Опишите, что вы чувствовали внутри в тот момент.","Добавьте деталь, которую знаете только вы двое.","Пишите так, будто рассказываете это вслух за чашкой чая.","Пара искренних предложений лучше страницы общих слов."],"tipsNote":null,"preview":{"href":"/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/preview","tab":"Макет","cta":"Посмотреть макет"},"editor":{"answerPlaceholder":"Ваш ответ… Пишите так, как рассказали бы вслух. Новый абзац — Enter.","prev":"Предыдущий","next":"Следующий","dictate":"Надиктовать","dictateTitle":"Надиктовать ответ голосом","stop":"Стоп","recording":"Запись идёт — говорите. Нажмите «Стоп», и текст появится в ответе.","recognizing":"Распознаём запись…"}}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""ZHxCHB8Fc_mo8N8sNwa5ku5fylU"",
+  },
+  "request": "GET /api/v1/cabinet/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > cabinet (5 маршрутов): cabinetShelf, cabinetBook, cabinetPhotos, cabinetHelp, cabinetHelpAsk 4`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""ZHxCHB8Fc_mo8N8sNwa5ku5fylU"",
+  },
+  "request": "GET /api/v1/cabinet/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > cabinet (5 маршрутов): cabinetShelf, cabinetBook, cabinetPhotos, cabinetHelp, cabinetHelpAsk 5`] = `
+{
+  "body": "{"editable":true,"blank":false,"maxPhotos":100,"title":"Фотографии","intro":"У каждого фото своё место в книге — оно подписано под снимком. Нажмите на фото, чтобы выбрать место. Фото без места встают сами — по правилу книги.","addLabel":"Добавить фото","summary":[{"key":"total","label":"Фото","hint":null,"count":1},{"key":"placed","label":"Размещено вами","hint":null,"count":1},{"key":"auto","label":"Встали сами","hint":null,"count":0},{"key":"off","label":"Не печатаются","hint":null,"count":0}],"filters":[{"key":"all","label":"Все","hint":null,"count":1}],"ruleTitle":"Фото без выбранного места","ruleName":"После глав, по порядку","ruleChange":"Настроить","noMatch":"В этом списке пока нет фото","photos":[{"id":"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","n":1,"width":1600,"height":1200,"caption":"Лето","layout":"full","thumbUrl":"/api/photos/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb?size=thumb&v=v1","url":"/api/photos/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb?size=view&v=v1","place":{"kind":"answer","label":"В ответе «Первый день»","auto":false,"onCover":null,"option":"answer"},"questionId":"cccccccc-cccc-4ccc-8ccc-cccccccccccc","chapter":null,"loss":null,"edited":false}],"chapters":[{"key":"childhood","title":"Детство"}],"answers":[{"id":"cccccccc-cccc-4ccc-8ccc-cccccccccccc","title":"Первый день","chapterKey":"childhood"}],"sheet":{"title":"Где стоит фото","options":[{"key":"answer","label":"В ответ…","hint":"Рядом с текстом ответа","count":null},{"key":"after","label":"После главы…","hint":"На отдельных страницах сразу после текста главы","count":null},{"key":"album","label":"Альбом в конце","hint":"Раздел «Альбом» после последней главы","count":null},{"key":"auto","label":"Пусть встанет само","hint":"Сейчас такие фото встают после глав по порядку вкладки «Фото»","count":null},{"key":"off","label":"Не печатать в книге","hint":"Фото останется во вкладке «Фото», его можно вернуть. Обложку это не меняет.","count":null}],"stepChapter":"Какая глава?","stepAnswer":"Какой ответ?","here":"сейчас здесь","layoutTitle":"Как на странице","layouts":[{"key":"full","label":"Целиком, с полями","hint":null,"count":null},{"key":"bleed","label":"До краёв — края обрежутся","hint":null,"count":null},{"key":"half","label":"Два на странице","hint":null,"count":null},{"key":"grid","label":"Четыре на странице","hint":null,"count":null}],"caption":"Подпись","done":"Готово","coverNote":"Это фото и на обложке — там оно останется.","backNote":"Это фото и на обороте — там оно останется.","deleteLabel":"Удалить","deleteTitle":"Удалить фото?","deleteText":"Фото удалится совсем — из книги и из вкладки «Фото».","deleteConfirm":"Удалить","deleteKeep":"Не печатать в книге","cancel":"Отмена","editLabel":"Редактировать","editHint":"Текст, рисунок, кадр и цвет","editedLabel":"Изменено"}}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""rwfCiCG_gMER6SalE6bUDd-nV7w"",
+  },
+  "request": "GET /api/v1/cabinet/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/photos",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > cabinet (5 маршрутов): cabinetShelf, cabinetBook, cabinetPhotos, cabinetHelp, cabinetHelpAsk 6`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""rwfCiCG_gMER6SalE6bUDd-nV7w"",
+  },
+  "request": "GET /api/v1/cabinet/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/photos",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > cabinet (5 маршрутов): cabinetShelf, cabinetBook, cabinetPhotos, cabinetHelp, cabinetHelpAsk 7`] = `
+{
+  "body": "{"enabled":true,"whatsapp":"https://wa.me/77019998877","messages":[{"id":"m1","from":"bot","at":"2026-11-26T09:00:00.000Z","text":"Привет!","place":""}],"hints":["С чего начать писать?","Где в книге будет это фото?","Почему фото с предупреждением о качестве?","Как убрать фото из книги?"],"labels":{"button":"Помощь","title":"Помощник по книге","subtitle":"Отвечает сразу · знает кабинет и вашу книгу","hello":"Здравствуйте! Спросите, как что-то сделать в кабинете, или нажмите на непонятное место на экране — объясню именно его.","faqTitle":"Частые вопросы","placeholder":"Ваш вопрос…","typing":"Помощник печатает…","bot":"Помощник","manager":"Менеджер","notHelped":"Не помогло? Позвать менеджера","callHuman":"Позвать менеджера","handoff":"Вопрос передан менеджеру. Ответ придёт сюда, в этот чат, в рабочее время — можно закрыть окно.","whatsapp":"Написать в WhatsApp","disclaimer":"Отвечает ИИ по справочнику сайта. Цены, оплату, сроки и правки за вас решает менеджер.","off":"Помощник сейчас выключен — напишите нам в WhatsApp.","error":"Не получилось отправить. Проверьте интернет и попробуйте ещё раз."}}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""-0ph9jt2tFRILaL7c02yod61Pn8"",
+  },
+  "request": "GET /api/v1/cabinet/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/help?section=photos",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > cabinet (5 маршрутов): cabinetShelf, cabinetBook, cabinetPhotos, cabinetHelp, cabinetHelpAsk 8`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""-0ph9jt2tFRILaL7c02yod61Pn8"",
+  },
+  "request": "GET /api/v1/cabinet/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/help?section=photos",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > cabinet (5 маршрутов): cabinetShelf, cabinetBook, cabinetPhotos, cabinetHelp, cabinetHelpAsk 9`] = `
+{
+  "body": "{"outcome":"answered","suggestions":["Ещё"],"messages":[{"id":"m2","from":"bot","at":"2026-11-26T10:00:00.000Z","text":"Готово","place":""}]}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/cabinet/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/help",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > cabinet (5 маршрутов): cabinetShelf, cabinetBook, cabinetPhotos, cabinetHelp, cabinetHelpAsk 10`] = `
+{
+  "body": "{"error":"Книга не найдена","code":"bookNotFound"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "GET /api/v1/cabinet/books/99999999-9999-4999-8999-999999999999",
+  "status": 404,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > cabinet (5 маршрутов): cabinetShelf, cabinetBook, cabinetPhotos, cabinetHelp, cabinetHelpAsk 11`] = `
+{
+  "body": "",
+  "headers": {
+    "allow": "GET, POST",
+  },
+  "request": "DELETE /api/v1/cabinet/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/help",
+  "status": 405,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > me (13 маршрутов): аккаунт, профиль, пароль, напоминания, язык, устройства, CRM push, app-config, удаление 1`] = `
+{
+  "body": "{"profile":{"name":"Айгерим","phone":"+77011112233","email":"aigerim@example.kz"},"remindersOn":true,"locale":"ru","locales":[{"id":"ru","label":"Русский"},{"id":"kk","label":"Қазақша"},{"id":"uz","label":"Oʻzbekcha"},{"id":"en","label":"English"}],"limits":{"name":100,"passwordMin":8},"notice":null,"labels":{"title":"Аккаунт","lead":"Личные данные, пароль, письма и язык.","groups":{"profile":{"title":"Профиль","text":"Имя и телефон нужны, чтобы мы могли связаться с вами по заказу."},"password":{"title":"Пароль","text":"После смены на других устройствах придётся войти заново."},"notifications":{"title":"Уведомления","text":"Какие письма мы вам присылаем."},"language":{"title":"Язык","text":"Язык сайта и писем, которые мы присылаем."},"data":{"title":"Данные и удаление","text":"Удалить аккаунт со всеми книгами и перепиской можно здесь. Изменить e-mail — через поддержку."}},"email":"E-mail","emailHint":"Адрес входа. Изменить его можно через поддержку.","name":"Имя","phone":"Телефон","save":"Сохранить","current":"Текущий пароль","next":"Новый пароль","change":"Сменить пароль","languageText":"Язык сайта и писем, которые мы присылаем. Язык каждой книги выбирается отдельно — в её оформлении.","logout":"Выйти","notifications":{"orderMail":"Письма о заказе","orderMailValue":"Приходят всегда","reminders":"Напоминания дописать книгу","on":"Вы получаете","off":"Вы отписались","onHint":"Отключить их можно здесь или по ссылке внизу любого такого письма.","offHint":"Напоминания выключены. Их можно вернуть здесь в любой момент.","turnOn":"Вернуть напоминания","turnOff":"Отключить напоминания"}}}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""IQzJgMEzAuNYbfSlnS3NdVYma1U"",
+  },
+  "request": "GET /api/v1/me/account?locale=ru",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > me (13 маршрутов): аккаунт, профиль, пароль, напоминания, язык, устройства, CRM push, app-config, удаление 2`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""IQzJgMEzAuNYbfSlnS3NdVYma1U"",
+  },
+  "request": "GET /api/v1/me/account?locale=ru",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > me (13 маршрутов): аккаунт, профиль, пароль, напоминания, язык, устройства, CRM push, app-config, удаление 3`] = `
+{
+  "body": "{"profile":{"name":"Айгерим","phone":"+77011112233","email":"aigerim@example.kz"},"remindersOn":true,"locale":"ru","locales":[{"id":"ru","label":"Русский"},{"id":"kk","label":"Қазақша"},{"id":"uz","label":"Oʻzbekcha"},{"id":"en","label":"English"}],"limits":{"name":100,"passwordMin":8},"notice":{"ok":true,"text":"Данные сохранены","field":null},"labels":{"title":"Аккаунт","lead":"Личные данные, пароль, письма и язык.","groups":{"profile":{"title":"Профиль","text":"Имя и телефон нужны, чтобы мы могли связаться с вами по заказу."},"password":{"title":"Пароль","text":"После смены на других устройствах придётся войти заново."},"notifications":{"title":"Уведомления","text":"Какие письма мы вам присылаем."},"language":{"title":"Язык","text":"Язык сайта и писем, которые мы присылаем."},"data":{"title":"Данные и удаление","text":"Удалить аккаунт со всеми книгами и перепиской можно здесь. Изменить e-mail — через поддержку."}},"email":"E-mail","emailHint":"Адрес входа. Изменить его можно через поддержку.","name":"Имя","phone":"Телефон","save":"Сохранить","current":"Текущий пароль","next":"Новый пароль","change":"Сменить пароль","languageText":"Язык сайта и писем, которые мы присылаем. Язык каждой книги выбирается отдельно — в её оформлении.","logout":"Выйти","notifications":{"orderMail":"Письма о заказе","orderMailValue":"Приходят всегда","reminders":"Напоминания дописать книгу","on":"Вы получаете","off":"Вы отписались","onHint":"Отключить их можно здесь или по ссылке внизу любого такого письма.","offHint":"Напоминания выключены. Их можно вернуть здесь в любой момент.","turnOn":"Вернуть напоминания","turnOff":"Отключить напоминания"}}}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "PATCH /api/v1/me/profile",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > me (13 маршрутов): аккаунт, профиль, пароль, напоминания, язык, устройства, CRM push, app-config, удаление 4`] = `
+{
+  "body": "{"profile":{"name":"Айгерим","phone":"+77011112233","email":"aigerim@example.kz"},"remindersOn":true,"locale":"ru","locales":[{"id":"ru","label":"Русский"},{"id":"kk","label":"Қазақша"},{"id":"uz","label":"Oʻzbekcha"},{"id":"en","label":"English"}],"limits":{"name":100,"passwordMin":8},"notice":{"ok":false,"text":"Укажите имя","field":"name"},"labels":{"title":"Аккаунт","lead":"Личные данные, пароль, письма и язык.","groups":{"profile":{"title":"Профиль","text":"Имя и телефон нужны, чтобы мы могли связаться с вами по заказу."},"password":{"title":"Пароль","text":"После смены на других устройствах придётся войти заново."},"notifications":{"title":"Уведомления","text":"Какие письма мы вам присылаем."},"language":{"title":"Язык","text":"Язык сайта и писем, которые мы присылаем."},"data":{"title":"Данные и удаление","text":"Удалить аккаунт со всеми книгами и перепиской можно здесь. Изменить e-mail — через поддержку."}},"email":"E-mail","emailHint":"Адрес входа. Изменить его можно через поддержку.","name":"Имя","phone":"Телефон","save":"Сохранить","current":"Текущий пароль","next":"Новый пароль","change":"Сменить пароль","languageText":"Язык сайта и писем, которые мы присылаем. Язык каждой книги выбирается отдельно — в её оформлении.","logout":"Выйти","notifications":{"orderMail":"Письма о заказе","orderMailValue":"Приходят всегда","reminders":"Напоминания дописать книгу","on":"Вы получаете","off":"Вы отписались","onHint":"Отключить их можно здесь или по ссылке внизу любого такого письма.","offHint":"Напоминания выключены. Их можно вернуть здесь в любой момент.","turnOn":"Вернуть напоминания","turnOff":"Отключить напоминания"}}}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "PATCH /api/v1/me/profile",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > me (13 маршрутов): аккаунт, профиль, пароль, напоминания, язык, устройства, CRM push, app-config, удаление 5`] = `
+{
+  "body": "{"profile":{"name":"Айгерим","phone":"+77011112233","email":"aigerim@example.kz"},"remindersOn":true,"locale":"ru","locales":[{"id":"ru","label":"Русский"},{"id":"kk","label":"Қазақша"},{"id":"uz","label":"Oʻzbekcha"},{"id":"en","label":"English"}],"limits":{"name":100,"passwordMin":8},"notice":{"ok":true,"text":"Пароль изменён. На других устройствах нужно будет войти заново.","field":null},"labels":{"title":"Аккаунт","lead":"Личные данные, пароль, письма и язык.","groups":{"profile":{"title":"Профиль","text":"Имя и телефон нужны, чтобы мы могли связаться с вами по заказу."},"password":{"title":"Пароль","text":"После смены на других устройствах придётся войти заново."},"notifications":{"title":"Уведомления","text":"Какие письма мы вам присылаем."},"language":{"title":"Язык","text":"Язык сайта и писем, которые мы присылаем."},"data":{"title":"Данные и удаление","text":"Удалить аккаунт со всеми книгами и перепиской можно здесь. Изменить e-mail — через поддержку."}},"email":"E-mail","emailHint":"Адрес входа. Изменить его можно через поддержку.","name":"Имя","phone":"Телефон","save":"Сохранить","current":"Текущий пароль","next":"Новый пароль","change":"Сменить пароль","languageText":"Язык сайта и писем, которые мы присылаем. Язык каждой книги выбирается отдельно — в её оформлении.","logout":"Выйти","notifications":{"orderMail":"Письма о заказе","orderMailValue":"Приходят всегда","reminders":"Напоминания дописать книгу","on":"Вы получаете","off":"Вы отписались","onHint":"Отключить их можно здесь или по ссылке внизу любого такого письма.","offHint":"Напоминания выключены. Их можно вернуть здесь в любой момент.","turnOn":"Вернуть напоминания","turnOff":"Отключить напоминания"}}}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/me/password",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > me (13 маршрутов): аккаунт, профиль, пароль, напоминания, язык, устройства, CRM push, app-config, удаление 6`] = `
+{
+  "body": "{"profile":{"name":"Айгерим","phone":"+77011112233","email":"aigerim@example.kz"},"remindersOn":true,"locale":"ru","locales":[{"id":"ru","label":"Русский"},{"id":"kk","label":"Қазақша"},{"id":"uz","label":"Oʻzbekcha"},{"id":"en","label":"English"}],"limits":{"name":100,"passwordMin":8},"notice":{"ok":false,"text":"Новый пароль — минимум 8 символов","field":"next"},"labels":{"title":"Аккаунт","lead":"Личные данные, пароль, письма и язык.","groups":{"profile":{"title":"Профиль","text":"Имя и телефон нужны, чтобы мы могли связаться с вами по заказу."},"password":{"title":"Пароль","text":"После смены на других устройствах придётся войти заново."},"notifications":{"title":"Уведомления","text":"Какие письма мы вам присылаем."},"language":{"title":"Язык","text":"Язык сайта и писем, которые мы присылаем."},"data":{"title":"Данные и удаление","text":"Удалить аккаунт со всеми книгами и перепиской можно здесь. Изменить e-mail — через поддержку."}},"email":"E-mail","emailHint":"Адрес входа. Изменить его можно через поддержку.","name":"Имя","phone":"Телефон","save":"Сохранить","current":"Текущий пароль","next":"Новый пароль","change":"Сменить пароль","languageText":"Язык сайта и писем, которые мы присылаем. Язык каждой книги выбирается отдельно — в её оформлении.","logout":"Выйти","notifications":{"orderMail":"Письма о заказе","orderMailValue":"Приходят всегда","reminders":"Напоминания дописать книгу","on":"Вы получаете","off":"Вы отписались","onHint":"Отключить их можно здесь или по ссылке внизу любого такого письма.","offHint":"Напоминания выключены. Их можно вернуть здесь в любой момент.","turnOn":"Вернуть напоминания","turnOff":"Отключить напоминания"}}}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/me/password",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > me (13 маршрутов): аккаунт, профиль, пароль, напоминания, язык, устройства, CRM push, app-config, удаление 7`] = `
+{
+  "body": "{"profile":{"name":"Айгерим","phone":"+77011112233","email":"aigerim@example.kz"},"remindersOn":true,"locale":"ru","locales":[{"id":"ru","label":"Русский"},{"id":"kk","label":"Қазақша"},{"id":"uz","label":"Oʻzbekcha"},{"id":"en","label":"English"}],"limits":{"name":100,"passwordMin":8},"notice":{"ok":true,"text":"Напоминания выключены.","field":null},"labels":{"title":"Аккаунт","lead":"Личные данные, пароль, письма и язык.","groups":{"profile":{"title":"Профиль","text":"Имя и телефон нужны, чтобы мы могли связаться с вами по заказу."},"password":{"title":"Пароль","text":"После смены на других устройствах придётся войти заново."},"notifications":{"title":"Уведомления","text":"Какие письма мы вам присылаем."},"language":{"title":"Язык","text":"Язык сайта и писем, которые мы присылаем."},"data":{"title":"Данные и удаление","text":"Удалить аккаунт со всеми книгами и перепиской можно здесь. Изменить e-mail — через поддержку."}},"email":"E-mail","emailHint":"Адрес входа. Изменить его можно через поддержку.","name":"Имя","phone":"Телефон","save":"Сохранить","current":"Текущий пароль","next":"Новый пароль","change":"Сменить пароль","languageText":"Язык сайта и писем, которые мы присылаем. Язык каждой книги выбирается отдельно — в её оформлении.","logout":"Выйти","notifications":{"orderMail":"Письма о заказе","orderMailValue":"Приходят всегда","reminders":"Напоминания дописать книгу","on":"Вы получаете","off":"Вы отписались","onHint":"Отключить их можно здесь или по ссылке внизу любого такого письма.","offHint":"Напоминания выключены. Их можно вернуть здесь в любой момент.","turnOn":"Вернуть напоминания","turnOff":"Отключить напоминания"}}}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "PUT /api/v1/me/reminders",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > me (13 маршрутов): аккаунт, профиль, пароль, напоминания, язык, устройства, CRM push, app-config, удаление 8`] = `
+{
+  "body": "{"profile":{"name":"Айгерим","phone":"+77011112233","email":"aigerim@example.kz"},"remindersOn":true,"locale":"kk","locales":[{"id":"ru","label":"Русский"},{"id":"kk","label":"Қазақша"},{"id":"uz","label":"Oʻzbekcha"},{"id":"en","label":"English"}],"limits":{"name":100,"passwordMin":8},"notice":null,"labels":{"title":"Аккаунт","lead":"Жеке деректер, құпиясөз, хаттар және тіл.","groups":{"profile":{"title":"Профиль","text":"Есіміңіз бен телефоныңыз тапсырыс бойынша сізбен байланысу үшін керек."},"password":{"title":"Құпиясөз","text":"Ауыстырғаннан кейін басқа құрылғыларда қайта кіру керек болады."},"notifications":{"title":"Хабарламалар","text":"Сізге қандай хаттар жіберетініміз."},"language":{"title":"Тіл","text":"Сайттың және біз жіберетін хаттардың тілі."},"data":{"title":"Деректер және жою","text":"Аккаунтты барлық кітаптарымен және хат алмасуымен осы жерде жоюға болады. E-mail-ді өзгерту — қолдау қызметі арқылы."}},"email":"E-mail","emailHint":"Кіру мекенжайы. Оны қолдау қызметі арқылы өзгертуге болады.","name":"Есіміңіз","phone":"Телефон","save":"Сақтау","current":"Қазіргі құпиясөз","next":"Жаңа құпиясөз","change":"Құпиясөзді ауыстыру","languageText":"Сайттың және біз жіберетін хаттардың тілі. Әр кітаптың тілі бөлек — оның безендіруінде таңдалады.","logout":"Шығу","notifications":{"orderMail":"Тапсырыс туралы хаттар","orderMailValue":"Әрдайым келеді","reminders":"Кітапты жазып бітіруді еске салу","on":"Сіз аласыз","off":"Сіз бас тарттыңыз","onHint":"Оларды осы жерден немесе мұндай хаттың төменгі жағындағы сілтеме арқылы өшіруге болады.","offHint":"Еске салулар өшірілген. Оларды осы жерден кез келген уақытта қайтаруға болады.","turnOn":"Еске салуларды қайтару","turnOff":"Еске салуларды өшіру"}}}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "PUT /api/v1/me/locale",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > me (13 маршрутов): аккаунт, профиль, пароль, напоминания, язык, устройства, CRM push, app-config, удаление 9`] = `
+{
+  "body": "{"ok":true,"serverReady":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "PUT /api/v1/me/devices",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > me (13 маршрутов): аккаунт, профиль, пароль, напоминания, язык, устройства, CRM push, app-config, удаление 10`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/me/devices/forget",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > me (13 маршрутов): аккаунт, профиль, пароль, напоминания, язык, устройства, CRM push, app-config, удаление 11`] = `
+{
+  "body": "{"ios":true,"android":{"apiKey":"k","appId":"1:1:android:abc","projectId":"p","senderId":"1"}}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""QM0YN79kbRf3beBMdtJWc9Or-w0"",
+  },
+  "request": "GET /api/v1/crm/push",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > me (13 маршрутов): аккаунт, профиль, пароль, напоминания, язык, устройства, CRM push, app-config, удаление 12`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""QM0YN79kbRf3beBMdtJWc9Or-w0"",
+  },
+  "request": "GET /api/v1/crm/push",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > me (13 маршрутов): аккаунт, профиль, пароль, напоминания, язык, устройства, CRM push, app-config, удаление 13`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "GET /api/v1/crm/push",
+  "status": 403,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > me (13 маршрутов): аккаунт, профиль, пароль, напоминания, язык, устройства, CRM push, app-config, удаление 14`] = `
+{
+  "body": "{"ok":true,"serverReady":false}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "PUT /api/v1/crm/devices",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > me (13 маршрутов): аккаунт, профиль, пароль, напоминания, язык, устройства, CRM push, app-config, удаление 15`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/crm/devices/forget",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > me (13 маршрутов): аккаунт, профиль, пароль, напоминания, язык, устройства, CRM push, app-config, удаление 16`] = `
+{
+  "body": "{"privacyUrl":"http://localhost:3000/kk/privacy","termsUrl":"http://localhost:3000/kk/offer","labels":{"privacy":"Құпиялылық саясаты","terms":"Жария оферта"}}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""b4rnxkEEEPlL0q4n1nV-EGrJk5w"",
+  },
+  "request": "GET /api/v1/app-config?locale=kk",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > me (13 маршрутов): аккаунт, профиль, пароль, напоминания, язык, устройства, CRM push, app-config, удаление 17`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""b4rnxkEEEPlL0q4n1nV-EGrJk5w"",
+  },
+  "request": "GET /api/v1/app-config?locale=kk",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > me (13 маршрутов): аккаунт, профиль, пароль, напоминания, язык, устройства, CRM push, app-config, удаление 18`] = `
+{
+  "body": "{"confirm":"password","items":["Профиль"],"kept":["Учёт"],"keptOrders":[77],"labels":{"title":"Удалить аккаунт","intro":"Аккаунт удаляется навсегда — восстановить его, книги и переписку будет нельзя.","accounting":"Заказы и платежи останутся в учёте без ваших контактов: так требует закон о бухгалтерском учёте.","password":"Пароль для подтверждения","forgot":"Не помните пароль? Задайте новый по ссылке «Забыли пароль» на странице входа.","next":"Удалить аккаунт…","confirmTitle":"Удалить навсегда?","confirm":"Да, удалить навсегда","cancel":"Отмена","done":"Аккаунт удалён."}}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""uxxCvuoQ0glM1GdKc3CDKnxoyaI"",
+  },
+  "request": "GET /api/v1/me/deletion?locale=ru",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > me (13 маршрутов): аккаунт, профиль, пароль, напоминания, язык, устройства, CRM push, app-config, удаление 19`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""uxxCvuoQ0glM1GdKc3CDKnxoyaI"",
+  },
+  "request": "GET /api/v1/me/deletion?locale=ru",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > me (13 маршрутов): аккаунт, профиль, пароль, напоминания, язык, устройства, CRM push, app-config, удаление 20`] = `
+{
+  "body": "{"ok":true,"confirm":"password","items":["Профиль"],"kept":["Учёт"],"keptOrders":[],"labels":{"title":"Удалить аккаунт","intro":"Аккаунт удаляется навсегда — восстановить его, книги и переписку будет нельзя.","accounting":"Заказы и платежи останутся в учёте без ваших контактов: так требует закон о бухгалтерском учёте.","password":"Пароль для подтверждения","forgot":"Не помните пароль? Задайте новый по ссылке «Забыли пароль» на странице входа.","next":"Удалить аккаунт…","confirmTitle":"Удалить навсегда?","confirm":"Да, удалить навсегда","cancel":"Отмена","done":"Аккаунт удалён."}}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/me/delete?locale=ru",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > me (13 маршрутов): аккаунт, профиль, пароль, напоминания, язык, устройства, CRM push, app-config, удаление 21`] = `
+{
+  "body": "{"error":"Аккаунт сотрудника отключает руководитель в CRM","code":"staffAccount"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/me/delete",
+  "status": 403,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > web-cabinet (10 маршрутов): сессия, регистрация, сброс, полка, книги, приглашения, здоровье 1`] = `
+{
+  "body": "{"user":null}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "GET /api/v1/web/session",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > web-cabinet (10 маршрутов): сессия, регистрация, сброс, полка, книги, приглашения, здоровье 2`] = `
+{
+  "body": "{"user":{"id":"11111111-1111-4111-8111-111111111111","email":"aigerim@example.kz","name":"Айгерим","phone":"+77011112233","role":"user","tags":[],"lastSeenAt":null,"remindedAt":null,"emailOptOut":false,"locale":"ru","source":null,"crmRoleId":null,"managerId":null,"sipExtension":null,"notifyPrefs":{},"onShift":true,"extraPhones":[],"customFields":{},"staffDisabled":false,"totpEnabledAt":null,"hasTotpSecret":false,"totpBackupCount":0,"deletedAt":null,"purgedAt":null,"createdAt":"2026-10-01T10:00:00.000Z","updatedAt":"2026-10-01T10:00:00.000Z"}}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "GET /api/v1/web/session",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > web-cabinet (10 маршрутов): сессия, регистрация, сброс, полка, книги, приглашения, здоровье 3`] = `
+{
+  "body": "{"token":"tok-reg","expiresAt":"2026-12-26T10:00:00.000Z"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/web/auth/register",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > web-cabinet (10 маршрутов): сессия, регистрация, сброс, полка, книги, приглашения, здоровье 4`] = `
+{
+  "body": "{"error":"Этот e-mail уже зарегистрирован. Войдите в аккаунт.","code":"exists"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/web/auth/register",
+  "status": 409,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > web-cabinet (10 маршрутов): сессия, регистрация, сброс, полка, книги, приглашения, здоровье 5`] = `
+{
+  "body": "{"error":"Регистрация временно закрыта","code":"registrationClosed"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/web/auth/register",
+  "status": 403,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > web-cabinet (10 маршрутов): сессия, регистрация, сброс, полка, книги, приглашения, здоровье 6`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/web/auth/forgot",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > web-cabinet (10 маршрутов): сессия, регистрация, сброс, полка, книги, приглашения, здоровье 7`] = `
+{
+  "body": "{"valid":true,"purpose":"reset","shopWhatsappDigits":"77019998877"}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""YUs7YDWj5grPHCRbMCLJLJ_9--4"",
+  },
+  "request": "GET /api/v1/web/auth/reset/reset_parity_token_0123456789abcdef",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > web-cabinet (10 маршрутов): сессия, регистрация, сброс, полка, книги, приглашения, здоровье 8`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""YUs7YDWj5grPHCRbMCLJLJ_9--4"",
+  },
+  "request": "GET /api/v1/web/auth/reset/reset_parity_token_0123456789abcdef",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > web-cabinet (10 маршрутов): сессия, регистрация, сброс, полка, книги, приглашения, здоровье 9`] = `
+{
+  "body": "{"kind":"session","token":"tok-rst","expiresAt":"2026-12-26T10:00:00.000Z","secondFactorTicket":null,"access":false}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/web/auth/reset",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > web-cabinet (10 маршрутов): сессия, регистрация, сброс, полка, книги, приглашения, здоровье 10`] = `
+{
+  "body": "{"error":"Ссылка устарела или уже использована. Напишите нам в WhatsApp — пришлём новую.","code":"accessExpired"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/web/auth/reset",
+  "status": 400,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > web-cabinet (10 маршрутов): сессия, регистрация, сброс, полка, книги, приглашения, здоровье 11`] = `
+{
+  "body": "{"books":[{"row":{"book":{"id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","title":"Мама","subtitle":"История семьи","theme":"mom","format":"a5","coverTemplate":"classic","coverLines":true,"coverPhotoId":null,"coverPhotoExtra":null,"coverDesign":null,"authorName":"Айгерим","recipientName":"Мама","hideRecipientOnCover":false,"namesOnCover":""},"answered":5,"total":40,"words":420,"photos":2},"kind":"Маме","blank":false,"progress":13,"order":{"id":"dddddddd-dddd-4ddd-8ddd-dddddddddddd","number":77,"status":"paid","printed":true,"statusLabel":"Оплачен","statusTone":"success"},"ordered":false,"writeSection":"cccccccc-cccc-4ccc-8ccc-cccccccccccc","deadline":{"text":"До дня рождения 10 дней","tone":"calm"},"updated":"Изменена 20 ноября 2026 г.","writeHref":"/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/questions?s=cccccccc-cccc-4ccc-8ccc-cccccccccccc"}],"agreement":null,"agreementBooks":[]}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""XgZH9zPfBGzi1Lbqy2vHT8TxVMk"",
+  },
+  "request": "GET /api/v1/web/shelf?locale=ru",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > web-cabinet (10 маршрутов): сессия, регистрация, сброс, полка, книги, приглашения, здоровье 12`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""XgZH9zPfBGzi1Lbqy2vHT8TxVMk"",
+  },
+  "request": "GET /api/v1/web/shelf?locale=ru",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > web-cabinet (10 маршрутов): сессия, регистрация, сброс, полка, книги, приглашения, здоровье 13`] = `
+{
+  "body": "{"id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/web/books",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > web-cabinet (10 маршрутов): сессия, регистрация, сброс, полка, книги, приглашения, здоровье 14`] = `
+{
+  "body": "{"error":"Укажите имя получателя","code":"badData"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/web/books",
+  "status": 400,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > web-cabinet (10 маршрутов): сессия, регистрация, сброс, полка, книги, приглашения, здоровье 15`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "DELETE /api/v1/web/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > web-cabinet (10 маршрутов): сессия, регистрация, сброс, полка, книги, приглашения, здоровье 16`] = `
+{
+  "body": "{"error":"По этой книге есть заказы — удалить её нельзя","code":"bookHasOrders"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "DELETE /api/v1/web/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  "status": 409,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > web-cabinet (10 маршрутов): сессия, регистрация, сброс, полка, книги, приглашения, здоровье 17`] = `
+{
+  "body": "{"code":"MYBOOK10","link":"http://localhost:3000/r/MYBOOK10","friendPercent":10,"rewardPercent":10,"friends":2,"rewards":[]}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json",
+    "etag": ""ISXSH3BXncHLxgta9zSKPq5WRHk"",
+  },
+  "request": "GET /api/v1/web/invite?locale=ru",
+  "status": 200,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > web-cabinet (10 маршрутов): сессия, регистрация, сброс, полка, книги, приглашения, здоровье 18`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""ISXSH3BXncHLxgta9zSKPq5WRHk"",
+  },
+  "request": "GET /api/v1/web/invite?locale=ru",
+  "status": 304,
+}
+`;
+
+exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута) > web-cabinet (10 маршрутов): сессия, регистрация, сброс, полка, книги, приглашения, здоровье 19`] = `
+{
+  "body": "{"ok":true,"db":true,"storage":true,"redis":true,"outbox":{"pending":0,"failed":0,"oldestPendingSec":null},"time":"2026-11-26T10:00:00.000Z"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "GET /api/v1/web/health",
+  "status": 200,
+}
+`;
