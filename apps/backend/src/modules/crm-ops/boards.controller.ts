@@ -8,7 +8,7 @@ import { Input } from "../../core/http/decorators";
 import { Endpoint } from "../../core/http/endpoint";
 import { boardViewerOf, columnOut, CRM_OPS_PORTS, toCard, type CrmOpsPorts } from "./crm-ops.tokens";
 
-/** Ошибка модуля досок — ответ `{ error, code }` со статусом `boardsErrorStatus` и `no-store` (паритет с apps/api). */
+/** Ошибка модуля досок — ответ `{ error, code }` со статусом `boardsErrorStatus` и `no-store`. */
 async function guardBoards<T>(fn: () => Promise<T>): Promise<T | Response> {
   try {
     return await fn();

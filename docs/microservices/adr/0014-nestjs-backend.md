@@ -83,7 +83,7 @@ apps/backend/src/
 | 4 | Остальные клиентские контексты: Identity (вход, вход сотрудника), Authoring, Ordering, Referrals, Support… | по одному, тем же порядком |
 | 5 | CRM (`webCrm*`, `auth: staff`), вебхуки, `site-routes` | — |
 | 6 | Воркер — Nest standalone-приложение (`NestFactory.createApplicationContext`) с теми же модулями; PDF остаётся дочерним процессом (ADR, pdf-worker) | — |
-| 7 | Удалить `apps/api`, `src/server/container.ts`, `next-shim`, `legacy/` | все контексты на Nest |
+| 7 | Удалить `apps/api`, `src/server/container.ts`, `next-shim`, `legacy/` | все контексты на Nest; `apps/api` удалён 27.11 (тесты перенесены на Nest, ответы прежнего API — снимками), `container.ts`, `next-shim` и `legacy/` — ещё нет |
 
 ## Последствия
 

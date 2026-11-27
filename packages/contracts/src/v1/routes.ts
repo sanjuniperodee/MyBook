@@ -1,11 +1,11 @@
 /**
  * API v1 (ADR 0012): единственный путь к данным для веба и мобильного приложения. Здесь только сборка маршрутов
  * доменов; схемы и маршруты — в файлах доменов (auth.ts, books.ts, …), общее — core.ts. Из v1 — OpenAPI
- * (/api/v1/openapi.json), TS-клиент (../client.ts) и Dart-клиент (mybook-mobile: lib/api/mybook_api.g.dart,
- * scripts/contracts/generate.ts). Сервер — apps/api.
+ * (scripts/contracts/generate.ts), TS-клиент (../client.ts) и Dart-клиент (mybook-mobile: lib/api/mybook_api.g.dart).
+ * Сервер — бэкенд на Nest (apps/backend, ADR 0014).
  *
- * Новый домен: v1/<домен>.ts с объектом <домен>Routes → строка здесь → обработчики в apps/api/src/routes/<домен>.ts →
- * строка в apps/api/src/routes/index.ts → npx tsx scripts/contracts/generate.ts (после rebase — тоже: генерация
+ * Новый домен: v1/<домен>.ts с объектом <домен>Routes → строка здесь → контроллер с @Endpoint в apps/backend/src/modules
+ * → npx tsx scripts/contracts/generate.ts (после rebase — тоже: генерация
  * собирает все домены, конфликт в сгенерированных файлах решается перегенерацией).
  */
 import type { z } from "zod";
@@ -129,7 +129,7 @@ export type Input<N extends RouteName> = (V1[N] extends { params: infer P extend
   (V1[N] extends { query: infer Q extends z.ZodType } ? z.input<Q> : unknown) &
   (V1[N] extends { body: infer B extends z.ZodType } ? { body: z.input<B> } : unknown) &
   (V1[N] extends { files: object } ? { files: Blob[] } : unknown);
-/** То же после разбора схемами на сервере (значения по умолчанию подставлены) — вход обработчиков apps/api. */
+/** То же после разбора схемами на сервере (значения по умолчанию подставлены) — вход контроллеров бэкенда (@Input). */
 export type Parsed<N extends RouteName> = (V1[N] extends { params: infer P extends z.ZodType } ? z.output<P> : unknown) &
   (V1[N] extends { query: infer Q extends z.ZodType } ? z.output<Q> : unknown) &
   (V1[N] extends { body: infer B extends z.ZodType } ? { body: z.output<B> } : unknown) &

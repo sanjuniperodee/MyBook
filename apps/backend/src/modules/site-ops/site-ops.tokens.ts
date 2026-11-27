@@ -5,7 +5,7 @@ import type { StaffMember } from "../../core/auth/staff";
 /** Порт Контекста 7B («деньги сайта, вебхуки интеграций, звонки WhatsApp, файлы заказа» — 32 маршрута сайта). */
 export const SITE_OPS_PORTS = Symbol("SiteOpsPorts");
 
-/** Маршрут контекста 7B: «МЕТОД путь» — как в реестре сайта apps/api/src/site-routes.ts. */
+/** Маршрут контекста 7B: «МЕТОД путь» — как у маршрута сайта (src/server/site-handlers). */
 export type SiteOpsRoute =
   | "POST /api/payments/kaspi/webhook"
   | "POST /api/payments/kaspi/invoices"

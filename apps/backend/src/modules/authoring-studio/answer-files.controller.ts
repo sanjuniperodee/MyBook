@@ -39,7 +39,7 @@ function assertEditableBook(access: AccessibleBook): void {
 
 /**
  * Контекст 2B — QR-медиа, свои видео/аудио к ответам и покупка пакетов минут через Kaspi (11 маршрутов API v1).
- * Лимиты частоты по `user.id` идут через общий `RATE_LIMITER` с теми же ключами, что у `apps/api`.
+ * Лимиты частоты по `user.id` идут через общий `RATE_LIMITER` с теми же ключами, что у сайта.
  */
 @Controller()
 @UseGuards(BookAccessGuard)

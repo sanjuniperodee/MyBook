@@ -402,7 +402,7 @@ const { legacyIdentityAuthPort } = await import("../src/legacy/identity.ports");
 
 const ID = DEAL_ID;
 
-/** Все 77 маршрутов сайта старого мобильного CRM и раздачи APK/iPhone — как в реестре apps/api/src/site-routes.ts. */
+/** Все 77 маршрутов сайта старого мобильного CRM и раздачи APK/iPhone — как в прежнем реестре сайта mybook-api. */
 const ROUTES: Array<["GET" | "POST" | "PATCH" | "PUT" | "DELETE", string]> = [
   ["DELETE", `/api/mobile/chats/${ID}/messages/${MSG_ID}`],
   ["DELETE", `/api/mobile/push`],

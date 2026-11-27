@@ -1,10 +1,11 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 /**
  * Правила ADR 0014 для apps/backend/src: без Next и React (бэкенд — не веб), без сервис-локатора старого бэкенда
- * (src/server, apps/api) — кроме переходного слоя legacy/; предметная область (src/modules/*) — без декораторов Nest.
+ * (src/server) — кроме переходного слоя legacy/; предметная область (src/modules/*) — без декораторов Nest. Прежнего
+ * mybook-api (apps/api) нет — шаг 7 ADR 0014.
  */
 const ROOT = path.join(__dirname, "..", "..", "..");
 const SRC = path.join(ROOT, "apps/backend/src");
@@ -22,10 +23,17 @@ describe("границы бэкенда на Nest (ADR 0014)", () => {
     expect(bad).toEqual([]);
   });
 
-  it("старый бэкенд (src/server, apps/api) — только из legacy/", () => {
+  it("старый бэкенд (src/server) — только из legacy/", () => {
     const bad = files
       .filter((f) => !f.startsWith(path.join(SRC, "legacy") + path.sep))
-      .flatMap((f) => importsOf(f).filter((s) => /^@\/server(\/|$)|apps\/api/.test(s)).map((s) => `${path.relative(ROOT, f)} → ${s}`));
+      .flatMap((f) => importsOf(f).filter((s) => /^@\/server(\/|$)/.test(s)).map((s) => `${path.relative(ROOT, f)} → ${s}`));
+    expect(bad).toEqual([]);
+  });
+
+  it("прежнего mybook-api (apps/api) нет, и никто его не импортирует", () => {
+    expect(existsSync(path.join(ROOT, "apps/api"))).toBe(false);
+    const code = ["src", "apps", "tests", "scripts", "packages"].flatMap((d) => walk(path.join(ROOT, d)).filter((f) => !f.includes(`${path.sep}node_modules${path.sep}`)));
+    const bad = code.flatMap((f) => importsOf(f).filter((s) => /(^|\/)apps\/api(\/|$)/.test(s)).map((s) => `${path.relative(ROOT, f)} → ${s}`));
     expect(bad).toEqual([]);
   });
 

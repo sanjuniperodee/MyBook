@@ -34,7 +34,7 @@ import { runInLegacyRequest } from "./legacy-request";
 /** Обработчик маршрута сайта; объявлен методом, чтобы принять обработчики с узким типом параметров пути ({ id }, { event }). */
 type SiteHandler = { call(req: Request, ctx: { params: Promise<Record<string, string>> }): Promise<Response> | Response }["call"];
 
-/** Обработчики сайта маршрутов 7B — те же модули, что в реестре mybook-api (apps/api/src/site-routes.ts). */
+/** Обработчики сайта маршрутов 7B — модули src/server/site-handlers. */
 const HANDLERS: Record<SiteOpsRoute, SiteHandler> = {
   "POST /api/payments/kaspi/webhook": h_payments_kaspi_webhook.POST,
   "POST /api/payments/kaspi/invoices": h_payments_kaspi_invoices.POST,

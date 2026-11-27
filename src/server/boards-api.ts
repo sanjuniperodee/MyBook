@@ -8,7 +8,7 @@ import { container } from "@/server/container";
 
 /**
  * JSON API досок для веба CRM (/api/admin/boards/…): тонкий слой над модулем boards — разбор входа, права сотрудника,
- * ответы. Мобильное приложение ходит в те же сервисы через API v1 (apps/api/src/routes/boards.ts).
+ * ответы. Мобильное приложение ходит в те же сервисы через API v1 (apps/backend, контекст crm-ops).
  */
 
 export function boardViewer(staff: Staff): BoardViewer {

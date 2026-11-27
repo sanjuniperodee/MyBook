@@ -2,7 +2,9 @@ import { Controller, Inject, Req, UseGuards } from "@nestjs/common";
 import type { Output, Parsed } from "@mybook/contracts";
 import type { FastifyRequest } from "fastify";
 import { SESSION_USERS, sessionToken, type SessionUsers } from "../../core/auth/session";
+import { STAFF_ACCESS, type StaffAccessPort, type StaffMember } from "../../core/auth/staff";
 import { APP_CONFIG, type AppConfig } from "../../core/config/app-config";
+import { clientIp } from "../../core/http/client-ip";
 import { Input } from "../../core/http/decorators";
 import { Endpoint } from "../../core/http/endpoint";
 import { BookAccess, BookAccessGuard, type AccessibleBook } from "../identity/book-access.guard";
@@ -19,7 +21,22 @@ export class WebOrdersController {
     @Inject(ORDERS_API_PORTS) private readonly ports: OrdersApiPorts,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
     @Inject(SESSION_USERS) private readonly sessions: SessionUsers,
+    @Inject(STAFF_ACCESS) private readonly access: StaffAccessPort,
   ) {}
+
+  /**
+   * Маршрут клиента (auth: user), но сотрудник тоже открывает заказ клиента (страница /orders/[id] из CRM): StaffGuard
+   * здесь не работает, поэтому роль и правило IP/2FA определяем сами — общий код пускает только с orders.view, своей
+   * областью и без блокировки правилом (gate), иначе 404, как чужому.
+   */
+  private async staffOf(req: FastifyRequest): Promise<StaffMember | null> {
+    const user = req.user;
+    if (!user || user.role !== "admin" || user.staffDisabled) return null;
+    const resolved = await this.access.resolve(user, clientIp(req, this.config.edgeIpSecret));
+    if (!resolved) return null;
+    const { context, gate } = resolved;
+    return { user, roleName: context.roleName, roleKey: context.roleKey, scope: context.scope, permissions: context.permissions, isOwner: context.isOwner, context, gate };
+  }
 
   @Endpoint("webCheckoutPage")
   @UseGuards(BookAccessGuard)
@@ -43,8 +60,8 @@ export class WebOrdersController {
   }
 
   @Endpoint("webOrderDetail")
-  webOrderDetail(@Req() req: FastifyRequest, @Input() input: Parsed<"webOrderDetail">): Promise<Output<"webOrderDetail"> | Response> {
-    return this.ports.run(ordersCallMeta(req, this.config), "webOrderDetail", input);
+  async webOrderDetail(@Req() req: FastifyRequest, @Input() input: Parsed<"webOrderDetail">): Promise<Output<"webOrderDetail"> | Response> {
+    return this.ports.run({ ...ordersCallMeta(req, this.config), staff: await this.staffOf(req) }, "webOrderDetail", input);
   }
 
   @Endpoint("webOrderLayoutApprove")

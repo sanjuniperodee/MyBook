@@ -1,13 +1,13 @@
 # mybook-backend — API v1 на NestJS + Fastify (ADR 0014)
 
-Бэкенд переезжает с `apps/api` и обработчиков сайта в единый процесс NestJS 12 + Fastify (`127.0.0.1:3046`), по одному контексту за раз.
+Весь бэкенд MyBooks — единый процесс NestJS 12 + Fastify (`127.0.0.1:3046`); прежний `apps/api` удалён (шаг 7).
 Архитектурное решение и порядок переезда — [`docs/microservices/adr/0014-nestjs-backend.md`](../../docs/microservices/adr/0014-nestjs-backend.md).
-Образец готового контекста — `src/modules/feedback/*` и тесты `test/feedback.e2e.test.ts`, `test/feedback.parity.test.ts`.
+Образец готового контекста — `src/modules/feedback/*` и тесты `test/feedback.e2e.test.ts`, `test/feedback.expected.test.ts`.
 
 ## Команды проверки
 
 ```bash
-npx vitest run apps/backend/test                # e2e, границы и побайтовый паритет без БД
+npx vitest run apps/backend/test                # e2e, границы и ожидаемые ответы (снимки) без БД
 npx tsc --noEmit && npx tsc --noEmit -p apps/backend  # проверка типов (в backend включены experimentalDecorators)
 npx eslint apps/backend                          # линтер без any и неиспользуемых переменных
 ```
@@ -30,7 +30,7 @@ node scripts/microservices/compare-backend.mjs
 
 ## Чеклист до начала кода
 
-1. Прочитать старый обработчик в `apps/api/src/routes/*` и `src/server/*` целиком — до SQL/репозиториев, доменных событий, писем, WhatsApp/push, сброса кэша и кодов ошибок.
+1. Прочитать старый код в `src/server/*` целиком — до SQL/репозиториев, доменных событий, писем, WhatsApp/push, сброса кэша и кодов ошибок.
 2. Зафиксировать в сообщении коммита: что делает каждый маршрут (вход, права, ответ, побочные эффекты, ошибки). Не переносить то, что не проверено в коде.
 3. Не копировать логику: отображение/форматирование, нужное обоим процессам, выносится в чистый модуль (`src/modules/<context>/ui`, `src/lib/*`, `src/shared/*`).
 
@@ -73,7 +73,7 @@ node scripts/microservices/compare-backend.mjs
 
 ---
 
-## Обязательные тесты и шаблон e2e + parity
+## Обязательные тесты и шаблон e2e + ожидаемые ответы
 
 Для каждого перенесённого маршрута проверяются:
 
@@ -83,9 +83,9 @@ node scripts/microservices/compare-backend.mjs
 - неверный вход / параметры / файл (`400`),
 - не найден (`404`) и неверный метод (`405` с `Allow`),
 - для мутаций — состояние БД/портов и ушедшие доменные события/сигналы,
-- побайтовый паритет ответа (статус, байты тела, `ETag`/`304`, `Cache-Control`, `Allow`, `Set-Cookie`) против прежнего `apps/api` через `assertRouteParity` из `test/parity.ts`.
+- ответ байт в байт (статус, тело, `ETag`/`304`, `Cache-Control`, `Allow`, `Set-Cookie`, файлы и переходы) против снимка через `assertRoute` из `test/expected.ts` (снимки контекстов, перенесённых до шага 7, записаны с прежнего `mybook-api`).
 
-### Шаблон `<context>.e2e.test.ts` + `<context>.parity.test.ts`
+### Шаблон `<context>.e2e.test.ts` (+ `<context>.expected.test.ts`)
 
 ```ts
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -112,14 +112,13 @@ describe("контекст <Name>", () => {
 });
 ```
 
-Для проверки побайтового паритета с `apps/api` (`<context>.parity.test.ts`):
+Ответ байт в байт по снимку (`<context>.expected.test.ts`): первый прогон `npx vitest run <файл> -u` пишет
+`__snapshots__/<файл>.snap`, дальше любое расхождение — осознанное изменение API (смотреть дифф снимка):
 
 ```ts
-import { assertRouteParity, createLegacyTestApp } from "./parity";
+import { assertRoute } from "./expected";
 
-// Моки `next/headers`, `next/server` → `apps/api/src/http/next-shim`, плюс старые модули `@/server/*` с той же фикстурой:
-// const legacy = createLegacyTestApp({ users: [USER] });
-// await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/v1/...", headers: asUser });
+await assertRoute({ nest: app, method: "GET", url: "/api/v1/...", headers: asUser });
 ```
 
 ---

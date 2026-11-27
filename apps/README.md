@@ -1,11 +1,9 @@
 # apps
 
-Здесь будут приложения после M1.1 (перенос кода, без изменения поведения):
+| Приложение | Что |
+|---|---|
+| `apps/backend` | весь бэкенд MyBooks на NestJS + Fastify (ADR 0014): API v1 и маршруты сайта, миграции при старте, фон (`mybook-worker`). Процесс `mybook-backend`, `127.0.0.1:3046`. |
 
-| Приложение | Что | Откуда переезжает |
-|---|---|---|
-| `apps/web` | Next.js UI + BFF: страницы, компоненты, server actions | `src/app` (кроме `api`), `src/components`, `src/hooks`, `public`, `assets` |
-| `apps/api` | бэкенд-ядро: `/api/**`, модули, `shared`, `server`, миграции | `src/app/api`, `src/modules`, `src/shared`, `src/server`, `drizzle` |
-
-Пока здесь только README: в M0.5 код **не переносится**. Правила и порядок переноса —
-`docs/microservices/08-monorepo.md`.
+Прежний `apps/api` (mybook-api) удалён: процесс — 27.11.2026, код и эталонные тесты — на шаге 7 ADR 0014 (тесты
+перенесены на Nest, ответы прежнего API записаны снимками в `apps/backend/test/__snapshots__`). Веб — отдельный
+репозиторий mybook-web (ADR 0013).

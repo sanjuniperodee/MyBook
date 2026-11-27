@@ -149,7 +149,7 @@ export class CrmMarketingController {
     @CurrentStaff() staff: StaffMember,
     @Input() input: Parsed<"crmMarketing">,
   ): Promise<Output<"crmMarketing">> {
-    // Паритет с apps/api: достаточно ЛЮБОГО из двух прав (analytics.view ИЛИ promo.manage).
+    // Достаточно ЛЮБОГО из двух прав (analytics.view ИЛИ promo.manage).
     if (!staff.context.can("analytics.view") && !staff.context.can("promo.manage")) {
       throw new ApiError(403, "forbidden");
     }

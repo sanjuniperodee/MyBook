@@ -12,7 +12,7 @@ import { getTheme } from "@/lib/content/themes";
 
 /**
  * Модели экранов кабинета приложения «MyBooks» — чистые презентеры без БД, React и Next,
- * общие для mybook-api (`apps/api/src/routes/cabinet.ts`) и бэкенда на Nest (`apps/backend`, ADR 0014).
+ * бэкенда на Nest (`apps/backend`, ADR 0014).
  */
 
 export interface CabinetShelfSourceItem {

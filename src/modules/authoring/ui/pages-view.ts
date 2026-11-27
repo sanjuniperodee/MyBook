@@ -1,6 +1,6 @@
 /**
  * Чистая сборка моделей API v1 для раздела «Страницы» и «Глав книги»:
- * единый источник для `apps/api` и `apps/backend` (NestJS) без `next/headers`, БД и `server-only`.
+ * единый источник для `apps/backend` (NestJS) без `next/headers`, БД и `server-only`.
  */
 import type { z } from "zod";
 import {

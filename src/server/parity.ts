@@ -78,7 +78,7 @@ export interface HttpTransportOptions {
 }
 
 /**
- * HTTP-транспорт для волны 1. Endpoint `/internal/v1/parity` появится вместе с `apps/api`;
+ * HTTP-транспорт для волны 1. Endpoint `/internal/v1/parity` в бэкенде не сделан;
  * до этого вызов вернёт ошибку — это ожидаемо.
  */
 export function createHttpTransport({ baseUrl, token, timeoutMs = 30_000 }: HttpTransportOptions): ParityTransport {

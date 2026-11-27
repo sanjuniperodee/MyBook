@@ -1,5 +1,5 @@
 /**
- * OpenAPI 3.1 из контракта v1 (routes.ts). Отдаёт apps/api (/api/v1/openapi.json), из него же генерируется Dart-клиент.
+ * OpenAPI 3.1 из контракта v1 (routes.ts). Пишется в файл scripts/contracts/generate.ts, из него же генерируется Dart-клиент.
  * Тела запросов и ответов — схемы из реестра schemas (routes.ts), в components/schemas; параметры пути и запроса — на месте.
  */
 import { z } from "zod";

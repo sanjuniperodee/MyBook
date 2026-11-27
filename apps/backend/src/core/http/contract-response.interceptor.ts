@@ -26,7 +26,7 @@ export class ContractResponseInterceptor implements NestInterceptor {
     const reply = http.getResponse<FastifyReply>();
     return next.handle().pipe(
       map((out: unknown) => {
-        // Готовый Web Response (особые статусы 401/403/409/429 или GET с no-store) отдаётся без повторного разбора, как в apps/api/src/app.ts.
+        // Готовый Web Response (особые статусы 401/403/409/429 или GET с no-store) отдаётся без повторного разбора.
         if (reply.sent || out instanceof Response) return out;
         if (!this.config.production) {
           const check = route.def.response.safeParse(out);

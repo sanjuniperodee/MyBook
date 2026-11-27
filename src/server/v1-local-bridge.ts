@@ -303,7 +303,7 @@ export async function localSetLocale(userId: string, locale: Locale): Promise<vo
 
 // ─── Полка, книги, приглашения, здоровье ─────────────────────────────────────────────────────────────────────────
 
-/** Полка «Мои книги» напрямую из БД — единый сборщик для local()-фолбэка, apps/api webShelf и cabinetShelf. */
+/** Полка «Мои книги» напрямую из БД — единый сборщик для local()-фолбэка, webShelf и cabinetShelf бэкенда. */
 export async function localShelfBooks(userId: string, locale: Locale, m: Messages): Promise<ShelfBook[]> {
   const [{ container }, { isPrintedPlan, lastOrderPerBook, orderStatusLabel, orderStatusTone }] = await Promise.all([
     import("./container"),

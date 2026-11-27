@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { NextResponse } from "../apps/api/src/http/next-shim";
+import { NextResponse } from "@/server/http/next-shim";
 
-// В mybook-api next/server заменён этим файлом (scripts/build-api.mjs): обработчики сайта, которые там работают
+// В бэкенде на Nest next/server заменён этим файлом (src/server/http/next-shim.ts): обработчики сайта, которые там работают
 // (`/r/<код>`, `/go/<ссылка>`, чат сайта), зовут redirect с ResponseInit и ставят cookie в ответе.
 describe("next-shim NextResponse", () => {
   it("redirect с ResponseInit: статус, заголовки и cookie", () => {

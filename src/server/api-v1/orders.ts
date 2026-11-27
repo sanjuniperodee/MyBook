@@ -1,7 +1,7 @@
 /**
- * Заказы и деньги API v1 — один код на два процесса (ADR 0014, контекст 7A): mybook-api (apps/api/src/routes/*) и
- * бэкенд на Nest (apps/backend, через переходный слой legacy/). Вход и права проверяет вызывающий: mybook-api —
- * apiStaff/apiBook, Nest — SessionGuard, @Permissions и BookAccessGuard; здесь — только то, что делает маршрут.
+ * Заказы и деньги API v1 (ADR 0014, контекст 7A): код маршрутов бэкенда на Nest (apps/backend, через переходный слой
+ * legacy/). Вход и права проверяет Nest — SessionGuard, @Permissions и BookAccessGuard; здесь — только то, что делает
+ * маршрут.
  *
  * Здесь — маршруты клиента (кабинет приложения «MyBooks», веб: оформление, заказы, оплата по ссылке); маршруты CRM —
  * в crm-money.ts. Логика денег — те же функции, что страницы сайта (checkout, order-view, v1-local-bridge-orders).

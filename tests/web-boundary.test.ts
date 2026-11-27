@@ -12,7 +12,7 @@ import { isPureModuleImport } from "./pure-imports";
  *
  * Граница:
  * - веб: src/app, src/components, src/web (клиент API v1, прокси маршрутов, вход, права, CRM), src/proxy.ts, public/;
- * - бэкенд: apps/api, src/server, src/modules (кроме чистых domain/ui), src/worker, src/shared/infrastructure, drizzle,
+ * - бэкенд: apps (apps/backend), src/server, src/modules (кроме чистых domain/ui), src/worker, src/shared/infrastructure, drizzle,
  *   services, deploy;
  * - пакеты: @mybook/contracts; общий чистый код — src/shared (без infrastructure), src/lib, src/i18n, src/config и чистые
  *   domain/ui модулей.

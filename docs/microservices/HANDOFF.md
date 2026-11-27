@@ -7,9 +7,9 @@
 
 Контракт — `packages/contracts/src/v1/routes.ts` (схемы zod + таблица маршрутов); после правки —
 `npx tsx scripts/contracts/generate.ts --dart ../mybook-mobile/lib/api/mybook_api.g.dart` (OpenAPI `packages/contracts/openapi.json`, Dart-клиент — в checkout приложения; с 26.11 приложение в репозитории `mybook-mobile`, ADR 0013).
-Сервер — `apps/api` (`app.ts` — конвейер, `routes/*` — обработчики, `http/*` — node:http и next-shim), сборка
-`scripts/build-api.mjs` → `api.mjs` в релизе, PM2 `mybook-api` :3044. Новый маршрут: схема и запись в `v1` →
-обработчик в `routes/` (тип `Handlers` не даст забыть) → генерация → тест `tests/api-v1.test.ts`. Задачи — PROGRESS «API v1».
+Сервер — бэкенд на Nest `apps/backend` (ADR 0014, PM2 `mybook-backend` :3046; прежний `apps/api`/`mybook-api`
+удалён 27.11). Новый маршрут: схема и запись в `v1` → контроллер с `@Endpoint` в `apps/backend/src/modules/<контекст>`
+(тест `tests/backend/api-v1.test.ts` не даст забыть) → генерация → e2e в `apps/backend/test`. Задачи — PROGRESS «API v1».
 
 ## 1. Где мы (исторически, волна 0)
 

@@ -1,6 +1,6 @@
 /**
  * Чистые хелперы для чатов CRM: «Почему так?» AI-продажника и коммерческие предложения (КП) в чате.
- * Используются и в apps/api, и в NestJS (apps/backend) без копипасты.
+ * Используются бэкендом на NestJS (apps/backend) без копипасты.
  */
 import type { BotTurnTrace } from "../domain/botTrace";
 import { traceRows } from "./botTrace";

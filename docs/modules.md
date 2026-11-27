@@ -38,7 +38,7 @@ Access: сотрудники, роли и права, правила безоп�
 - Фасад: `AccessModule` → `container().access`
 - Публичное: `resolver`, `team`, `roles`, `security`, `audit`, `queries`, `shifts`
 - Таблицы: `crm_roles`, `crm_audit`
-- Тесты (8): `access-audit.test.ts`, `crm-v4.test.ts`, `crm.test.ts`, `errors.test.ts`, `identity-access.test.ts`, `my-day-tasks.test.tsx`, `server-adapters-actions.test.ts`, `workspace-ports.test.ts`
+- Тесты (9): `access-audit.test.ts`, `backend/api-v1-crm-bot-kp-security.test.ts`, `backend/server-adapters-actions.test.ts`, `crm-v4.test.ts`, `crm.test.ts`, `errors.test.ts`, `identity-access.test.ts`, `my-day-tasks.test.tsx`, `workspace-ports.test.ts`
 
 ## assistant
 
@@ -58,7 +58,7 @@ Authoring: книги, вопросы, оглавление своей книг�
 - Фасад: `AuthoringModule` → `container().authoring`
 - Публичное: `books`, `questions`, `outline`, `photos`, `letters`, `ordering`, `layoutRev`, `queries`, `photoRepository`, `themes`, `designAi`, `photoFile`, `photoStream`, `photoViewFile`
 - Таблицы: `books`, `book_questions`, `book_chapters`, `photos`, `photo_edits`, `book_letters`, `design_ai_requests`, `design_ai_credits`, `design_ai_purchases`, `answer_files`, `answer_file_purchases`
-- Тесты (31): `album-opener-photo.test.ts`, `api-v1-photo-editor.test.ts`, `api-v1-web-book-pages.test.ts`, `api-v1-web-orders.test.ts`, `api-v1.test.ts`, `architecture-web-db.test.ts`, `authoring.test.ts`, `book-modes.integration.test.ts`, `book-modes.test.ts`, `book-wizard.test.tsx`, `chapter-opener-left.test.tsx`, `chapter-start.test.tsx`, `crm-modes.integration.test.ts`, `editor-book-content.test.ts`, `editor-outline.test.ts`, `errors.test.ts`, `foreign-access.test.ts`, `inline-photo-placement.test.ts`, `layout-rev2-property.test.ts`, `layout-rev2.integration.test.ts`, `layout-rev2.test.ts`, `pages-photos.test.tsx`, `photo-crop.test.ts`, `photo-damage.test.ts`, `photo-edit.test.ts`, `photo-pages.test.ts`, `photo-rotate.test.ts`, `server-adapters-access.test.ts`, `server-adapters.test.ts`, `title-page.test.tsx`, `web-v1-strangler.test.ts`
+- Тесты (31): `album-opener-photo.test.ts`, `architecture-web-db.test.ts`, `authoring.test.ts`, `backend/api-v1-photo-editor.test.ts`, `backend/api-v1-web-book-pages.test.ts`, `backend/api-v1-web-orders.test.ts`, `backend/api-v1.test.ts`, `backend/foreign-access.test.ts`, `backend/server-adapters-access.test.ts`, `book-modes.integration.test.ts`, `book-modes.test.ts`, `book-wizard.test.tsx`, `chapter-opener-left.test.tsx`, `chapter-start.test.tsx`, `crm-modes.integration.test.ts`, `editor-book-content.test.ts`, `editor-outline.test.ts`, `errors.test.ts`, `inline-photo-placement.test.ts`, `layout-rev2-property.test.ts`, `layout-rev2.integration.test.ts`, `layout-rev2.test.ts`, `pages-photos.test.tsx`, `photo-crop.test.ts`, `photo-damage.test.ts`, `photo-edit.test.ts`, `photo-pages.test.ts`, `photo-rotate.test.ts`, `server-adapters.test.ts`, `title-page.test.tsx`, `web-v1-strangler.test.ts`
 
 ## automation
 
@@ -98,7 +98,7 @@ Authoring: книги, вопросы, оглавление своей книг�
 - Фасад: `FeedbackModule` → `container().feedback`
 - Публичное: `reviews`, `queries`, `photoFile`
 - Таблицы: `reviews`
-- Тесты (3): `api-v1-web-public.test.ts`, `api-v1.test.ts`, `feedback.test.ts`
+- Тесты (3): `backend/api-v1-web-public.test.ts`, `backend/api-v1.test.ts`, `feedback.test.ts`
 
 ## identity
 
@@ -108,7 +108,7 @@ Identity: учётные записи, вход, пароли, второй фа
 - Фасад: `IdentityModule` → `container().identity`
 - Публичное: `auth`, `accounts`, `queries`, `tokens`, `passwords`
 - Таблицы: `users`, `sessions`, `password_resets`
-- Тесты (8): `api-v1-web-cabinet.test.ts`, `crm-v4.test.ts`, `errors.test.ts`, `identity-access.test.ts`, `identity-phone.integration.test.ts`, `security.test.ts`, `server-adapters-access.test.ts`, `server-adapters-actions.test.ts`
+- Тесты (9): `backend/api-v1-crm-bot-kp-security.test.ts`, `backend/api-v1-web-cabinet.test.ts`, `backend/server-adapters-access.test.ts`, `backend/server-adapters-actions.test.ts`, `crm-v4.test.ts`, `errors.test.ts`, `identity-access.test.ts`, `identity-phone.integration.test.ts`, `security.test.ts`
 
 ## marketing
 
@@ -148,7 +148,7 @@ Identity: учётные записи, вход, пароли, второй фа
 - Фасад: `OrderingModule` → `container().ordering`
 - Публичное: `orders`, `invoices`, `invoiceLifecycle`, `payments`, `promos`, `gifts`, `queries`, `cloudPayments`, `kaspi`, `kaspiSetup`, `kaspiWatch`, `mailer`, `verifyKaspiWebhook`, `kaspiRecipient`, `deliverDueGifts`, `resendGift`, `giftPdf`
 - Таблицы: `orders`, `order_payments`, `promo_codes`, `gift_cards`, `payment_invoices`, `order_events`
-- Тесты (44): `agreement-gifts.test.ts`, `api-v1-web-orders.test.ts`, `api-v1-web-public.test.ts`, `architecture-web-db.test.ts`, `automation.test.ts`, `catalog.test.ts`, `checkout-quote.test.ts`, `client-push-events.test.ts`, `cloudpayments.test.ts`, `deal-invoice-payments.integration.test.ts`, `deal-invoice-payments.test.ts`, `deal-lifecycle.integration.test.ts`, `deal-lifecycle.test.ts`, `delivery-abroad.test.ts`, `errors.test.ts`, `gift-receipt.integration.test.ts`, `i18n.test.ts`, `invoice-access.test.ts`, `invoice-crm-actions.test.ts`, `invoice-crm.integration.test.ts`, `kaspi-watch.test.ts`, `kaspi.integration.test.ts`, `kaspi.test.ts`, `layout-approval.test.ts`, `occasions.test.ts`, `order-money.test.ts`, `order-payments.test.ts`, `order-terms.test.ts`, `ordering-ports.test.ts`, `ordering.test.ts`, `pay-routes.test.ts`, `payments-settings.integration.test.ts`, `print.test.ts`, `promo-stats.integration.test.ts`, `referrals.test.ts`, `review-fixes.test.ts`, `sales-guards.test.ts`, `server-adapters-actions.test.ts`, `server-adapters.test.ts`, `server-routes-payments.test.ts`, `settings-actions.test.ts`, `time.test.ts`, `tools.test.ts`, `web-v1-strangler.test.ts`
+- Тесты (44): `agreement-gifts.test.ts`, `architecture-web-db.test.ts`, `automation.test.ts`, `backend/api-v1-web-orders.test.ts`, `backend/api-v1-web-public.test.ts`, `backend/server-adapters-actions.test.ts`, `catalog.test.ts`, `checkout-quote.test.ts`, `client-push-events.test.ts`, `cloudpayments.test.ts`, `deal-invoice-payments.integration.test.ts`, `deal-invoice-payments.test.ts`, `deal-lifecycle.integration.test.ts`, `deal-lifecycle.test.ts`, `delivery-abroad.test.ts`, `errors.test.ts`, `gift-receipt.integration.test.ts`, `i18n.test.ts`, `invoice-access.test.ts`, `invoice-crm-actions.test.ts`, `invoice-crm.integration.test.ts`, `kaspi-watch.test.ts`, `kaspi.integration.test.ts`, `kaspi.test.ts`, `layout-approval.test.ts`, `occasions.test.ts`, `order-money.test.ts`, `order-payments.test.ts`, `order-terms.test.ts`, `ordering-ports.test.ts`, `ordering.test.ts`, `pay-routes.test.ts`, `payments-settings.integration.test.ts`, `print.test.ts`, `promo-stats.integration.test.ts`, `referrals.test.ts`, `review-fixes.test.ts`, `sales-guards.test.ts`, `server-adapters.test.ts`, `server-routes-payments.test.ts`, `settings-actions.test.ts`, `time.test.ts`, `tools.test.ts`, `web-v1-strangler.test.ts`
 
 ## production
 
@@ -187,7 +187,7 @@ Identity: учётные записи, вход, пароли, второй фа
 - Фасад: `SalesModule` → `container().sales`
 - Публичное: `deals`, `routing`, `funnel`, `queries`, `pipelines`, `savedViews`, `plans`, `receipts`, `payments`, `aiProposals`, `intake`, `agreementFor`, `attachAgreementOrder`, `money`, `refundAfterOrder`, `agreedPlan`, `agreedGifts`, `batch`, `setClientAttribution`, `changeAgreedGifts`, `splitIntoBatch`
 - Таблицы: `crm_pipelines`, `crm_stages`, `crm_deals`, `crm_payments`, `deal_invoices`, `crm_receipts`, `crm_stage_history`, `crm_saved_views`, `crm_plans`, `crm_ai_proposals`
-- Тесты (22): `automation-stats.integration.test.ts`, `book-modes.integration.test.ts`, `crm.test.ts`, `deal-invoice-payments.integration.test.ts`, `deal-lifecycle.integration.test.ts`, `deal-lifecycle.test.ts`, `deal-merge.test.ts`, `deal-money.integration.test.ts`, `deal-repeat.integration.test.ts`, `discount-limit.test.ts`, `errors.test.ts`, `finance-batch.integration.test.ts`, `finance.integration.test.ts`, `payments-settings.integration.test.ts`, `receipts.test.ts`, `revenue.integration.test.ts`, `routing.integration.test.ts`, `sales-intake.test.ts`, `sales.test.ts`, `server-routes-payments.test.ts`, `time.test.ts`, `workspace-ports.test.ts`
+- Тесты (23): `automation-stats.integration.test.ts`, `backend/api-v1-crm.test.ts`, `book-modes.integration.test.ts`, `crm.test.ts`, `deal-invoice-payments.integration.test.ts`, `deal-lifecycle.integration.test.ts`, `deal-lifecycle.test.ts`, `deal-merge.test.ts`, `deal-money.integration.test.ts`, `deal-repeat.integration.test.ts`, `discount-limit.test.ts`, `errors.test.ts`, `finance-batch.integration.test.ts`, `finance.integration.test.ts`, `payments-settings.integration.test.ts`, `receipts.test.ts`, `revenue.integration.test.ts`, `routing.integration.test.ts`, `sales-intake.test.ts`, `sales.test.ts`, `server-routes-payments.test.ts`, `time.test.ts`, `workspace-ports.test.ts`
 
 ## support
 
@@ -217,4 +217,4 @@ Identity: учётные записи, вход, пароли, второй фа
 - Фасад: `WorkspaceModule` → `container().workspace`
 - Публичное: `fields`, `templates`, `personalTemplates`, `inbox`, `pinnedChats`, `financeResolutions`, `expenses`, `settings`, `notifier`, `live`, `fieldsReader`, `schedule`
 - Таблицы: `crm_notifications`, `crm_templates`, `crm_fields`, `crm_mobile_devices`, `crm_ios_devices`, `crm_pinned_chats`, `crm_push_subscriptions`, `crm_settings`, `finance_issue_resolutions`, `finance_expenses`
-- Тесты (31): `ai-stages.test.ts`, `api-v1-crm-bot-kp-security.test.ts`, `api-v1-crm-finance.test.ts`, `api-v1-crm.test.ts`, `apns.test.ts`, `auto-shift.test.ts`, `chat-mark-read.test.ts`, `client-ai-limits.test.ts`, `client-push-events.test.ts`, `deal-lifecycle.test.ts`, `deal-merge.test.ts`, `design-ai-stats.integration.test.ts`, `discount-limit.test.ts`, `fcm.test.ts`, `invoice-crm-actions.test.ts`, `ios-app.test.ts`, `ios-sign.test.ts`, `kaspi-shared-session.test.ts`, `lead-grab.test.ts`, `marketing-whatsapp.test.ts`, `notify-prefs.test.ts`, `notify-thread.test.ts`, `notify.integration.test.ts`, `payments-settings.integration.test.ts`, `photo-limit.test.ts`, `sales-guards.test.ts`, `scheduler.test.ts`, `seller-details.test.ts`, `settings-actions.test.ts`, `stage-order.test.ts`, `workspace.test.ts`
+- Тесты (31): `ai-stages.test.ts`, `apns.test.ts`, `auto-shift.test.ts`, `backend/api-v1-crm-bot-kp-security.test.ts`, `backend/api-v1-crm-finance.test.ts`, `backend/api-v1-crm.test.ts`, `chat-mark-read.test.ts`, `client-ai-limits.test.ts`, `client-push-events.test.ts`, `deal-lifecycle.test.ts`, `deal-merge.test.ts`, `design-ai-stats.integration.test.ts`, `discount-limit.test.ts`, `fcm.test.ts`, `invoice-crm-actions.test.ts`, `ios-app.test.ts`, `ios-sign.test.ts`, `kaspi-shared-session.test.ts`, `lead-grab.test.ts`, `marketing-whatsapp.test.ts`, `notify-prefs.test.ts`, `notify-thread.test.ts`, `notify.integration.test.ts`, `payments-settings.integration.test.ts`, `photo-limit.test.ts`, `sales-guards.test.ts`, `scheduler.test.ts`, `seller-details.test.ts`, `settings-actions.test.ts`, `stage-order.test.ts`, `workspace.test.ts`

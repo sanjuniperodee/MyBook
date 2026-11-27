@@ -247,7 +247,7 @@ export interface CrmOpsPorts {
 
 export const CRM_OPS_PORTS = Symbol("CrmOpsPorts");
 
-/** Отказ действия CRM — 400 с кодом `refused` и текстом для сотрудника (паритет с apps/api/src/routes/crm/common.ts). */
+/** Отказ действия CRM — 400 с кодом `refused` и текстом для сотрудника. */
 export const refused = (message: string): Response =>
   Response.json({ error: message, code: "refused" }, { status: 400, headers: { "cache-control": "no-store" } });
 

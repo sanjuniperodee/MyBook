@@ -7,7 +7,7 @@ import { GALLERY_KEY } from "@/lib/book/toc";
 /**
  * Чистая модель мест фото и фильтров вкладки «Фото» без React/Next: переиспользуется в UI веба
  * (`src/components/editor/photos/model.ts`, `src/app/(app)/books/[id]/photos/photos-tab.ts`) и в обоих
- * HTTP-процессах API v1 (`apps/api`, `apps/backend`).
+ * HTTP-процессах API v1 (`apps/backend`).
  */
 
 /** Фото книги в листах: размеры и поля места — строка photos или фото редактора. Порядок списка — порядок вкладки «Фото». */

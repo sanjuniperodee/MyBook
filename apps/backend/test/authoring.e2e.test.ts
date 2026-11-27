@@ -687,6 +687,23 @@ describe("контекст Authoring (часть 1 — 37 маршрутов)", 
       expect(notMp.json().code).toBe("badRequest");
     });
 
+    it("POST /photos: файлы поля files доходят до сервиса, пустые отброшены (перенесено из tests/api-v1.test.ts)", async () => {
+      photosSvc.upload.mockClear();
+      photosSvc.upload.mockResolvedValueOnce({ created: [], failed: [], damaged: [] });
+      const boundary = "----mb-authoring-two";
+      const part = (name: string, data: string) => `--${boundary}\r\nContent-Disposition: form-data; name="files"; filename="${name}"\r\nContent-Type: image/jpeg\r\n\r\n${data}\r\n`;
+      const payload = Buffer.from(`${part("a.jpg", "JPG")}${part("empty.jpg", "")}--${boundary}--\r\n`, "utf8");
+      const res = await call({
+        method: "POST",
+        url: `/api/v1/books/${BOOK_DRAFT_ID}/photos`,
+        headers: { ...asOwner, origin: ORIGIN, "content-type": `multipart/form-data; boundary=${boundary}` },
+        payload,
+      });
+      expect(res.statusCode).toBe(200);
+      const files = photosSvc.upload.mock.calls[0][2] as { name: string }[];
+      expect(files.map((f) => f.name)).toEqual(["a.jpg"]);
+    });
+
     it("PATCH и DELETE /photos/:photoId: правка, удаление, 404 и 405", async () => {
       const upd = await call({
         method: "PATCH",

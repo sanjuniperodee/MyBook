@@ -44,7 +44,7 @@ const canOpenTicket = (staff: StaffMember, ticket: { createdBy: string | null })
 /**
  * «Книги» (2 маршрута) и «Обращения поддержки» (4 маршрута) в API v1 CRM.
  * Права: для книг — `clients.view` / `clients.edit`; для обращений — руководитель (`settings.manage`) видит и ведёт все,
- * остальные сотрудники — только свои (проверка видимости до обновления и уведомления — паритет с apps/api).
+ * остальные сотрудники — только свои (проверка видимости до обновления и уведомления).
  */
 @Controller()
 export class CrmSupportBooksController {
