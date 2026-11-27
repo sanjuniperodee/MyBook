@@ -27,6 +27,7 @@ import {
   type AnswerFilesPorts,
   type PagesPorts,
 } from "../src/modules/authoring-studio/authoring-studio.tokens";
+import { AUTHORING_SITE_PORTS, type AuthoringSitePorts } from "../src/modules/authoring-site/authoring-site.tokens";
 import { FEEDBACK_PORTS } from "../src/modules/feedback/feedback.tokens";
 import {
   CABINET_BOOK_PORTS,
@@ -162,10 +163,13 @@ const defaultPublicPorts: PublicPorts = {
 const defaultAuthoringStub = {
   books: {},
   questions: {},
+  outline: {},
   photos: {},
   letters: {},
   photoRepository: {},
   photoFile: async () => Buffer.alloc(0),
+  photoViewFile: async () => Buffer.alloc(0),
+  photoStream: async () => null,
   queries: {
     book: async () => null,
     visibleBook: async () => null,
@@ -179,7 +183,68 @@ const defaultAuthoringStub = {
     stats: async () => ({ answered: 0, total: 0, words: 0, photos: 0, estimatedPages: 32, printedPages: 32, emptyChapters: 0 }),
     bundle: async () => null,
     photoFor: async () => null,
+    photoBookId: async () => null,
   },
+};
+
+const defaultAuthoringSitePorts: AuthoringSitePorts = {
+  bookFileQuota: async () => ({ minutes: 30, usedSec: 0, leftSec: 1800, files: 0, maxFiles: 40 }),
+  listBookFiles: async () => [],
+  findBookFile: async () => null,
+  findAnswerFileByToken: async () => null,
+  fileView: (f) => ({
+    id: f.id,
+    token: f.token,
+    url: `http://localhost:3000/v/${f.token}`,
+    kind: f.kind,
+    status: f.status as "ready",
+    name: f.name,
+    durationSec: f.durationSec,
+    sourceBytes: f.sourceBytes,
+    receivedBytes: f.receivedBytes,
+    error: null,
+    poster: f.hasPoster ? `/api/v/${f.token}?poster=1` : null,
+  }),
+  mediaPackOffers: async () => [],
+  startUpload: async () => {
+    throw new Error("AUTHORING_SITE_PORTS.startUpload не подменён в тесте");
+  },
+  appendChunk: async () => 0,
+  finishUpload: async (f) => f,
+  removeFile: async () => {},
+  kickAnswerFiles: () => {},
+  createMediaPurchase: async () => {
+    throw new Error("AUTHORING_SITE_PORTS.createMediaPurchase не подменён в тесте");
+  },
+  serveAnswerPoster: async () => null,
+  serveAnswerMedia: async () => null,
+  ensureCatalog: async () => {},
+  kaspiAvailable: async () => false,
+  kaspiPaymentProps: async () => null,
+  createDesignAiPurchase: async () => {
+    throw new Error("AUTHORING_SITE_PORTS.createDesignAiPurchase не подменён в тесте");
+  },
+  manuscript: async () => null,
+  previewPdf: async () => null,
+  pageImage: async () => null,
+  pagesSpreadImage: async () => null,
+  coverImage: async () => null,
+  coverTemplateThumb: async () => null,
+  helpThread: async () => ({ enabled: false, whatsapp: "", messages: [], hints: [] }),
+  helpAsk: async () => ({ outcome: "answered", handoff: false, suggestions: [], messages: [] }),
+  designAiInfo: async () => ({ allowance: { limit: 5, used: 0, remaining: 5, credits: 0, total: 5 }, packs: [], theme: "love", hasPhotos: false }),
+  runDesignAi: async () => ({ mode: "edit", reply: "", patch: {} }),
+  hitClientAi: async () => "ok",
+  proofreadConfigured: async () => false,
+  proofreadCheck: async () => [],
+  writerConfigured: async () => false,
+  writerRewrite: async () => "",
+  misspelled: async () => ({}),
+  servePhotoFile: async () => null,
+  coverArt: async () => null,
+  coverPhotoResized: async () => Buffer.alloc(0),
+  readFontFile: async () => null,
+  fetchYoutubeTitle: async () => ({ ok: true, title: null }),
 };
 
 /** Лимитер в памяти: сколько раз звали с каким ключом; `deny` — следующий вызов вернёт «лимит исчерпан». */
@@ -277,6 +342,7 @@ export async function bootTestApp(opts: { users: CurrentUser[]; overrides?: [tok
     .overrideProvider(AUTHORING_ASSISTANT).useValue({ dictate: async () => ({ text: "", by: "stub" }), proofreadConfigured: async () => false, writerConfigured: async () => false })
     .overrideProvider(AUTHORING_PHOTO_LIMIT).useValue({ maxPhotos: async () => 100 })
     .overrideProvider(AUTHORING_PHOTO_RENDERER).useValue({ probeOriginal: async () => ({ width: 1000, height: 800, suggestedLevels: { black: 0, white: 1, gamma: 1 } }), renderEdit: async () => Buffer.alloc(0) })
+    .overrideProvider(AUTHORING_SITE_PORTS).useValue(defaultAuthoringSitePorts)
     .overrideProvider(SESSION_USERS).useValue(sessions)
     .overrideProvider(STAFF_ACCESS).useValue(defaultStaffAccess);
   if (opts.env) builder = builder.overrideProvider(APP_CONFIG).useValue(loadConfig(opts.env));

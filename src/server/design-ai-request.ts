@@ -1,5 +1,4 @@
 import "server-only";
-import { z } from "zod";
 import { HttpError } from "@/server/api";
 import { rateLimit } from "@/server/rateLimit";
 import { container } from "@/server/container";
@@ -18,12 +17,14 @@ import {
   describeCover,
   describePages,
   describeTemplate,
+  designAiBody,
   designPlan,
   runDesignAi,
   runDesignReview,
   runDesignVariants,
   type Ask,
   type CoverState,
+  type DesignAiBody,
   type DesignAiInput,
   type DesignBookContext,
   type DesignTarget,
@@ -48,41 +49,7 @@ import type { BookRow } from "@/modules/authoring";
  * ИИ-дизайнер обложки и страниц — общий для сайта (/api/books/{id}/design-ai) и API v1 (pagesAi): лимит и пакеты,
  * подсказки под книгу, просьба (правка, с нуля, три варианта, оценка) и ответ с готовым оформлением.
  */
-
-const common = {
-  mode: z.enum(["edit", "create", "variants", "review"]).default("edit"),
-  prompt: z.string().trim().max(500),
-  history: z
-    .array(
-      z.object({ prompt: z.string().max(500), reply: z.string().max(600) }),
-    )
-    .max(4)
-    .default([]),
-};
-export const designAiBody = z.discriminatedUnion("target", [
-  z.object({
-    target: z.literal("pages"),
-    ...common,
-    state: z.object({
-      interior: z.string().max(40),
-      style: z.record(z.string(), z.unknown()),
-    }),
-    chapters: z
-      .array(z.object({ key: z.string().max(90), title: z.string().max(120) }))
-      .max(60)
-      .default([]),
-  }),
-  z.object({
-    target: z.literal("cover"),
-    ...common,
-    state: z.object({
-      template: z.string().max(40),
-      design: z.record(z.string(), z.unknown()),
-    }),
-  }),
-]);
-
-export type DesignAiBody = z.infer<typeof designAiBody>;
+export { designAiBody, type DesignAiBody };
 
 /** Остаток лимита ИИ-дизайнера, пакеты запросов и подсказки под книгу — редактор показывает их до первой просьбы. */
 export async function designAiInfo(userId: string, book: BookRow) {

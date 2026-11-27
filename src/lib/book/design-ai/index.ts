@@ -11,3 +11,4 @@ export * from "./quota";
 export { polishDesigns, polishPrompt, polishSchema, type PreviewImage } from "./polish";
 export { COVER_EXAMPLES, coverExamplesText } from "./examples";
 export * from "./settings";
+export { designAiBody, type DesignAiBody } from "./schema";

@@ -1,9 +1,11 @@
 import { Global, Module } from "@nestjs/common";
 import { container, type Container } from "@/server/container";
 import { CLOCK, RATE_LIMITER, UNIT_OF_WORK } from "../core/kernel/tokens";
+import { AUTHORING_SITE_PORTS } from "../modules/authoring-site/authoring-site.tokens";
 import { FEEDBACK_PORTS } from "../modules/feedback/feedback.tokens";
 import { PUBLIC_PORTS } from "../modules/public/public.tokens";
 import { legacyAuthoringExports, legacyAuthoringProviders } from "./authoring.ports";
+import { legacyAuthoringSitePorts } from "./authoring-site.ports";
 import { LEGACY_AUTHORING_STUDIO_TOKENS, legacyAuthoringStudioPorts } from "./authoring-studio.ports";
 import { legacyFeedbackPorts } from "./feedback.ports";
 import { LEGACY_IDENTITY_TOKENS, legacyIdentityPorts } from "./identity.ports";
@@ -28,6 +30,7 @@ import { legacyPublicPorts } from "./public.ports";
     ...legacyIdentityPorts,
     legacyPublicPorts,
     ...legacyAuthoringProviders,
+    legacyAuthoringSitePorts,
   ],
   exports: [
     LEGACY_CONTAINER,
@@ -39,6 +42,7 @@ import { legacyPublicPorts } from "./public.ports";
     PUBLIC_PORTS,
     ...legacyAuthoringExports,
     ...LEGACY_AUTHORING_STUDIO_TOKENS,
+    AUTHORING_SITE_PORTS,
   ],
 })
 export class LegacyModule {}
