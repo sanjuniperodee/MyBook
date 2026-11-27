@@ -11,7 +11,7 @@ import type { NestFastifyApplication } from "@nestjs/platform-fastify";
 import { AppModule } from "./app.module";
 import { configureApp, createAdapter } from "./bootstrap";
 import { APP_CONFIG, type AppConfig } from "./core/config/app-config";
-import { becomeApiProcess } from "./legacy/api-process";
+import { becomeApiProcess, startApiCatalogSync } from "./legacy/api-process";
 
 becomeApiProcess();
 if (process.env.SKIP_AUTO_MIGRATE !== "1") {
@@ -22,9 +22,7 @@ if (process.env.SKIP_AUTO_MIGRATE !== "1") {
 
 // Цены, тарифы, флаги сайта и реквизиты из настроек CRM («Цены и тарифы»): сразу до приёма запросов и затем раз в 10 с.
 // Без этого процесс живёт на заводских ценах из src/config/site.ts (счёт в CRM показывал 30 000 ₸ вместо 39 000 ₸).
-const { ensureCatalog, startCatalogSync } = await import("@/server/catalog");
-await ensureCatalog();
-startCatalogSync();
+await startApiCatalogSync();
 
 // Журнал PM2 — без цветовых кодов; в терминале разработчика — с ними.
 const logger = new ConsoleLogger({ colors: !!process.stdout.isTTY, logLevels: ["error", "warn", "log"] });

@@ -8,3 +8,13 @@ import { markApiProcess } from "@/server/v1-web-client";
 export function becomeApiProcess(): void {
   markApiProcess();
 }
+
+/**
+ * Каталог из настроек CRM («Цены и тарифы», флаги сайта, реквизиты) в процессе API: сразу до приёма запросов и затем
+ * раз в 10 с, как в воркере (src/worker/run.ts). Без этого API считает по заводским ценам src/config/site.ts.
+ */
+export async function startApiCatalogSync(): Promise<void> {
+  const { ensureCatalog, startCatalogSync } = await import("@/server/catalog");
+  await ensureCatalog();
+  startCatalogSync();
+}
