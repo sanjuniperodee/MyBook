@@ -13,19 +13,23 @@ declare global {
 /** Цели в счётчиках. Названия одинаковые для Метрики, GA4 и Meta Pixel (как custom event). */
 const pixelStandard: Record<string, string> = { sign_up: "CompleteRegistration", begin_checkout: "InitiateCheckout", purchase: "Purchase", gift_purchase: "Purchase", contact: "Contact", lead: "Lead" };
 
-/**
- * eventId — id события для Meta Pixel (eventID): тот же id потом отправит Conversions API с сервера, и Meta не
- * посчитает событие дважды. На лендинге /skidka это код перехода.
- */
-export function track(name: string, value?: number, props?: Record<string, string>, eventId?: string) {
+/** Дополнительно для Meta Pixel: id события и параметры стандартного события (content_name…). */
+export interface PixelOptions {
+  /** eventID: тот же id потом отправит Conversions API с сервера, и Meta не посчитает событие дважды. */
+  eventId?: string;
+  /** Параметры стандартного события (Lead, Contact…): props в него не идут — они для отчётов Метрики и GA. */
+  params?: Record<string, string>;
+}
+
+export function track(name: string, value?: number, props?: Record<string, string>, pixel: PixelOptions = {}) {
   try {
     const currency = "KZT";
     if (window.ym && window.__mbYm) window.ym(window.__mbYm, "reachGoal", name, value || props ? { ...(value ? { order_price: value, currency } : {}), ...props } : undefined);
     window.gtag?.("event", name, { ...(value ? { value, currency } : {}), ...props });
     if (window.fbq) {
       const std = pixelStandard[name];
-      const opts = eventId ? [{ eventID: eventId }] : [];
-      if (std) window.fbq("track", std, value ? { value, currency } : {}, ...opts);
+      const opts = pixel.eventId ? [{ eventID: pixel.eventId }] : [];
+      if (std) window.fbq("track", std, { ...(value ? { value, currency } : {}), ...pixel.params }, ...opts);
       else window.fbq("trackCustom", name, props ?? {}, ...opts);
     }
   } catch {}

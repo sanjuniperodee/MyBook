@@ -15,7 +15,7 @@ export const AD_CREATIVES: Readonly<Record<string, string>> = {
 export const AD_DEFAULT_TEXT = "Здравствуйте! Хочу книгу";
 /* ──────────────────────────────────────────────────────────────────────────────────────────────────────────────── */
 
-/** Первое сообщение в WhatsApp по слову креатива (?c=). К нему страница дописывает код перехода для CRM. */
+/** Первое сообщение в WhatsApp по слову креатива (?c=) — ровно эта фраза, без приписок. */
 export function adCreativeText(c: string | null | undefined): string {
   const key = (c ?? "").trim().toLowerCase();
   return key && Object.prototype.hasOwnProperty.call(AD_CREATIVES, key) ? AD_CREATIVES[key] : AD_DEFAULT_TEXT;
@@ -23,7 +23,7 @@ export function adCreativeText(c: string | null | undefined): string {
 
 /**
  * Лендинг под рекламу в Instagram (/skidka): одно действие — написать в WhatsApp. Текст первого сообщения — по
- * креативу (AD_CREATIVES), к нему дописывается код перехода: по нему CRM видит, с какой рекламы заявка.
+ * креативу (AD_CREATIVES); с какой рекламы заявка, CRM находит по времени нажатия кнопки (landing_visits).
  */
 export interface AdSkidkaCopy {
   metaTitle: string;

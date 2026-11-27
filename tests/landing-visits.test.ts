@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { LandingService, type LandingVisitInput, type LandingVisitRepository } from "@/modules/marketing/application";
 import { linkCodeFromText, nearestFreeClick, visitAttribution, visitNote, whatsappLink, type LandingVisit } from "@/modules/marketing/domain";
 import { channelOf, toAttribution } from "@/shared/domain/channels";
-import { isLandingCode, landingDevice, landingUrlFields, newLandingCode } from "@/shared/domain/landing";
+import { isLandingCode, landingDevice, landingLeadParams, landingUrlFields, landingWhatsappUrl, newLandingCode } from "@/shared/domain/landing";
+import { track } from "@/lib/analytics-client";
 import { AD_CREATIVES, AD_DEFAULT_TEXT, adCreativeText } from "@/lib/content/ad-skidka";
 import { inbound, setup, start } from "./doubles/botHarness";
 
@@ -96,6 +97,31 @@ describe("код перехода и разбор адреса лендинга"
       const code = newLandingCode();
       expect(linkCodeFromText(new URL(whatsappLink("77775932124", text, code)).searchParams.get("text")!)).toBe(code);
     }
+  });
+
+  it("ссылка WhatsApp лендинга — только фраза, без кода перехода", () => {
+    const url = new URL(landingWhatsappUrl("77775932124", AD_CREATIVES.nurtik));
+    expect(url.origin + url.pathname).toBe("https://wa.me/77775932124");
+    expect(url.searchParams.get("text")).toBe("Здравствуйте! Хочу книгу в подарок. Подскажите, как заказать?");
+    expect(url.search).not.toMatch(/%D0%BA%D0%BE%D0%B4|lp[a-z2-9]{6}/);
+  });
+
+  it("Lead в Meta Pixel: content_name — креатив из ?c=, без него — «site»", () => {
+    expect(landingLeadParams(new URLSearchParams("c=NurTik"))).toEqual({ content_name: "nurtik" });
+    expect(landingLeadParams(new URLSearchParams("utm_source=ig"))).toEqual({ content_name: "site" });
+    expect(landingLeadParams(new URLSearchParams("c=%20"))).toEqual({ content_name: "site" });
+    const calls: unknown[][] = [];
+    (globalThis as { window?: unknown }).window = { fbq: (...a: unknown[]) => calls.push(a) };
+    try {
+      track("lead", undefined, { place: "hero" }, { eventId: "lpk7x2m9", params: { content_name: "nurtik" } });
+      track("lead");
+    } finally {
+      delete (globalThis as { window?: unknown }).window;
+    }
+    expect(calls).toEqual([
+      ["track", "Lead", { content_name: "nurtik" }, { eventID: "lpk7x2m9" }],
+      ["track", "Lead", {}],
+    ]);
   });
 
   it("устройство и встроенный браузер — по User-Agent", () => {

@@ -8,7 +8,11 @@ export const AD_LANDINGS = ["skidka"] as const;
 export type AdLanding = (typeof AD_LANDINGS)[number];
 export const isAdLanding = (v: unknown): v is AdLanding => typeof v === "string" && (AD_LANDINGS as readonly string[]).includes(v);
 
-/** Код перехода: «lp» и 6 знаков без похожих (0/o, 1/l). Проходит linkCodeFromText: «… (код: lpk7x2m9)». */
+/**
+ * Код перехода: «lp» и 6 знаков без похожих (0/o, 1/l). В сообщение лендинга /skidka он не дописывается (клиент не
+ * должен видеть кода) — это id перехода и eventID в Meta Pixel; если код всё же есть в сообщении («… (код: lp…)»),
+ * CRM привяжет диалог по нему.
+ */
 export const LANDING_CODE_RE = /^lp[a-hj-km-np-z2-9]{6}$/;
 const CODE_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789";
 export const isLandingCode = (v: unknown): v is string => typeof v === "string" && LANDING_CODE_RE.test(v);
@@ -45,6 +49,18 @@ export const LANDING_FIELD_MAX = 300;
 /** Параметр адреса с креативом рекламы (?c=nurtik): от него зависит первое сообщение в WhatsApp. */
 export const LANDING_CREATIVE_PARAM = "c";
 
+/** Креатив из адреса (?c=) — без пробелов и в нижнем регистре; нет — пусто. */
+export const landingCreative = (search: URLSearchParams) => (search.get(LANDING_CREATIVE_PARAM) ?? "").trim().toLowerCase().slice(0, LANDING_FIELD_MAX);
+
+/** Параметры Lead в Meta Pixel: content_name — креатив из ?c=, без него — «site». */
+export const landingLeadParams = (search: URLSearchParams) => ({ content_name: landingCreative(search) || "site" });
+
+/**
+ * Ссылка кнопки WhatsApp лендинга: только фраза, без кода перехода — клиент не должен видеть служебного. Источник
+ * заявки CRM находит по времени нажатия (landing_visits).
+ */
+export const landingWhatsappUrl = (number: string, text: string) => `https://wa.me/${number}?text=${encodeURIComponent(text)}`;
+
 /**
  * Поля перехода из адреса страницы; пустые и незаполненные шаблоны Meta («{{ad.id}}») отбрасываются. Креатив (?c=)
  * без utm_campaign становится кампанией: так CRM видит, с какого креатива заявка.
@@ -55,8 +71,8 @@ export function landingUrlFields(search: URLSearchParams): LandingUrlFields {
     const v = search.get(param)?.trim();
     if (v && !/^\{\{.*\}\}$/.test(v)) out[field] = v.slice(0, LANDING_FIELD_MAX);
   }
-  const creative = search.get(LANDING_CREATIVE_PARAM)?.trim().toLowerCase();
-  if (creative && !out.utmCampaign) out.utmCampaign = creative.slice(0, LANDING_FIELD_MAX);
+  const creative = landingCreative(search);
+  if (creative && !out.utmCampaign) out.utmCampaign = creative;
   return out;
 }
 
