@@ -7,6 +7,7 @@ import { messagesFor } from "@/i18n/messages";
 import { DomainError } from "@/shared/domain";
 import { requestLocale } from "../http/request";
 import { SITE_ROUTE_REGISTRY, type SiteRouteRegistry } from "../http/site-route";
+import { SiteMethodNotAllowed } from "../http/site-method-not-allowed";
 import { ApiError } from "./api-error";
 
 interface Failure {
@@ -54,6 +55,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
     const reply = http.getResponse<FastifyReply>();
     // Адреса нет среди маршрутов процесса — как у mybook-api: путь контракта или @SiteRoute с другим методом — 405 с Allow,
     // неизвестный путь — 404 с тем же телом (код notFound; текст не переводится — так отвечал и прежний API).
+    if (err instanceof SiteMethodNotAllowed) return void reply.status(405).header("allow", err.allow.join(", ")).send();
     if (err instanceof HttpException && err.getStatus() === 404) {
       const pathname = req.url.split("?")[0];
       const found = contract.match(req.method, pathname);

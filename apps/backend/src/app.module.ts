@@ -13,6 +13,7 @@ import { CrmSiteModule } from "./modules/crm-site/crm-site.module";
 import { FeedbackApiModule } from "./modules/feedback/feedback.module";
 import { IdentityApiModule } from "./modules/identity/identity.module";
 import { OrdersApiModule } from "./modules/orders/orders.module";
+import { SiteOpsModule } from "./modules/site-ops/site-ops.module";
 import { PublicApiModule } from "./modules/public/public.module";
 
 /** Корень бэкенда: ядро, переходный слой и контексты — по одному, по мере переезда (ADR 0014). */
@@ -33,6 +34,7 @@ import { PublicApiModule } from "./modules/public/public.module";
     CrmOpsApiModule,
     CrmSiteModule,
     OrdersApiModule,
+    SiteOpsModule,
   ],
 })
 export class AppModule {}

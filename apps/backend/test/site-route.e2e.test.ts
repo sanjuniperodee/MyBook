@@ -20,7 +20,7 @@ const sign = (raw: Buffer) => createHmac("sha256", HMAC_SECRET).update(raw).dige
 
 @Controller()
 class TestSiteController {
-  @SiteRoute("POST", "/api/payments/kaspi/webhook", { auth: "none" })
+  @SiteRoute("POST", "/api/site-test/kaspi/webhook", { auth: "none" })
   kaspiWebhook(@RawBody() raw: Buffer, @Headers("x-signature") sig: string | undefined, @Body() parsed: unknown) {
     return {
       raw: raw.toString("utf8"),
@@ -29,7 +29,7 @@ class TestSiteController {
     };
   }
 
-  @SiteRoute("POST", "/api/payments/cloudpayments/pay", { auth: "none" })
+  @SiteRoute("POST", "/api/site-test/cloudpayments/pay", { auth: "none" })
   cpForm(@RawBody() raw: Buffer, @Body() parsed: Record<string, string>) {
     return { raw: raw.toString("utf8"), parsed };
   }
@@ -39,7 +39,7 @@ class TestSiteController {
     return { tail: tail ?? "", role: staff.roleKey };
   }
 
-  @SiteRoute("GET", "/api/orders/{id}/file", { auth: "user" })
+  @SiteRoute("GET", "/api/site-test/orders/{id}/file", { auth: "user" })
   orderFile(@Param("id") id: string, @Headers("range") range: string | undefined) {
     const data = new TextEncoder().encode(`pdf-${id}`);
     if (range === "bytes=0-2") {
@@ -157,7 +157,7 @@ describe("@SiteRoute и rawBody (NestJS ↔ сайт)", () => {
     const exactJson = '{  "txn":   "123", "amount": 500 }';
     const sig = sign(Buffer.from(exactJson, "utf8"));
 
-    for (const url of ["/api/payments/kaspi/webhook", "/api/v1/site/payments/kaspi/webhook"]) {
+    for (const url of ["/api/site-test/kaspi/webhook", "/api/v1/site/site-test/kaspi/webhook"]) {
       const res = await nest.inject({
         method: "POST",
         url,
@@ -171,7 +171,7 @@ describe("@SiteRoute и rawBody (NestJS ↔ сайт)", () => {
     const badJson = "{not-valid-json";
     const badSite = await nest.inject({
       method: "POST",
-      url: "/api/payments/kaspi/webhook",
+      url: "/api/site-test/kaspi/webhook",
       headers: { "content-type": "application/json", "x-signature": sign(Buffer.from(badJson, "utf8")) },
       payload: badJson,
     });
@@ -189,7 +189,7 @@ describe("@SiteRoute и rawBody (NestJS ↔ сайт)", () => {
     const formBody = "TransactionId=99&Amount=1500.00&Status=Completed";
     const formRes = await nest.inject({
       method: "POST",
-      url: "/api/payments/cloudpayments/pay",
+      url: "/api/site-test/cloudpayments/pay",
       headers: { "content-type": "application/x-www-form-urlencoded" },
       payload: formBody,
     });
@@ -205,7 +205,7 @@ describe("@SiteRoute и rawBody (NestJS ↔ сайт)", () => {
     const nest = await boot([user], [[ORDERS_API_PORTS, { run: async (meta: OrdersCallMeta) => Response.json({ seenToken: meta.token !== null }, { status: 202, headers: { "cache-control": "no-store" } }) }]]);
     const auth = { authorization: `Bearer ${sessionOf(user)}` };
 
-    const range = await nest.inject({ method: "GET", url: "/api/orders/ord-9/file", headers: { ...auth, range: "bytes=0-2" } });
+    const range = await nest.inject({ method: "GET", url: "/api/site-test/orders/ord-9/file", headers: { ...auth, range: "bytes=0-2" } });
     expect(range.statusCode).toBe(206);
     expect(range.headers["content-range"]).toBe("bytes 0-2/9");
     expect(range.headers.etag).toBe('"file-v1"');
@@ -246,7 +246,7 @@ describe("@SiteRoute и rawBody (NestJS ↔ сайт)", () => {
   it("отдаёт 405 с Allow для маршрутов сайта и переводит HttpError / NEXT_NOT_FOUND в формат сайта", async () => {
     const nest = await boot();
 
-    for (const url of ["/api/payments/kaspi/webhook", "/api/v1/site/payments/kaspi/webhook"]) {
+    for (const url of ["/api/site-test/kaspi/webhook", "/api/v1/site/site-test/kaspi/webhook"]) {
       const res = await nest.inject({ method: "GET", url });
       expect(res.statusCode).toBe(405);
       expect(res.headers.allow).toBe("POST");
@@ -258,8 +258,8 @@ describe("@SiteRoute и rawBody (NestJS ↔ сайт)", () => {
 
     const routesList = await nest.inject({ method: "GET", url: "/api/v1/__nest/routes" });
     expect(routesList.statusCode).toBe(200);
-    expect(routesList.json().routes).toContainEqual({ method: "POST", path: "/api/payments/kaspi/webhook" });
-    expect(routesList.json().routes).toContainEqual({ method: "POST", path: "/api/v1/site/payments/kaspi/webhook" });
+    expect(routesList.json().routes).toContainEqual({ method: "POST", path: "/api/site-test/kaspi/webhook" });
+    expect(routesList.json().routes).toContainEqual({ method: "POST", path: "/api/v1/site/site-test/kaspi/webhook" });
 
     const httpErr = await nest.inject({ method: "GET", url: "/api/legacy/http-err" });
     expect(httpErr.statusCode).toBe(404);

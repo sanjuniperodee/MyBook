@@ -85,21 +85,55 @@ function compileSitePattern(pattern: string): RegExp {
   return new RegExp(`^${escaped}$`);
 }
 
+/**
+ * Насколько шаблон точен для сопоставления, как у Next.js и реестра сайта mybook-api: по сегментам слева направо
+ * статический сегмент важнее `{param}`, а тот — важнее хвоста `{path*}`. Больше — точнее.
+ */
+function specificity(pattern: string): number[] {
+  return pattern
+    .split("/")
+    .filter(Boolean)
+    .map((seg) => (/^\{\w+\*\}$/.test(seg) ? 0 : /^\{\w+\}$/.test(seg) ? 1 : 2));
+}
+
+function moreSpecific(a: string, b: string): boolean {
+  const x = specificity(a);
+  const y = specificity(b);
+  for (let i = 0; i < Math.max(x.length, y.length); i++) {
+    const d = (x[i] ?? -1) - (y[i] ?? -1);
+    if (d !== 0) return d > 0;
+  }
+  return false;
+}
+
 /** Реестр маршрутов сайта текущего процесса Nest — для точного 405 Method Not Allowed с заголовком Allow. */
 export class SiteRouteRegistry {
-  private readonly entries: Array<{ method: SiteMethod; regex: RegExp }> = [];
+  private readonly entries: Array<{ method: SiteMethod; path: string; regex: RegExp }> = [];
 
   add(method: SiteMethod, canonicalPath: string) {
-    this.entries.push({ method, regex: compileSitePattern(canonicalPath) });
+    this.entries.push({ method, path: canonicalPath, regex: compileSitePattern(canonicalPath) });
+  }
+
+  /**
+   * Самый точный шаблон сайта для адреса и его методы. Как в mybook-api и Next.js, выбор шаблона окончателен:
+   * `POST /api/admin/calls/whatsapp/live` — это маршрут `…/live` (только GET), а не `…/{id}`, — 405, а не обработчик звонка.
+   */
+  best(pathname: string): { path: string; methods: SiteMethod[] } | null {
+    const normalized = normalizeSitePath(pathname);
+    let path: string | null = null;
+    for (const e of this.entries) {
+      if (e.regex.test(normalized) && (path === null || moreSpecific(e.path, path))) path = e.path;
+    }
+    if (path === null) return null;
+    return { path, methods: [...new Set(this.entries.filter((e) => e.path === path).map((e) => e.method))] };
   }
 
   /** Возвращает разрешённые методы, если путь совпадает с маршрутом сайта, но не для запрошенного method. */
   allowed(method: string, pathname: string): SiteMethod[] {
-    const normalized = normalizeSitePath(pathname);
-    const matches = this.entries.filter((e) => e.regex.test(normalized));
-    if (matches.length === 0) return [];
+    const found = this.best(pathname);
+    if (!found) return [];
     const upper = method.toUpperCase();
-    if (matches.some((m) => m.method === upper || (upper === "HEAD" && m.method === "GET"))) return [];
-    return [...new Set(matches.map((m) => m.method))];
+    if (found.methods.some((m) => m === upper || (upper === "HEAD" && m === "GET"))) return [];
+    return found.methods;
   }
 }

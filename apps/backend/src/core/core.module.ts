@@ -13,6 +13,7 @@ import { ContractInputGuard } from "./http/contract-input.guard";
 import { ContractResponseInterceptor } from "./http/contract-response.interceptor";
 import { SiteResponseInterceptor } from "./http/site-response.interceptor";
 import { SITE_ROUTE_REGISTRY, siteRouteOf, SiteRouteRegistry } from "./http/site-route";
+import { SiteRouteShadowGuard } from "./http/site-route-shadow.guard";
 
 /** Сквозное: настройки, вход, права сотрудника, контракт, маршруты сайта, формат ошибок, health. Бизнес-логики здесь нет. */
 @Module({
@@ -22,7 +23,9 @@ import { SITE_ROUTE_REGISTRY, siteRouteOf, SiteRouteRegistry } from "./http/site
     { provide: ROUTE_REGISTRY, useFactory: () => new RouteRegistry() },
     { provide: SITE_ROUTE_REGISTRY, useFactory: () => new SiteRouteRegistry() },
     // Порядок глобальных guard-ов — паритет с mybook-api: вход → допуск сотрудника (роль/IP/2FA) →
-    // разбор входа по контракту (400 до проверки прав) → конкретные @Permissions(...) контроллера.
+    // разбор входа по контракту (400 до проверки прав) → конкретные @Permissions(...) контроллера. Первым — выбор
+    // маршрута сайта: адрес более точного шаблона без этого метода — 405, как у mybook-api (SiteRouteShadowGuard).
+    { provide: APP_GUARD, useClass: SiteRouteShadowGuard },
     { provide: APP_GUARD, useClass: SessionGuard },
     { provide: APP_GUARD, useClass: StaffGuard },
     { provide: APP_GUARD, useClass: ContractInputGuard },
