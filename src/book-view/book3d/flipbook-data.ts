@@ -17,8 +17,8 @@ type ContentArgs = Parameters<typeof buildBookContent>;
 
 /**
  * Что 3D-книге нужно, кроме полос, одними сериализуемыми данными (страница-сервер → клиентский компонент):
- * обложка, оборот и формат. В mybook-web тип лежит в components/book3d/pages.tsx рядом с 3D-книгой; здесь — копия
- * для сверки превью с PDF (tests/print-kinds, tests/preview-pdf-parity).
+ * обложка, оборот и формат. Полосы — картинки экранной сборки (тот же PDF, что для типографии), их 3D-книга веба
+ * спрашивает сама; толщина корешка — по числу полос этой сборки.
  */
 export interface FlipbookData {
   cover: Pick<CoverPreviewProps, "template" | "format" | "title" | "subtitle" | "names" | "photos" | "titlePlaceholder" | "photoHint" | "design" | "lines"> & {

@@ -3,7 +3,7 @@
 // Веб (mybook-web) не содержит кода бэкенда, но пользуется общим чистым кодом и контрактом API v1. Пакет повторяет
 // раскладку этого репозитория, чтобы импорты веба (`@/lib/…`, `@/i18n/…`, `@mybook/contracts`) не менялись:
 //   src/**                  — исходники TS общего чистого кода: src/lib, src/i18n, src/config, src/shared без infrastructure,
-//                             domain/ui модулей и всё, до чего они доходят импортами значений (scripts/packages/shared-sources.mjs);
+//                             domain/ui модулей, вид книги src/book-view и всё, до чего они доходят импортами значений (scripts/packages/shared-sources.mjs);
 //   src/** (*.d.ts)         — только объявления типов остального бэкенда: веб импортирует из него лишь типы
 //                             (ответы сборщиков CRM, строки БД), кода бэкенда в пакете нет;
 //   packages/contracts/src  — контракт API v1 (исходники).
@@ -31,7 +31,7 @@ if (violations.length) {
 rmSync(OUT, { recursive: true, force: true });
 mkdirSync(OUT, { recursive: true });
 
-// Объявления типов всего src (кроме вида книги) и контракта.
+// Объявления типов всего src и контракта.
 const dts = path.join(OUT, ".dts");
 const tsconfig = path.join(OUT, "tsconfig.dts.json");
 writeFileSync(
@@ -40,8 +40,7 @@ writeFileSync(
     extends: path.join(ROOT, "tsconfig.json"),
     compilerOptions: { noEmit: false, declaration: true, emitDeclarationOnly: true, outDir: dts, rootDir: ROOT, incremental: false, skipLibCheck: true },
     include: [path.join(ROOT, "src/**/*.ts"), path.join(ROOT, "src/**/*.tsx"), path.join(ROOT, "packages/contracts/src/**/*.ts")],
-    // Вид книги для сверки превью с PDF (src/book-view) — копия компонентов веба, вебу из пакета не нужен.
-    exclude: [path.join(ROOT, "src", "book-view", "**")],
+    exclude: [],
   }),
 );
 execFileSync(process.execPath, [path.join(ROOT, "node_modules/typescript/bin/tsc"), "-p", tsconfig], { stdio: "inherit" });

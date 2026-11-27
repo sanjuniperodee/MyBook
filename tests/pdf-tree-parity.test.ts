@@ -20,7 +20,7 @@ import { photoPlaceOf } from "@/lib/book/photo-place";
 import { fixtureSample, fixtureVariants, type FixtureBook } from "./fixtures/books";
 import { useFixtureStorage } from "./fixtures/photos";
 
-// Разбивка превью на полосы (components/interior/pdf-tree.ts → lib/book/paginate.ts) — без браузера, со строками по
+// Разбивка превью на полосы (book-view/interior/pdf-tree.ts → lib/book/paginate.ts) — без браузера, со строками по
 // fontkit (ширины те же, что у canvas в превью): у каждой главы те же полосы и с тех же полос начинаются ответы, что в
 // печатном PDF. В браузере то же сверяет scripts/visual/parity.ts.
 

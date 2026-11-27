@@ -1,5 +1,6 @@
 // Что входит в пакет @sanjuniperodee/mybook-shared исходниками (ADR 0013): общий чистый код бэкенда — src/lib, src/i18n,
-// src/config, src/shared без infrastructure и слои domain/ui модулей, — и всё, до чего они доходят импортами значений.
+// src/config, src/shared без infrastructure, слои domain/ui модулей и вид книги src/book-view, — и всё, до чего они
+// доходят импортами значений.
 // С 27.11 копии сайта в этом репозитории нет, поэтому состав пакета задают папки общего кода, а не обход от страниц веба:
 // веб может взять из пакета любой чистый модуль. Тот же обход проверяет tests/web-boundary.test.ts: общий код не доходит
 // до кода бэкенда (src/server, src/worker, apps, src/shared/infrastructure, application/infrastructure модулей).
@@ -23,6 +24,8 @@ export function sharedRoots(root = process.cwd()) {
     ...walk(root, "src/lib"),
     ...walk(root, "src/i18n"),
     ...walk(root, "src/config"),
+    // Вид книги (обложка, развороты, превью глав): один источник для веба и для сверки превью с PDF в тестах.
+    ...walk(root, "src/book-view"),
     ...walk(root, "src/shared").filter((f) => !f.startsWith("src/shared/infrastructure/")),
     ...modules.flatMap((m) => [...walk(root, `src/modules/${m.name}/domain`), ...walk(root, `src/modules/${m.name}/ui`)]),
   ];

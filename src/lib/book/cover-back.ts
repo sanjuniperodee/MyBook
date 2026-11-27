@@ -305,7 +305,7 @@ export function layeredBack(template: CoverTemplate, H: number): BackDesign {
 /**
  * Часть оборота, которая рисуется в растровом фоне развёртки (в PDF): фото «во всю» с затемнением —
  * под загибы сверху, снизу и с внешнего края — и мягкие тени под карточками. В браузере то же
- * рисуют <img>, CSS-градиент и box-shadow (components/cover/CoverBack). back — задняя крышка на развёртке, мм.
+ * рисуют <img>, CSS-градиент и box-shadow (book-view/cover/CoverBack). back — задняя крышка на развёртке, мм.
  */
 export function backArtSvg(design: BackDesign, back: { x: number; y: number; w: number; h: number }, photos: (PhotoRef | undefined)[], uid: string) {
   const r = (v: number) => Math.round(v * 100) / 100;

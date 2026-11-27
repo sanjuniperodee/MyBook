@@ -3,8 +3,9 @@
 > **Этот репозиторий — бэкенд** (API на NestJS `apps/backend`, фон, вёрстка PDF, модули, миграции, выкатка). Сайт, кабинет,
 > редактор и CRM — в [mybook-web](https://github.com/sanjuniperodee/mybook-web) (Next.js, Vercel), приложения — в
 > [mybook-mobile](https://github.com/sanjuniperodee/mybook-mobile) (ADR 0013). Общий чистый код (`src/lib`, `src/i18n`,
-> `src/config`, `src/shared` без `infrastructure`, `domain`/`ui` модулей) и контракт API v1 (`packages/contracts`) веб
-> получает пакетом `@sanjuniperodee/mybook-shared` (`scripts/packages/build-shared.mjs`). Описание возможностей ниже —
+> `src/config`, `src/shared` без `infrastructure`, `domain`/`ui` модулей, вид книги `src/book-view`) и контракт API v1
+> (`packages/contracts`) веб получает пакетом `@sanjuniperodee/mybook-shared` (`scripts/packages/build-shared.mjs`).
+> **Вид книги правится только в бэкенде, в `src/book-view`, затем выпуск shared.** Описание возможностей ниже —
 > про продукт целиком; пути `src/app`, `src/components` в нём — в mybook-web.
 
 Сервис, в котором человек пишет книгу для близкого: отвечает на продуманные вопросы, добавляет фотографии, выбирает обложку — и получает книгу, свёрстанную как настоящее издание. Готовые PDF (блок и развёртка обложки) сразу подходят для типографии.
@@ -251,7 +252,7 @@ src/
   shared/         общее ядро; infrastructure — БД, хранилище, очереди
   lib/, i18n/,    общий чистый код — он же пакет mybook-shared для веба
   config/
-  book-view/      вид книги из веба (обложка, развороты, превью) — только для сверки превью с PDF в тестах
+  book-view/      вид книги (обложка, развороты, превью глав) — один источник для веба (пакет shared) и сверки с PDF
   types/          объявления типов пакетов без своих
 packages/contracts контракт API v1 (OpenAPI, Dart-клиент для mybook-mobile)
 services/files    отдача файлов на Go (mybook-files)

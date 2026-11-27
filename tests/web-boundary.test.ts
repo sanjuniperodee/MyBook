@@ -5,7 +5,8 @@ import { sharedRoots, sharedSources } from "../scripts/packages/shared-sources.m
 
 /**
  * ADR 0013: веб (mybook-web) не содержит кода бэкенда. Общий код он получает пакетом @sanjuniperodee/mybook-shared
- * (scripts/packages/build-shared.mjs): src/lib, src/i18n, src/config, src/shared без infrastructure, domain/ui модулей и
+ * (scripts/packages/build-shared.mjs): src/lib, src/i18n, src/config, src/shared без infrastructure, domain/ui модулей,
+ * вид книги src/book-view и
  * всё, до чего они доходят импортами значений. Здесь — что этот обход не доходит до кода бэкенда (src/server, src/worker,
  * apps, src/shared/infrastructure, application/infrastructure модулей) и не тянет БД. Импорт
  * типов можно: их даёт пакет объявлений.
@@ -23,7 +24,7 @@ describe("общий код для веба (пакет mybook-shared, ADR 0013)
 
   it("включает все корни общего кода и только их окрестность", () => {
     expect(sources).toEqual(expect.arrayContaining(sharedRoots(ROOT)));
-    expect(sources.filter((f) => !/^src\/(lib|i18n|config|shared|modules|types)\//.test(f))).toEqual([]);
+    expect(sources.filter((f) => !/^src\/(lib|i18n|config|shared|modules|types|book-view)\//.test(f))).toEqual([]);
   });
 
   it("не тянет БД и Redis", () => {

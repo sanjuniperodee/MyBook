@@ -5,7 +5,7 @@ import { gradId, type Shape } from "@/lib/book/interior-art";
 /**
  * Градиенты фигур для react-pdf. react-pdf берёт только ПЕРВЫЙ <Defs> среди детей <Svg> — поэтому все градиенты
  * рисунка собираются в один <Defs>, и он ставится первым; фигура ссылается на свой по url(#id). Координаты — доли
- * рамки фигуры (objectBoundingBox), как в HTML (components/interior/graphics.tsx).
+ * рамки фигуры (objectBoundingBox), как в HTML (book-view/interior/graphics.tsx).
  */
 export function gradDefs(shapes: Shape[]): React.ReactElement | null {
   const seen = new Set<string>();

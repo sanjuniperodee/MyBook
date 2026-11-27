@@ -6,10 +6,10 @@
 (там Next.js нестандартной версии: правила — в `mybook-web/AGENTS.md`), приложения — в `mybook-mobile`.
 
 - Общий чистый код для веба — `src/lib`, `src/i18n`, `src/config`, `src/shared` без `infrastructure`, `domain`/`ui`
-  модулей; пакет `mybook-shared` собирает `scripts/packages/build-shared.mjs` (состав — `shared-sources.mjs`), его
+  модулей и вид книги `src/book-view`; пакет `mybook-shared` собирает `scripts/packages/build-shared.mjs` (состав — `shared-sources.mjs`), его
   чистоту проверяет `tests/web-boundary.test.ts`. Новый общий модуль для веба кладётся сюда, не в веб.
-- `src/book-view` — копия вида книги из веба (обложка, развороты, превью) только для тестов сверки превью с PDF;
-  правите вид книги в вебе — повторите правку здесь, иначе сверка проверяет старый вид.
+- **Вид книги правится только здесь, в `src/book-view`** (обложка, развороты, превью глав, данные 3D-книги), затем выпуск
+  shared: веб импортирует его из пакета (`@/book-view/…`), своей копии у веба нет; тесты сверки превью с PDF — по нему же.
 - Тесты экранов — в `mybook-web` (`src/test`, vitest), здесь — домен, общий код, API и PDF.
 
 ## Микросервисный рефакторинг (ветка `refactor/microservices`)
