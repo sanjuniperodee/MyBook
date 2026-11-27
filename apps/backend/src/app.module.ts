@@ -6,6 +6,7 @@ import { AuthoringSiteModule } from "./modules/authoring-site/authoring-site.mod
 import { AuthoringStudioApiModule } from "./modules/authoring-studio/authoring-studio.module";
 import { CrmCoreApiModule } from "./modules/crm-core/crm-core.module";
 import { CrmMobileApiModule } from "./modules/crm-mobile-api/crm-mobile-api.module";
+import { CrmOpsApiModule } from "./modules/crm-ops/crm-ops.module";
 import { FeedbackApiModule } from "./modules/feedback/feedback.module";
 import { IdentityApiModule } from "./modules/identity/identity.module";
 import { PublicApiModule } from "./modules/public/public.module";
@@ -23,6 +24,7 @@ import { PublicApiModule } from "./modules/public/public.module";
     AuthoringSiteModule,
     CrmCoreApiModule,
     CrmMobileApiModule,
+    CrmOpsApiModule,
   ],
 })
 export class AppModule {}

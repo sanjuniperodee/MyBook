@@ -3,6 +3,7 @@ import { container, type Container } from "@/server/container";
 import { CLOCK, RATE_LIMITER, UNIT_OF_WORK } from "../core/kernel/tokens";
 import { AUTHORING_SITE_PORTS } from "../modules/authoring-site/authoring-site.tokens";
 import { CRM_MOBILE_API_PORTS } from "../modules/crm-mobile-api/crm-mobile-api.tokens";
+import { CRM_OPS_PORTS } from "../modules/crm-ops/crm-ops.tokens";
 import { FEEDBACK_PORTS } from "../modules/feedback/feedback.tokens";
 import { PUBLIC_PORTS } from "../modules/public/public.tokens";
 import { legacyAuthoringExports, legacyAuthoringProviders } from "./authoring.ports";
@@ -10,6 +11,7 @@ import { legacyAuthoringSitePorts } from "./authoring-site.ports";
 import { LEGACY_AUTHORING_STUDIO_TOKENS, legacyAuthoringStudioPorts } from "./authoring-studio.ports";
 import { LEGACY_CRM_CORE_TOKENS, legacyCrmCorePorts } from "./crm-core.ports";
 import { legacyCrmMobileApiPorts } from "./crm-mobile-api.ports";
+import { legacyCrmOpsPorts } from "./crm-ops.ports";
 import { legacyFeedbackPorts } from "./feedback.ports";
 import { LEGACY_IDENTITY_TOKENS, legacyIdentityPorts } from "./identity.ports";
 import { LEGACY_CONTAINER } from "./legacy.tokens";
@@ -36,6 +38,7 @@ import { legacyPublicPorts } from "./public.ports";
     legacyPublicPorts,
     ...legacyAuthoringProviders,
     legacyAuthoringSitePorts,
+    legacyCrmOpsPorts,
   ],
   exports: [
     LEGACY_CONTAINER,
@@ -50,6 +53,7 @@ import { legacyPublicPorts } from "./public.ports";
     ...LEGACY_AUTHORING_STUDIO_TOKENS,
     AUTHORING_SITE_PORTS,
     ...LEGACY_CRM_CORE_TOKENS,
+    CRM_OPS_PORTS,
   ],
 })
 export class LegacyModule {}

@@ -1,4 +1,5 @@
 import { Controller, Module } from "@nestjs/common";
+import { Test } from "@nestjs/testing";
 import type { NestFastifyApplication } from "@nestjs/platform-fastify";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { Output, Parsed } from "@mybook/contracts";
@@ -6,11 +7,16 @@ import { StaffResolver } from "@/modules/access/application/services";
 import { Role, type RoleRepository } from "@/modules/access/domain";
 import { isPhoneEmail } from "@/modules/identity";
 import { CLIENT_IP_HEADER, CLIENT_IP_SIG_HEADER, signClientIp } from "@/shared/clientIp";
-import { Endpoint } from "../src/core/http/endpoint";
-import { Input as InputRole } from "../src/core/http/decorators";
+import { configureApp, createAdapter } from "../src/bootstrap";
+import { SESSION_USERS, type SessionUsers } from "../src/core/auth/session";
 import { STAFF_ACCESS, type StaffAccessPort, type StaffMember } from "../src/core/auth/staff";
 import { AllowUnconfigured2fa, CurrentStaff, Permissions } from "../src/core/auth/staff.decorators";
-import { bootTestApp, sessionOf, testUser } from "./app";
+import { APP_CONFIG, loadConfig } from "../src/core/config/app-config";
+import { CoreModule } from "../src/core/core.module";
+import { Input as InputRole } from "../src/core/http/decorators";
+import { Endpoint } from "../src/core/http/endpoint";
+import { CLOCK } from "../src/core/kernel/tokens";
+import { sessionOf, testUser } from "./app";
 
 const EDGE_SECRET = "edge-ip-test-secret-0123456789";
 const ROLE_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -106,12 +112,17 @@ const authOf = (u: typeof OWNER) => ({ cookie: `mb_session=${sessionOf(u)}` });
 const signedIp = (ip: string) => ({ [CLIENT_IP_HEADER]: ip, [CLIENT_IP_SIG_HEADER]: signClientIp(ip, EDGE_SECRET) });
 
 beforeAll(async () => {
-  ({ app } = await bootTestApp({
-    users: [OWNER, MANAGER, MANAGER_NO_2FA, DISABLED_STAFF, REGULAR_USER],
-    env: { NODE_ENV: "test", EDGE_IP_SECRET: EDGE_SECRET },
-    extraModules: [ProbeStaffModule],
-    overrides: [[STAFF_ACCESS, realStaffAccess]],
-  }));
+  const users = [OWNER, MANAGER, MANAGER_NO_2FA, DISABLED_STAFF, REGULAR_USER];
+  const sessions: SessionUsers = { user: async (token) => users.find((u) => sessionOf(u) === token) ?? null };
+  const moduleRef = await Test.createTestingModule({ imports: [CoreModule, ProbeStaffModule] })
+    .overrideProvider(CLOCK).useValue({ now: () => new Date("2026-11-26T10:00:00Z") })
+    .overrideProvider(APP_CONFIG).useValue(loadConfig({ NODE_ENV: "test", EDGE_IP_SECRET: EDGE_SECRET }))
+    .overrideProvider(SESSION_USERS).useValue(sessions)
+    .overrideProvider(STAFF_ACCESS).useValue(realStaffAccess)
+    .compile();
+  app = await configureApp(moduleRef.createNestApplication<NestFastifyApplication>(createAdapter(), { logger: false }));
+  await app.init();
+  await app.getHttpAdapter().getInstance().ready();
 });
 
 afterAll(() => app.close());

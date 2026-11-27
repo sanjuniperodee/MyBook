@@ -39,6 +39,7 @@ import {
   type CrmDealsPorts,
   type CrmListsPorts,
 } from "../src/modules/crm-core/crm-core.tokens";
+import { CRM_OPS_PORTS, type CrmOpsPorts } from "../src/modules/crm-ops/crm-ops.tokens";
 import { FEEDBACK_PORTS } from "../src/modules/feedback/feedback.tokens";
 import {
   CABINET_BOOK_PORTS,
@@ -407,6 +408,68 @@ const defaultCrmChatsPorts: CrmChatsPorts = {
   sendOffer: async () => ({ ok: true, message: "Отправлено" }),
 };
 
+const defaultCrmOpsPorts: CrmOpsPorts = {
+  listBoards: async () => [],
+  viewBoard: async () => {
+    throw new Error("CRM_OPS_PORTS.viewBoard не подменён в тесте");
+  },
+  createCard: async () => {
+    throw new Error("CRM_OPS_PORTS.createCard не подменён в тесте");
+  },
+  cardSummary: async () => {
+    throw new Error("CRM_OPS_PORTS.cardSummary не подменён в тесте");
+  },
+  cardDetail: async () => {
+    throw new Error("CRM_OPS_PORTS.cardDetail не подменён в тесте");
+  },
+  updateCard: async () => {},
+  removeCard: async () => {},
+  moveCard: async () => {},
+  setCardDone: async () => {},
+  archiveCard: async () => {},
+  setCardAssignees: async () => {},
+  setCardWatching: async () => {},
+  setCardLabel: async () => {},
+  addChecklist: async () => "00000000-0000-4000-8000-000000000001",
+  addChecklistItem: async () => "00000000-0000-4000-8000-000000000002",
+  updateChecklistItem: async () => {},
+  deleteChecklistItem: async () => {},
+  commentCard: async () => "00000000-0000-4000-8000-000000000003",
+  attachCardFile: async () => "00000000-0000-4000-8000-000000000004",
+  calendarRange: async () => [],
+  runCrmOp: async () => null,
+  runCrmAction: async () => null,
+  bookList: async () => [],
+  remindMany: async () => ({ sent: 0, skipped: 0 }),
+  supportList: async () => [],
+  supportCounts: async () => ({ new: 0, in_progress: 0, waiting: 0, done: 0, rejected: 0 }),
+  supportTicketByNumber: async () => null,
+  supportUpdate: async () => ({ ok: true, notified: null }),
+  supportNotify: async () => ({ ok: true, notified: true }),
+  allStaff: async () => [],
+  getSetting: async () => "",
+  listFields: async () => [],
+  salesRegister: async () => [],
+  setPayForm: async () => ({ ok: true }),
+  loadSalesAnalytics: async () => {
+    throw new Error("CRM_OPS_PORTS.loadSalesAnalytics не подменён в тесте");
+  },
+  leadStats: async () => ({ deals: [], payments: [], invoices: [], spend: [] }),
+  mergeClosedDays: async () => 30,
+  saveCrmSettings: async () => ({ ok: "Сохранено" }),
+  saveBot: async () => ({ ok: "Сохранено" }),
+  rolesWithMembers: async () => [],
+  saveRole: async () => ({ ok: "Роль сохранена" }),
+  deleteRole: async () => {},
+  twoFactorStatus: async () => [],
+  beginTwoFactor: async () => ({ secret: "TESTSECRET", otpauthUrl: "otpauth://totp/MyBooks:test?secret=TESTSECRET&issuer=MyBooks" }),
+  confirmTwoFactor: async () => ({ ok: true, codes: [] }),
+  newBackupCodes: async () => ({ ok: true, codes: [] }),
+  disableTwoFactor: async () => ({ ok: true }),
+  saveSecurity: async () => ({ ok: "Сохранено" }),
+  resetStaffTwoFactor: async () => ({ ok: true }),
+};
+
 /** Лимитер в памяти: сколько раз звали с каким ключом; `deny` — следующий вызов вернёт «лимит исчерпан». */
 export class FakeLimiter implements RateLimiter {
   readonly hits: string[] = [];
@@ -508,6 +571,7 @@ export async function bootTestApp(opts: { users: CurrentUser[]; overrides?: [tok
     .overrideProvider(AUTHORING_PHOTO_LIMIT).useValue({ maxPhotos: async () => 100 })
     .overrideProvider(AUTHORING_PHOTO_RENDERER).useValue({ probeOriginal: async () => ({ width: 1000, height: 800, suggestedLevels: { black: 0, white: 1, gamma: 1 } }), renderEdit: async () => Buffer.alloc(0) })
     .overrideProvider(AUTHORING_SITE_PORTS).useValue(defaultAuthoringSitePorts)
+    .overrideProvider(CRM_OPS_PORTS).useValue(defaultCrmOpsPorts)
     .overrideProvider(SESSION_USERS).useValue(sessions)
     .overrideProvider(STAFF_ACCESS).useValue(defaultStaffAccess);
   if (opts.env) builder = builder.overrideProvider(APP_CONFIG).useValue(loadConfig(opts.env));
