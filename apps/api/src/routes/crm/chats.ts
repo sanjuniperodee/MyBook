@@ -2,18 +2,16 @@
 import { apiStaff, HttpError } from "@/server/api";
 import { botTraceAction, startBotAction, stopBotAction } from "@/server/crm-actions/chats";
 import { container } from "@/server/container";
-import { traceRows } from "@/modules/messaging/ui/botTrace";
-import { refused } from "./common";
+import { botTraceItems, botTraceRows } from "@/modules/messaging/ui/crm-chat-view";
+import { refusedResponse } from "@/modules/sales/ui/crm-forms";
 import type { Handlers } from "../../app";
-
-const toRows = (trace: Parameters<typeof traceRows>[0]) => traceRows(trace).map((x) => ({ label: x.label, lines: x.lines, warn: !!x.warn }));
 
 export const crmChatHandlers: Pick<Handlers, "crmChatBot" | "crmChatBotTrace" | "crmChatBotTraces"> = {
   async crmChatBotTrace({ req, input }) {
     await apiStaff(req, "chats.view");
     const r = await botTraceAction(input.chatId, input.messageId);
-    if (!r.trace) return refused(r.error ?? "След хода не найден");
-    return { rows: toRows(r.trace) };
+    if (!r.trace) return refusedResponse(r.error ?? "След хода не найден");
+    return { rows: botTraceRows(r.trace) };
   },
 
   async crmChatBotTraces({ req, input }) {
@@ -21,20 +19,7 @@ export const crmChatHandlers: Pick<Handlers, "crmChatBot" | "crmChatBotTrace" | 
     const conv = await container().messaging.queries.conversation(input.chatId);
     if (!conv || !staff.context.canSee(conv.assigneeId)) throw new HttpError(404, "notFound");
     const list = await container().messaging.botTraces(conv.id, 15);
-    return {
-      items: list.map((item) => {
-        const rows = toRows(item.trace);
-        const head = rows.find((r) => r.label === "Модель решила") ?? rows.find((r) => r.label === "Итог хода") ?? rows[0];
-        return {
-          id: item.id,
-          at: item.at.toISOString(),
-          messageId: item.messageId,
-          silent: item.messageId === null,
-          summary: head?.lines[0] ?? "Ход бота",
-          rows,
-        };
-      }),
-    };
+    return { items: botTraceItems(list) };
   },
 
   async crmChatBot({ req, input }) {

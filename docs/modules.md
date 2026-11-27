@@ -19,13 +19,13 @@
 | [feedback](#feedback) | Отзывы: отзыв клиента о книге, благодарность автору, модерация и витрина. | 14 / 749 | 5 |
 | [identity](#identity) | Identity: учётные записи, вход, пароли, второй фактор. | 21 / 1357 | 19 |
 | [marketing](#marketing) | Маркетинг: каналы привлечения, короткие ссылки, предложения из чата. | 10 / 577 | 12 |
-| [messaging](#messaging) | Переписка: единый инбокс, бот-квалификатор, виджет на сайте. | 60 / 16744 | 153 |
+| [messaging](#messaging) | Переписка: единый инбокс, бот-квалификатор, виджет на сайте. | 61 / 16810 | 153 |
 | [notifications](#notifications) | Уведомления: автописьма, напоминания из CRM, отписка. | 10 / 707 | 6 |
 | [ordering](#ordering) | Заказы. Остальной код видит только его. | 48 / 5666 | 85 |
 | [production](#production) | Производство: вёрстка PDF книги и сертификатов, предпросмотры полос и обложек, файлы для типографии, очередь сборки. В container — previews (BookPreviewService) и printFiles. | 43 / 5606 | 0 |
 | [referrals](#referrals) | Приглашения: код для друзей, награда за их заказы и покупки из чата. | 10 / 358 | 3 |
 | [reporting](#reporting) | Отчёты CRM — сторона чтения (CQRS): сводные выборки по нескольким контекстам для страниц (дашборд, аналитика, поиск, «Мой день»). Только чтение, без бизнес-правил: команды идут через модули контекстов. | 47 / 4577 | 60 |
-| [sales](#sales) | Продажи: сделки, воронки, этапы, дубли, воронка по действиям на сайте. | 29 / 3087 | 109 |
+| [sales](#sales) | Продажи: сделки, воронки, этапы, дубли, воронка по действиям на сайте. | 30 / 3243 | 109 |
 | [support](#support) | Обращения: проблемы и просьбы с формы /support, расшифровка голосовых, статусы, уведомление и закрытие по выкатке. | 7 / 737 | 13 |
 | [telephony](#telephony) | Телефония: журнал звонков из АТС, звонки из CRM, веб-телефон, записи, звонки WhatsApp. | 14 / 1171 | 28 |
 | [workspace](#workspace) | Рабочее пространство CRM: свои поля, шаблоны ответов, уведомления и push сотрудников. | 23 / 1657 | 20 |
@@ -183,7 +183,7 @@ Identity: учётные записи, вход, пароли, второй фа
 
 Продажи: сделки, воронки, этапы, дубли, воронка по действиям на сайте.
 
-- Папка: `src/modules/sales` (domain, application, infrastructure)
+- Папка: `src/modules/sales` (domain, application, infrastructure, ui)
 - Фасад: `SalesModule` → `container().sales`
 - Публичное: `deals`, `routing`, `funnel`, `queries`, `pipelines`, `savedViews`, `plans`, `receipts`, `payments`, `aiProposals`, `intake`, `agreementFor`, `attachAgreementOrder`, `money`, `refundAfterOrder`, `agreedPlan`, `agreedGifts`, `batch`, `setClientAttribution`, `changeAgreedGifts`, `splitIntoBatch`
 - Таблицы: `crm_pipelines`, `crm_stages`, `crm_deals`, `crm_payments`, `deal_invoices`, `crm_receipts`, `crm_stage_history`, `crm_saved_views`, `crm_plans`, `crm_ai_proposals`

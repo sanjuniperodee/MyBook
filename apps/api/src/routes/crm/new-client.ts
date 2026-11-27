@@ -11,20 +11,12 @@ import { discountLimit } from "@/server/discount";
 import { payFormOptions } from "@/server/pay-form";
 import { staffOptions } from "@/modules/access/ui";
 import { planLabels } from "@/modules/ordering/ui/labels";
+import { buildNewClientForm, CRM_LOCALES, refusedResponse } from "@/modules/sales/ui/crm-forms";
 import { channels, manualChannels } from "@/shared/domain/channels";
-import { giftFields } from "@/components/admin/AgreementGiftsField";
 import { createClientAction } from "@/server/crm-actions/clients-new";
 import { POST as receiptRoute } from "@/server/site-handlers/admin/deals-id-receipts";
 import type { Handlers } from "../../app";
-import { refused } from "./common";
 import { siteFileRoute } from "./site-route";
-
-const LOCALES = [
-  { id: "ru", label: "Русский" },
-  { id: "kk", label: "Казахский" },
-  { id: "uz", label: "Узбекский" },
-  { id: "en", label: "Английский" },
-];
 
 export const crmNewClientHandlers: Pick<Handlers, "crmClientNewOptions" | "crmClientCreate" | "crmDealReceipt"> = {
   async crmClientNewOptions({ req }) {
@@ -35,7 +27,7 @@ export const crmNewClientHandlers: Pick<Handlers, "crmClientNewOptions" | "crmCl
     const options = staffOptions(admins);
     return {
       channels: manualChannels.map((id) => ({ id, label: channels[id] })),
-      locales: LOCALES,
+      locales: [...CRM_LOCALES],
       plans: getVisiblePlans().map((p) => ({ id: p.id, label: planLabels[p.id], price: p.price })),
       payForms,
       stages: open.map((s) => ({ id: s.id, label: pipelines.length > 1 ? `${pipelines.find((x) => x.id === s.pipelineId)?.name} · ${s.name}` : s.name })),
@@ -50,34 +42,10 @@ export const crmNewClientHandlers: Pick<Handlers, "crmClientNewOptions" | "crmCl
 
   async crmClientCreate({ req, input }) {
     await apiStaff(req, "clients.create");
-    const b = input.body;
     // Поля формы сайта: то же разбор и те же правила (телефон, канал, тариф, предоплата не больше договорённости, скидка).
-    const form = new FormData();
-    const set = (k: string, v: string | number | undefined) => v !== undefined && v !== "" && form.set(k, String(v));
-    set("name", b.name);
-    set("phone", b.phone);
-    set("email", b.email);
-    set("city", b.city);
-    set("channel", b.channel);
-    set("locale", b.locale);
-    set("password", b.password);
-    if (b.deal) {
-      const d = b.deal;
-      form.set("createDeal", "on");
-      set("recipient", d.recipient);
-      set("deadline", d.deadline);
-      set("plan", d.plan);
-      set("count", d.count);
-      set("agreed", d.agreed);
-      set("prepaid", d.prepaid);
-      set("payForm", d.payForm);
-      set("stageId", d.stageId);
-      set("assigneeId", d.assigneeId);
-      set("comment", d.comment);
-      for (const g of d.gifts ?? []) form.set(giftFields[g], "on");
-    }
+    const form = buildNewClientForm(input.body);
     const r = await createClientAction({}, form);
-    if (!r.done) return refused(r.error ?? "Не удалось завести клиента");
+    if (!r.done) return refusedResponse(r.error ?? "Не удалось завести клиента");
     const d = r.done;
     return {
       clientId: d.clientId,

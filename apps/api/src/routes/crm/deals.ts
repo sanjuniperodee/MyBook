@@ -2,20 +2,17 @@
  * Сделка в приложении CRM: форма правки и сохранение — те же действия, что у карточки сделки на сайте
  * (updateDealAction, setDealAgreedPlanAction, setDealAgreedGiftsAction): права, «только свои», лимит скидки, журнал.
  */
-import { getPlans, giftsForPlan } from "@/config/site";
+import { getPlans } from "@/config/site";
 import { container } from "@/server/container";
 import { apiStaff, HttpError } from "@/server/api";
 import { can, canWork } from "@/server/access";
 import { discountLimit } from "@/server/discount";
 import { listFields } from "@/modules/workspace";
 import { planLabels } from "@/modules/ordering/ui/labels";
+import { buildDealUpdateForm, fieldsOut, fieldsToForm, giftChoices, refusedResponse } from "@/modules/sales/ui/crm-forms";
 import { dealSourceLabels, dealSources } from "@/shared/domain/dealSources";
 import { setDealAgreedGiftsAction, setDealAgreedPlanAction, updateDealAction } from "@/server/crm-actions/deals";
 import type { Handlers } from "../../app";
-import { fieldsOut, fieldsToForm, refused } from "./common";
-
-const GIFT_LABELS: Record<string, string> = { giftwrap: "Подарочная упаковка", delivery: "Доставка" };
-const giftChoices = (plan: string | null) => (plan ? giftsForPlan(plan) : ["giftwrap", "delivery"]).map((id) => ({ id, label: GIFT_LABELS[id] ?? id }));
 
 async function findDeal(id: string) {
   const deal = await container().sales.deals.findById(id);
@@ -61,35 +58,23 @@ export const crmDealHandlers: Pick<Handlers, "crmDealForm" | "crmDealUpdate" | "
   async crmDealUpdate({ req, input }) {
     const staff = await apiStaff(req, "deals.edit");
     const deal = await findDeal(input.dealId);
-    const b = input.body;
     // Форма сайта целиком: чего нет в правке — прежние значения (иначе теги и доп. номера стёрлись бы).
-    const form = new FormData();
-    form.set("id", deal.id);
-    form.set("title", b.title ?? deal.title);
-    form.set("contactName", b.contactName ?? deal.contactName);
-    form.set("amount", String(b.amount ?? deal.amount));
-    form.set("source", b.source ?? deal.source);
-    form.set("tags", (b.tags ?? deal.tags).join(","));
-    if (can(staff, "clients.contacts") && (b.phone !== undefined || b.email !== undefined || b.extraPhones !== undefined)) {
-      form.set("contactPhone", b.phone ?? deal.contactPhone ?? "");
-      form.set("contactEmail", b.email ?? deal.contactEmail ?? "");
-      form.set("extraPhones", (b.extraPhones ?? deal.extraPhones).join("\n"));
-    }
-    if (b.fields) fieldsToForm(form, await listFields("deal"), b.fields);
+    const form = buildDealUpdateForm(deal, input.body, can(staff, "clients.contacts"));
+    if (input.body.fields) fieldsToForm(form, await listFields("deal"), input.body.fields);
     const r = await updateDealAction({}, form);
-    if (r.error) return refused(r.error);
+    if (r.error) return refusedResponse(r.error);
     return { ok: true, message: r.ok ?? null };
   },
 
   async crmDealPlan({ req, input }) {
     await apiStaff(req, "deals.edit");
     const r = await setDealAgreedPlanAction(input.dealId, input.body.plan);
-    return r.ok ? { ok: true, message: "Тариф сохранён" } : refused(r.message ?? "Не удалось сохранить тариф");
+    return r.ok ? { ok: true, message: "Тариф сохранён" } : refusedResponse(r.message ?? "Не удалось сохранить тариф");
   },
 
   async crmDealGifts({ req, input }) {
     await apiStaff(req, "deals.edit");
     const r = await setDealAgreedGiftsAction(input.dealId, input.body.gifts);
-    return r.ok ? { ok: true, message: "Сохранено" } : refused(r.message ?? "Не удалось сохранить");
+    return r.ok ? { ok: true, message: "Сохранено" } : refusedResponse(r.message ?? "Не удалось сохранить");
   },
 };

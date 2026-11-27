@@ -29,6 +29,16 @@ import {
 } from "../src/modules/authoring-studio/authoring-studio.tokens";
 import { AUTHORING_SITE_PORTS, type AuthoringSitePorts } from "../src/modules/authoring-site/authoring-site.tokens";
 import { CRM_MOBILE_API_PORTS, type CrmMobileApiPorts } from "../src/modules/crm-mobile-api/crm-mobile-api.tokens";
+import {
+  CRM_CHATS_PORTS,
+  CRM_CLIENTS_PORTS,
+  CRM_DEALS_PORTS,
+  CRM_LISTS_PORTS,
+  type CrmChatsPorts,
+  type CrmClientsPorts,
+  type CrmDealsPorts,
+  type CrmListsPorts,
+} from "../src/modules/crm-core/crm-core.tokens";
 import { FEEDBACK_PORTS } from "../src/modules/feedback/feedback.tokens";
 import {
   CABINET_BOOK_PORTS,
@@ -310,6 +320,93 @@ const defaultCrmMobileApiPorts: CrmMobileApiPorts = {
   moveOrder: async () => ({}),
 };
 
+const defaultCrmListsPorts: CrmListsPorts = {
+  today: async () => ({
+    counts: { tasks: 0, overdueTasks: 0, waiting: 0, missed: 0, unsorted: 0, openDeals: 0, openDealsSum: 0, noNextStep: 0 },
+    plan: null,
+    tasks: [],
+    waiting: [],
+    missed: [],
+  }),
+  tasks: async () => [],
+  calls: async () => ({ stats: { total: 0, answered: 0, missed: 0, talk: 0 }, calls: [] }),
+  clients: async () => ({ total: 0, page: 1, pageSize: 40, clients: [] }),
+  clientCard: async () => {
+    throw new Error("CRM_LISTS_PORTS.clientCard не подменён в тесте");
+  },
+  staffList: async () => ({ canAssignOthers: false, staff: [] }),
+  notifications: async () => [],
+  markNotificationsRead: async () => {},
+  chats: async () => [],
+  chatDetail: async () => {
+    throw new Error("CRM_LISTS_PORTS.chatDetail не подменён в тесте");
+  },
+  conversation: async () => null,
+  chatMessages: async () => ({ messages: [], more: false }),
+  deals: async () => ({ pipelines: [], pipeline: null, stages: [], deals: [] }),
+  dealDetail: async () => {
+    throw new Error("CRM_LISTS_PORTS.dealDetail не подменён в тесте");
+  },
+  orders: async () => ({ canEdit: false, statuses: [], orders: [] }),
+  orderDetail: async () => {
+    throw new Error("CRM_LISTS_PORTS.orderDetail не подменён в тесте");
+  },
+};
+
+const defaultCrmDealsPorts: CrmDealsPorts = {
+  findDeal: async () => null,
+  dealById: async () => null,
+  listFields: async () => [],
+  agreedPlan: async () => null,
+  agreedGifts: async () => [],
+  discountLimit: async () => null,
+  updateDeal: async () => ({ ok: "Сохранено" }),
+  setAgreedPlan: async () => ({ ok: true }),
+  setAgreedGifts: async () => ({ ok: true }),
+  duplicates: async () => ({ open: [], past: [] }),
+  findClientByPhone: async () => null,
+  clientBrief: async () => null,
+  listPipelines: async () => [],
+  listStages: async () => [],
+  createClientFromDeal: async () => ({ error: "CRM_DEALS_PORTS.createClientFromDeal не подменён в тесте" }),
+  linkDealClient: async () => ({ ok: true }),
+  mergeDeal: async () => {},
+  movePipeline: async () => {},
+  deleteDeal: async () => {},
+};
+
+const defaultCrmClientsPorts: CrmClientsPorts = {
+  clientById: async () => null,
+  listFields: async () => [],
+  noMarketingFor: async () => false,
+  allStaff: async () => [],
+  listStages: async () => [],
+  listPipelines: async () => [],
+  discountLimit: async () => null,
+  payFormOptions: async () => [],
+  issueClientAccess: async () => ({ error: "CRM_CLIENTS_PORTS.issueClientAccess не подменён в тесте" }),
+  remindClient: async () => ({ ok: true, message: "Напоминание отправлено" }),
+  setClientPhones: async () => ({ ok: true }),
+  updateClientTags: async () => {},
+  setClientFields: async () => ({ ok: "Сохранено" }),
+  setClientNoMarketing: async () => ({ ok: true }),
+  setClientLocale: async () => ({ ok: true }),
+  setClientChannel: async () => ({ ok: true }),
+  setClientManager: async () => ({ ok: true }),
+  createClient: async () => ({ error: "CRM_CLIENTS_PORTS.createClient не подменён в тесте" }),
+  uploadDealReceipt: async () => ({ ok: true }),
+};
+
+const defaultCrmChatsPorts: CrmChatsPorts = {
+  conversation: async () => null,
+  botTrace: async () => ({ error: "След хода не найден" }),
+  botTraces: async () => [],
+  startBot: async () => {},
+  stopBot: async () => {},
+  chatOffers: async () => ({ order: null, book: null, maxDiscount: 0 }),
+  sendOffer: async () => ({ ok: true, message: "Отправлено" }),
+};
+
 /** Лимитер в памяти: сколько раз звали с каким ключом; `deny` — следующий вызов вернёт «лимит исчерпан». */
 export class FakeLimiter implements RateLimiter {
   readonly hits: string[] = [];
@@ -398,6 +495,10 @@ export async function bootTestApp(opts: { users: CurrentUser[]; overrides?: [tok
     .overrideProvider(PAGES_PORTS).useValue(defaultPagesPorts)
     .overrideProvider(ANSWER_FILES_PORTS).useValue(defaultAnswerFilesPorts)
     .overrideProvider(CRM_MOBILE_API_PORTS).useValue(defaultCrmMobileApiPorts)
+    .overrideProvider(CRM_LISTS_PORTS).useValue(defaultCrmListsPorts)
+    .overrideProvider(CRM_DEALS_PORTS).useValue(defaultCrmDealsPorts)
+    .overrideProvider(CRM_CLIENTS_PORTS).useValue(defaultCrmClientsPorts)
+    .overrideProvider(CRM_CHATS_PORTS).useValue(defaultCrmChatsPorts)
     .overrideProvider(PUBLIC_PORTS).useValue(defaultPublicPorts)
     .overrideProvider(AUTHORING).useValue(defaultAuthoringStub)
     .overrideProvider(AUTHORING_BOOK_OWNERSHIP).useValue({ bookOwnership: async () => null })

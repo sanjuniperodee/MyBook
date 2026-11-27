@@ -8,6 +8,7 @@ import { PUBLIC_PORTS } from "../modules/public/public.tokens";
 import { legacyAuthoringExports, legacyAuthoringProviders } from "./authoring.ports";
 import { legacyAuthoringSitePorts } from "./authoring-site.ports";
 import { LEGACY_AUTHORING_STUDIO_TOKENS, legacyAuthoringStudioPorts } from "./authoring-studio.ports";
+import { LEGACY_CRM_CORE_TOKENS, legacyCrmCorePorts } from "./crm-core.ports";
 import { legacyCrmMobileApiPorts } from "./crm-mobile-api.ports";
 import { legacyFeedbackPorts } from "./feedback.ports";
 import { LEGACY_IDENTITY_TOKENS, legacyIdentityPorts } from "./identity.ports";
@@ -28,6 +29,7 @@ import { legacyPublicPorts } from "./public.ports";
     { provide: CLOCK, useFactory: (c: Container) => c.clock, inject: [LEGACY_CONTAINER] },
     { provide: RATE_LIMITER, useFactory: (c: Container) => c.rateLimiter, inject: [LEGACY_CONTAINER] },
     ...legacyAuthoringStudioPorts,
+    ...legacyCrmCorePorts,
     legacyCrmMobileApiPorts,
     legacyFeedbackPorts,
     ...legacyIdentityPorts,
@@ -47,6 +49,7 @@ import { legacyPublicPorts } from "./public.ports";
     ...legacyAuthoringExports,
     ...LEGACY_AUTHORING_STUDIO_TOKENS,
     AUTHORING_SITE_PORTS,
+    ...LEGACY_CRM_CORE_TOKENS,
   ],
 })
 export class LegacyModule {}

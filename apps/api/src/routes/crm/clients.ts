@@ -7,32 +7,25 @@ import { apiStaff, HttpError } from "@/server/api";
 import { can, canAssignOthers } from "@/server/access";
 import { listFields } from "@/modules/workspace";
 import { staffOptions } from "@/modules/access/ui";
+import { CRM_LOCALES, fieldsOut, fieldsToForm, refusedResponse } from "@/modules/sales/ui/crm-forms";
 import { channelOf, channels, isManualChannel, manualChannels, toAttribution } from "@/shared/domain/channels";
 import { remindClientAction, updateClientTagsAction } from "@/server/crm-actions/admin";
 import { issueClientAccessAction } from "@/server/crm-actions/clients-new";
 import { setClientChannelAction, setClientFieldsAction, setClientLocaleAction, setClientManagerAction, setClientNoMarketingAction, setClientPhonesAction } from "@/server/crm-actions/crm";
 import type { Handlers } from "../../app";
-import { fieldsOut, fieldsToForm, refused } from "./common";
-
-const LOCALES = [
-  { id: "ru", label: "Русский" },
-  { id: "kk", label: "Казахский" },
-  { id: "uz", label: "Узбекский" },
-  { id: "en", label: "Английский" },
-];
 
 export const crmClientHandlers: Pick<Handlers, "crmClientForm" | "crmClientUpdate" | "crmClientAccess" | "crmClientRemind"> = {
   async crmClientAccess({ req, input }) {
     await apiStaff(req, "clients.create");
     const r = await issueClientAccessAction(input.clientId);
-    if (r.error || !r.password) return refused(r.error ?? "Не удалось выдать пароль");
+    if (r.error || !r.password) return refusedResponse(r.error ?? "Не удалось выдать пароль");
     return { login: r.loginText ?? "", password: r.password, message: r.message ?? "" };
   },
 
   async crmClientRemind({ req, input }) {
     await apiStaff(req, "clients.edit");
     const r = await remindClientAction(input.clientId);
-    if (!r.ok) return refused(r.message);
+    if (!r.ok) return refusedResponse(r.message);
     return { ok: true as const, message: r.message };
   },
 
@@ -59,7 +52,7 @@ export const crmClientHandlers: Pick<Handlers, "crmClientForm" | "crmClientUpdat
       fields: fieldsOut(defs, client.customFields),
       noMarketing: !!noMarketing,
       locale: client.locale,
-      locales: LOCALES,
+      locales: [...CRM_LOCALES],
       channel: isManualChannel(channel) ? channel : null,
       channels: manualChannels.map((id) => ({ id, label: channels[id] })),
       managerId: client.managerId,
@@ -97,7 +90,7 @@ export const crmClientHandlers: Pick<Handlers, "crmClientForm" | "crmClientUpdat
       if (b.channel !== undefined) await step(await setClientChannelAction(id, b.channel));
       if (b.managerId !== undefined) await step(await setClientManagerAction(id, b.managerId));
     } catch (err) {
-      if (err instanceof Refusal) return refused(err.message);
+      if (err instanceof Refusal) return refusedResponse(err.message);
       throw err;
     }
     return { ok: true, message: message ?? "Сохранено" };
