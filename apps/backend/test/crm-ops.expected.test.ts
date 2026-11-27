@@ -339,10 +339,10 @@ const staffObjectOf = (user: CurrentUser) => {
   };
 };
 
-vi.mock("next/headers", () => import("../../../apps/api/src/http/next-shim"));
-vi.mock("next/server", () => import("../../../apps/api/src/http/next-shim"));
+vi.mock("next/headers", () => import("@/server/http/next-shim"));
+vi.mock("next/server", () => import("@/server/http/next-shim"));
 vi.mock("@/server/auth", async () => {
-  const { currentContext } = await import("../../../apps/api/src/http/context");
+  const { currentContext } = await import("@/server/http/request-scope");
   const extract = (req: Request): CurrentUser | null => {
     const cookieHeader = req.headers.get("cookie") ?? "";
     let token: string | null = null;
@@ -361,7 +361,7 @@ vi.mock("@/server/auth", async () => {
   };
 });
 vi.mock("@/server/rateLimit", async () => {
-  const { currentContext } = await import("../../../apps/api/src/http/context");
+  const { currentContext } = await import("@/server/http/request-scope");
   return {
     trustedClientIp: async () => clientIpFrom((name) => currentContext().request.headers.get(name), EDGE_SECRET),
     rateLimit: async () => true,
@@ -428,7 +428,7 @@ vi.mock("@/server/crm-actions/security", () => ({
   resetStaffTwoFactorAction: (userId: string) => shared.resetStaffTwoFactor(userId),
 }));
 
-const { assertRouteParity, createLegacyTestApp } = await import("./parity");
+const { assertRoute } = await import("./expected");
 const { HttpError } = await import("@/server/api");
 
 const nestPorts: CrmOpsPorts = {
@@ -524,7 +524,6 @@ function makeMultipart(field: string, filename: string, contentType: string, con
 }
 
 let app: NestFastifyApplication;
-let legacy: ReturnType<typeof createLegacyTestApp>;
 
 beforeAll(async () => {
   ({ app } = await bootTestApp({
@@ -535,12 +534,6 @@ beforeAll(async () => {
       [CRM_OPS_PORTS, nestPorts],
     ],
   }));
-  legacy = createLegacyTestApp({
-    users: USERS,
-    staff: async (user) => {
-      if (!staffContextOf(user)) throw new HttpError(403, "forbidden");
-    },
-  });
 });
 
 afterAll(() => app.close());
@@ -647,103 +640,98 @@ beforeEach(() => {
   shared.resetStaffTwoFactor.mockResolvedValue({ ok: true });
 });
 
-describe("побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-1 — все 45 маршрутов)", () => {
+describe("ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-1 — все 45 маршрутов)", () => {
   it("доски задач (19 маршрутов) + BoardsError совпадают байт в байт", async () => {
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/v1/boards", headers: asOwner });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: `/api/v1/boards/${BOARD_ID}?done=1`, headers: asOwner });
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: "/api/v1/cards", headers: asOwner, body: { title: "Задача", boardId: BOARD_ID } });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: `/api/v1/cards/${CARD_ID}`, headers: asOwner });
-    await assertRouteParity({ nest: app, legacy, method: "PATCH", url: `/api/v1/cards/${CARD_ID}`, headers: asOwner, body: { title: "Новая" } });
-    await assertRouteParity({ nest: app, legacy, method: "DELETE", url: `/api/v1/cards/${CARD_ID}`, headers: asOwner });
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: `/api/v1/cards/${CARD_ID}/move`, headers: asOwner, body: { columnId: COL_ID } });
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: `/api/v1/cards/${CARD_ID}/done`, headers: asOwner, body: { done: true, result: "ОК" } });
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: `/api/v1/cards/${CARD_ID}/archive`, headers: asOwner, body: { archived: true } });
-    await assertRouteParity({ nest: app, legacy, method: "PUT", url: `/api/v1/cards/${CARD_ID}/assignees`, headers: asOwner, body: { userIds: [OWNER.id] } });
-    await assertRouteParity({ nest: app, legacy, method: "PUT", url: `/api/v1/cards/${CARD_ID}/watch`, headers: asOwner, body: { on: false } });
-    await assertRouteParity({ nest: app, legacy, method: "PUT", url: `/api/v1/cards/${CARD_ID}/labels/${LABEL_ID}`, headers: asOwner, body: { on: true } });
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: `/api/v1/cards/${CARD_ID}/checklists`, headers: asOwner, body: { title: "Чек", items: ["1"] } });
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: `/api/v1/checklists/${CHECKLIST_ID}/items`, headers: asOwner, body: { text: "Пункт" } });
-    await assertRouteParity({ nest: app, legacy, method: "PATCH", url: `/api/v1/checklist-items/${ITEM_ID}`, headers: asOwner, body: { done: true } });
-    await assertRouteParity({ nest: app, legacy, method: "DELETE", url: `/api/v1/checklist-items/${ITEM_ID}`, headers: asOwner });
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: `/api/v1/cards/${CARD_ID}/comments`, headers: asOwner, body: { text: "Привет" } });
+    await assertRoute({ nest: app, method: "GET", url: "/api/v1/boards", headers: asOwner });
+    await assertRoute({ nest: app, method: "GET", url: `/api/v1/boards/${BOARD_ID}?done=1`, headers: asOwner });
+    await assertRoute({ nest: app, method: "POST", url: "/api/v1/cards", headers: asOwner, body: { title: "Задача", boardId: BOARD_ID } });
+    await assertRoute({ nest: app, method: "GET", url: `/api/v1/cards/${CARD_ID}`, headers: asOwner });
+    await assertRoute({ nest: app, method: "PATCH", url: `/api/v1/cards/${CARD_ID}`, headers: asOwner, body: { title: "Новая" } });
+    await assertRoute({ nest: app, method: "DELETE", url: `/api/v1/cards/${CARD_ID}`, headers: asOwner });
+    await assertRoute({ nest: app, method: "POST", url: `/api/v1/cards/${CARD_ID}/move`, headers: asOwner, body: { columnId: COL_ID } });
+    await assertRoute({ nest: app, method: "POST", url: `/api/v1/cards/${CARD_ID}/done`, headers: asOwner, body: { done: true, result: "ОК" } });
+    await assertRoute({ nest: app, method: "POST", url: `/api/v1/cards/${CARD_ID}/archive`, headers: asOwner, body: { archived: true } });
+    await assertRoute({ nest: app, method: "PUT", url: `/api/v1/cards/${CARD_ID}/assignees`, headers: asOwner, body: { userIds: [OWNER.id] } });
+    await assertRoute({ nest: app, method: "PUT", url: `/api/v1/cards/${CARD_ID}/watch`, headers: asOwner, body: { on: false } });
+    await assertRoute({ nest: app, method: "PUT", url: `/api/v1/cards/${CARD_ID}/labels/${LABEL_ID}`, headers: asOwner, body: { on: true } });
+    await assertRoute({ nest: app, method: "POST", url: `/api/v1/cards/${CARD_ID}/checklists`, headers: asOwner, body: { title: "Чек", items: ["1"] } });
+    await assertRoute({ nest: app, method: "POST", url: `/api/v1/checklists/${CHECKLIST_ID}/items`, headers: asOwner, body: { text: "Пункт" } });
+    await assertRoute({ nest: app, method: "PATCH", url: `/api/v1/checklist-items/${ITEM_ID}`, headers: asOwner, body: { done: true } });
+    await assertRoute({ nest: app, method: "DELETE", url: `/api/v1/checklist-items/${ITEM_ID}`, headers: asOwner });
+    await assertRoute({ nest: app, method: "POST", url: `/api/v1/cards/${CARD_ID}/comments`, headers: asOwner, body: { text: "Привет" } });
 
     const mp = makeMultipart("file", "a.txt", "text/plain", "hello");
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "POST",
       url: `/api/v1/cards/${CARD_ID}/files`,
       headers: { ...asOwner, "content-type": mp.contentType },
       body: mp.body,
     });
 
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "GET",
       url: `/api/v1/tasks/calendar?from=2026-11-01T00:00:00Z&to=2026-11-30T23:59:59Z&boardId=${BOARD_ID}&mine=1`,
       headers: asOwner,
     });
 
     shared.cards.detail.mockRejectedValue(new BoardsError("forbidden", "Нет доступа к карточке"));
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: `/api/v1/cards/${CARD_ID}`, headers: asOwner });
+    await assertRoute({ nest: app, method: "GET", url: `/api/v1/cards/${CARD_ID}`, headers: asOwner });
   });
 
   it("веб-CRM (3 маршрута), включая redirect, notFound и не-сотрудника, совпадают байт в байт", async () => {
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/v1/web/crm/staff", headers: asOwner });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/v1/web/crm/staff", headers: asRegular });
+    await assertRoute({ nest: app, method: "GET", url: "/api/v1/web/crm/staff", headers: asOwner });
+    await assertRoute({ nest: app, method: "GET", url: "/api/v1/web/crm/staff", headers: asRegular });
 
     const args = await encodeWire({ q: "test" });
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: "/api/v1/web/crm/read/shell.layout", headers: asOwner, body: { args } });
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: "/api/v1/web/crm/act/deals.move", headers: asOwner, body: { args: [] } });
+    await assertRoute({ nest: app, method: "POST", url: "/api/v1/web/crm/read/shell.layout", headers: asOwner, body: { args } });
+    await assertRoute({ nest: app, method: "POST", url: "/api/v1/web/crm/act/deals.move", headers: asOwner, body: { args: [] } });
 
     shared.runCrmAction.mockRejectedValue(Object.assign(new Error("NEXT_REDIRECT"), { digest: "NEXT_REDIRECT;replace;/admin/orders;307;" }));
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: "/api/v1/web/crm/act/orders.go", headers: asOwner, body: { args: [] } });
+    await assertRoute({ nest: app, method: "POST", url: "/api/v1/web/crm/act/orders.go", headers: asOwner, body: { args: [] } });
 
     shared.runCrmAction.mockRejectedValue(Object.assign(new Error("NEXT_NOT_FOUND"), { digest: "NEXT_NOT_FOUND" }));
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: "/api/v1/web/crm/act/orders.miss", headers: asOwner, body: { args: [] } });
+    await assertRoute({ nest: app, method: "POST", url: "/api/v1/web/crm/act/orders.miss", headers: asOwner, body: { args: [] } });
   });
 
   it("книги (2) и поддержка (4) совпадают байт в байт на 200, 400 refused, 403 и 404", async () => {
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/v1/crm/books?f=all&theme=dad", headers: asOwner });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/v1/crm/books", headers: asManager });
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: "/api/v1/crm/books/remind", headers: asOwner, body: { clientIds: [CLIENT_ID] } });
+    await assertRoute({ nest: app, method: "GET", url: "/api/v1/crm/books?f=all&theme=dad", headers: asOwner });
+    await assertRoute({ nest: app, method: "GET", url: "/api/v1/crm/books", headers: asManager });
+    await assertRoute({ nest: app, method: "POST", url: "/api/v1/crm/books/remind", headers: asOwner, body: { clientIds: [CLIENT_ID] } });
 
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/v1/crm/support?status=open", headers: asOwner });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/v1/crm/support/55", headers: asOwner });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/v1/crm/support/55", headers: asManager });
-    await assertRouteParity({
+    await assertRoute({ nest: app, method: "GET", url: "/api/v1/crm/support?status=open", headers: asOwner });
+    await assertRoute({ nest: app, method: "GET", url: "/api/v1/crm/support/55", headers: asOwner });
+    await assertRoute({ nest: app, method: "GET", url: "/api/v1/crm/support/55", headers: asManager });
+    await assertRoute({
       nest: app,
-      legacy,
       method: "PATCH",
       url: "/api/v1/crm/support/55",
       headers: asOwner,
       body: { status: "done", resolution: "Ок", devNote: "ok", notify: true },
     });
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "PATCH",
       url: "/api/v1/crm/support/55",
       headers: asOwner,
       body: { status: "invalid", resolution: "", devNote: "", notify: false },
     });
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: "/api/v1/crm/support/55/notify", headers: asOwner });
+    await assertRoute({ nest: app, method: "POST", url: "/api/v1/crm/support/55/notify", headers: asOwner });
 
     shared.supportByNumber.mockResolvedValue(null);
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/v1/crm/support/999", headers: asOwner });
+    await assertRoute({ nest: app, method: "GET", url: "/api/v1/crm/support/999", headers: asOwner });
   });
 
   it("аналитика (4) и настройки (3) совпадают байт в байт", async () => {
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/v1/crm/sales?p=custom&from=2026-11-01&to=2026-11-26", headers: asOwner });
-    await assertRouteParity({ nest: app, legacy, method: "PUT", url: `/api/v1/crm/sales/${DEAL_ID}/pay-form`, headers: asOwner, body: { form: "Kaspi Gold" } });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/v1/crm/analytics?p=custom&from=2026-11-01&to=2026-11-26", headers: asOwner });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/v1/crm/leads?p=custom&from=2026-11-01&to=2026-11-26", headers: asOwner });
+    await assertRoute({ nest: app, method: "GET", url: "/api/v1/crm/sales?p=custom&from=2026-11-01&to=2026-11-26", headers: asOwner });
+    await assertRoute({ nest: app, method: "PUT", url: `/api/v1/crm/sales/${DEAL_ID}/pay-form`, headers: asOwner, body: { form: "Kaspi Gold" } });
+    await assertRoute({ nest: app, method: "GET", url: "/api/v1/crm/analytics?p=custom&from=2026-11-01&to=2026-11-26", headers: asOwner });
+    await assertRoute({ nest: app, method: "GET", url: "/api/v1/crm/leads?p=custom&from=2026-11-01&to=2026-11-26", headers: asOwner });
 
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/v1/crm/settings/sales", headers: asOwner });
-    await assertRouteParity({
+    await assertRoute({ nest: app, method: "GET", url: "/api/v1/crm/settings/sales", headers: asOwner });
+    await assertRoute({
       nest: app,
-      legacy,
       method: "PUT",
       url: "/api/v1/crm/settings/sales",
       headers: asOwner,
@@ -766,35 +754,35 @@ describe("побайтовый паритет NestJS ↔ mybook-api (Конте�
         widgetHelp: true,
       },
     });
-    await assertRouteParity({ nest: app, legacy, method: "PUT", url: "/api/v1/crm/settings/bot-mode", headers: asOwner, body: { mode: "fallback" } });
+    await assertRoute({ nest: app, method: "PUT", url: "/api/v1/crm/settings/bot-mode", headers: asOwner, body: { mode: "fallback" } });
   });
 
   it("роли и 2FA (10 маршрутов) + ошибки 400/401/403/405 совпадают байт в байт", async () => {
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/v1/crm/roles", headers: asOwner });
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: "/api/v1/crm/roles", headers: asOwner, body: { name: "Аналитик", scope: "all", permissions: ["analytics.view"] } });
-    await assertRouteParity({ nest: app, legacy, method: "DELETE", url: `/api/v1/crm/roles/${ROLE_ID}`, headers: asOwner });
+    await assertRoute({ nest: app, method: "GET", url: "/api/v1/crm/roles", headers: asOwner });
+    await assertRoute({ nest: app, method: "POST", url: "/api/v1/crm/roles", headers: asOwner, body: { name: "Аналитик", scope: "all", permissions: ["analytics.view"] } });
+    await assertRoute({ nest: app, method: "DELETE", url: `/api/v1/crm/roles/${ROLE_ID}`, headers: asOwner });
 
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/v1/crm/security", headers: asOwner });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/v1/crm/security", headers: asManager });
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: "/api/v1/crm/security/2fa/start", headers: asOwner });
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: "/api/v1/crm/security/2fa/confirm", headers: asOwner, body: { code: "123456" } });
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: "/api/v1/crm/security/2fa/backup", headers: asOwner, body: { code: "123456" } });
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: "/api/v1/crm/security/2fa/disable", headers: asOwner, body: { code: "123456" } });
-    await assertRouteParity({ nest: app, legacy, method: "PATCH", url: "/api/v1/crm/security/rules", headers: asOwner, body: { require2fa: true, ipAllowlist: "198.51.100.0/24" } });
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: `/api/v1/crm/security/staff/${MANAGER.id}/reset-2fa`, headers: asOwner });
+    await assertRoute({ nest: app, method: "GET", url: "/api/v1/crm/security", headers: asOwner });
+    await assertRoute({ nest: app, method: "GET", url: "/api/v1/crm/security", headers: asManager });
+    await assertRoute({ nest: app, method: "POST", url: "/api/v1/crm/security/2fa/start", headers: asOwner });
+    await assertRoute({ nest: app, method: "POST", url: "/api/v1/crm/security/2fa/confirm", headers: asOwner, body: { code: "123456" } });
+    await assertRoute({ nest: app, method: "POST", url: "/api/v1/crm/security/2fa/backup", headers: asOwner, body: { code: "123456" } });
+    await assertRoute({ nest: app, method: "POST", url: "/api/v1/crm/security/2fa/disable", headers: asOwner, body: { code: "123456" } });
+    await assertRoute({ nest: app, method: "PATCH", url: "/api/v1/crm/security/rules", headers: asOwner, body: { require2fa: true, ipAllowlist: "198.51.100.0/24" } });
+    await assertRoute({ nest: app, method: "POST", url: `/api/v1/crm/security/staff/${MANAGER.id}/reset-2fa`, headers: asOwner });
 
     // Refused из доменных ошибок
     shared.deleteRole.mockRejectedValue(new AccessError("systemRole", "Системную роль удалить нельзя"));
-    await assertRouteParity({ nest: app, legacy, method: "DELETE", url: `/api/v1/crm/roles/${ROLE_ID}`, headers: asOwner });
+    await assertRoute({ nest: app, method: "DELETE", url: `/api/v1/crm/roles/${ROLE_ID}`, headers: asOwner });
 
     shared.beginTwoFactor.mockRejectedValue(new IdentityError("twoFactorAlreadyOn"));
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: "/api/v1/crm/security/2fa/start", headers: asOwner });
+    await assertRoute({ nest: app, method: "POST", url: "/api/v1/crm/security/2fa/start", headers: asOwner });
 
     // 401, 403, 400, 405
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/v1/crm/roles" });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/v1/crm/roles", headers: asRegular });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/v1/crm/roles", headers: asManager });
-    await assertRouteParity({ nest: app, legacy, method: "DELETE", url: "/api/v1/crm/roles/not-a-uuid", headers: asManager });
-    await assertRouteParity({ nest: app, legacy, method: "DELETE", url: "/api/v1/crm/security", headers: asOwner });
+    await assertRoute({ nest: app, method: "GET", url: "/api/v1/crm/roles" });
+    await assertRoute({ nest: app, method: "GET", url: "/api/v1/crm/roles", headers: asRegular });
+    await assertRoute({ nest: app, method: "GET", url: "/api/v1/crm/roles", headers: asManager });
+    await assertRoute({ nest: app, method: "DELETE", url: "/api/v1/crm/roles/not-a-uuid", headers: asManager });
+    await assertRoute({ nest: app, method: "DELETE", url: "/api/v1/crm/security", headers: asOwner });
   });
 });

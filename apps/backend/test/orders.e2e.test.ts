@@ -11,9 +11,10 @@ import { ORDERS_API_PORTS, type OrdersApiRoute } from "../src/modules/orders/ord
 import { bootTestApp, sessionOf, testUser } from "./app";
 
 /**
- * Контекст 7A («заказы и деньги API v1»): все 47 маршрутов байт в байт у Nest и mybook-api — без входа, клиентом,
- * сотрудником без прав и с успешным ответом. Обе стороны зовут один общий код (src/server/api-v1/orders.ts), поэтому
- * тест сверяет то, что у процессов своё: вход, права, книгу, разбор входа, ответ (ETag/304, no-store), ошибки.
+ * Контекст 7A («заказы и деньги API v1»): все 47 маршрутов байт в байт — без входа, клиентом, сотрудником без прав и с
+ * успешным ответом. Ожидаемые ответы — снимки, записанные с прежнего mybook-api (expected.ts). Обработчики — общий код
+ * (src/server/api-v1/orders.ts), поэтому тест сверяет то, что своё у Nest: вход, права, книгу, разбор входа, ответ
+ * (ETag/304, no-store), ошибки.
  */
 const OWNER = testUser("11111111-1111-4111-8111-111111111111", { name: "Айгерим", email: "owner@mybooks.kz", role: "admin" });
 const SALES = testUser("22222222-2222-4222-8222-222222222222", { name: "Данияр", email: "sales@mybooks.kz", role: "admin" });
@@ -51,7 +52,7 @@ const staffAccess: StaffAccessPort = {
 
 const shared = vi.hoisted(() => ({ refuse: null as string | null, allowRate: true, viewed: 0, layoutRefusal: null as "layoutBookEditing" | "layoutNotApproved" | "layoutNotNeeded" | null }));
 
-/** Ответ-заглушка по схеме контракта маршрута: проходит проверку ответа у обоих процессов. */
+/** Ответ-заглушка по схеме контракта маршрута: проходит проверку ответа по контракту. */
 const sample = async (route: string) => {
   const [{ v1: routes }, { sampleOf }] = await Promise.all([import("@mybook/contracts"), import("./zod-sample")]);
   return sampleOf((routes as unknown as Record<string, { response: import("zod").ZodType }>)[route].response) as Record<string, unknown>;
@@ -128,13 +129,13 @@ const mockContainer = {
   },
 };
 
-vi.mock("next/headers", () => import("../../../apps/api/src/http/next-shim"));
-vi.mock("next/server", () => import("../../../apps/api/src/http/next-shim"));
-vi.mock("next/navigation", () => import("../../../apps/api/src/http/next-shim"));
+vi.mock("next/headers", () => import("@/server/http/next-shim"));
+vi.mock("next/server", () => import("@/server/http/next-shim"));
+vi.mock("next/navigation", () => import("@/server/http/next-shim"));
 vi.mock("@/server/container", () => ({ container: () => mockContainer }));
 vi.mock("@/server/rateLimit", () => ({ rateLimit: async () => shared.allowRate, trustedClientIp: async () => "203.0.113.10" }));
 vi.mock("@/server/auth", async () => {
-  const shim = await import("../../../apps/api/src/http/next-shim");
+  const shim = await import("@/server/http/next-shim");
   const token = async () => {
     const jar = await shim.cookies();
     const hdrs = await shim.headers();
@@ -234,7 +235,7 @@ vi.mock("@/server/site-handlers/admin/orders-id-refunds", () => ({
   POST: async () => (shared.refuse ? Response.json({ error: shared.refuse }, { status: 400 }) : Response.json({ ok: true })),
 }));
 
-const { assertRouteParity, createLegacyTestApp } = await import("./parity");
+const { assertRoute } = await import("./expected");
 const { legacyOrdersPorts } = await import("../src/legacy/orders.ports");
 const { ORDERS_API_ROUTES } = await import("@/server/api-v1/orders");
 
@@ -321,7 +322,6 @@ const CASES: Record<OrdersApiRoute, Case> = {
 };
 
 let app: NestFastifyApplication;
-let legacy: ReturnType<typeof createLegacyTestApp>;
 
 beforeAll(async () => {
   // Отчёты денег считают период от «сейчас»: часы закреплены, ожидаемые ответы не зависят от дня прогона.
@@ -335,15 +335,6 @@ beforeAll(async () => {
       [CABINET_BOOK_PORTS, { visibleBook: mockContainer.authoring.queries.visibleBook }],
     ],
   }));
-  legacy = createLegacyTestApp({
-    users: ALL_USERS,
-    staff: async (user) => {
-      if (!resolveStaffSync(user)) {
-        const { HttpError } = await import("@/server/api");
-        throw new HttpError(403, "forbidden");
-      }
-    },
-  });
 });
 
 afterAll(async () => {
@@ -369,7 +360,7 @@ async function collect(run: (key: OrdersApiRoute, c: Case) => Promise<{ nestRes:
   return { failed, statuses };
 }
 
-describe("побайтовый паритет NestJS ↔ mybook-api: Контекст 7A — 47 маршрутов заказов и денег", () => {
+describe("ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег", () => {
   it("маршруты общего кода и Nest — одни и те же 47, у каждого есть случай и маршрут контракта", () => {
     expect(ORDERS_API_ROUTES).toHaveLength(47);
     expect(Object.keys(CASES).sort()).toEqual([...ORDERS_API_ROUTES].sort());
@@ -381,7 +372,7 @@ describe("побайтовый паритет NestJS ↔ mybook-api: Конте�
   });
 
   it("успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304)", async () => {
-    const { failed, statuses } = await collect((key, c) => assertRouteParity({ nest: app, legacy, ...send(c, c.who) }));
+    const { failed, statuses } = await collect((key, c) => assertRoute({ nest: app, ...send(c, c.who) }));
     expect(failed).toEqual([]);
     expect(Object.entries(statuses).filter(([, s]) => s >= 300).map(([k, s]) => `${k} → ${s}`)).toEqual([]);
   });
@@ -393,46 +384,46 @@ describe("побайтовый паритет NestJS ↔ mybook-api: Конте�
     ["менеджер «только свои» (заказ не его)", asSales],
   ] as const) {
     it(`${who}: ответ каждого маршрута совпадает байт в байт`, async () => {
-      const { failed } = await collect((key, c) => assertRouteParity({ nest: app, legacy, ...send(c, headers) }));
+      const { failed } = await collect((key, c) => assertRoute({ nest: app, ...send(c, headers) }));
       expect(failed).toEqual([]);
     });
   }
 
   it("отказы, лимиты и кривой вход совпадают байт в байт", async () => {
     shared.refuse = "Нельзя: заказ уже оплачен";
-    const { failed } = await collect((key, c) => assertRouteParity({ nest: app, legacy, ...send(c, c.who) }));
+    const { failed } = await collect((key, c) => assertRoute({ nest: app, ...send(c, c.who) }));
     expect(failed).toEqual([]);
     shared.refuse = null;
 
     shared.allowRate = false;
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: `/api/v1/cabinet/orders/${ORDER_ID}/kaspi`, headers: asClient, body: { method: "invoice", phone: "+77011234567" } });
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: "/api/v1/web/pay/claim", body: { token: "pay-token", locale: "ru" } });
+    await assertRoute({ nest: app, method: "POST", url: `/api/v1/cabinet/orders/${ORDER_ID}/kaspi`, headers: asClient, body: { method: "invoice", phone: "+77011234567" } });
+    await assertRoute({ nest: app, method: "POST", url: "/api/v1/web/pay/claim", body: { token: "pay-token", locale: "ru" } });
     shared.allowRate = true;
 
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/v1/crm/orders/not-a-uuid/money", headers: asOwner });
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: "/api/v1/crm/expenses", headers: asOwner, body: { amount: "много" } });
-    await assertRouteParity({ nest: app, legacy, method: "DELETE", url: "/api/v1/crm/finance", headers: asOwner });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/v1/web/pay/unknown", headers: {} });
+    await assertRoute({ nest: app, method: "GET", url: "/api/v1/crm/orders/not-a-uuid/money", headers: asOwner });
+    await assertRoute({ nest: app, method: "POST", url: "/api/v1/crm/expenses", headers: asOwner, body: { amount: "много" } });
+    await assertRoute({ nest: app, method: "DELETE", url: "/api/v1/crm/finance", headers: asOwner });
+    await assertRoute({ nest: app, method: "GET", url: "/api/v1/web/pay/unknown", headers: {} });
     // Сотрудник, открывший ссылку оплаты из CRM, — не «клиент посмотрел»: ни один процесс просмотр не отмечает.
     shared.viewed = 0;
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: "/api/v1/web/pay/pay-token/viewed", headers: asOwner });
+    await assertRoute({ nest: app, method: "POST", url: "/api/v1/web/pay/pay-token/viewed", headers: asOwner });
     expect(shared.viewed).toBe(0);
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: "/api/v1/web/pay/pay-token/viewed", headers: asClient });
-    expect(shared.viewed).toBe(2);
+    await assertRoute({ nest: app, method: "POST", url: "/api/v1/web/pay/pay-token/viewed", headers: asClient });
+    expect(shared.viewed).toBe(1);
   });
 
   it("согласование макета: отказы домена (книга открыта для правок, книги нет, заказ без печати) — те же статусы и тексты", async () => {
     const url = `/api/v1/web/orders/${ORDER_ID}/layout-approval`;
     for (const [refusal, status] of [["layoutBookEditing", 409], ["layoutNotApproved", 403], ["layoutNotNeeded", 409]] as const) {
       shared.layoutRefusal = refusal;
-      const { nestRes } = await assertRouteParity({ nest: app, legacy, method: "POST", url, headers: asClient });
+      const { nestRes } = await assertRoute({ nest: app, method: "POST", url, headers: asClient });
       expect([nestRes.statusCode, (nestRes.json() as { code?: string }).code], refusal).toEqual([status, refusal]);
     }
     shared.layoutRefusal = null;
-    const { nestRes } = await assertRouteParity({ nest: app, legacy, method: "POST", url, headers: asClient });
+    const { nestRes } = await assertRoute({ nest: app, method: "POST", url, headers: asClient });
     expect(nestRes.json()).toEqual({ state: "approved", again: false, approvedAt: PAID_AT.toISOString() });
     // Чужой заказ — 404, как будто его нет.
-    const other = await assertRouteParity({ nest: app, legacy, method: "POST", url, headers: asOther });
+    const other = await assertRoute({ nest: app, method: "POST", url, headers: asOther });
     expect(other.nestRes.statusCode).toBe(404);
   });
 });

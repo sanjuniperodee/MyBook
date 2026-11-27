@@ -41,9 +41,9 @@ const shared = vi.hoisted(() => ({ users: [] as { id: string }[], tokenOf: null 
 const RECEIPT_ID = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
 const DEAL_ID = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
 
-vi.mock("next/headers", () => import("../../../apps/api/src/http/next-shim"));
-vi.mock("next/server", () => import("../../../apps/api/src/http/next-shim"));
-vi.mock("next/navigation", () => import("../../../apps/api/src/http/next-shim"));
+vi.mock("next/headers", () => import("@/server/http/next-shim"));
+vi.mock("next/server", () => import("@/server/http/next-shim"));
+vi.mock("next/navigation", () => import("@/server/http/next-shim"));
 vi.mock("@/server/container", () => ({
   container: () => ({
     sales: {
@@ -88,9 +88,8 @@ vi.mock("@/server/access", async (orig) => {
 shared.users = ALL_USERS;
 shared.tokenOf = (u) => sessionOf(u as typeof OWNER);
 
-const { assertRouteParity, createLegacyTestApp } = await import("./parity");
+const { assertRoute } = await import("./expected");
 const { legacySiteOpsPorts } = await import("../src/legacy/site-ops.ports");
-const { handleSiteRoute } = await import("../../../apps/api/src/site-routes");
 
 const asOwner = { cookie: `mb_session=${sessionOf(OWNER)}` };
 const asSales = { cookie: `mb_session=${sessionOf(SALES)}` };
@@ -98,17 +97,15 @@ const asNo2fa = { cookie: `mb_session=${sessionOf(NO_2FA)}` };
 const asClient = { cookie: `mb_session=${sessionOf(CLIENT)}` };
 
 let app: NestFastifyApplication;
-let legacy: ReturnType<typeof createLegacyTestApp>;
 
 beforeAll(async () => {
   const ports = (legacySiteOpsPorts as { useFactory: () => unknown }).useFactory();
   ({ app } = await bootTestApp({ users: ALL_USERS, overrides: [[STAFF_ACCESS, staffAccess], [SITE_OPS_PORTS, ports]] }));
-  legacy = createLegacyTestApp({ users: ALL_USERS, siteRoutes: handleSiteRoute });
 });
 
 afterAll(() => app.close());
 
-describe("паритет NestJS ↔ mybook-api: Контекст 7B с настоящими обработчиками сайта", () => {
+describe("ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7B с настоящими обработчиками сайта", () => {
   it("чужой метод — 405 с тем же Allow", async () => {
     for (const [method, url] of [
       ["PUT", "/api/payments/kaspi/webhook"],
@@ -120,7 +117,7 @@ describe("паритет NestJS ↔ mybook-api: Контекст 7B с наст�
       ["PATCH", `/api/v1/site/payments/kaspi/invoices/${RECEIPT_ID}`],
     ] as const) {
       try {
-        await assertRouteParity({ nest: app, legacy, method, url, headers: asOwner });
+        await assertRoute({ nest: app, method, url, headers: asOwner });
       } catch (err) {
         throw new Error(`${method} ${url}: ${String(err instanceof Error ? err.message : err)}`);
       }
@@ -130,9 +127,9 @@ describe("паритет NestJS ↔ mybook-api: Контекст 7B с наст�
   it("чек оплаты сделки: без входа, клиент, без права, без 2FA, чужая сделка, нет чека и сам файл — байт в байт", async () => {
     const url = `/api/admin/receipts/${RECEIPT_ID}`;
     for (const headers of [{}, asClient, asNo2fa, asSales, asOwner]) {
-      await assertRouteParity({ nest: app, legacy, method: "GET", url, headers });
+      await assertRoute({ nest: app, method: "GET", url, headers });
     }
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: `/api/admin/receipts/${DEAL_ID}`, headers: asOwner });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/admin/receipts/not-a-uuid", headers: asOwner });
+    await assertRoute({ nest: app, method: "GET", url: `/api/admin/receipts/${DEAL_ID}`, headers: asOwner });
+    await assertRoute({ nest: app, method: "GET", url: "/api/admin/receipts/not-a-uuid", headers: asOwner });
   });
 });

@@ -1,45 +1,45 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > answerFileStart, Status, Chunk, Finish, Delete и пакеты Kaspi (3 маршрута) совпадают байт в байт 1`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > answerFileStart, Status, Chunk, Finish, Delete и пакеты Kaspi (3 маршрута) совпадают байт в байт 1`] = `
 {
   "body": "{"file":{"id":"cccccccc-cccc-4ccc-8ccc-cccccccccccc","token":"AbCdEf1234","url":"http://localhost:3000/v/AbCdEf1234","kind":"video","status":"uploading","name":"clip.mp4","durationSec":30,"durationLabel":"0:30","sourceBytes":2048,"receivedBytes":512,"error":null,"statusLabel":"Загружаем… 25%","errorText":null,"poster":null,"playbackUrl":null,"downloadUrl":null},"chunkBytes":8388608}",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/v1/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/files",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > answerFileStart, Status, Chunk, Finish, Delete и пакеты Kaspi (3 маршрута) совпадают байт в байт 2`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > answerFileStart, Status, Chunk, Finish, Delete и пакеты Kaspi (3 маршрута) совпадают байт в байт 2`] = `
 {
   "body": "{"error":"Слишком много загрузок подряд. Подождите немного.","code":"fileRate"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/v1/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/files",
   "status": 429,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > answerFileStart, Status, Chunk, Finish, Delete и пакеты Kaspi (3 маршрута) совпадают байт в байт 3`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > answerFileStart, Status, Chunk, Finish, Delete и пакеты Kaspi (3 маршрута) совпадают байт в байт 3`] = `
 {
   "body": "{"error":"Это не видео и не аудио. Выберите видео из галереи или запись диктофона.","code":"fileType"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/v1/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/files",
   "status": 415,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > answerFileStart, Status, Chunk, Finish, Delete и пакеты Kaspi (3 маршрута) совпадают байт в байт 4`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > answerFileStart, Status, Chunk, Finish, Delete и пакеты Kaspi (3 маршрута) совпадают байт в байт 4`] = `
 {
   "body": "{"file":{"id":"cccccccc-cccc-4ccc-8ccc-cccccccccccc","token":"AbCdEf1234","url":"http://localhost:3000/v/AbCdEf1234","kind":"video","status":"uploading","name":"clip.mp4","durationSec":30,"durationLabel":"0:30","sourceBytes":2048,"receivedBytes":512,"error":null,"statusLabel":"Загружаем… 25%","errorText":null,"poster":null,"playbackUrl":null,"downloadUrl":null},"quota":{"minutes":30,"usedSec":120,"leftSec":1680,"files":1,"maxFiles":40,"full":false,"statusText":"Свободно в книге: 28 из 30 мин"}}",
   "headers": {
     "cache-control": "private, no-cache",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
     "etag": ""l_eHs1MbMvCVNq45PSOgoOvlpAU"",
   },
   "request": "GET /api/v1/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/files/cccccccc-cccc-4ccc-8ccc-cccccccccccc",
@@ -47,7 +47,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > answerFileStart, Status, Chunk, Finish, Delete и пакеты Kaspi (3 маршрута) совпадают байт в байт 5`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > answerFileStart, Status, Chunk, Finish, Delete и пакеты Kaspi (3 маршрута) совпадают байт в байт 5`] = `
 {
   "body": "",
   "headers": {
@@ -59,160 +59,160 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > answerFileStart, Status, Chunk, Finish, Delete и пакеты Kaspi (3 маршрута) совпадают байт в байт 6`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > answerFileStart, Status, Chunk, Finish, Delete и пакеты Kaspi (3 маршрута) совпадают байт в байт 6`] = `
 {
   "body": "{"error":"Файл не найден — возможно, его уже удалили.","code":"fileNotFound"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "GET /api/v1/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/files/cccccccc-cccc-4ccc-8ccc-cccccccccccc",
   "status": 404,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > answerFileStart, Status, Chunk, Finish, Delete и пакеты Kaspi (3 маршрута) совпадают байт в байт 7`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > answerFileStart, Status, Chunk, Finish, Delete и пакеты Kaspi (3 маршрута) совпадают байт в байт 7`] = `
 {
   "body": "{"received":16}",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "PUT /api/v1/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/files/cccccccc-cccc-4ccc-8ccc-cccccccccccc/chunk?offset=0",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > answerFileStart, Status, Chunk, Finish, Delete и пакеты Kaspi (3 маршрута) совпадают байт в байт 8`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > answerFileStart, Status, Chunk, Finish, Delete и пакеты Kaspi (3 маршрута) совпадают байт в байт 8`] = `
 {
   "body": "{"error":"Некорректный запрос","code":"badRequest"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "PUT /api/v1/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/files/cccccccc-cccc-4ccc-8ccc-cccccccccccc/chunk?offset=0",
   "status": 400,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > answerFileStart, Status, Chunk, Finish, Delete и пакеты Kaspi (3 маршрута) совпадают байт в байт 9`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > answerFileStart, Status, Chunk, Finish, Delete и пакеты Kaspi (3 маршрута) совпадают байт в байт 9`] = `
 {
   "body": "{"error":"Загрузка сбилась. Нажмите «Повторить».","code":"fileChunk"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "PUT /api/v1/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/files/cccccccc-cccc-4ccc-8ccc-cccccccccccc/chunk?offset=0",
   "status": 400,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > answerFileStart, Status, Chunk, Finish, Delete и пакеты Kaspi (3 маршрута) совпадают байт в байт 10`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > answerFileStart, Status, Chunk, Finish, Delete и пакеты Kaspi (3 маршрута) совпадают байт в байт 10`] = `
 {
   "body": "{"error":"Загрузка сбилась. Нажмите «Повторить».","code":"fileChunk"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "PUT /api/v1/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/files/cccccccc-cccc-4ccc-8ccc-cccccccccccc/chunk?offset=0",
   "status": 413,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > answerFileStart, Status, Chunk, Finish, Delete и пакеты Kaspi (3 маршрута) совпадают байт в байт 11`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > answerFileStart, Status, Chunk, Finish, Delete и пакеты Kaspi (3 маршрута) совпадают байт в байт 11`] = `
 {
   "body": "{"error":"Загрузка сбилась. Нажмите «Повторить».","code":"fileChunk"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "PUT /api/v1/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/files/cccccccc-cccc-4ccc-8ccc-cccccccccccc/chunk?offset=0",
   "status": 409,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > answerFileStart, Status, Chunk, Finish, Delete и пакеты Kaspi (3 маршрута) совпадают байт в байт 12`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > answerFileStart, Status, Chunk, Finish, Delete и пакеты Kaspi (3 маршрута) совпадают байт в байт 12`] = `
 {
   "body": "{"file":{"id":"cccccccc-cccc-4ccc-8ccc-cccccccccccc","token":"AbCdEf1234","url":"http://localhost:3000/v/AbCdEf1234","kind":"video","status":"queued","name":"clip.mp4","durationSec":30,"durationLabel":"0:30","sourceBytes":2048,"receivedBytes":512,"error":null,"statusLabel":"Ждёт обработки…","errorText":null,"poster":null,"playbackUrl":null,"downloadUrl":null},"quota":{"minutes":30,"usedSec":120,"leftSec":1680,"files":1,"maxFiles":40,"full":false,"statusText":"Свободно в книге: 28 из 30 мин"}}",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/v1/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/files/cccccccc-cccc-4ccc-8ccc-cccccccccccc/finish",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > answerFileStart, Status, Chunk, Finish, Delete и пакеты Kaspi (3 маршрута) совпадают байт в байт 13`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > answerFileStart, Status, Chunk, Finish, Delete и пакеты Kaspi (3 маршрута) совпадают байт в байт 13`] = `
 {
   "body": "{"ok":true}",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "DELETE /api/v1/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/files/cccccccc-cccc-4ccc-8ccc-cccccccccccc",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > answerFileStart, Status, Chunk, Finish, Delete и пакеты Kaspi (3 маршрута) совпадают байт в байт 14`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > answerFileStart, Status, Chunk, Finish, Delete и пакеты Kaspi (3 маршрута) совпадают байт в байт 14`] = `
 {
   "body": "{"purchase":{"id":"dddddddd-dddd-4ddd-8ddd-dddddddddddd","number":42,"minutes":30,"amount":2990,"amountLabel":"2 990 ₸","title":"+30 минут для видео и аудио","note":"Комментарий к оплате — MyBooks M42","paidToast":"Готово: книге добавлено 30 минут"},"kaspi":{"defaultPhone":"+77011112233","current":{"id":"eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee","method":"qr","status":"pending","amount":2990,"phone":null,"link":"https://kaspi.kz/pay/demo","qrSvg":"<svg></svg>","expiresAt":"2026-11-26T10:15:00.000Z","paidAt":null}}}",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/v1/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/files/packs",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > answerFileStart, Status, Chunk, Finish, Delete и пакеты Kaspi (3 маршрута) совпадают байт в байт 15`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > answerFileStart, Status, Chunk, Finish, Delete и пакеты Kaspi (3 маршрута) совпадают байт в байт 15`] = `
 {
   "body": "{"error":"Не найдено","code":"notFound"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/v1/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/files/packs",
   "status": 404,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > answerFileStart, Status, Chunk, Finish, Delete и пакеты Kaspi (3 маршрута) совпадают байт в байт 16`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > answerFileStart, Status, Chunk, Finish, Delete и пакеты Kaspi (3 маршрута) совпадают байт в байт 16`] = `
 {
   "body": "{"invoice":{"id":"eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee","method":"qr","status":"pending","amount":2990,"phone":null,"link":"https://kaspi.kz/pay/demo","qrSvg":"<svg></svg>","expiresAt":"2026-11-26T10:15:00.000Z","paidAt":null}}",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/v1/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/files/packs/dddddddd-dddd-4ddd-8ddd-dddddddddddd/kaspi",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > answerFileStart, Status, Chunk, Finish, Delete и пакеты Kaspi (3 маршрута) совпадают байт в байт 17`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > answerFileStart, Status, Chunk, Finish, Delete и пакеты Kaspi (3 маршрута) совпадают байт в байт 17`] = `
 {
   "body": "{"error":"Оплата через Kaspi сейчас недоступна — воспользуйтесь переводом по номеру","code":"kaspiNotConnected"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/v1/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/files/packs/dddddddd-dddd-4ddd-8ddd-dddddddddddd/kaspi",
   "status": 503,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > answerFileStart, Status, Chunk, Finish, Delete и пакеты Kaspi (3 маршрута) совпадают байт в байт 18`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > answerFileStart, Status, Chunk, Finish, Delete и пакеты Kaspi (3 маршрута) совпадают байт в байт 18`] = `
 {
   "body": "{"error":"Не найдено","code":"notFound"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/v1/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/files/packs/dddddddd-dddd-4ddd-8ddd-dddddddddddd/kaspi",
   "status": 404,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > answerFileStart, Status, Chunk, Finish, Delete и пакеты Kaspi (3 маршрута) совпадают байт в байт 19`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > answerFileStart, Status, Chunk, Finish, Delete и пакеты Kaspi (3 маршрута) совпадают байт в байт 19`] = `
 {
   "body": "{"invoice":{"id":"eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee","method":"qr","status":"paid","amount":2990,"phone":null,"link":"https://kaspi.kz/pay/demo","qrSvg":"<svg></svg>","expiresAt":"2026-11-26T10:15:00.000Z","paidAt":"2026-11-26T10:02:00.000Z"},"quota":{"minutes":30,"usedSec":120,"leftSec":1680,"files":1,"maxFiles":40,"full":false,"statusText":"Свободно в книге: 28 из 30 мин"}}",
   "headers": {
     "cache-control": "private, no-cache",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
     "etag": ""CuxWJntKAJVpxjwhsZhoS3fC298"",
   },
   "request": "GET /api/v1/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/files/packs/dddddddd-dddd-4ddd-8ddd-dddddddddddd/kaspi/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
@@ -220,7 +220,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > answerFileStart, Status, Chunk, Finish, Delete и пакеты Kaspi (3 маршрута) совпадают байт в байт 20`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > answerFileStart, Status, Chunk, Finish, Delete и пакеты Kaspi (3 маршрута) совпадают байт в байт 20`] = `
 {
   "body": "",
   "headers": {
@@ -232,7 +232,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > answerFileStart, Status, Chunk, Finish, Delete и пакеты Kaspi (3 маршрута) совпадают байт в байт 21`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > answerFileStart, Status, Chunk, Finish, Delete и пакеты Kaspi (3 маршрута) совпадают байт в байт 21`] = `
 {
   "body": "",
   "headers": {
@@ -243,12 +243,12 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > answerMediaGet, answerMediaSave, answerMediaAddLink совпадают байт в байт 1`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > answerMediaGet, answerMediaSave, answerMediaAddLink совпадают байт в байт 1`] = `
 {
   "body": "sha256(11197):dbe7bc243ec08a94974d6b67509cacf0d7347d1c10bc8ba8cee5cbb624eed4c3 {"editable":true,"media":[{"id":"m1","kind":"video","url":"https://mybooks.kz/v/AbCdEf1234","fileId":"cccccccc-cccc-4ccc-8ccc-cccccccccccc","title":"Ролик","anchor":null,"source":"MyBooks","qrSvg":"<svg xmlns=\\"http://www.w3.org/2000/svg\\" viewBox=\\"0 0 100 100\\"><rect x=\\"0\\" y=\\"0\\" width=\\"100\\" …",
   "headers": {
     "cache-control": "private, no-cache",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
     "etag": ""kwHguDuc-HwGZy9-PAscsgSyQi0"",
   },
   "request": "GET /api/v1/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/questions/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/media",
@@ -256,7 +256,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > answerMediaGet, answerMediaSave, answerMediaAddLink совпадают байт в байт 2`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > answerMediaGet, answerMediaSave, answerMediaAddLink совпадают байт в байт 2`] = `
 {
   "body": "",
   "headers": {
@@ -268,42 +268,42 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > answerMediaGet, answerMediaSave, answerMediaAddLink совпадают байт в байт 3`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > answerMediaGet, answerMediaSave, answerMediaAddLink совпадают байт в байт 3`] = `
 {
   "body": "{"error":"Не найдено","code":"notFound"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "GET /api/v1/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/questions/99999999-9999-4999-8999-999999999999/media",
   "status": 404,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > answerMediaGet, answerMediaSave, answerMediaAddLink совпадают байт в байт 4`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > answerMediaGet, answerMediaSave, answerMediaAddLink совпадают байт в байт 4`] = `
 {
   "body": "sha256(11197):dbe7bc243ec08a94974d6b67509cacf0d7347d1c10bc8ba8cee5cbb624eed4c3 {"editable":true,"media":[{"id":"m1","kind":"video","url":"https://mybooks.kz/v/AbCdEf1234","fileId":"cccccccc-cccc-4ccc-8ccc-cccccccccccc","title":"Ролик","anchor":null,"source":"MyBooks","qrSvg":"<svg xmlns=\\"http://www.w3.org/2000/svg\\" viewBox=\\"0 0 100 100\\"><rect x=\\"0\\" y=\\"0\\" width=\\"100\\" …",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "PUT /api/v1/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/questions/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/media",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > answerMediaGet, answerMediaSave, answerMediaAddLink совпадают байт в байт 5`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > answerMediaGet, answerMediaSave, answerMediaAddLink совпадают байт в байт 5`] = `
 {
   "body": "sha256(11197):dbe7bc243ec08a94974d6b67509cacf0d7347d1c10bc8ba8cee5cbb624eed4c3 {"editable":true,"media":[{"id":"m1","kind":"video","url":"https://mybooks.kz/v/AbCdEf1234","fileId":"cccccccc-cccc-4ccc-8ccc-cccccccccccc","title":"Ролик","anchor":null,"source":"MyBooks","qrSvg":"<svg xmlns=\\"http://www.w3.org/2000/svg\\" viewBox=\\"0 0 100 100\\"><rect x=\\"0\\" y=\\"0\\" width=\\"100\\" …",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/v1/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/questions/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/media/link",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > answerMediaGet, answerMediaSave, answerMediaAddLink совпадают байт в байт 6`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > answerMediaGet, answerMediaSave, answerMediaAddLink совпадают байт в байт 6`] = `
 {
   "body": "{"error":"Это не похоже на ссылку. Скопируйте её из адресной строки или кнопкой «Поделиться».","code":"badUrl"}",
   "headers": {
@@ -314,7 +314,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > answerMediaGet, answerMediaSave, answerMediaAddLink совпадают байт в байт 7`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > answerMediaGet, answerMediaSave, answerMediaAddLink совпадают байт в байт 7`] = `
 {
   "body": "{"error":"Эта ссылка уже есть в ответе","code":"duplicate"}",
   "headers": {
@@ -325,12 +325,12 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > pagesAiInfo, pagesAi, pagesChapters, pagesChaptersUpdate совпадают байт в байт 1`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > pagesAiInfo, pagesAi, pagesChapters, pagesChaptersUpdate совпадают байт в байт 1`] = `
 {
   "body": "sha256(5241):f48d3ae1a4ccee255399b7ff822b8df25361939abfb1393ba8ef4966bf8975f0 {"remaining":5,"limit":5,"credits":0,"out":false,"ideas":{"edit":["Нежно, как гербарий","Подбери цвета под мои фото","Сделай в одном стиле с обложкой","Шрифт покрупнее, читать бабушке","Как классический роман","Нарисуй эмблему для глав — цветок"],"create":["Нарисуй эмблему для глав — цветок","Нарису…",
   "headers": {
     "cache-control": "private, no-cache",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
     "etag": ""fw3wPgQivd4Hn2HowMR485l4OY0"",
   },
   "request": "GET /api/v1/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/pages/ai",
@@ -338,7 +338,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > pagesAiInfo, pagesAi, pagesChapters, pagesChaptersUpdate совпадают байт в байт 2`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > pagesAiInfo, pagesAi, pagesChapters, pagesChaptersUpdate совпадают байт в байт 2`] = `
 {
   "body": "",
   "headers": {
@@ -350,12 +350,12 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > pagesAiInfo, pagesAi, pagesChapters, pagesChaptersUpdate совпадают байт в байт 3`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > pagesAiInfo, pagesAi, pagesChapters, pagesChaptersUpdate совпадают байт в байт 3`] = `
 {
   "body": "sha256(5405):dad3361c075c115bd0ee964ee2f11dd5e09122a4e591a8703ec5795c7a309bc7 {"remaining":5,"limit":5,"credits":0,"out":false,"ideas":{"edit":["Гербарий сияқты нәзік","Түстерді фотоларыма қарай таңда","Мұқабамен бір стильде жаса","Қаріпті үлкейт — әжем оқи алсын","Классикалық роман сияқты","Тараулар үшін эмблема сал — гүл"],"create":["Тараулар үшін эмблема сал — гүл","Эмблем…",
   "headers": {
     "cache-control": "private, no-cache",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
     "etag": ""BTq0EK7LxjGjCR4-1IF7EVTdgT0"",
   },
   "request": "GET /api/v1/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/pages/ai",
@@ -363,7 +363,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > pagesAiInfo, pagesAi, pagesChapters, pagesChaptersUpdate совпадают байт в байт 4`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > pagesAiInfo, pagesAi, pagesChapters, pagesChaptersUpdate совпадают байт в байт 4`] = `
 {
   "body": "",
   "headers": {
@@ -375,59 +375,59 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > pagesAiInfo, pagesAi, pagesChapters, pagesChaptersUpdate совпадают байт в байт 5`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > pagesAiInfo, pagesAi, pagesChapters, pagesChaptersUpdate совпадают байт в байт 5`] = `
 {
   "body": "sha256(5573):8d12759583979fd2c5150b5ec93480479382874af48d10834ed67f6d8cb36bf3 {"concept":"Тёплая классика","changed":true,"patch":{"interior":"warm","styleJson":"{\\"body\\":{\\"size\\":11}}"},"variants":null,"score":null,"scoreText":null,"summary":null,"strengths":null,"tips":null,"mode":"edit","reply":"Обновил оформление","before":{"interior":"classic","styleJson":"{}"},"info":…",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/v1/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/pages/ai",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > pagesAiInfo, pagesAi, pagesChapters, pagesChaptersUpdate совпадают байт в байт 6`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > pagesAiInfo, pagesAi, pagesChapters, pagesChaptersUpdate совпадают байт в байт 6`] = `
 {
   "body": "sha256(5711):225b1d4835d593eef53ffb07708e4991773abca9d003ec42b6668b2d1989be98 {"concept":null,"changed":null,"patch":null,"variants":[{"name":"Классика","idea":"Чистая вёрстка","patch":{"interior":"classic","styleJson":"{}"},"imageUrl":"/api/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/pages-image?kind=chapter&preview=prev1234567890ab"}],"score":null,"scoreText":null,"summary":…",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/v1/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/pages/ai",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > pagesAiInfo, pagesAi, pagesChapters, pagesChaptersUpdate совпадают байт в байт 7`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > pagesAiInfo, pagesAi, pagesChapters, pagesChaptersUpdate совпадают байт в байт 7`] = `
 {
   "body": "sha256(5687):89667060720ef671f114f71b197b56ec22f422c95f3af1e14dd649e7a0a482c1 {"concept":null,"changed":null,"patch":null,"variants":null,"score":8,"scoreText":"8 из 10","summary":"Хороший баланс","strengths":["Читаемый шрифт"],"tips":[{"title":"Интерлиньяж","why":"Чуть свободнее","patch":{"interior":"classic","styleJson":"{\\"body\\":{\\"lineHeight\\":1.5}}"}}],"mode":"review","…",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/v1/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/pages/ai",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > pagesAiInfo, pagesAi, pagesChapters, pagesChaptersUpdate совпадают байт в байт 8`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > pagesAiInfo, pagesAi, pagesChapters, pagesChaptersUpdate совпадают байт в байт 8`] = `
 {
   "body": "{"error":"Бесплатные запросы к ИИ-дизайнеру закончились. Чтобы продолжить, докупите пакет запросов.","code":"designAiLimit"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/v1/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/pages/ai",
   "status": 402,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > pagesAiInfo, pagesAi, pagesChapters, pagesChaptersUpdate совпадают байт в байт 9`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > pagesAiInfo, pagesAi, pagesChapters, pagesChaptersUpdate совпадают байт в байт 9`] = `
 {
   "body": "{"editable":true,"blank":false,"rows":[{"key":"c:ch1","pageKey":"ch1","label":"Детство","title":"","epigraph":"","epigraphPlaceholder":"Светлые дни","removed":false,"number":1,"meta":"1 история · первую главу убрать нельзя","first":true,"movable":true,"canUp":false,"canDown":true},{"key":"c:ch2","pageKey":"ch2","label":"Юность","title":"","epigraph":"","epigraphPlaceholder":"Эпиграф главы — по желанию","removed":false,"number":2,"meta":"1 история","first":false,"movable":true,"canUp":true,"canDown":false}],"tocMode":"chapters","tocModes":[{"id":"chapters","title":"По главам","text":"Названия глав — как сейчас"},{"id":"sections","title":"По моим заголовкам","text":"Заголовки ваших историй вместо глав"},{"id":"both","title":"Главы и заголовки","text":"Под каждой главой — её истории"}],"limits":{"title":200,"epigraph":300},"labels":{"title":"Главы книги","text":"Главу можно назвать по-своему и написать свой эпиграф — они поменяются во всей книге. Или убрать: страницы с её названием не будет, а её истории перейдут в предыдущую главу. Ничего не удаляется — главу можно вернуть.","later":"Главы появятся, когда в книге будут ответы.","removedCount":null,"nameReset":"Вернуть название","epigraphReset":"Вернуть эпиграф","remove":"Убрать главу","restore":"Вернуть","removed":"Убрана","toStart":"В начало книги","up":"Выше","down":"Ниже","toEnd":"В конец книги","moveError":"Не перенеслось — обновите страницу и попробуйте ещё раз","toc":"Оглавление"}}",
   "headers": {
     "cache-control": "private, no-cache",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
     "etag": ""eWKTUcBINnA3PWsVETx9Im_tLZI"",
   },
   "request": "GET /api/v1/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/pages/chapters",
@@ -435,7 +435,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > pagesAiInfo, pagesAi, pagesChapters, pagesChaptersUpdate совпадают байт в байт 10`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > pagesAiInfo, pagesAi, pagesChapters, pagesChaptersUpdate совпадают байт в байт 10`] = `
 {
   "body": "",
   "headers": {
@@ -447,36 +447,36 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > pagesAiInfo, pagesAi, pagesChapters, pagesChaptersUpdate совпадают байт в байт 11`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > pagesAiInfo, pagesAi, pagesChapters, pagesChaptersUpdate совпадают байт в байт 11`] = `
 {
   "body": "sha256(25390):939ae11e8b5275e4671db58bde1cf1d1f3bd706ce0b1bb6be468784fd6470b33 {"view":{"bookId":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","editable":true,"state":{"interior":"classic","dedication":"Любимой маме","showToc":true,"endText":null,"titlePage":true,"photoPlacement":"chapters","customCount":0,"styleJson":"{}"},"imageWidths":[600,1200],"spreadAspect":1.4095238095238096,"…",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/v1/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/pages/chapters",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > pagesAiInfo, pagesAi, pagesChapters, pagesChaptersUpdate совпадают байт в байт 12`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > pagesAiInfo, pagesAi, pagesChapters, pagesChaptersUpdate совпадают байт в байт 12`] = `
 {
   "body": "sha256(25390):939ae11e8b5275e4671db58bde1cf1d1f3bd706ce0b1bb6be468784fd6470b33 {"view":{"bookId":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","editable":true,"state":{"interior":"classic","dedication":"Любимой маме","showToc":true,"endText":null,"titlePage":true,"photoPlacement":"chapters","customCount":0,"styleJson":"{}"},"imageWidths":[600,1200],"spreadAspect":1.4095238095238096,"…",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/v1/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/pages/chapters",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > pagesGet, pagesUpdate, pagesStudioGet, pagesStudioApply совпадают байт в байт 1`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > pagesGet, pagesUpdate, pagesStudioGet, pagesStudioApply совпадают байт в байт 1`] = `
 {
   "body": "sha256(23343):1bf221038696fd3d0f969b7d91c399d2b6774a51e31caa3fbc6104aeb6faf1d7 {"bookId":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","editable":true,"state":{"interior":"classic","dedication":"Любимой маме","showToc":true,"endText":null,"titlePage":true,"photoPlacement":"chapters","customCount":0,"styleJson":"{}"},"imageWidths":[600,1200],"spreadAspect":1.4095238095238096,"spreads"…",
   "headers": {
     "cache-control": "private, no-cache",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
     "etag": ""df2h_qkgrr4j0JH8D-P9NfFuI2w"",
   },
   "request": "GET /api/v1/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/pages",
@@ -484,7 +484,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > pagesGet, pagesUpdate, pagesStudioGet, pagesStudioApply совпадают байт в байт 2`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > pagesGet, pagesUpdate, pagesStudioGet, pagesStudioApply совпадают байт в байт 2`] = `
 {
   "body": "",
   "headers": {
@@ -496,12 +496,12 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > pagesGet, pagesUpdate, pagesStudioGet, pagesStudioApply совпадают байт в байт 3`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > pagesGet, pagesUpdate, pagesStudioGet, pagesStudioApply совпадают байт в байт 3`] = `
 {
   "body": "sha256(23540):3ae2ba02fdc5ec19e91833bcf0c18e79514c31f153d2e20abbedd53436a0ee91 {"bookId":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","editable":true,"state":{"interior":"classic","dedication":"Любимой маме","showToc":true,"endText":null,"titlePage":true,"photoPlacement":"chapters","customCount":0,"styleJson":"{}"},"imageWidths":[600,1200],"spreadAspect":1.4095238095238096,"spreads"…",
   "headers": {
     "cache-control": "private, no-cache",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
     "etag": ""SRO-dodkufIPXT5nMR9VEXQ2O-o"",
   },
   "request": "GET /api/v1/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/pages",
@@ -509,7 +509,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > pagesGet, pagesUpdate, pagesStudioGet, pagesStudioApply совпадают байт в байт 4`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > pagesGet, pagesUpdate, pagesStudioGet, pagesStudioApply совпадают байт в байт 4`] = `
 {
   "body": "",
   "headers": {
@@ -521,29 +521,29 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > pagesGet, pagesUpdate, pagesStudioGet, pagesStudioApply совпадают байт в байт 5`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > pagesGet, pagesUpdate, pagesStudioGet, pagesStudioApply совпадают байт в байт 5`] = `
 {
   "body": "{"error":"Нужно войти в аккаунт","code":"unauthorized"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "GET /api/v1/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/pages",
   "status": 401,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > pagesGet, pagesUpdate, pagesStudioGet, pagesStudioApply совпадают байт в байт 6`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > pagesGet, pagesUpdate, pagesStudioGet, pagesStudioApply совпадают байт в байт 6`] = `
 {
   "body": "{"error":"Книга не найдена","code":"bookNotFound"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "GET /api/v1/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/pages",
   "status": 404,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > pagesGet, pagesUpdate, pagesStudioGet, pagesStudioApply совпадают байт в байт 7`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > pagesGet, pagesUpdate, pagesStudioGet, pagesStudioApply совпадают байт в байт 7`] = `
 {
   "body": "",
   "headers": {
@@ -554,57 +554,57 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > pagesGet, pagesUpdate, pagesStudioGet, pagesStudioApply совпадают байт в байт 8`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > pagesGet, pagesUpdate, pagesStudioGet, pagesStudioApply совпадают байт в байт 8`] = `
 {
   "body": "sha256(23343):1bf221038696fd3d0f969b7d91c399d2b6774a51e31caa3fbc6104aeb6faf1d7 {"bookId":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","editable":true,"state":{"interior":"classic","dedication":"Любимой маме","showToc":true,"endText":null,"titlePage":true,"photoPlacement":"chapters","customCount":0,"styleJson":"{}"},"imageWidths":[600,1200],"spreadAspect":1.4095238095238096,"spreads"…",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "PATCH /api/v1/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/pages",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > pagesGet, pagesUpdate, pagesStudioGet, pagesStudioApply совпадают байт в байт 9`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > pagesGet, pagesUpdate, pagesStudioGet, pagesStudioApply совпадают байт в байт 9`] = `
 {
   "body": "{"error":"Некорректный запрос","code":"badRequest"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "PATCH /api/v1/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/pages",
   "status": 400,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > pagesGet, pagesUpdate, pagesStudioGet, pagesStudioApply совпадают байт в байт 10`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > pagesGet, pagesUpdate, pagesStudioGet, pagesStudioApply совпадают байт в байт 10`] = `
 {
   "body": "{"error":"Запрос отклонён","code":"forbidden"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "PATCH /api/v1/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/pages",
   "status": 403,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > pagesGet, pagesUpdate, pagesStudioGet, pagesStudioApply совпадают байт в байт 11`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > pagesGet, pagesUpdate, pagesStudioGet, pagesStudioApply совпадают байт в байт 11`] = `
 {
   "body": "{"error":"Книга уже передана в печать и не может быть изменена","code":"bookLocked"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "PATCH /api/v1/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/pages",
   "status": 409,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > pagesGet, pagesUpdate, pagesStudioGet, pagesStudioApply совпадают байт в байт 12`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > pagesGet, pagesUpdate, pagesStudioGet, pagesStudioApply совпадают байт в байт 12`] = `
 {
   "body": "sha256(12337):c5ffc8033c76ac4c69c90124fb24a76db7ef1c17f074e254a068fd570cd1d7d5 {"tab":"text","sections":[{"title":"Основной текст","text":null,"controls":[{"kind":"number","id":"bodySize","label":"Кегль","hint":null,"spread":"chapter","target":"style","section":"body","key":"size","custom":false,"value":10.5,"min":8,"max":14,"step":0.1,"scale":null,"unit":"pt","slider":true,"u…",
   "headers": {
     "cache-control": "private, no-cache",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
     "etag": ""NsCrT1eM9jo1IpNhCRmLr4ZiE0M"",
   },
   "request": "GET /api/v1/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/pages/studio?tab=text",
@@ -612,7 +612,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > pagesGet, pagesUpdate, pagesStudioGet, pagesStudioApply совпадают байт в байт 13`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > pagesGet, pagesUpdate, pagesStudioGet, pagesStudioApply совпадают байт в байт 13`] = `
 {
   "body": "",
   "headers": {
@@ -624,12 +624,12 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > pagesGet, pagesUpdate, pagesStudioGet, pagesStudioApply совпадают байт в байт 14`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > pagesGet, pagesUpdate, pagesStudioGet, pagesStudioApply совпадают байт в байт 14`] = `
 {
   "body": "sha256(32121):3d23e52f07c763d6e576775ae1cce2e0c38a842e897d9fe669305762792765fe {"tab":"elements","sections":[{"title":"Буквица","text":null,"controls":[{"kind":"choice","id":"dropCap","label":null,"hint":null,"spread":"chapter","target":"style","section":"elements","key":"dropCap","custom":false,"value":null,"min":null,"max":null,"step":null,"scale":null,"unit":null,"slider":n…",
   "headers": {
     "cache-control": "private, no-cache",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
     "etag": ""P5vhaNOmdj8uZof2svivLIBpNSU"",
   },
   "request": "GET /api/v1/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/pages/studio?tab=elements",
@@ -637,7 +637,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > pagesGet, pagesUpdate, pagesStudioGet, pagesStudioApply совпадают байт в байт 15`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > pagesGet, pagesUpdate, pagesStudioGet, pagesStudioApply совпадают байт в байт 15`] = `
 {
   "body": "",
   "headers": {
@@ -649,12 +649,12 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > pagesGet, pagesUpdate, pagesStudioGet, pagesStudioApply совпадают байт в байт 16`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > pagesGet, pagesUpdate, pagesStudioGet, pagesStudioApply совпадают байт в байт 16`] = `
 {
   "body": "sha256(8483):479f94824e74229cc8591c9afe416bd326e11eef8e3d080742c9ab5e459e7656 {"tab":"colors","sections":[{"title":"Палитры","text":"Готовые сочетания цветов текста, акцента и орнамента.","controls":[{"kind":"tiles","id":"palette","label":null,"hint":null,"spread":"chapter","target":"style","section":"colors","key":null,"custom":false,"value":null,"min":null,"max":null,"step"…",
   "headers": {
     "cache-control": "private, no-cache",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
     "etag": ""Imu_2WCV1cf8Doqm8DdeF1kEcNk"",
   },
   "request": "GET /api/v1/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/pages/studio?tab=colors",
@@ -662,7 +662,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > pagesGet, pagesUpdate, pagesStudioGet, pagesStudioApply совпадают байт в байт 17`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > pagesGet, pagesUpdate, pagesStudioGet, pagesStudioApply совпадают байт в байт 17`] = `
 {
   "body": "",
   "headers": {
@@ -674,12 +674,12 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > pagesGet, pagesUpdate, pagesStudioGet, pagesStudioApply совпадают байт в байт 18`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > pagesGet, pagesUpdate, pagesStudioGet, pagesStudioApply совпадают байт в байт 18`] = `
 {
   "body": "sha256(20283):9e15203d26e611df99450abd869e816dc9eff073c28f056a5673ddb5fbb95bb2 {"tab":"chapters","sections":[{"title":null,"text":null,"controls":[{"kind":"note","id":"text","label":null,"hint":"Отдельной главе можно дать своё начало: номер, выключку, орнамент, буквицу, цвет. Остальные главы останутся как в стиле.","spread":null,"target":null,"section":null,"key":null,"custom"…",
   "headers": {
     "cache-control": "private, no-cache",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
     "etag": ""stSVxAAtq1whY_NpTLJDrisXaeY"",
   },
   "request": "GET /api/v1/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/pages/studio?tab=chapters",
@@ -687,7 +687,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > pagesGet, pagesUpdate, pagesStudioGet, pagesStudioApply совпадают байт в байт 19`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > pagesGet, pagesUpdate, pagesStudioGet, pagesStudioApply совпадают байт в байт 19`] = `
 {
   "body": "",
   "headers": {
@@ -699,12 +699,12 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > pagesGet, pagesUpdate, pagesStudioGet, pagesStudioApply совпадают байт в байт 20`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > pagesGet, pagesUpdate, pagesStudioGet, pagesStudioApply совпадают байт в байт 20`] = `
 {
   "body": "sha256(15160):45a37074f188cb4e22dfc36743de05041f123be64fe7ab6316a9034f8ba555e2 {"tab":"fonts","sections":[{"title":"Название книги и главы","text":null,"controls":[{"kind":"font","id":"display-font","label":"Название книги и главы","hint":null,"spread":"chapter","target":"fontRole","section":"fonts","key":"display","custom":false,"value":null,"min":null,"max":null,"step":null,…",
   "headers": {
     "cache-control": "private, no-cache",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
     "etag": ""-gQf8ESbAP55psHpSFHuALK40HU"",
   },
   "request": "GET /api/v1/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/pages/studio?tab=fonts",
@@ -712,7 +712,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > pagesGet, pagesUpdate, pagesStudioGet, pagesStudioApply совпадают байт в байт 21`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > pagesGet, pagesUpdate, pagesStudioGet, pagesStudioApply совпадают байт в байт 21`] = `
 {
   "body": "",
   "headers": {
@@ -724,34 +724,34 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > pagesGet, pagesUpdate, pagesStudioGet, pagesStudioApply совпадают байт в байт 22`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > pagesGet, pagesUpdate, pagesStudioGet, pagesStudioApply совпадают байт в байт 22`] = `
 {
   "body": "{"error":"Некорректные данные","code":"badData"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "GET /api/v1/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/pages/studio?tab=bad",
   "status": 400,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > pagesGet, pagesUpdate, pagesStudioGet, pagesStudioApply совпадают байт в байт 23`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > pagesGet, pagesUpdate, pagesStudioGet, pagesStudioApply совпадают байт в байт 23`] = `
 {
   "body": "sha256(35699):29551e971356b1d1868d6746632e1cfafb13b7e939a6becc3aaac78b7359e0f5 {"view":{"bookId":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","editable":true,"state":{"interior":"classic","dedication":"Любимой маме","showToc":true,"endText":null,"titlePage":true,"photoPlacement":"chapters","customCount":0,"styleJson":"{}"},"imageWidths":[600,1200],"spreadAspect":1.4095238095238096,"…",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/v1/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/pages/studio",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов) > pagesGet, pagesUpdate, pagesStudioGet, pagesStudioApply совпадают байт в байт 24`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов) > pagesGet, pagesUpdate, pagesStudioGet, pagesStudioApply совпадают байт в байт 24`] = `
 {
   "body": "{"error":"Некорректный запрос","code":"badRequest"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/v1/books/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/pages/studio",
   "status": 400,

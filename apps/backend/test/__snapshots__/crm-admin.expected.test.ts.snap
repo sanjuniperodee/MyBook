@@ -1,55 +1,55 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 1`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 1`] = `
 {
   "body": "{"error":"Нужно войти в аккаунт","code":"unauthorized"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "GET /api/v1/crm/catalog",
   "status": 401,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 2`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 2`] = `
 {
   "body": "{"error":"Запрос отклонён","code":"forbidden"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "GET /api/v1/crm/site",
   "status": 403,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 3`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 3`] = `
 {
   "body": "{"error":"Запрос отклонён","code":"forbidden"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "GET /api/v1/crm/promos",
   "status": 403,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 4`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 4`] = `
 {
   "body": "{"error":"Запрос отклонён","code":"forbidden"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/v1/crm/catalog/sync",
   "status": 403,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 5`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 5`] = `
 {
   "body": "{"period":30,"total":{"key":"total","label":"Всего","clicks":200,"leads":40,"registrations":20,"startedBook":10,"sales":5,"revenue":145000,"spend":50000,"conversion":"25%","costPerLead":"833 ₸","romi":"+190%"},"channels":[{"key":"instagram","label":"Instagram","clicks":150,"leads":30,"registrations":15,"startedBook":8,"sales":4,"revenue":116000,"spend":40000,"conversion":"26,7%","costPerLead":"889 ₸","romi":"+190%"}],"links":[{"id":"bbbb0000-0000-4000-8000-000000000001","name":"Instagram шапка","slug":"ig-bio","shortUrl":"https://mybooks.kz/go/ig-bio","target":"/gift","fullUrl":"https://mybooks.kz/gift","archived":false,"createdLabel":"1 ноября 2026 г.","clicks":100,"leads":20,"registrations":10,"sales":3,"revenue":87000}],"archived":false,"showAnalytics":true,"canManage":false,"pages":[{"path":"/","label":"Главная"},{"path":"/gift","label":"Подарочный сертификат"},{"path":"/kniga/podarok-lyubimomu","label":"Подарок любимому человеку"},{"path":"/kniga/kniga-mame","label":"Книга в подарок маме"},{"path":"/kniga/kniga-pape","label":"Книга в подарок папе"},{"path":"/kniga/kniga-drugu","label":"Книга в подарок другу"},{"path":"/kniga/kniga-o-svoej-zhizni","label":"Книга о своей жизни"},{"path":"/kniga/svoya-kniga-s-nulya","label":"Своя книга с чистого листа"},{"path":"/kniga/podarok-na-godovshchinu","label":"Подарок на годовщину"},{"path":"/kniga/podarok-na-14-fevralya","label":"Подарок на 14 февраля"},{"path":"/kniga/podarok-na-8-marta","label":"Подарок маме на 8 марта"},{"path":"/kniga/podarok-muzhu","label":"Подарок мужу"},{"path":"/kniga/podarok-zhene","label":"Подарок жене"},{"path":"/kniga/podarok-parnyu","label":"Подарок парню"},{"path":"/kniga/podarok-devushke","label":"Подарок девушке"},{"path":"/kniga/podarok-na-yubilej-mame","label":"Подарок маме на юбилей"},{"path":"/kniga/podarok-na-yubilej-pape","label":"Подарок папе на юбилей"},{"path":"/kniga/podarok-pape-na-23-fevralya","label":"Подарок папе на 23 февраля"},{"path":"/kniga/podarok-babushke","label":"Подарок бабушке"},{"path":"/kniga/podarok-dedushke","label":"Подарок дедушке"},{"path":"/kniga/podarok-uchitelyu-na-den-uchitelya","label":"Подарок учителю на День учителя"},{"path":"/kniga/podarok-uchitelyu-na-vypusknoj","label":"Подарок учителю на выпускной"},{"path":"/kniga/podarok-na-svadbu","label":"Подарок на свадьбу"},{"path":"/kniga/podarok-podruge","label":"Подарок подруге на день рождения"}]}",
   "headers": {
     "cache-control": "private, no-cache",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
     "etag": ""4zcQP3fkK54_ES8yi1kxAVORIfc"",
   },
   "request": "GET /api/v1/crm/marketing",
@@ -57,7 +57,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 6`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 6`] = `
 {
   "body": "",
   "headers": {
@@ -69,12 +69,12 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 7`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 7`] = `
 {
   "body": "{"period":30,"total":{"key":"total","label":"Всего","clicks":200,"leads":40,"registrations":20,"startedBook":10,"sales":5,"revenue":145000,"spend":50000,"conversion":"25%","costPerLead":"833 ₸","romi":"+190%"},"channels":[{"key":"instagram","label":"Instagram","clicks":150,"leads":30,"registrations":15,"startedBook":8,"sales":4,"revenue":116000,"spend":40000,"conversion":"26,7%","costPerLead":"889 ₸","romi":"+190%"}],"links":[{"id":"bbbb0000-0000-4000-8000-000000000001","name":"Instagram шапка","slug":"ig-bio","shortUrl":"https://mybooks.kz/go/ig-bio","target":"/gift","fullUrl":"https://mybooks.kz/gift","archived":false,"createdLabel":"1 ноября 2026 г.","clicks":100,"leads":20,"registrations":10,"sales":3,"revenue":87000}],"archived":false,"showAnalytics":false,"canManage":true,"pages":[{"path":"/","label":"Главная"},{"path":"/gift","label":"Подарочный сертификат"},{"path":"/kniga/podarok-lyubimomu","label":"Подарок любимому человеку"},{"path":"/kniga/kniga-mame","label":"Книга в подарок маме"},{"path":"/kniga/kniga-pape","label":"Книга в подарок папе"},{"path":"/kniga/kniga-drugu","label":"Книга в подарок другу"},{"path":"/kniga/kniga-o-svoej-zhizni","label":"Книга о своей жизни"},{"path":"/kniga/svoya-kniga-s-nulya","label":"Своя книга с чистого листа"},{"path":"/kniga/podarok-na-godovshchinu","label":"Подарок на годовщину"},{"path":"/kniga/podarok-na-14-fevralya","label":"Подарок на 14 февраля"},{"path":"/kniga/podarok-na-8-marta","label":"Подарок маме на 8 марта"},{"path":"/kniga/podarok-muzhu","label":"Подарок мужу"},{"path":"/kniga/podarok-zhene","label":"Подарок жене"},{"path":"/kniga/podarok-parnyu","label":"Подарок парню"},{"path":"/kniga/podarok-devushke","label":"Подарок девушке"},{"path":"/kniga/podarok-na-yubilej-mame","label":"Подарок маме на юбилей"},{"path":"/kniga/podarok-na-yubilej-pape","label":"Подарок папе на юбилей"},{"path":"/kniga/podarok-pape-na-23-fevralya","label":"Подарок папе на 23 февраля"},{"path":"/kniga/podarok-babushke","label":"Подарок бабушке"},{"path":"/kniga/podarok-dedushke","label":"Подарок дедушке"},{"path":"/kniga/podarok-uchitelyu-na-den-uchitelya","label":"Подарок учителю на День учителя"},{"path":"/kniga/podarok-uchitelyu-na-vypusknoj","label":"Подарок учителю на выпускной"},{"path":"/kniga/podarok-na-svadbu","label":"Подарок на свадьбу"},{"path":"/kniga/podarok-podruge","label":"Подарок подруге на день рождения"}]}",
   "headers": {
     "cache-control": "private, no-cache",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
     "etag": ""fPkjfqplChws-pLnuC4Xnil0D10"",
   },
   "request": "GET /api/v1/crm/marketing",
@@ -82,7 +82,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 8`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 8`] = `
 {
   "body": "",
   "headers": {
@@ -94,23 +94,23 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 9`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 9`] = `
 {
   "body": "{"error":"Запрос отклонён","code":"forbidden"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "GET /api/v1/crm/marketing",
   "status": 403,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 10`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 10`] = `
 {
   "body": "{"members":[{"id":"11111111-1111-4111-8111-111111111111","name":"Айгерим","email":"owner@mybooks.kz","roleId":"aaaa0000-0000-4000-8000-000000000001","roleName":"Руководитель","extension":"101","phone":"+77011111111","disabled":false,"onShift":true,"lastSeen":"26 ноября 2026 г. в 14:50","openDeals":2,"calls7d":5,"isSelf":false,"locked":true},{"id":"44444444-4444-4444-8444-444444444444","name":"Тимлид","email":"hr@mybooks.kz","roleId":"aaaa0000-0000-4000-8000-000000000002","roleName":"Менеджер","extension":"102","phone":"+77012222222","disabled":false,"onShift":true,"lastSeen":null,"openDeals":4,"calls7d":12,"isSelf":true,"locked":true}],"roles":[{"id":"aaaa0000-0000-4000-8000-000000000001","label":"Руководитель"},{"id":"aaaa0000-0000-4000-8000-000000000002","label":"Менеджер"}],"inviteRoles":[{"id":"aaaa0000-0000-4000-8000-000000000002","label":"Менеджер"}]}",
   "headers": {
     "cache-control": "private, no-cache",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
     "etag": ""WuFg1V9I7VM3TlzSBQScA6TGodY"",
   },
   "request": "GET /api/v1/crm/team",
@@ -118,7 +118,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 11`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 11`] = `
 {
   "body": "",
   "headers": {
@@ -130,18 +130,18 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 12`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 12`] = `
 {
   "body": "{"error":"Некорректные данные","code":"badData"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "DELETE /api/v1/crm/templates/bad-uuid",
   "status": 400,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 13`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 13`] = `
 {
   "body": "",
   "headers": {
@@ -152,12 +152,12 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 14`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 14`] = `
 {
   "body": "{"products":[{"id":"1001","name":"Книга в твёрдой обложке","description":"Семейная фотокнига","price":29000,"currency":"KZT","retailerId":"SKU-1","url":"https://mybooks.kz","hidden":false,"review":"APPROVED","photos":[{"url":"https://cdn.wa/p1.jpg","src":"/api/admin/catalog/photo?u=https%3A%2F%2Fcdn.wa%2Fp1.jpg"}],"coverSrc":"/api/admin/catalog/1001/image","videos":1}],"collections":[],"collectionsError":"GOWA timeout","link":"https://wa.me/c/77011234567","problem":"Нет связи с WhatsApp","syncedLabel":"26.11.2026, 14:30:00"}",
   "headers": {
     "cache-control": "private, no-cache",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
     "etag": ""EBVZ6BpfhWnf9KZ2CYIP7a7hk3U"",
   },
   "request": "GET /api/v1/crm/catalog",
@@ -165,7 +165,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 15`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 15`] = `
 {
   "body": "",
   "headers": {
@@ -177,7 +177,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 16`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 16`] = `
 {
   "body": "{"error":"Фото товара — JPEG, PNG или WebP","code":"refused"}",
   "headers": {
@@ -189,7 +189,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 17`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 17`] = `
 {
   "body": "{"error":"Фото не дождалось сохранения — добавьте его ещё раз","code":"refused"}",
   "headers": {
@@ -201,7 +201,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 18`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 18`] = `
 {
   "body": "{"error":"Шлюз недоступен","code":"refused"}",
   "headers": {
@@ -213,40 +213,40 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 19`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 19`] = `
 {
   "body": "{"error":"Приложите чек: платёж без чека не принимается","code":"receiptRequired"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/v1/crm/gifts/dddd0000-0000-4000-8000-000000000001/paid",
   "status": 400,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 20`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 20`] = `
 {
   "body": "{"error":"Нужен файл JPG, PNG, WEBP или PDF","code":"receiptType"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/v1/crm/gifts/dddd0000-0000-4000-8000-000000000001/paid",
   "status": 400,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 21`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 21`] = `
 {
   "body": "{"error":"Сертификат уже не ждёт оплаты — обновите страницу","code":"giftNotPending"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/v1/crm/gifts/dddd0000-0000-4000-8000-000000000001/paid",
   "status": 409,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 22`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 22`] = `
 {
   "body": "{"error":"От 1 до 200","code":"refused"}",
   "headers": {
@@ -258,7 +258,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 23`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 23`] = `
 {
   "body": "{"error":"Промокод уже есть","code":"refused"}",
   "headers": {
@@ -270,7 +270,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 24`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 24`] = `
 {
   "body": "{"error":"Ошибка настроек сайта","code":"refused"}",
   "headers": {
@@ -282,19 +282,19 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 25`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 25`] = `
 {
   "body": "{"ok":true,"message":"Цены обновлены. У бота старые суммы"}",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "PUT /api/v1/crm/pricing",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 26`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 26`] = `
 {
   "body": "{"error":"Проверьте номер: нужно не меньше 10 цифр","code":"refused"}",
   "headers": {
@@ -306,7 +306,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 27`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 27`] = `
 {
   "body": "{"error":"Свои доступы меняет другой руководитель","code":"refused"}",
   "headers": {
@@ -318,7 +318,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 28`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > ветки ошибок, прав и особых случаев совпадают байт в байт 28`] = `
 {
   "body": "{"error":"Название шаблона","code":"refused"}",
   "headers": {
@@ -330,12 +330,12 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 1`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 1`] = `
 {
   "body": "{"products":[{"id":"1001","name":"Книга в твёрдой обложке","description":"Семейная фотокнига","price":29000,"currency":"KZT","retailerId":"SKU-1","url":"https://mybooks.kz","hidden":false,"review":"APPROVED","photos":[{"url":"https://cdn.wa/p1.jpg","src":"/api/admin/catalog/photo?u=https%3A%2F%2Fcdn.wa%2Fp1.jpg"}],"coverSrc":"/api/admin/catalog/1001/image","videos":1}],"collections":[{"id":"5001","name":"Хиты","productIds":["1001"]}],"collectionsError":null,"link":"https://wa.me/c/77011234567","problem":null,"syncedLabel":"26.11.2026, 14:30:00"}",
   "headers": {
     "cache-control": "private, no-cache",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
     "etag": ""WvEtlXLdawSTmqp44kzE82zNmVk"",
   },
   "request": "GET /api/v1/crm/catalog",
@@ -343,7 +343,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 2`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 2`] = `
 {
   "body": "",
   "headers": {
@@ -355,96 +355,96 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 3`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 3`] = `
 {
   "body": "{"ok":true,"message":"Обновлено из WhatsApp: 12 товаров, убрано 2"}",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/v1/crm/catalog/sync",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 4`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 4`] = `
 {
   "body": "{"tokens":["77777777-7777-4777-8777-777777777777"]}",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/v1/crm/catalog/uploads",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 5`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 5`] = `
 {
   "body": "{"ok":true,"message":"Товар добавлен — после проверки WhatsApp его увидят клиенты"}",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/v1/crm/catalog/products",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 6`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 6`] = `
 {
   "body": "{"ok":true,"message":"Товар скрыт"}",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/v1/crm/catalog/products/1001/hidden",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 7`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 7`] = `
 {
   "body": "{"ok":true,"message":"Товар удалён"}",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "DELETE /api/v1/crm/catalog/products/1001",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 8`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 8`] = `
 {
   "body": "{"ok":true,"message":"Коллекция сохранена"}",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/v1/crm/catalog/collections",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 9`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 9`] = `
 {
   "body": "{"ok":true,"message":"Коллекция удалена"}",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "DELETE /api/v1/crm/catalog/collections/5001",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 10`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 10`] = `
 {
   "body": "{"days":30,"enabled":true,"freeLimit":5,"canEdit":true,"totals":{"ok":40,"failed":2,"users":15,"free":30,"credit":10,"costUsd":1.25,"avgSeconds":2.3},"people":{"used":15,"hitLimit":4,"withCredits":3,"creditsLeft":18},"purchases":{"paid":2,"paidAmount":9800,"pending":1,"pendingAmount":4900},"byMode":[{"key":"edit","label":"Изменить","requests":25,"costUsd":0.7}],"byDay":[{"day":"2026-11-25","requests":12,"users":6}],"users":[{"userId":"12121212-1212-4121-8121-121212121212","name":"Асель","email":"asel@example.kz","requests":8,"free":5,"credit":3,"credits":7,"lastLabel":"26 ноября 2026 г. в 13:00"}]}",
   "headers": {
     "cache-control": "private, no-cache",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
     "etag": ""bc45EoXzgIvHSJorm44aS_rfpEE"",
   },
   "request": "GET /api/v1/crm/design-ai?days=30",
@@ -452,7 +452,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 11`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 11`] = `
 {
   "body": "",
   "headers": {
@@ -464,36 +464,36 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 12`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 12`] = `
 {
   "body": "{"ok":true,"message":"Подарено запросов: 5"}",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/v1/crm/design-ai/grant",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 13`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 13`] = `
 {
   "body": "{"ok":true,"message":"Готово: 10 бесплатных запросов на клиента."}",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "PUT /api/v1/crm/design-ai/limit",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 14`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 14`] = `
 {
   "body": "{"period":30,"total":{"key":"total","label":"Всего","clicks":200,"leads":40,"registrations":20,"startedBook":10,"sales":5,"revenue":145000,"spend":50000,"conversion":"25%","costPerLead":"833 ₸","romi":"+190%"},"channels":[{"key":"instagram","label":"Instagram","clicks":150,"leads":30,"registrations":15,"startedBook":8,"sales":4,"revenue":116000,"spend":40000,"conversion":"26,7%","costPerLead":"889 ₸","romi":"+190%"}],"links":[{"id":"bbbb0000-0000-4000-8000-000000000001","name":"Instagram шапка","slug":"ig-bio","shortUrl":"https://mybooks.kz/go/ig-bio","target":"/gift","fullUrl":"https://mybooks.kz/gift","archived":false,"createdLabel":"1 ноября 2026 г.","clicks":100,"leads":20,"registrations":10,"sales":3,"revenue":87000}],"archived":false,"showAnalytics":true,"canManage":true,"pages":[{"path":"/","label":"Главная"},{"path":"/gift","label":"Подарочный сертификат"},{"path":"/kniga/podarok-lyubimomu","label":"Подарок любимому человеку"},{"path":"/kniga/kniga-mame","label":"Книга в подарок маме"},{"path":"/kniga/kniga-pape","label":"Книга в подарок папе"},{"path":"/kniga/kniga-drugu","label":"Книга в подарок другу"},{"path":"/kniga/kniga-o-svoej-zhizni","label":"Книга о своей жизни"},{"path":"/kniga/svoya-kniga-s-nulya","label":"Своя книга с чистого листа"},{"path":"/kniga/podarok-na-godovshchinu","label":"Подарок на годовщину"},{"path":"/kniga/podarok-na-14-fevralya","label":"Подарок на 14 февраля"},{"path":"/kniga/podarok-na-8-marta","label":"Подарок маме на 8 марта"},{"path":"/kniga/podarok-muzhu","label":"Подарок мужу"},{"path":"/kniga/podarok-zhene","label":"Подарок жене"},{"path":"/kniga/podarok-parnyu","label":"Подарок парню"},{"path":"/kniga/podarok-devushke","label":"Подарок девушке"},{"path":"/kniga/podarok-na-yubilej-mame","label":"Подарок маме на юбилей"},{"path":"/kniga/podarok-na-yubilej-pape","label":"Подарок папе на юбилей"},{"path":"/kniga/podarok-pape-na-23-fevralya","label":"Подарок папе на 23 февраля"},{"path":"/kniga/podarok-babushke","label":"Подарок бабушке"},{"path":"/kniga/podarok-dedushke","label":"Подарок дедушке"},{"path":"/kniga/podarok-uchitelyu-na-den-uchitelya","label":"Подарок учителю на День учителя"},{"path":"/kniga/podarok-uchitelyu-na-vypusknoj","label":"Подарок учителю на выпускной"},{"path":"/kniga/podarok-na-svadbu","label":"Подарок на свадьбу"},{"path":"/kniga/podarok-podruge","label":"Подарок подруге на день рождения"}]}",
   "headers": {
     "cache-control": "private, no-cache",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
     "etag": ""Mhq-zRfGgeqtv9LDHvbyxOwF788"",
   },
   "request": "GET /api/v1/crm/marketing?period=30",
@@ -501,7 +501,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 15`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 15`] = `
 {
   "body": "",
   "headers": {
@@ -513,36 +513,36 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 16`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 16`] = `
 {
   "body": "{"ok":true,"message":"Ссылка создана"}",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/v1/crm/marketing/links",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 17`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 17`] = `
 {
   "body": "{"ok":true,"message":"Ссылка в архиве"}",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/v1/crm/marketing/links/bbbb0000-0000-4000-8000-000000000001/archive",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 18`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 18`] = `
 {
   "body": "{"rows":[{"id":"cccc0000-0000-4000-8000-000000000001","code":"WINTER15","discount":"15%","active":true,"used":4,"maxUses":50,"until":"до 31 декабря 2026 г.","note":"Зимняя акция","paid":3,"revenue":75000}],"totals":{"count":1,"active":1,"used":4,"paid":3,"revenue":75000}}",
   "headers": {
     "cache-control": "private, no-cache",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
     "etag": ""O8-MDnegJ_tp9LeTaD2lbwGsXuo"",
   },
   "request": "GET /api/v1/crm/promos",
@@ -550,7 +550,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 19`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 19`] = `
 {
   "body": "",
   "headers": {
@@ -562,36 +562,36 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 20`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 20`] = `
 {
   "body": "{"ok":true,"message":"Промокод SPRING10 создан"}",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/v1/crm/promos",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 21`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 21`] = `
 {
   "body": "{"ok":true,"message":null}",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/v1/crm/promos/cccc0000-0000-4000-8000-000000000001/toggle",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 22`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 22`] = `
 {
   "body": "{"waiting":[{"id":"dddd0000-0000-4000-8000-000000000001","number":101,"status":"pending_payment","statusLabel":"Ждёт оплаты","amount":29000,"plan":"Твёрдая обложка","buyer":"Динара","buyerContact":"dinara@example.kz, +77010000001","recipient":"Мама","delivery":"отправка 1 декабря","createdLabel":"25 ноября 2026 г.","claimed":true,"code":null,"redeemed":false,"canResend":true,"receiptUrl":null}],"register":[{"id":"dddd0000-0000-4000-8000-000000000002","number":100,"status":"paid","statusLabel":"Оплачен","amount":29000,"plan":"Твёрдая обложка","buyer":"Алия","buyerContact":"aliya@example.kz, +77010000002","recipient":"Подруга","delivery":"письмо отправлено","createdLabel":"24 ноября 2026 г.","claimed":false,"code":"GIFT-100","redeemed":true,"canResend":true,"receiptUrl":"/api/admin/gifts/dddd0000-0000-4000-8000-000000000002/receipt"}],"totals":{"paid":1,"redeemed":1,"revenue":29000,"claimed":1}}",
   "headers": {
     "cache-control": "private, no-cache",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
     "etag": ""ERzL7i_fB1CnDdQwN6r5pO_AgA8"",
   },
   "request": "GET /api/v1/crm/gifts",
@@ -599,7 +599,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 23`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 23`] = `
 {
   "body": "",
   "headers": {
@@ -611,48 +611,48 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 24`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 24`] = `
 {
   "body": "{"ok":true,"message":"Оплата подтверждена — код отправлен"}",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/v1/crm/gifts/dddd0000-0000-4000-8000-000000000001/paid",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 25`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 25`] = `
 {
   "body": "{"ok":true,"message":"Сертификат отправлен ещё раз"}",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/v1/crm/gifts/dddd0000-0000-4000-8000-000000000001/resend",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 26`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 26`] = `
 {
   "body": "{"ok":true,"message":"Сертификат отменён"}",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/v1/crm/gifts/dddd0000-0000-4000-8000-000000000001/cancel",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 27`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 27`] = `
 {
   "body": "{"rows":[{"id":"eeee0000-0000-4000-8000-000000000001","status":"new","rating":5,"text":"Очень красивая книга, родители растрогались до слёз!","author":"Жанна","city":"Алматы","theme":"Книга семье","locale":"ru","featured":false,"blocker":null,"photoUrl":"/api/reviews/photo/eeee0000-0000-4000-8000-000000000001","orderId":"ffff0000-0000-4000-8000-000000000001","orderNumber":555,"thankYouCode":"THX-10","createdLabel":"25 ноября 2026 г."}],"counts":{"waiting":1,"published":10,"hidden":1},"average":"4.9 из 5","filter":"new"}",
   "headers": {
     "cache-control": "private, no-cache",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
     "etag": ""UJn9sh_IWYthROWpbTv2tYkpqO8"",
   },
   "request": "GET /api/v1/crm/reviews?s=new",
@@ -660,7 +660,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 28`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 28`] = `
 {
   "body": "",
   "headers": {
@@ -672,24 +672,24 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 29`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 29`] = `
 {
   "body": "{"ok":true,"message":"Отзыв на сайте"}",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/v1/crm/reviews/eeee0000-0000-4000-8000-000000000001/publish",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 30`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 30`] = `
 {
   "body": "{"registration":true,"giftNote":true,"maxPhotos":120,"maxPhotosCeiling":1000,"seller":{"legalName":"","bin":"","phone":"","whatsapp":""},"sellerPlaceholder":{"legalName":"ИП «MyBooks»","bin":"000000000000","phone":"77000000000","whatsapp":"77000000000"}}",
   "headers": {
     "cache-control": "private, no-cache",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
     "etag": ""p4_-X-a_ujziHcSCIYlilPMkFrM"",
   },
   "request": "GET /api/v1/crm/site",
@@ -697,7 +697,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 31`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 31`] = `
 {
   "body": "",
   "headers": {
@@ -709,24 +709,24 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 32`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 32`] = `
 {
   "body": "{"ok":true,"message":"Регистрация обновлена. Открытка обновлена. Предел фото сохранён."}",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "PATCH /api/v1/crm/site",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 33`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 33`] = `
 {
   "body": "sha256(4866):b72a988dd810ed4d0124aba1aa0d12ff92a09f3e2d0ad3be8240b4359872f834 {"changed":false,"sections":[{"title":"Тарифы","fields":[{"key":"plan_digital_price","label":"Электронная версия: цена","kind":"money","value":"9900","hint":null,"optional":false},{"key":"plan_digital_visible","label":"Электронная версия: продаётся","kind":"switch","value":"on","hint":null,"optional…",
   "headers": {
     "cache-control": "private, no-cache",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
     "etag": ""6vbmA0zSOuF0K6jrU-1c9sH3dKw"",
   },
   "request": "GET /api/v1/crm/pricing",
@@ -734,7 +734,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 34`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 34`] = `
 {
   "body": "",
   "headers": {
@@ -746,24 +746,24 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 35`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 35`] = `
 {
   "body": "{"ok":true,"message":"Цены обновлены"}",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "PUT /api/v1/crm/pricing",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 36`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 36`] = `
 {
   "body": "{"members":[{"id":"11111111-1111-4111-8111-111111111111","name":"Айгерим","email":"owner@mybooks.kz","roleId":"aaaa0000-0000-4000-8000-000000000001","roleName":"Руководитель","extension":"101","phone":"+77011111111","disabled":false,"onShift":true,"lastSeen":"26 ноября 2026 г. в 14:50","openDeals":2,"calls7d":5,"isSelf":true,"locked":true},{"id":"44444444-4444-4444-8444-444444444444","name":"Тимлид","email":"hr@mybooks.kz","roleId":"aaaa0000-0000-4000-8000-000000000002","roleName":"Менеджер","extension":"102","phone":"+77012222222","disabled":false,"onShift":true,"lastSeen":null,"openDeals":4,"calls7d":12,"isSelf":false,"locked":false}],"roles":[{"id":"aaaa0000-0000-4000-8000-000000000001","label":"Руководитель"},{"id":"aaaa0000-0000-4000-8000-000000000002","label":"Менеджер"}],"inviteRoles":[{"id":"aaaa0000-0000-4000-8000-000000000001","label":"Руководитель"},{"id":"aaaa0000-0000-4000-8000-000000000002","label":"Менеджер"}]}",
   "headers": {
     "cache-control": "private, no-cache",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
     "etag": ""KqWjxLSV0vTL2pQOtDTu59DJfVk"",
   },
   "request": "GET /api/v1/crm/team",
@@ -771,7 +771,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 37`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 37`] = `
 {
   "body": "",
   "headers": {
@@ -783,60 +783,60 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 38`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 38`] = `
 {
   "body": "{"ok":true,"message":"Сотрудник добавлен"}",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/v1/crm/team",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 39`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 39`] = `
 {
   "body": "{"ok":true,"message":"Сохранено"}",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "PATCH /api/v1/crm/team/44444444-4444-4444-8444-444444444444",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 40`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 40`] = `
 {
   "body": "{"ok":true,"message":"Доступ к CRM забран"}",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/v1/crm/team/44444444-4444-4444-8444-444444444444/revoke",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 41`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 41`] = `
 {
   "body": "{"ok":true,"message":"Новый пароль отправлен"}",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/v1/crm/team/44444444-4444-4444-8444-444444444444/password",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 42`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 42`] = `
 {
   "body": "{"templates":[{"id":"99990000-0000-4000-8000-000000000001","title":"Приветствие","text":"Здравствуйте, {{name}}!"}],"vars":["{имя}","{заказ}","{ссылка}","{менеджер}","{повод}","{дата}","{получатель}","{Название своего поля}"]}",
   "headers": {
     "cache-control": "private, no-cache",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
     "etag": ""ux21mjMo_j7X5Aur5RXI7vG9xBE"",
   },
   "request": "GET /api/v1/crm/templates",
@@ -844,7 +844,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 43`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 43`] = `
 {
   "body": "",
   "headers": {
@@ -856,24 +856,24 @@ exports[`побайтовый паритет NestJS ↔ mybook-api (Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 44`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 44`] = `
 {
   "body": "{"ok":true,"message":"Шаблон сохранён"}",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/v1/crm/templates",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 45`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 5A-2 — все 35 маршрутов) > все 35 маршрутов совпадают байт в байт на успешном ответе (GET — с ETag и 304) 45`] = `
 {
   "body": "{"ok":true,"message":"Шаблон удалён"}",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "DELETE /api/v1/crm/templates/99990000-0000-4000-8000-000000000001",
   "status": 200,

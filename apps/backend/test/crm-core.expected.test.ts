@@ -242,15 +242,15 @@ const state = vi.hoisted(() => ({
 
 // В изолированном worktree `node_modules` может быть симлинком на другой worktree, поэтому берём локальный `@mybook/contracts`.
 vi.mock("@mybook/contracts", () => import("../../../packages/contracts/src/index"));
-vi.mock("next/headers", () => import("../../../apps/api/src/http/next-shim"));
-vi.mock("next/server", () => import("../../../apps/api/src/http/next-shim"));
-vi.mock("next/navigation", () => import("../../../apps/api/src/http/next-shim"));
+vi.mock("next/headers", () => import("@/server/http/next-shim"));
+vi.mock("next/server", () => import("@/server/http/next-shim"));
+vi.mock("next/navigation", () => import("@/server/http/next-shim"));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/server/rateLimit", () => ({ trustedClientIp: async () => "203.0.113.10" }));
 
 vi.mock("@/server/auth", async () => {
   const { legacyRequestContext } = await import("@/server/request-context");
-  const shim = await import("../../../apps/api/src/http/next-shim");
+  const shim = await import("@/server/http/next-shim");
   return {
     getCurrentUser: async () => {
       const ctx = legacyRequestContext();
@@ -495,7 +495,7 @@ const mockContainer = {
 
 vi.mock("@/server/container", () => ({ container: () => mockContainer }));
 
-const { assertRouteParity, createLegacyTestApp } = await import("./parity");
+const { assertRoute } = await import("./expected");
 const { HttpError } = await import("@/server/api");
 
 const staffAccess: StaffAccessPort = {
@@ -517,7 +517,6 @@ function multipartReceipt() {
 }
 
 let app: NestFastifyApplication;
-let legacy: ReturnType<typeof createLegacyTestApp>;
 
 beforeAll(async () => {
   // Подключаем НАСТОЯЩИЕ адаптеры `apps/backend/src/legacy/crm-core.ports.ts` (через `runInLegacyRequest` и `toLegacyStaff`),
@@ -533,12 +532,6 @@ beforeAll(async () => {
       [CRM_CHATS_PORTS, factoryOf(legacyCrmChatsPorts)],
     ],
   }));
-  legacy = createLegacyTestApp({
-    users: ALL_USERS,
-    staff: async (user) => {
-      if (!staffCtxFor(user)) throw new HttpError(403, "forbidden");
-    },
-  });
 });
 
 afterAll(() => app.close());
@@ -550,7 +543,7 @@ beforeEach(() => {
   state.deleteDealError = null;
 });
 
-describe("побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1)", () => {
+describe("ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1)", () => {
   it("15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405)", async () => {
     const getUrls = [
       "/api/v1/crm/today",
@@ -569,102 +562,97 @@ describe("побайтовый паритет NestJS ↔ mybook-api: Конте�
       `/api/v1/crm/orders/${ORDER_ID}`,
     ];
     for (const url of getUrls) {
-      await assertRouteParity({ nest: app, legacy, method: "GET", url, headers: as(OWNER) });
+      await assertRoute({ nest: app, method: "GET", url, headers: as(OWNER) });
     }
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: "/api/v1/crm/notifications/read", headers: as(OWNER), body: { id: MSG_ID } });
+    await assertRoute({ nest: app, method: "POST", url: "/api/v1/crm/notifications/read", headers: as(OWNER), body: { id: MSG_ID } });
     // Права и видимость scope: own
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: `/api/v1/crm/chats/${OTHER_CHAT_ID}/messages`, headers: as(OWN_MGR) });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: `/api/v1/crm/chats/${ORDER_ID}/messages`, headers: as(OWNER) });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/v1/crm/calls", headers: as(VIEWER) });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/v1/crm/today" });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/v1/crm/today", headers: as(REGULAR) });
-    await assertRouteParity({ nest: app, legacy, method: "DELETE", url: "/api/v1/crm/today", headers: as(OWNER) });
+    await assertRoute({ nest: app, method: "GET", url: `/api/v1/crm/chats/${OTHER_CHAT_ID}/messages`, headers: as(OWN_MGR) });
+    await assertRoute({ nest: app, method: "GET", url: `/api/v1/crm/chats/${ORDER_ID}/messages`, headers: as(OWNER) });
+    await assertRoute({ nest: app, method: "GET", url: "/api/v1/crm/calls", headers: as(VIEWER) });
+    await assertRoute({ nest: app, method: "GET", url: "/api/v1/crm/today" });
+    await assertRoute({ nest: app, method: "GET", url: "/api/v1/crm/today", headers: as(REGULAR) });
+    await assertRoute({ nest: app, method: "DELETE", url: "/api/v1/crm/today", headers: as(OWNER) });
   });
 
   it("10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет)", async () => {
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: `/api/v1/crm/deals/${DEAL_ID}/form`, headers: as(OWNER) });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: `/api/v1/crm/deals/${DEAL_ID}/form`, headers: as(OWN_MGR) });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: `/api/v1/crm/deals/${OTHER_DEAL_ID}/form`, headers: as(OWN_MGR) });
+    await assertRoute({ nest: app, method: "GET", url: `/api/v1/crm/deals/${DEAL_ID}/form`, headers: as(OWNER) });
+    await assertRoute({ nest: app, method: "GET", url: `/api/v1/crm/deals/${DEAL_ID}/form`, headers: as(OWN_MGR) });
+    await assertRoute({ nest: app, method: "GET", url: `/api/v1/crm/deals/${OTHER_DEAL_ID}/form`, headers: as(OWN_MGR) });
 
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "PATCH",
       url: `/api/v1/crm/deals/${DEAL_ID}`,
       headers: as(OWNER),
       body: { title: "Обновлённая сделка", fields: { city: "Астана", vip: "false" } },
     });
     state.updateDealError = "Скидка выше лимита";
-    await assertRouteParity({ nest: app, legacy, method: "PATCH", url: `/api/v1/crm/deals/${DEAL_ID}`, headers: as(OWNER), body: { amount: 1000 } });
+    await assertRoute({ nest: app, method: "PATCH", url: `/api/v1/crm/deals/${DEAL_ID}`, headers: as(OWNER), body: { amount: 1000 } });
     state.updateDealError = null;
 
-    await assertRouteParity({ nest: app, legacy, method: "PUT", url: `/api/v1/crm/deals/${DEAL_ID}/plan`, headers: as(OWNER), body: { plan: "hardcover" } });
-    await assertRouteParity({ nest: app, legacy, method: "PUT", url: `/api/v1/crm/deals/${DEAL_ID}/plan`, headers: as(OWNER), body: { plan: "bad" } });
+    await assertRoute({ nest: app, method: "PUT", url: `/api/v1/crm/deals/${DEAL_ID}/plan`, headers: as(OWNER), body: { plan: "hardcover" } });
+    await assertRoute({ nest: app, method: "PUT", url: `/api/v1/crm/deals/${DEAL_ID}/plan`, headers: as(OWNER), body: { plan: "bad" } });
 
-    await assertRouteParity({ nest: app, legacy, method: "PUT", url: `/api/v1/crm/deals/${DEAL_ID}/gifts`, headers: as(OWNER), body: { gifts: ["giftwrap"] } });
-    await assertRouteParity({ nest: app, legacy, method: "PUT", url: `/api/v1/crm/deals/${DEAL_ID}/gifts`, headers: as(OWNER), body: { gifts: ["bad"] } });
+    await assertRoute({ nest: app, method: "PUT", url: `/api/v1/crm/deals/${DEAL_ID}/gifts`, headers: as(OWNER), body: { gifts: ["giftwrap"] } });
+    await assertRoute({ nest: app, method: "PUT", url: `/api/v1/crm/deals/${DEAL_ID}/gifts`, headers: as(OWNER), body: { gifts: ["bad"] } });
 
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: `/api/v1/crm/deals/${DEAL_ID}/extras`, headers: as(OWN_MGR) });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: `/api/v1/crm/deals/${OTHER_DEAL_ID}/extras`, headers: as(OWN_MGR) });
+    await assertRoute({ nest: app, method: "GET", url: `/api/v1/crm/deals/${DEAL_ID}/extras`, headers: as(OWN_MGR) });
+    await assertRoute({ nest: app, method: "GET", url: `/api/v1/crm/deals/${OTHER_DEAL_ID}/extras`, headers: as(OWN_MGR) });
 
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "POST",
       url: `/api/v1/crm/deals/${DEAL_ID}/client`,
       headers: as(OWNER),
       body: { name: "Алия", email: "aliya@example.kz", locale: "ru", channel: "instagram" },
     });
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "POST",
       url: `/api/v1/crm/deals/${DEAL_ID}/client`,
       headers: as(OWNER),
       body: { name: "Алия", email: "", locale: "ru", channel: "bad" },
     });
 
-    await assertRouteParity({ nest: app, legacy, method: "PUT", url: `/api/v1/crm/deals/${DEAL_ID}/client`, headers: as(OWNER), body: { clientId: CLIENT_ID } });
-    await assertRouteParity({ nest: app, legacy, method: "PUT", url: `/api/v1/crm/deals/${DEAL_ID}/client`, headers: as(OWNER), body: { clientId: null } });
+    await assertRoute({ nest: app, method: "PUT", url: `/api/v1/crm/deals/${DEAL_ID}/client`, headers: as(OWNER), body: { clientId: CLIENT_ID } });
+    await assertRoute({ nest: app, method: "PUT", url: `/api/v1/crm/deals/${DEAL_ID}/client`, headers: as(OWNER), body: { clientId: null } });
 
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: `/api/v1/crm/deals/${DEAL_ID}/merge`, headers: as(OWNER), body: { sourceId: OTHER_DEAL_ID } });
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: `/api/v1/crm/deals/${DEAL_ID}/merge`, headers: as(OWNER), body: { sourceId: DEAL_ID } });
+    await assertRoute({ nest: app, method: "POST", url: `/api/v1/crm/deals/${DEAL_ID}/merge`, headers: as(OWNER), body: { sourceId: OTHER_DEAL_ID } });
+    await assertRoute({ nest: app, method: "POST", url: `/api/v1/crm/deals/${DEAL_ID}/merge`, headers: as(OWNER), body: { sourceId: DEAL_ID } });
 
-    await assertRouteParity({ nest: app, legacy, method: "PUT", url: `/api/v1/crm/deals/${DEAL_ID}/pipeline`, headers: as(OWNER), body: { pipelineId: PIPELINE_2 } });
+    await assertRoute({ nest: app, method: "PUT", url: `/api/v1/crm/deals/${DEAL_ID}/pipeline`, headers: as(OWNER), body: { pipelineId: PIPELINE_2 } });
     state.pipelineError = true;
-    await assertRouteParity({ nest: app, legacy, method: "PUT", url: `/api/v1/crm/deals/${DEAL_ID}/pipeline`, headers: as(OWNER), body: { pipelineId: PIPELINE_2 } });
+    await assertRoute({ nest: app, method: "PUT", url: `/api/v1/crm/deals/${DEAL_ID}/pipeline`, headers: as(OWNER), body: { pipelineId: PIPELINE_2 } });
     state.pipelineError = false;
 
-    await assertRouteParity({ nest: app, legacy, method: "DELETE", url: `/api/v1/crm/deals/${DEAL_ID}`, headers: as(OWNER) });
+    await assertRoute({ nest: app, method: "DELETE", url: `/api/v1/crm/deals/${DEAL_ID}`, headers: as(OWNER) });
     state.deleteDealError = "По сделке приняты деньги";
-    await assertRouteParity({ nest: app, legacy, method: "DELETE", url: `/api/v1/crm/deals/${DEAL_ID}`, headers: as(OWNER) });
-    await assertRouteParity({ nest: app, legacy, method: "DELETE", url: `/api/v1/crm/deals/${DEAL_ID}`, headers: as(OWN_MGR) });
+    await assertRoute({ nest: app, method: "DELETE", url: `/api/v1/crm/deals/${DEAL_ID}`, headers: as(OWNER) });
+    await assertRoute({ nest: app, method: "DELETE", url: `/api/v1/crm/deals/${DEAL_ID}`, headers: as(OWN_MGR) });
   });
 
   it("7 маршрутов crm/clients + crm/new-client + crmDealReceipt (200, 400 refused, 403, 404, 409)", async () => {
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: `/api/v1/crm/clients/${CLIENT_ID}/access`, headers: as(OWNER) });
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: `/api/v1/crm/clients/${OTHER_CLIENT_ID}/access`, headers: as(OWNER) });
+    await assertRoute({ nest: app, method: "POST", url: `/api/v1/crm/clients/${CLIENT_ID}/access`, headers: as(OWNER) });
+    await assertRoute({ nest: app, method: "POST", url: `/api/v1/crm/clients/${OTHER_CLIENT_ID}/access`, headers: as(OWNER) });
 
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: `/api/v1/crm/clients/${CLIENT_ID}/remind`, headers: as(OWNER) });
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: `/api/v1/crm/clients/${OTHER_CLIENT_ID}/remind`, headers: as(OWNER) });
+    await assertRoute({ nest: app, method: "POST", url: `/api/v1/crm/clients/${CLIENT_ID}/remind`, headers: as(OWNER) });
+    await assertRoute({ nest: app, method: "POST", url: `/api/v1/crm/clients/${OTHER_CLIENT_ID}/remind`, headers: as(OWNER) });
 
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: `/api/v1/crm/clients/${CLIENT_ID}/form`, headers: as(OWN_MGR) });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: `/api/v1/crm/clients/${OTHER_CLIENT_ID}/form`, headers: as(OWN_MGR) });
+    await assertRoute({ nest: app, method: "GET", url: `/api/v1/crm/clients/${CLIENT_ID}/form`, headers: as(OWN_MGR) });
+    await assertRoute({ nest: app, method: "GET", url: `/api/v1/crm/clients/${OTHER_CLIENT_ID}/form`, headers: as(OWN_MGR) });
 
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "PATCH",
       url: `/api/v1/crm/clients/${CLIENT_ID}`,
       headers: as(OWNER),
       body: { tags: ["vip"], fields: { hobby: "Кино" }, noMarketing: true, locale: "kk", channel: "instagram", managerId: OWN_MGR.id },
     });
-    await assertRouteParity({ nest: app, legacy, method: "PATCH", url: `/api/v1/crm/clients/${CLIENT_ID}`, headers: as(OWNER), body: { locale: "zz" } });
+    await assertRoute({ nest: app, method: "PATCH", url: `/api/v1/crm/clients/${CLIENT_ID}`, headers: as(OWNER), body: { locale: "zz" } });
 
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/v1/crm/clients/new", headers: as(OWN_MGR) });
-    await assertRouteParity({
+    await assertRoute({ nest: app, method: "GET", url: "/api/v1/crm/clients/new", headers: as(OWN_MGR) });
+    await assertRoute({
       nest: app,
-      legacy,
       method: "POST",
       url: "/api/v1/crm/clients",
       headers: as(OWNER),
@@ -675,9 +663,8 @@ describe("побайтовый паритет NestJS ↔ mybook-api: Конте�
         deal: { plan: "hardcover", count: 1, agreed: 29000, prepaid: 10000, gifts: ["giftwrap"] },
       },
     });
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "POST",
       url: "/api/v1/crm/clients",
       headers: as(OWNER),
@@ -685,35 +672,31 @@ describe("побайтовый паритет NestJS ↔ mybook-api: Конте�
     });
 
     const mp = multipartReceipt();
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "POST",
       url: `/api/v1/crm/deals/${DEAL_ID}/receipts?amount=10000&paymentId=${PAYMENT_ID}`,
       headers: { ...bearer(OWNER), "content-type": mp.contentType },
       body: mp.body,
     });
     state.receiptDuplicate = true;
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "POST",
       url: `/api/v1/crm/deals/${DEAL_ID}/receipts?amount=10000`,
       headers: { ...bearer(OWNER), "content-type": mp.contentType },
       body: mp.body,
     });
     state.receiptDuplicate = false;
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "POST",
       url: `/api/v1/crm/deals/${OTHER_DEAL_ID}/receipts?amount=10000`,
       headers: { ...bearer(OWN_MGR), "content-type": mp.contentType },
       body: mp.body,
     });
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "POST",
       url: `/api/v1/crm/deals/${DEAL_ID}/receipts?amount=10000`,
       headers: { ...bearer(VIEWER), "content-type": mp.contentType },
@@ -722,22 +705,22 @@ describe("побайтовый паритет NestJS ↔ mybook-api: Конте�
   });
 
   it("5 маршрутов crm/chats + crm/kp (200, 400 refused, 403, 404 чужой чат)", async () => {
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: `/api/v1/crm/chats/${CHAT_ID}/messages/${MSG_ID}/trace`, headers: as(OWN_MGR) });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: `/api/v1/crm/chats/${CHAT_ID}/messages/${ORDER_ID}/trace`, headers: as(OWN_MGR) });
+    await assertRoute({ nest: app, method: "GET", url: `/api/v1/crm/chats/${CHAT_ID}/messages/${MSG_ID}/trace`, headers: as(OWN_MGR) });
+    await assertRoute({ nest: app, method: "GET", url: `/api/v1/crm/chats/${CHAT_ID}/messages/${ORDER_ID}/trace`, headers: as(OWN_MGR) });
 
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: `/api/v1/crm/chats/${CHAT_ID}/bot/traces`, headers: as(OWN_MGR) });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: `/api/v1/crm/chats/${OTHER_CHAT_ID}/bot/traces`, headers: as(OWN_MGR) });
+    await assertRoute({ nest: app, method: "GET", url: `/api/v1/crm/chats/${CHAT_ID}/bot/traces`, headers: as(OWN_MGR) });
+    await assertRoute({ nest: app, method: "GET", url: `/api/v1/crm/chats/${OTHER_CHAT_ID}/bot/traces`, headers: as(OWN_MGR) });
 
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: `/api/v1/crm/chats/${CHAT_ID}/bot`, headers: as(OWN_MGR), body: { run: true } });
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: `/api/v1/crm/chats/${CHAT_ID}/bot`, headers: as(OWN_MGR), body: { run: false } });
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: `/api/v1/crm/chats/${CHAT_ID}/bot`, headers: as(VIEWER), body: { run: true } });
+    await assertRoute({ nest: app, method: "POST", url: `/api/v1/crm/chats/${CHAT_ID}/bot`, headers: as(OWN_MGR), body: { run: true } });
+    await assertRoute({ nest: app, method: "POST", url: `/api/v1/crm/chats/${CHAT_ID}/bot`, headers: as(OWN_MGR), body: { run: false } });
+    await assertRoute({ nest: app, method: "POST", url: `/api/v1/crm/chats/${CHAT_ID}/bot`, headers: as(VIEWER), body: { run: true } });
 
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: `/api/v1/crm/chats/${CHAT_ID}/offers`, headers: as(OWNER) });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: `/api/v1/crm/chats/${CHAT_ID}/offers`, headers: as(OWN_MGR) });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: `/api/v1/crm/chats/${OTHER_CHAT_ID}/offers`, headers: as(OWN_MGR) });
+    await assertRoute({ nest: app, method: "GET", url: `/api/v1/crm/chats/${CHAT_ID}/offers`, headers: as(OWNER) });
+    await assertRoute({ nest: app, method: "GET", url: `/api/v1/crm/chats/${CHAT_ID}/offers`, headers: as(OWN_MGR) });
+    await assertRoute({ nest: app, method: "GET", url: `/api/v1/crm/chats/${OTHER_CHAT_ID}/offers`, headers: as(OWN_MGR) });
 
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: `/api/v1/crm/chats/${CHAT_ID}/offers`, headers: as(OWN_MGR), body: { kind: "order" } });
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: `/api/v1/crm/chats/${CHAT_ID}/offers`, headers: as(OWN_MGR), body: { kind: "book" } });
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: `/api/v1/crm/chats/${CHAT_ID}/offers`, headers: as(OWN_MGR), body: { kind: "discount" } });
+    await assertRoute({ nest: app, method: "POST", url: `/api/v1/crm/chats/${CHAT_ID}/offers`, headers: as(OWN_MGR), body: { kind: "order" } });
+    await assertRoute({ nest: app, method: "POST", url: `/api/v1/crm/chats/${CHAT_ID}/offers`, headers: as(OWN_MGR), body: { kind: "book" } });
+    await assertRoute({ nest: app, method: "POST", url: `/api/v1/crm/chats/${CHAT_ID}/offers`, headers: as(OWN_MGR), body: { kind: "discount" } });
   });
 });

@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: 7 медиа/ресурсных маршрутов (/v, /design-ai/packs, /media/oembed, /fonts, /photos, /covers, /cover-photos) 1`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: 7 медиа/ресурсных маршрутов (/v, /design-ai/packs, /media/oembed, /fonts, /photos, /covers, /cover-photos) 1`] = `
 {
   "body": "PART",
   "headers": {
@@ -14,7 +14,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: 7 медиа/ресурсных маршрутов (/v, /design-ai/packs, /media/oembed, /fonts, /photos, /covers, /cover-photos) 2`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: 7 медиа/ресурсных маршрутов (/v, /design-ai/packs, /media/oembed, /fonts, /photos, /covers, /cover-photos) 2`] = `
 {
   "body": "FILE:answer/media.mp4",
   "headers": {
@@ -28,7 +28,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: 7 медиа/ресурсных маршрутов (/v, /design-ai/packs, /media/oembed, /fonts, /photos, /covers, /cover-photos) 3`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: 7 медиа/ресурсных маршрутов (/v, /design-ai/packs, /media/oembed, /fonts, /photos, /covers, /cover-photos) 3`] = `
 {
   "body": "FILE:answer/poster.jpg",
   "headers": {
@@ -41,18 +41,18 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: 7 медиа/ресурсных маршрутов (/v, /design-ai/packs, /media/oembed, /fonts, /photos, /covers, /cover-photos) 4`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: 7 медиа/ресурсных маршрутов (/v, /design-ai/packs, /media/oembed, /fonts, /photos, /covers, /cover-photos) 4`] = `
 {
   "body": "{"error":"Файл не найден — возможно, его уже удалили.","code":"fileNotFound"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "GET /api/v/bad",
   "status": 404,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: 7 медиа/ресурсных маршрутов (/v, /design-ai/packs, /media/oembed, /fonts, /photos, /covers, /cover-photos) 5`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: 7 медиа/ресурсных маршрутов (/v, /design-ai/packs, /media/oembed, /fonts, /photos, /covers, /cover-photos) 5`] = `
 {
   "body": "{"purchase":{"id":"dp-1","number":11,"requests":10,"amount":990},"kaspi":{"initial":null,"defaultPhone":"+77011112233"}}",
   "headers": {
@@ -63,18 +63,18 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: 7 медиа/ресурсных маршрутов (/v, /design-ai/packs, /media/oembed, /fonts, /photos, /covers, /cover-photos) 6`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: 7 медиа/ресурсных маршрутов (/v, /design-ai/packs, /media/oembed, /fonts, /photos, /covers, /cover-photos) 6`] = `
 {
   "body": "{"error":"Не найдено","code":"notFound"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/design-ai/packs",
   "status": 404,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: 7 медиа/ресурсных маршрутов (/v, /design-ai/packs, /media/oembed, /fonts, /photos, /covers, /cover-photos) 7`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: 7 медиа/ресурсных маршрутов (/v, /design-ai/packs, /media/oembed, /fonts, /photos, /covers, /cover-photos) 7`] = `
 {
   "body": "{"title":"Ролик YouTube"}",
   "headers": {
@@ -86,7 +86,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: 7 медиа/ресурсных маршрутов (/v, /design-ai/packs, /media/oembed, /fonts, /photos, /covers, /cover-photos) 8`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: 7 медиа/ресурсных маршрутов (/v, /design-ai/packs, /media/oembed, /fonts, /photos, /covers, /cover-photos) 8`] = `
 {
   "body": "{"title":null}",
   "headers": {
@@ -97,7 +97,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: 7 медиа/ресурсных маршрутов (/v, /design-ai/packs, /media/oembed, /fonts, /photos, /covers, /cover-photos) 9`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: 7 медиа/ресурсных маршрутов (/v, /design-ai/packs, /media/oembed, /fonts, /photos, /covers, /cover-photos) 9`] = `
 {
   "body": "{"title":null}",
   "headers": {
@@ -108,7 +108,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: 7 медиа/ресурсных маршрутов (/v, /design-ai/packs, /media/oembed, /fonts, /photos, /covers, /cover-photos) 10`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: 7 медиа/ресурсных маршрутов (/v, /design-ai/packs, /media/oembed, /fonts, /photos, /covers, /cover-photos) 10`] = `
 {
   "body": "sha256(290236):6d37a86241a25d63f8fe6018b4c083449886b7165c1acb15edd0f574f690ecf7",
   "headers": {
@@ -120,7 +120,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: 7 медиа/ресурсных маршрутов (/v, /design-ai/packs, /media/oembed, /fonts, /photos, /covers, /cover-photos) 11`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: 7 медиа/ресурсных маршрутов (/v, /design-ai/packs, /media/oembed, /fonts, /photos, /covers, /cover-photos) 11`] = `
 {
   "body": "",
   "headers": {},
@@ -129,7 +129,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: 7 медиа/ресурсных маршрутов (/v, /design-ai/packs, /media/oembed, /fonts, /photos, /covers, /cover-photos) 12`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: 7 медиа/ресурсных маршрутов (/v, /design-ai/packs, /media/oembed, /fonts, /photos, /covers, /cover-photos) 12`] = `
 {
   "body": "FILE:photos/p1_thumb.jpg",
   "headers": {
@@ -142,7 +142,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: 7 медиа/ресурсных маршрутов (/v, /design-ai/packs, /media/oembed, /fonts, /photos, /covers, /cover-photos) 13`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: 7 медиа/ресурсных маршрутов (/v, /design-ai/packs, /media/oembed, /fonts, /photos, /covers, /cover-photos) 13`] = `
 {
   "body": "",
   "headers": {
@@ -155,7 +155,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: 7 медиа/ресурсных маршрутов (/v, /design-ai/packs, /media/oembed, /fonts, /photos, /covers, /cover-photos) 14`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: 7 медиа/ресурсных маршрутов (/v, /design-ai/packs, /media/oembed, /fonts, /photos, /covers, /cover-photos) 14`] = `
 {
   "body": "VIEW-JPG",
   "headers": {
@@ -168,7 +168,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: 7 медиа/ресурсных маршрутов (/v, /design-ai/packs, /media/oembed, /fonts, /photos, /covers, /cover-photos) 15`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: 7 медиа/ресурсных маршрутов (/v, /design-ai/packs, /media/oembed, /fonts, /photos, /covers, /cover-photos) 15`] = `
 {
   "body": "",
   "headers": {
@@ -181,18 +181,18 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: 7 медиа/ресурсных маршрутов (/v, /design-ai/packs, /media/oembed, /fonts, /photos, /covers, /cover-photos) 16`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: 7 медиа/ресурсных маршрутов (/v, /design-ai/packs, /media/oembed, /fonts, /photos, /covers, /cover-photos) 16`] = `
 {
   "body": "{"error":"Не найдено","code":"notFound"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "GET /api/photos/cccc1111-1111-4111-8111-111111111111",
   "status": 404,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: 7 медиа/ресурсных маршрутов (/v, /design-ai/packs, /media/oembed, /fonts, /photos, /covers, /cover-photos) 17`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: 7 медиа/ресурсных маршрутов (/v, /design-ai/packs, /media/oembed, /fonts, /photos, /covers, /cover-photos) 17`] = `
 {
   "body": "BR-SVG",
   "headers": {
@@ -206,7 +206,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: 7 медиа/ресурсных маршрутов (/v, /design-ai/packs, /media/oembed, /fonts, /photos, /covers, /cover-photos) 18`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: 7 медиа/ресурсных маршрутов (/v, /design-ai/packs, /media/oembed, /fonts, /photos, /covers, /cover-photos) 18`] = `
 {
   "body": "",
   "headers": {},
@@ -215,7 +215,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: 7 медиа/ресурсных маршрутов (/v, /design-ai/packs, /media/oembed, /fonts, /photos, /covers, /cover-photos) 19`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: 7 медиа/ресурсных маршрутов (/v, /design-ai/packs, /media/oembed, /fonts, /photos, /covers, /cover-photos) 19`] = `
 {
   "body": "JPEG-bg1-900",
   "headers": {
@@ -227,7 +227,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: 7 медиа/ресурсных маршрутов (/v, /design-ai/packs, /media/oembed, /fonts, /photos, /covers, /cover-photos) 20`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: 7 медиа/ресурсных маршрутов (/v, /design-ai/packs, /media/oembed, /fonts, /photos, /covers, /cover-photos) 20`] = `
 {
   "body": "",
   "headers": {},
@@ -236,7 +236,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: 7 медиа/ресурсных маршрутов (/v, /design-ai/packs, /media/oembed, /fonts, /photos, /covers, /cover-photos) 21`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: 7 медиа/ресурсных маршрутов (/v, /design-ai/packs, /media/oembed, /fonts, /photos, /covers, /cover-photos) 21`] = `
 {
   "body": "",
   "headers": {
@@ -247,7 +247,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: книги, вопросы, главы, письма (оба префикса /api и /api/v1/site, 200/400/401/403/405) 1`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: книги, вопросы, главы, письма (оба префикса /api и /api/v1/site, 200/400/401/403/405) 1`] = `
 {
   "body": "{"outline":{"chapters":[]}}",
   "headers": {
@@ -258,7 +258,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: книги, вопросы, главы, письма (оба префикса /api и /api/v1/site, 200/400/401/403/405) 2`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: книги, вопросы, главы, письма (оба префикса /api и /api/v1/site, 200/400/401/403/405) 2`] = `
 {
   "body": "{"ok":true}",
   "headers": {
@@ -269,7 +269,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: книги, вопросы, главы, письма (оба префикса /api и /api/v1/site, 200/400/401/403/405) 3`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: книги, вопросы, главы, письма (оба префикса /api и /api/v1/site, 200/400/401/403/405) 3`] = `
 {
   "body": "{"ok":true,"updatedAt":"2026-11-26T10:00:00.000Z"}",
   "headers": {
@@ -280,7 +280,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: книги, вопросы, главы, письма (оба префикса /api и /api/v1/site, 200/400/401/403/405) 4`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: книги, вопросы, главы, письма (оба префикса /api и /api/v1/site, 200/400/401/403/405) 4`] = `
 {
   "body": "{"ok":true,"updatedAt":"2026-11-26T10:00:00.000Z"}",
   "headers": {
@@ -291,7 +291,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: книги, вопросы, главы, письма (оба префикса /api и /api/v1/site, 200/400/401/403/405) 5`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: книги, вопросы, главы, письма (оба префикса /api и /api/v1/site, 200/400/401/403/405) 5`] = `
 {
   "body": "{"ok":true,"outline":null}",
   "headers": {
@@ -302,7 +302,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: книги, вопросы, главы, письма (оба префикса /api и /api/v1/site, 200/400/401/403/405) 6`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: книги, вопросы, главы, письма (оба префикса /api и /api/v1/site, 200/400/401/403/405) 6`] = `
 {
   "body": "",
   "headers": {
@@ -313,7 +313,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: книги, вопросы, главы, письма (оба префикса /api и /api/v1/site, 200/400/401/403/405) 7`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: книги, вопросы, главы, письма (оба префикса /api и /api/v1/site, 200/400/401/403/405) 7`] = `
 {
   "body": "{"question":{"id":"bbbb1111-1111-4111-8111-111111111111","bookId":"aaaa1111-1111-4111-8111-111111111111","chapter":"meeting","questionKey":"love.meeting.1","position":0,"prompt":"Как вы познакомились?","hint":null,"title":"Первая встреча","displayText":null,"hideHeading":false,"pageBreak":false,"answer":"Осенью в Алматы.","media":[],"createdAt":"2026-11-26T10:00:00.000Z","updatedAt":"2026-11-26T10:00:00.000Z"}}",
   "headers": {
@@ -324,7 +324,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: книги, вопросы, главы, письма (оба префикса /api и /api/v1/site, 200/400/401/403/405) 8`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: книги, вопросы, главы, письма (оба префикса /api и /api/v1/site, 200/400/401/403/405) 8`] = `
 {
   "body": "{"outline":{"chapters":[]}}",
   "headers": {
@@ -335,7 +335,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: книги, вопросы, главы, письма (оба префикса /api и /api/v1/site, 200/400/401/403/405) 9`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: книги, вопросы, главы, письма (оба префикса /api и /api/v1/site, 200/400/401/403/405) 9`] = `
 {
   "body": "{"order":["meeting","family"]}",
   "headers": {
@@ -346,7 +346,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: книги, вопросы, главы, письма (оба префикса /api и /api/v1/site, 200/400/401/403/405) 10`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: книги, вопросы, главы, письма (оба префикса /api и /api/v1/site, 200/400/401/403/405) 10`] = `
 {
   "body": "{"outline":{"chapters":[]}}",
   "headers": {
@@ -357,7 +357,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: книги, вопросы, главы, письма (оба префикса /api и /api/v1/site, 200/400/401/403/405) 11`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: книги, вопросы, главы, письма (оба префикса /api и /api/v1/site, 200/400/401/403/405) 11`] = `
 {
   "body": "{"outline":{"chapters":[]}}",
   "headers": {
@@ -368,7 +368,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: книги, вопросы, главы, письма (оба префикса /api и /api/v1/site, 200/400/401/403/405) 12`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: книги, вопросы, главы, письма (оба префикса /api и /api/v1/site, 200/400/401/403/405) 12`] = `
 {
   "body": "{"key":"bbbb2222-2222-4222-8222-222222222222","sectionId":"bbbb1111-1111-4111-8111-111111111111","outline":{"chapters":[]}}",
   "headers": {
@@ -379,7 +379,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: книги, вопросы, главы, письма (оба префикса /api и /api/v1/site, 200/400/401/403/405) 13`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: книги, вопросы, главы, письма (оба префикса /api и /api/v1/site, 200/400/401/403/405) 13`] = `
 {
   "body": "{"token":"inv-new"}",
   "headers": {
@@ -390,7 +390,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: книги, вопросы, главы, письма (оба префикса /api и /api/v1/site, 200/400/401/403/405) 14`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: книги, вопросы, главы, письма (оба префикса /api и /api/v1/site, 200/400/401/403/405) 14`] = `
 {
   "body": "{"ok":true}",
   "headers": {
@@ -401,7 +401,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: книги, вопросы, главы, письма (оба префикса /api и /api/v1/site, 200/400/401/403/405) 15`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: книги, вопросы, главы, письма (оба префикса /api и /api/v1/site, 200/400/401/403/405) 15`] = `
 {
   "body": "{"letter":{"id":"dddd1111-1111-4111-8111-111111111111","bookId":"aaaa1111-1111-4111-8111-111111111111","authorName":"Сестра","relation":"сестра","text":"Поздравляю!","status":"approved","position":0,"createdAt":"2026-11-26T10:00:00.000Z","updatedAt":"2026-11-26T10:00:00.000Z"}}",
   "headers": {
@@ -412,7 +412,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: книги, вопросы, главы, письма (оба префикса /api и /api/v1/site, 200/400/401/403/405) 16`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: книги, вопросы, главы, письма (оба префикса /api и /api/v1/site, 200/400/401/403/405) 16`] = `
 {
   "body": "{"ok":true}",
   "headers": {
@@ -423,7 +423,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: книги, вопросы, главы, письма (оба префикса /api и /api/v1/site, 200/400/401/403/405) 17`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: книги, вопросы, главы, письма (оба префикса /api и /api/v1/site, 200/400/401/403/405) 17`] = `
 {
   "body": "{"book":{"id":"aaaa1111-1111-4111-8111-111111111111","userId":"11111111-1111-4111-8111-111111111111","theme":"love","status":"draft","title":"Наша история","subtitle":"Воспоминания","authorName":"Алия","authorGender":"f","recordedBy":"","recipientName":"Марат","recipientGender":"m","namesOnCover":"","hideRecipientOnCover":false,"coverLines":true,"coverTemplate":"linen","coverPhotoId":"cccc1111-1111-4111-8111-111111111111","coverPhotoExtra":[],"backText":"С любовью","backLayout":"quote","backPhotoId":null,"backPhotoExtra":[],"photoFrames":{},"dedication":"Моему мужу","interior":"classic","interiorStyle":{},"coverDesign":null,"coverBack":null,"format":"a5","photoPlacement":"chapters","showToc":true,"tocMode":"chapters","tocLines":{},"layoutRev":2,"paginationRev":2,"inviteToken":"inv-token","inviteText":"","endText":null,"chapterStart":"page","titlePage":true,"language":"ru","occasion":null,"occasionDate":null,"createdAt":"2026-11-26T10:00:00.000Z","updatedAt":"2026-11-26T10:00:00.000Z"}}",
   "headers": {
@@ -434,29 +434,29 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: книги, вопросы, главы, письма (оба префикса /api и /api/v1/site, 200/400/401/403/405) 18`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: книги, вопросы, главы, письма (оба префикса /api и /api/v1/site, 200/400/401/403/405) 18`] = `
 {
   "body": "{"error":"Запрос отклонён","code":"forbidden"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "PATCH /api/books/aaaa1111-1111-4111-8111-111111111111",
   "status": 403,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: книги, вопросы, главы, письма (оба префикса /api и /api/v1/site, 200/400/401/403/405) 19`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: книги, вопросы, главы, письма (оба префикса /api и /api/v1/site, 200/400/401/403/405) 19`] = `
 {
   "body": "{"error":"Книга не найдена","code":"bookNotFound"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "PATCH /api/books/aaaa1111-1111-4111-8111-111111111111",
   "status": 404,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: книги, вопросы, главы, письма (оба префикса /api и /api/v1/site, 200/400/401/403/405) 20`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: книги, вопросы, главы, письма (оба префикса /api и /api/v1/site, 200/400/401/403/405) 20`] = `
 {
   "body": "{"ok":true}",
   "headers": {
@@ -467,7 +467,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: книги, вопросы, главы, письма (оба префикса /api и /api/v1/site, 200/400/401/403/405) 21`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: книги, вопросы, главы, письма (оба префикса /api и /api/v1/site, 200/400/401/403/405) 21`] = `
 {
   "body": "",
   "headers": {
@@ -478,7 +478,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: фото (order, batch, edit multipart, rotate, item, upload multipart), layout и QR-файлы (octet-stream, 413, packs) 1`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: фото (order, batch, edit multipart, rotate, item, upload multipart), layout и QR-файлы (octet-stream, 413, packs) 1`] = `
 {
   "body": "{"ok":true}",
   "headers": {
@@ -489,7 +489,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: фото (order, batch, edit multipart, rotate, item, upload multipart), layout и QR-файлы (octet-stream, 413, packs) 2`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: фото (order, batch, edit multipart, rotate, item, upload multipart), layout и QR-файлы (octet-stream, 413, packs) 2`] = `
 {
   "body": "{"photos":[{"id":"cccc1111-1111-4111-8111-111111111111","bookId":"aaaa1111-1111-4111-8111-111111111111","storageKey":"photos/p1.jpg","thumbKey":"photos/p1_thumb.jpg","width":1600,"height":1200,"caption":"Прогулка","chapter":"meeting","questionId":"bbbb1111-1111-4111-8111-111111111111","inline":null,"opener":false,"layout":"full","crop":null,"position":0,"createdAt":"2026-11-26T10:00:00.000Z","updatedAt":"2026-11-26T10:00:00.000Z"}],"layoutRev":2}",
   "headers": {
@@ -500,7 +500,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: фото (order, batch, edit multipart, rotate, item, upload multipart), layout и QR-файлы (octet-stream, 413, packs) 3`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: фото (order, batch, edit multipart, rotate, item, upload multipart), layout и QR-файлы (octet-stream, 413, packs) 3`] = `
 {
   "body": "{"edit":null,"version":"v1"}",
   "headers": {
@@ -511,7 +511,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: фото (order, batch, edit multipart, rotate, item, upload multipart), layout и QR-файлы (octet-stream, 413, packs) 4`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: фото (order, batch, edit multipart, rotate, item, upload multipart), layout и QR-файлы (octet-stream, 413, packs) 4`] = `
 {
   "body": "{"photo":{"id":"cccc1111-1111-4111-8111-111111111111","bookId":"aaaa1111-1111-4111-8111-111111111111","storageKey":"photos/p1.jpg","thumbKey":"photos/p1_thumb.jpg","width":1600,"height":1200,"caption":"Прогулка","chapter":"meeting","questionId":"bbbb1111-1111-4111-8111-111111111111","inline":null,"opener":false,"layout":"full","crop":null,"position":0,"createdAt":"2026-11-26T10:00:00.000Z","updatedAt":"2026-11-26T10:00:00.000Z"},"edited":false}",
   "headers": {
@@ -522,7 +522,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: фото (order, batch, edit multipart, rotate, item, upload multipart), layout и QR-файлы (octet-stream, 413, packs) 5`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: фото (order, batch, edit multipart, rotate, item, upload multipart), layout и QR-файлы (octet-stream, 413, packs) 5`] = `
 {
   "body": "{"photo":{"id":"cccc1111-1111-4111-8111-111111111111","bookId":"aaaa1111-1111-4111-8111-111111111111","storageKey":"photos/p1.jpg","thumbKey":"photos/p1_thumb.jpg","width":1600,"height":1200,"caption":"Прогулка","chapter":"meeting","questionId":"bbbb1111-1111-4111-8111-111111111111","inline":null,"opener":false,"layout":"full","crop":null,"position":0,"createdAt":"2026-11-26T10:00:00.000Z","updatedAt":"2026-11-26T10:00:00.000Z"}}",
   "headers": {
@@ -533,7 +533,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: фото (order, batch, edit multipart, rotate, item, upload multipart), layout и QR-файлы (octet-stream, 413, packs) 6`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: фото (order, batch, edit multipart, rotate, item, upload multipart), layout и QR-файлы (octet-stream, 413, packs) 6`] = `
 {
   "body": "{"photo":{"id":"cccc1111-1111-4111-8111-111111111111","bookId":"aaaa1111-1111-4111-8111-111111111111","storageKey":"photos/p1.jpg","thumbKey":"photos/p1_thumb.jpg","width":1600,"height":1200,"caption":"Прогулка","chapter":"meeting","questionId":"bbbb1111-1111-4111-8111-111111111111","inline":null,"opener":false,"layout":"full","crop":null,"position":0,"createdAt":"2026-11-26T10:00:00.000Z","updatedAt":"2026-11-26T10:00:00.000Z"},"layoutRev":2}",
   "headers": {
@@ -544,7 +544,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: фото (order, batch, edit multipart, rotate, item, upload multipart), layout и QR-файлы (octet-stream, 413, packs) 7`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: фото (order, batch, edit multipart, rotate, item, upload multipart), layout и QR-файлы (octet-stream, 413, packs) 7`] = `
 {
   "body": "{"ok":true}",
   "headers": {
@@ -555,7 +555,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: фото (order, batch, edit multipart, rotate, item, upload multipart), layout и QR-файлы (octet-stream, 413, packs) 8`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: фото (order, batch, edit multipart, rotate, item, upload multipart), layout и QR-файлы (octet-stream, 413, packs) 8`] = `
 {
   "body": "{"layoutRev":2,"photos":[{"id":"cccc1111-1111-4111-8111-111111111111","bookId":"aaaa1111-1111-4111-8111-111111111111","storageKey":"photos/p1.jpg","thumbKey":"photos/p1_thumb.jpg","width":1600,"height":1200,"caption":"Прогулка","chapter":"meeting","questionId":"bbbb1111-1111-4111-8111-111111111111","inline":null,"opener":false,"layout":"full","crop":null,"position":0,"createdAt":"2026-11-26T10:00:00.000Z","updatedAt":"2026-11-26T10:00:00.000Z"}]}",
   "headers": {
@@ -566,7 +566,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: фото (order, batch, edit multipart, rotate, item, upload multipart), layout и QR-файлы (octet-stream, 413, packs) 9`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: фото (order, batch, edit multipart, rotate, item, upload multipart), layout и QR-файлы (octet-stream, 413, packs) 9`] = `
 {
   "body": "{"photos":[{"id":"cccc1111-1111-4111-8111-111111111111","bookId":"aaaa1111-1111-4111-8111-111111111111","storageKey":"photos/p1.jpg","thumbKey":"photos/p1_thumb.jpg","width":1600,"height":1200,"caption":"Прогулка","chapter":"meeting","questionId":"bbbb1111-1111-4111-8111-111111111111","inline":null,"opener":false,"layout":"full","crop":null,"position":0,"createdAt":"2026-11-26T10:00:00.000Z","updatedAt":"2026-11-26T10:00:00.000Z"}],"errors":["big.jpg: файл 25 МБ-тан үлкен"]}",
   "headers": {
@@ -577,18 +577,18 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: фото (order, batch, edit multipart, rotate, item, upload multipart), layout и QR-файлы (octet-stream, 413, packs) 10`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: фото (order, batch, edit multipart, rotate, item, upload multipart), layout и QR-файлы (octet-stream, 413, packs) 10`] = `
 {
   "body": "{"error":"Не удалось сохранить правку фото. Попробуйте ещё раз","code":"photoEditInvalid"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/books/aaaa1111-1111-4111-8111-111111111111/photos/cccc1111-1111-4111-8111-111111111111/edit",
   "status": 400,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: фото (order, batch, edit multipart, rotate, item, upload multipart), layout и QR-файлы (octet-stream, 413, packs) 11`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: фото (order, batch, edit multipart, rotate, item, upload multipart), layout и QR-файлы (octet-stream, 413, packs) 11`] = `
 {
   "body": "{"quota":{"minutes":30,"usedSec":12,"leftSec":1788,"files":1,"maxFiles":40},"files":[{"id":"eeee1111-1111-4111-8111-111111111111","token":"AbCdEf1234","url":"http://localhost:3000/v/AbCdEf1234","kind":"video","status":"ready","name":"clip.mp4","durationSec":12,"sourceBytes":1024,"receivedBytes":1024,"error":null,"poster":"/api/v/AbCdEf1234?poster=1"}],"packs":[{"id":"m1","minutes":30,"price":2900,"featured":false}]}",
   "headers": {
@@ -599,7 +599,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: фото (order, batch, edit multipart, rotate, item, upload multipart), layout и QR-файлы (octet-stream, 413, packs) 12`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: фото (order, batch, edit multipart, rotate, item, upload multipart), layout и QR-файлы (octet-stream, 413, packs) 12`] = `
 {
   "body": "{"file":{"id":"eeee1111-1111-4111-8111-111111111111","token":"AbCdEf1234","url":"http://localhost:3000/v/AbCdEf1234","kind":"video","status":"uploading","name":"clip.mp4","durationSec":12,"sourceBytes":1024,"receivedBytes":0,"error":null,"poster":"/api/v/AbCdEf1234?poster=1"},"chunkBytes":8388608}",
   "headers": {
@@ -610,7 +610,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: фото (order, batch, edit multipart, rotate, item, upload multipart), layout и QR-файлы (octet-stream, 413, packs) 13`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: фото (order, batch, edit multipart, rotate, item, upload multipart), layout и QR-файлы (octet-stream, 413, packs) 13`] = `
 {
   "body": "{"file":{"id":"eeee1111-1111-4111-8111-111111111111","token":"AbCdEf1234","url":"http://localhost:3000/v/AbCdEf1234","kind":"video","status":"ready","name":"clip.mp4","durationSec":12,"sourceBytes":1024,"receivedBytes":1024,"error":null,"poster":"/api/v/AbCdEf1234?poster=1"}}",
   "headers": {
@@ -621,7 +621,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: фото (order, batch, edit multipart, rotate, item, upload multipart), layout и QR-файлы (octet-stream, 413, packs) 14`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: фото (order, batch, edit multipart, rotate, item, upload multipart), layout и QR-файлы (octet-stream, 413, packs) 14`] = `
 {
   "body": "{"received":4}",
   "headers": {
@@ -632,18 +632,18 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: фото (order, batch, edit multipart, rotate, item, upload multipart), layout и QR-файлы (octet-stream, 413, packs) 15`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: фото (order, batch, edit multipart, rotate, item, upload multipart), layout и QR-файлы (octet-stream, 413, packs) 15`] = `
 {
   "body": "{"error":"Загрузка сбилась. Нажмите «Повторить».","code":"fileChunk"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "PUT /api/books/aaaa1111-1111-4111-8111-111111111111/files/eeee1111-1111-4111-8111-111111111111?offset=0",
   "status": 413,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: фото (order, batch, edit multipart, rotate, item, upload multipart), layout и QR-файлы (octet-stream, 413, packs) 16`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: фото (order, batch, edit multipart, rotate, item, upload multipart), layout и QR-файлы (octet-stream, 413, packs) 16`] = `
 {
   "body": "{"file":{"id":"eeee1111-1111-4111-8111-111111111111","token":"AbCdEf1234","url":"http://localhost:3000/v/AbCdEf1234","kind":"video","status":"queued","name":"clip.mp4","durationSec":12,"sourceBytes":1024,"receivedBytes":1024,"error":null,"poster":"/api/v/AbCdEf1234?poster=1"}}",
   "headers": {
@@ -654,7 +654,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: фото (order, batch, edit multipart, rotate, item, upload multipart), layout и QR-файлы (octet-stream, 413, packs) 17`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: фото (order, batch, edit multipart, rotate, item, upload multipart), layout и QR-файлы (octet-stream, 413, packs) 17`] = `
 {
   "body": "{"ok":true}",
   "headers": {
@@ -665,18 +665,18 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: фото (order, batch, edit multipart, rotate, item, upload multipart), layout и QR-файлы (octet-stream, 413, packs) 18`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: фото (order, batch, edit multipart, rotate, item, upload multipart), layout и QR-файлы (octet-stream, 413, packs) 18`] = `
 {
   "body": "{"error":"Не найдено","code":"notFound"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/books/aaaa1111-1111-4111-8111-111111111111/files/packs",
   "status": 404,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: экспорт, превью, растр полос, развороты, обложки, сборка и ИИ-помощники 1`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: экспорт, превью, растр полос, развороты, обложки, сборка и ИИ-помощники 1`] = `
 {
   "body": "﻿Глава 1",
   "headers": {
@@ -689,7 +689,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: экспорт, превью, растр полос, развороты, обложки, сборка и ИИ-помощники 2`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: экспорт, превью, растр полос, развороты, обложки, сборка и ИИ-помощники 2`] = `
 {
   "body": "%PDF-1.7",
   "headers": {
@@ -702,7 +702,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: экспорт, превью, растр полос, развороты, обложки, сборка и ИИ-помощники 3`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: экспорт, превью, растр полос, развороты, обложки, сборка и ИИ-помощники 3`] = `
 {
   "body": "WEBP-PAGE",
   "headers": {
@@ -715,7 +715,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: экспорт, превью, растр полос, развороты, обложки, сборка и ИИ-помощники 4`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: экспорт, превью, растр полос, развороты, обложки, сборка и ИИ-помощники 4`] = `
 {
   "body": "",
   "headers": {
@@ -728,7 +728,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: экспорт, превью, растр полос, развороты, обложки, сборка и ИИ-помощники 5`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: экспорт, превью, растр полос, развороты, обложки, сборка и ИИ-помощники 5`] = `
 {
   "body": "{"error":"rasterizer"}",
   "headers": {
@@ -739,18 +739,18 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: экспорт, превью, растр полос, развороты, обложки, сборка и ИИ-помощники 6`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: экспорт, превью, растр полос, развороты, обложки, сборка и ИИ-помощники 6`] = `
 {
   "body": "{"error":"Не найдено","code":"notFound"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "GET /api/books/aaaa1111-1111-4111-8111-111111111111/pages/0123456789abcdef/1?w=1200",
   "status": 404,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: экспорт, превью, растр полос, развороты, обложки, сборка и ИИ-помощники 7`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: экспорт, превью, растр полос, развороты, обложки, сборка и ИИ-помощники 7`] = `
 {
   "body": "WEBP-SPREAD",
   "headers": {
@@ -763,7 +763,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: экспорт, превью, растр полос, развороты, обложки, сборка и ИИ-помощники 8`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: экспорт, превью, растр полос, развороты, обложки, сборка и ИИ-помощники 8`] = `
 {
   "body": "WEBP-SPREAD",
   "headers": {
@@ -776,7 +776,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: экспорт, превью, растр полос, развороты, обложки, сборка и ИИ-помощники 9`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: экспорт, превью, растр полос, развороты, обложки, сборка и ИИ-помощники 9`] = `
 {
   "body": "WEBP-COVER",
   "headers": {
@@ -789,7 +789,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: экспорт, превью, растр полос, развороты, обложки, сборка и ИИ-помощники 10`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: экспорт, превью, растр полос, развороты, обложки, сборка и ИИ-помощники 10`] = `
 {
   "body": "WEBP-COVER",
   "headers": {
@@ -802,7 +802,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: экспорт, превью, растр полос, развороты, обложки, сборка и ИИ-помощники 11`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: экспорт, превью, растр полос, развороты, обложки, сборка и ИИ-помощники 11`] = `
 {
   "body": "WEBP-THUMB",
   "headers": {
@@ -814,7 +814,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: экспорт, превью, растр полос, развороты, обложки, сборка и ИИ-помощники 12`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: экспорт, превью, растр полос, развороты, обложки, сборка и ИИ-помощники 12`] = `
 {
   "body": "{"status":"ready","build":{"fingerprint":"0123456789abcdef","pageCount":32,"contentPages":28,"pages":[]}}",
   "headers": {
@@ -826,7 +826,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: экспорт, превью, растр полос, развороты, обложки, сборка и ИИ-помощники 13`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: экспорт, превью, растр полос, развороты, обложки, сборка и ИИ-помощники 13`] = `
 {
   "body": "{"progress":{"stage":"pdf","done":1,"total":2}}",
   "headers": {
@@ -838,7 +838,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: экспорт, превью, растр полос, развороты, обложки, сборка и ИИ-помощники 14`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: экспорт, превью, растр полос, развороты, обложки, сборка и ИИ-помощники 14`] = `
 {
   "body": "{"enabled":true,"whatsapp":"77010000000","messages":[],"hints":["start"]}",
   "headers": {
@@ -850,7 +850,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: экспорт, превью, растр полос, развороты, обложки, сборка и ИИ-помощники 15`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: экспорт, превью, растр полос, развороты, обложки, сборка и ИИ-помощники 15`] = `
 {
   "body": "{"outcome":"answered","handoff":false,"suggestions":[],"messages":[{"id":"m1","from":"assistant","at":"2026-11-26T10:00:00.000Z","text":"kk:Помощь"}]}",
   "headers": {
@@ -861,7 +861,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: экспорт, превью, растр полос, развороты, обложки, сборка и ИИ-помощники 16`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: экспорт, превью, растр полос, развороты, обложки, сборка и ИИ-помощники 16`] = `
 {
   "body": "{"allowance":{"limit":5,"used":1,"remaining":4,"credits":0,"total":4},"packs":[],"theme":"love","hasPhotos":true}",
   "headers": {
@@ -872,7 +872,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: экспорт, превью, растр полос, развороты, обложки, сборка и ИИ-помощники 17`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: экспорт, превью, растр полос, развороты, обложки, сборка и ИИ-помощники 17`] = `
 {
   "body": "{"mode":"edit","reply":"Готово","patch":{"interior":"classic"}}",
   "headers": {
@@ -883,7 +883,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: экспорт, превью, растр полос, развороты, обложки, сборка и ИИ-помощники 18`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: экспорт, превью, растр полос, развороты, обложки, сборка и ИИ-помощники 18`] = `
 {
   "body": "{"issues":[]}",
   "headers": {
@@ -894,18 +894,18 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: экспорт, превью, растр полос, развороты, обложки, сборка и ИИ-помощники 19`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: экспорт, превью, растр полос, развороты, обложки, сборка и ИИ-помощники 19`] = `
 {
   "body": "{"error":"Корректор сейчас перегружен — попробуйте через пару минут.","code":"proofreadBusy"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/books/aaaa1111-1111-4111-8111-111111111111/proofread/ai",
   "status": 502,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: экспорт, превью, растр полос, развороты, обложки, сборка и ИИ-помощники 20`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: экспорт, превью, растр полос, развороты, обложки, сборка и ИИ-помощники 20`] = `
 {
   "body": "{"wrong":{"приввет":["привет"]}}",
   "headers": {
@@ -916,7 +916,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 42 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 42 маршрута сайта Authoring > паритет: экспорт, превью, растр полос, развороты, обложки, сборка и ИИ-помощники 21`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 42 маршрута сайта Authoring > паритет: экспорт, превью, растр полос, развороты, обложки, сборка и ИИ-помощники 21`] = `
 {
   "body": "{"text":"Текст!"}",
   "headers": {

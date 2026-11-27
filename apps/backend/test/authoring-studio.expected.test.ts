@@ -183,8 +183,8 @@ vi.mock("node:crypto", async (importOriginal) => {
   const actual = await importOriginal<typeof import("node:crypto")>();
   return { ...actual, randomUUID: () => FIXED_MEDIA_ID };
 });
-vi.mock("next/headers", () => import("../../../apps/api/src/http/next-shim"));
-vi.mock("next/server", () => import("../../../apps/api/src/http/next-shim"));
+vi.mock("next/headers", () => import("@/server/http/next-shim"));
+vi.mock("next/server", () => import("@/server/http/next-shim"));
 vi.mock("@/server/books", () => ({
   viewerOf: async (user: { id: string }): Promise<BookViewer> => ({ userId: user.id, isStaff: false, staffEdits: false }),
 }));
@@ -292,7 +292,7 @@ vi.mock("@/server/container", () => ({
   }),
 }));
 
-const { assertRouteParity, createLegacyTestApp } = await import("./parity");
+const { assertRoute } = await import("./expected");
 
 function multipartChunk(fieldName: string, content: Buffer, filename = "chunk.bin") {
   const boundary = "----MyBookParityBoundary987654321";
@@ -308,7 +308,6 @@ function multipartChunk(fieldName: string, content: Buffer, filename = "chunk.bi
 
 let app: NestFastifyApplication;
 let limiter: FakeLimiter;
-let legacy: ReturnType<typeof createLegacyTestApp>;
 
 beforeAll(async () => {
   const pagesPort: PagesPorts = {
@@ -381,7 +380,6 @@ beforeAll(async () => {
       [ANSWER_FILES_PORTS, answerFilesPort],
     ],
   }));
-  legacy = createLegacyTestApp({ users: [OWNER, STRANGER] });
 });
 
 afterAll(async () => {
@@ -413,38 +411,35 @@ beforeEach(() => {
   shared.invoiceStatus = { ...invoiceFixture, status: "paid", paidAt: "2026-11-26T10:02:00.000Z" };
 });
 
-describe("побайтовый паритет NestJS ↔ mybook-api (Контекст 2B — все 19 маршрутов)", () => {
+describe("ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 2B — все 19 маршрутов)", () => {
   it("pagesGet, pagesUpdate, pagesStudioGet, pagesStudioApply совпадают байт в байт", async () => {
     const pagesUrl = `/api/v1/books/${BOOK_ID}/pages`;
     const studioUrl = `/api/v1/books/${BOOK_ID}/pages/studio`;
 
     // pagesGet: 200 (ru + kk + ETag/304), 401, 404, 405
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: pagesUrl, headers: asOwner });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: pagesUrl, headers: { ...asOwner, [LOCALE_HEADER]: "kk" } });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: pagesUrl });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: pagesUrl, headers: asStranger });
-    await assertRouteParity({ nest: app, legacy, method: "DELETE", url: pagesUrl, headers: asOwner });
+    await assertRoute({ nest: app, method: "GET", url: pagesUrl, headers: asOwner });
+    await assertRoute({ nest: app, method: "GET", url: pagesUrl, headers: { ...asOwner, [LOCALE_HEADER]: "kk" } });
+    await assertRoute({ nest: app, method: "GET", url: pagesUrl });
+    await assertRoute({ nest: app, method: "GET", url: pagesUrl, headers: asStranger });
+    await assertRoute({ nest: app, method: "DELETE", url: pagesUrl, headers: asOwner });
 
     // pagesUpdate: 200, 400 (interior/fontPair/styleJson), 403 Origin, 409 bookLocked
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "PATCH",
       url: pagesUrl,
       headers: { ...asOwner, ...ORIGIN },
       body: { interior: "minimal", dedication: "Маме" },
     });
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "PATCH",
       url: pagesUrl,
       headers: { ...asOwner, ...ORIGIN },
       body: { interior: "unknown" },
     });
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "PATCH",
       url: pagesUrl,
       headers: { ...asOwner, origin: "https://evil.example" },
@@ -452,9 +447,8 @@ describe("побайтовый паритет NestJS ↔ mybook-api (Конте�
     });
 
     shared.book = { ...baseBook, status: "ordered" };
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "PATCH",
       url: pagesUrl,
       headers: { ...asOwner, ...ORIGIN },
@@ -464,22 +458,20 @@ describe("побайтовый паритет NestJS ↔ mybook-api (Конте�
 
     // pagesStudioGet: все 5 вкладок + 400
     for (const tab of ["text", "elements", "colors", "chapters", "fonts"]) {
-      await assertRouteParity({ nest: app, legacy, method: "GET", url: `${studioUrl}?tab=${tab}`, headers: asOwner });
+      await assertRoute({ nest: app, method: "GET", url: `${studioUrl}?tab=${tab}`, headers: asOwner });
     }
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: `${studioUrl}?tab=bad`, headers: asOwner });
+    await assertRoute({ nest: app, method: "GET", url: `${studioUrl}?tab=bad`, headers: asOwner });
 
     // pagesStudioApply: 200 + 400 broken json
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "POST",
       url: studioUrl,
       headers: { ...asOwner, ...ORIGIN },
       body: { tab: "text", chapter: null, ops: [{ target: "style", section: "body", key: "size", json: "11.5" }] },
     });
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "POST",
       url: studioUrl,
       headers: { ...asOwner, ...ORIGIN },
@@ -492,13 +484,12 @@ describe("побайтовый паритет NestJS ↔ mybook-api (Конте�
     const chUrl = `/api/v1/books/${BOOK_ID}/pages/chapters`;
 
     // pagesAiInfo
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: aiUrl, headers: asOwner });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: aiUrl, headers: { ...asOwner, [LOCALE_HEADER]: "kk" } });
+    await assertRoute({ nest: app, method: "GET", url: aiUrl, headers: asOwner });
+    await assertRoute({ nest: app, method: "GET", url: aiUrl, headers: { ...asOwner, [LOCALE_HEADER]: "kk" } });
 
     // pagesAi: edit, variants, review, 402
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "POST",
       url: aiUrl,
       headers: { ...asOwner, ...ORIGIN },
@@ -509,9 +500,8 @@ describe("побайтовый паритет NestJS ↔ mybook-api (Конте�
       reply: "Варианты готовы",
       variants: [{ name: "Классика", idea: "Чистая вёрстка", patch: { interior: "classic", interiorStyle: {} } }],
     };
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "POST",
       url: aiUrl,
       headers: { ...asOwner, ...ORIGIN },
@@ -524,9 +514,8 @@ describe("побайтовый паритет NestJS ↔ mybook-api (Конте�
       strengths: ["Читаемый шрифт"],
       tips: [{ title: "Интерлиньяж", why: "Чуть свободнее", patch: { interior: "classic", interiorStyle: { body: { lineHeight: 1.5 } } } }],
     };
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "POST",
       url: aiUrl,
       headers: { ...asOwner, ...ORIGIN },
@@ -534,9 +523,8 @@ describe("побайтовый паритет NestJS ↔ mybook-api (Конте�
     });
 
     shared.aiError = Object.assign(new Error("designAiLimit"), { [Symbol.for("mybook.http-error")]: true, status: 402, code: "designAiLimit" });
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "POST",
       url: aiUrl,
       headers: { ...asOwner, ...ORIGIN },
@@ -545,18 +533,16 @@ describe("побайтовый паритет NestJS ↔ mybook-api (Конте�
     shared.aiError = null;
 
     // pagesChapters + pagesChaptersUpdate
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: chUrl, headers: asOwner });
-    await assertRouteParity({
+    await assertRoute({ nest: app, method: "GET", url: chUrl, headers: asOwner });
+    await assertRoute({
       nest: app,
-      legacy,
       method: "POST",
       url: chUrl,
       headers: { ...asOwner, ...ORIGIN },
       body: { key: "c:ch2", title: "Молодость", tocMode: "both" },
     });
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "POST",
       url: chUrl,
       headers: { ...asOwner, ...ORIGIN },
@@ -568,18 +554,16 @@ describe("побайтовый паритет NestJS ↔ mybook-api (Конте�
     const mediaUrl = `/api/v1/books/${BOOK_ID}/questions/${QUESTION_ID}/media`;
     const linkUrl = `${mediaUrl}/link`;
 
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: mediaUrl, headers: asOwner });
-    await assertRouteParity({
+    await assertRoute({ nest: app, method: "GET", url: mediaUrl, headers: asOwner });
+    await assertRoute({
       nest: app,
-      legacy,
       method: "GET",
       url: `/api/v1/books/${BOOK_ID}/questions/99999999-9999-4999-8999-999999999999/media`,
       headers: asOwner,
     });
 
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "PUT",
       url: mediaUrl,
       headers: { ...asOwner, ...ORIGIN },
@@ -587,25 +571,22 @@ describe("побайтовый паритет NestJS ↔ mybook-api (Конте�
     });
 
     // answerMediaAddLink: 200 (Spotify) + 400 badUrl + 400 duplicate
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "POST",
       url: linkUrl,
       headers: { ...asOwner, ...ORIGIN },
       body: { url: "https://open.spotify.com/track/456" },
     });
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "POST",
       url: linkUrl,
       headers: { ...asOwner, ...ORIGIN },
       body: { url: "not-a-valid-url" },
     });
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "POST",
       url: linkUrl,
       headers: { ...asOwner, ...ORIGIN },
@@ -623,9 +604,8 @@ describe("побайтовый паритет NestJS ↔ mybook-api (Конте�
     const kaspiStatusUrl = `${kaspiUrl}/${INVOICE_ID}`;
 
     // answerFileStart: 200, 429, 415 fileType
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "POST",
       url: startUrl,
       headers: { ...asOwner, ...ORIGIN },
@@ -634,9 +614,8 @@ describe("побайтовый паритет NestJS ↔ mybook-api (Конте�
 
     limiter.deny = true;
     shared.allowRate = false;
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "POST",
       url: startUrl,
       headers: { ...asOwner, ...ORIGIN },
@@ -646,9 +625,8 @@ describe("побайтовый паритет NestJS ↔ mybook-api (Конте�
     shared.allowRate = true;
 
     shared.startError = new AuthoringError("fileType");
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "POST",
       url: startUrl,
       headers: { ...asOwner, ...ORIGIN },
@@ -657,51 +635,46 @@ describe("побайтовый паритет NestJS ↔ mybook-api (Конте�
     shared.startError = null;
 
     // answerFileStatus: 200 (ETag/304) + 404
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: fileUrl, headers: asOwner });
+    await assertRoute({ nest: app, method: "GET", url: fileUrl, headers: asOwner });
     shared.file = null;
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: fileUrl, headers: asOwner });
+    await assertRoute({ nest: app, method: "GET", url: fileUrl, headers: asOwner });
     shared.file = { ...baseFile };
 
     // answerFileChunk: 200 multipart + 400 non-multipart + 400 empty + 413 too big + 409 conflict
     const okPart = multipartChunk("chunk", Buffer.from("0123456789abcdef"));
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "PUT",
       url: chunkUrl,
       headers: { ...asOwner, ...ORIGIN, ...okPart.headers },
       body: okPart.body,
     });
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "PUT",
       url: chunkUrl,
       headers: { ...asOwner, ...ORIGIN },
       body: { bad: true },
     });
     const emptyPart = multipartChunk("chunk", Buffer.alloc(0));
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "PUT",
       url: chunkUrl,
       headers: { ...asOwner, ...ORIGIN, ...emptyPart.headers },
       body: emptyPart.body,
     });
     const bigPart = multipartChunk("chunk", Buffer.alloc(FILE_CHUNK_BYTES + 1));
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "PUT",
       url: chunkUrl,
       headers: { ...asOwner, ...ORIGIN, ...bigPart.headers },
       body: bigPart.body,
     });
     shared.chunkError = new AuthoringError("fileChunk");
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "PUT",
       url: chunkUrl,
       headers: { ...asOwner, ...ORIGIN, ...okPart.headers },
@@ -710,21 +683,19 @@ describe("побайтовый паритет NestJS ↔ mybook-api (Конте�
     shared.chunkError = null;
 
     // answerFileFinish + answerFileDelete
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: finishUrl, headers: { ...asOwner, ...ORIGIN } });
-    await assertRouteParity({ nest: app, legacy, method: "DELETE", url: fileUrl, headers: { ...asOwner, ...ORIGIN } });
+    await assertRoute({ nest: app, method: "POST", url: finishUrl, headers: { ...asOwner, ...ORIGIN } });
+    await assertRoute({ nest: app, method: "DELETE", url: fileUrl, headers: { ...asOwner, ...ORIGIN } });
 
     // answerFilePackBuy: 200 + 404 unknown pack + 429
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "POST",
       url: buyUrl,
       headers: { ...asOwner, ...ORIGIN },
       body: { packId: "small" },
     });
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "POST",
       url: buyUrl,
       headers: { ...asOwner, ...ORIGIN },
@@ -732,18 +703,16 @@ describe("побайтовый паритет NestJS ↔ mybook-api (Конте�
     });
 
     // answerFilePackKaspi: 200 + 404 foreign purchase + 503 kaspiNotConnected
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "POST",
       url: kaspiUrl,
       headers: { ...asOwner, ...ORIGIN },
       body: { method: "qr", phone: "" },
     });
     shared.kaspiError = new OrderingError("kaspiNotConnected");
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "POST",
       url: kaspiUrl,
       headers: { ...asOwner, ...ORIGIN },
@@ -751,9 +720,8 @@ describe("побайтовый паритет NestJS ↔ mybook-api (Конте�
     });
     shared.kaspiError = null;
     shared.purchase = { ...purchaseFixture, userId: STRANGER_ID };
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "POST",
       url: kaspiUrl,
       headers: { ...asOwner, ...ORIGIN },
@@ -762,7 +730,7 @@ describe("побайтовый паритет NestJS ↔ mybook-api (Конте�
     shared.purchase = { ...purchaseFixture };
 
     // answerFilePackKaspiStatus: 200 (ETag/304) + 404 + 405
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: kaspiStatusUrl, headers: asOwner });
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: kaspiStatusUrl, headers: asOwner });
+    await assertRoute({ nest: app, method: "GET", url: kaspiStatusUrl, headers: asOwner });
+    await assertRoute({ nest: app, method: "POST", url: kaspiStatusUrl, headers: asOwner });
   });
 });

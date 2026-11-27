@@ -96,7 +96,7 @@ const shared = vi.hoisted(() => ({
 }));
 
 vi.mock("next/headers", async () => {
-  const shim = await import("../../../apps/api/src/http/next-shim");
+  const shim = await import("@/server/http/next-shim");
   return {
     ...shim,
     headers: async () => {
@@ -110,7 +110,7 @@ vi.mock("next/headers", async () => {
   };
 });
 vi.mock("next/server", async () => {
-  const shim = await import("../../../apps/api/src/http/next-shim");
+  const shim = await import("@/server/http/next-shim");
   return {
     ...shim,
     after: (fn: () => unknown) => {
@@ -119,11 +119,11 @@ vi.mock("next/server", async () => {
     },
   };
 });
-vi.mock("next/navigation", () => import("../../../apps/api/src/http/next-shim"));
+vi.mock("next/navigation", () => import("@/server/http/next-shim"));
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
 
 vi.mock("@/server/auth", async () => {
-  const shim = await import("../../../apps/api/src/http/next-shim");
+  const shim = await import("@/server/http/next-shim");
   const { legacyRequestContext } = await import("@/server/request-context");
   return {
     getCurrentUser: async () => {
@@ -519,8 +519,7 @@ vi.mock("@/server/container", () => ({
   container: () => mockContainer,
 }));
 
-const { assertRouteParity, createLegacyTestApp } = await import("./parity");
-const { handleSiteRoute } = await import("../../../apps/api/src/site-routes");
+const { assertRoute } = await import("./expected");
 const { legacyCrmSitePorts } = await import("../src/legacy/crm-site.ports");
 const { releaseToken } = await import("@/server/support-release");
 
@@ -541,9 +540,8 @@ function makeMultipart(parts: Array<{ name: string; value?: string; filename?: s
   return { contentType: `multipart/form-data; boundary=${boundary}`, body };
 }
 
-describe("побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B)", () => {
+describe("ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B)", () => {
   let app: NestFastifyApplication;
-  let legacy: ReturnType<typeof createLegacyTestApp>;
 
   beforeAll(async () => {
     vi.useFakeTimers({ now: FIXED_NOW, toFake: ["Date"] });
@@ -556,7 +554,6 @@ describe("побайтовый паритет NestJS ↔ mybook-api: 28 марш
         [CRM_SITE_PORTS, realPorts],
       ],
     }));
-    legacy = createLegacyTestApp({ users: ALL_USERS, siteRoutes: handleSiteRoute });
   });
 
   afterAll(async () => {
@@ -576,74 +573,67 @@ describe("побайтовый паритет NestJS ↔ mybook-api: 28 марш
   });
 
   it("паритет: 7 маршрутов чатов и материалов бота", async () => {
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/admin/chats/inbox?f=open&q=test", headers: asSales });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/v1/site/admin/chats/inbox", headers: asNoPerms });
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: "/api/admin/chats/inbox", headers: asOwner });
+    await assertRoute({ nest: app, method: "GET", url: "/api/admin/chats/inbox?f=open&q=test", headers: asSales });
+    await assertRoute({ nest: app, method: "GET", url: "/api/v1/site/admin/chats/inbox", headers: asNoPerms });
+    await assertRoute({ nest: app, method: "POST", url: "/api/admin/chats/inbox", headers: asOwner });
 
     const mpFile = makeMultipart([
       { name: "files", filename: "a.jpg", contentType: "image/jpeg", content: "IMG" },
       { name: "caption", value: "Вот фото" },
     ]);
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "POST",
       url: `/api/admin/chats/${CHAT_ID}/files`,
       headers: { ...asSales, "content-type": mpFile.contentType },
       body: mpFile.body,
     });
     shared.sensitiveBlock = true;
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "POST",
       url: `/api/admin/chats/${CHAT_ID}/files`,
       headers: { ...asSales, "content-type": mpFile.contentType },
       body: mpFile.body,
     });
     shared.sensitiveBlock = false;
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "POST",
       url: `/api/admin/chats/${OTHER_CHAT_ID}/files`,
       headers: { ...asSales, "content-type": mpFile.contentType },
       body: mpFile.body,
     });
 
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: `/api/admin/chats/${CHAT_ID}/messages?limit=30`, headers: asSales });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: `/api/admin/chats/${OTHER_CHAT_ID}/messages`, headers: asSales });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/admin/chats/bad/messages", headers: asSales });
+    await assertRoute({ nest: app, method: "GET", url: `/api/admin/chats/${CHAT_ID}/messages?limit=30`, headers: asSales });
+    await assertRoute({ nest: app, method: "GET", url: `/api/admin/chats/${OTHER_CHAT_ID}/messages`, headers: asSales });
+    await assertRoute({ nest: app, method: "GET", url: "/api/admin/chats/bad/messages", headers: asSales });
 
     const mpVoice = makeMultipart([{ name: "voice", filename: "v.webm", contentType: "audio/webm", content: "WAV" }]);
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "POST",
       url: `/api/admin/chats/${CHAT_ID}/voice`,
       headers: { ...asSales, "content-type": mpVoice.contentType },
       body: mpVoice.body,
     });
     const mpEmptyVoice = makeMultipart([{ name: "replyToId", value: MSG_ID }]);
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "POST",
       url: `/api/admin/chats/${CHAT_ID}/voice`,
       headers: { ...asSales, "content-type": mpEmptyVoice.contentType },
       body: mpEmptyVoice.body,
     });
 
-    const media = await assertRouteParity({
+    const media = await assertRoute({
       nest: app,
-      legacy,
       method: "GET",
       url: `/api/admin/chats/messages/${MSG_ID}/media`,
       headers: { ...asSales, range: "bytes=0-3" },
     });
-    expect(media.nestRes.headers["content-range"]).toBe(media.legacyRes.headers.get("content-range"));
     shared.mediaMode = "gowa";
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: `/api/admin/chats/messages/${MSG_ID}/media`, headers: asOwner });
+    await assertRoute({ nest: app, method: "GET", url: `/api/admin/chats/messages/${MSG_ID}/media`, headers: asOwner });
     shared.mediaMode = "ok";
 
     const mpMat = makeMultipart([
@@ -651,19 +641,17 @@ describe("побайтовый паритет NestJS ↔ mybook-api: 28 марш
       { name: "caption", value: "Пример" },
       { name: "lang", value: "ru" },
     ]);
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "POST",
       url: "/api/admin/bot/materials",
       headers: { ...asOwner, "content-type": mpMat.contentType },
       body: mpMat.body,
     });
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: "/api/admin/bot/materials", headers: asSales });
+    await assertRoute({ nest: app, method: "POST", url: "/api/admin/bot/materials", headers: asSales });
 
-    const matPreview = await assertRouteParity({ nest: app, legacy, method: "GET", url: `/api/admin/bot/materials/${MAT_ID}`, headers: asOwner });
-    expect(matPreview.nestRes.headers["content-disposition"]).toBe(matPreview.legacyRes.headers.get("content-disposition"));
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/admin/bot/materials/nope", headers: asOwner });
+    const matPreview = await assertRoute({ nest: app, method: "GET", url: `/api/admin/bot/materials/${MAT_ID}`, headers: asOwner });
+    await assertRoute({ nest: app, method: "GET", url: "/api/admin/bot/materials/nope", headers: asOwner });
   });
 
   it("паритет: 5 маршрутов досок, вложений задач и поддержки (включая НОЛЬ next/headers и after() в Nest)", async () => {
@@ -689,49 +677,44 @@ describe("побайтовый паритет NestJS ↔ mybook-api: 28 марш
     expect(shared.afterHits).toBe(0);
 
     // Побайтовый паритет всех 5 методов /api/admin/boards/{path*}
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/admin/boards", headers: asOwner });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: `/api/v1/site/admin/boards/${BOARD_ID}?done=1`, headers: asOwner });
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: "/api/admin/boards", headers: asOwner, body: { name: "Новая" } });
-    await assertRouteParity({ nest: app, legacy, method: "PATCH", url: `/api/admin/boards/columns/${BOARD_ID}`, headers: asOwner, body: { name: "Колонка" } });
-    await assertRouteParity({ nest: app, legacy, method: "PUT", url: `/api/admin/boards/cards/${TASK_ID}/watch`, headers: asOwner, body: { on: true } });
-    await assertRouteParity({ nest: app, legacy, method: "DELETE", url: `/api/admin/boards/views/${BOARD_ID}`, headers: asOwner });
+    await assertRoute({ nest: app, method: "GET", url: "/api/admin/boards", headers: asOwner });
+    await assertRoute({ nest: app, method: "GET", url: `/api/v1/site/admin/boards/${BOARD_ID}?done=1`, headers: asOwner });
+    await assertRoute({ nest: app, method: "POST", url: "/api/admin/boards", headers: asOwner, body: { name: "Новая" } });
+    await assertRoute({ nest: app, method: "PATCH", url: `/api/admin/boards/columns/${BOARD_ID}`, headers: asOwner, body: { name: "Колонка" } });
+    await assertRoute({ nest: app, method: "PUT", url: `/api/admin/boards/cards/${TASK_ID}/watch`, headers: asOwner, body: { on: true } });
+    await assertRoute({ nest: app, method: "DELETE", url: `/api/admin/boards/views/${BOARD_ID}`, headers: asOwner });
     const cardMp = makeMultipart([{ name: "file", filename: "note.txt", contentType: "text/plain", content: "TXT" }]);
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "POST",
       url: `/api/admin/boards/cards/${TASK_ID}/files`,
       headers: { ...asOwner, "content-type": cardMp.contentType },
       body: cardMp.body,
     });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/admin/boards/unknown/path", headers: asOwner });
+    await assertRoute({ nest: app, method: "GET", url: "/api/admin/boards/unknown/path", headers: asOwner });
 
     // Вложения задач
-    const tAtt = await assertRouteParity({
+    const tAtt = await assertRoute({
       nest: app,
-      legacy,
       method: "GET",
       url: `/api/admin/tasks/${TASK_ID}/files/${ATT_ID}?download=1`,
       headers: { ...asOwner, range: "bytes=0-3" },
     });
-    expect(tAtt.nestRes.headers["content-disposition"]).toBe(tAtt.legacyRes.headers.get("content-disposition"));
     shared.boardError = true;
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: `/api/admin/tasks/${TASK_ID}/files/${ATT_ID}`, headers: asOwner });
+    await assertRoute({ nest: app, method: "GET", url: `/api/admin/tasks/${TASK_ID}/files/${ATT_ID}`, headers: asOwner });
     shared.boardError = false;
 
     // Поддержка (POST + GET file + POST release)
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "POST",
       url: "/api/admin/support",
       headers: { ...asSales, "content-type": supMp.contentType },
       body: supMp.body,
     });
     shared.supportError = true;
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "POST",
       url: "/api/admin/support",
       headers: { ...asSales, "content-type": supMp.contentType },
@@ -739,36 +722,31 @@ describe("побайтовый паритет NestJS ↔ mybook-api: 28 марш
     });
     shared.supportError = false;
 
-    const sAtt = await assertRouteParity({
+    const sAtt = await assertRoute({
       nest: app,
-      legacy,
       method: "GET",
       url: `/api/admin/support/${TICKET_ID}/files/1-abc?download=1`,
       headers: asSales,
     });
-    expect(sAtt.nestRes.headers["content-disposition"]).toBe(sAtt.legacyRes.headers.get("content-disposition"));
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: `/api/admin/support/${TICKET_ID}/files/1-abc`, headers: asNoPerms });
+    await assertRoute({ nest: app, method: "GET", url: `/api/admin/support/${TICKET_ID}/files/1-abc`, headers: asNoPerms });
 
     const validToken = releaseToken();
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "POST",
       url: "/api/support/release",
       headers: { "x-release-token": validToken },
       body: { release: "v2", commits: [{ sha: "abcdef1", subject: "Обращение №99" }] },
     });
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "POST",
       url: "/api/support/release",
       headers: { "x-release-token": "bad-token" },
       body: { release: "v2", commits: [] },
     });
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "POST",
       url: "/api/support/release",
       headers: { "x-release-token": validToken },
@@ -777,77 +755,62 @@ describe("побайтовый паритет NestJS ↔ mybook-api: 28 марш
   });
 
   it("паритет: каталог (2), live/SSE, уведомления, push и ZIP-пакет заказа (5)", async () => {
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "GET",
       url: "/api/admin/catalog/photo?u=https%3A%2F%2Fmmg.whatsapp.net%2Fok.jpg",
       headers: asOwner,
     });
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "GET",
       url: "/api/admin/catalog/photo?u=https%3A%2F%2Fbad.example%2Fa.jpg",
       headers: asOwner,
     });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/admin/catalog/555/image", headers: asSales });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/admin/catalog/555/image", headers: asNoPerms });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/admin/catalog/abc/image", headers: asOwner });
+    await assertRoute({ nest: app, method: "GET", url: "/api/admin/catalog/555/image", headers: asSales });
+    await assertRoute({ nest: app, method: "GET", url: "/api/admin/catalog/555/image", headers: asNoPerms });
+    await assertRoute({ nest: app, method: "GET", url: "/api/admin/catalog/abc/image", headers: asOwner });
 
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/admin/live", headers: asSales });
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: "/api/admin/live/stream", headers: asOwner });
+    await assertRoute({ nest: app, method: "GET", url: "/api/admin/live", headers: asSales });
+    await assertRoute({ nest: app, method: "POST", url: "/api/admin/live/stream", headers: asOwner });
 
-    // SSE-поток live/stream: сравниваем заголовки, retry и JSON события побайтово.
-    const { requestContext } = await import("../../../apps/api/src/http/context");
+    // SSE-поток live/stream: заголовки, retry и JSON события — как отдавал прежний mybook-api (записано 27.11).
     await app.listen(0, "127.0.0.1");
     const address = (await app.getUrl()).replace("[::1]", "127.0.0.1");
     const nestAc = new AbortController();
-    const legacyAc = new AbortController();
-    const legacyReq = new Request(`${ORIGIN}/api/admin/live/stream`, { headers: asSales, signal: legacyAc.signal });
-    const [nestSse, legacySse] = await Promise.all([
-      fetch(`${address}/api/admin/live/stream`, { headers: asSales, signal: nestAc.signal }),
-      requestContext.run({ request: legacyReq, afterResponse: [] }, () => legacy(legacyReq)),
-    ]);
-    expect(nestSse.status).toBe(legacySse.status);
-    expect(nestSse.headers.get("content-type")).toBe(legacySse.headers.get("content-type"));
-    expect(nestSse.headers.get("cache-control")).toBe(legacySse.headers.get("cache-control"));
-    expect(nestSse.headers.get("x-accel-buffering")).toBe(legacySse.headers.get("x-accel-buffering"));
+    const nestSse = await fetch(`${address}/api/admin/live/stream`, { headers: asSales, signal: nestAc.signal });
+    const sseHead = { status: nestSse.status, type: nestSse.headers.get("content-type"), cache: nestSse.headers.get("cache-control"), buffering: nestSse.headers.get("x-accel-buffering") };
     const nestReader = nestSse.body!.getReader();
-    const legacyReader = legacySse.body!.getReader();
     const dec = new TextDecoder();
-    expect(dec.decode((await nestReader.read()).value)).toBe(dec.decode((await legacyReader.read()).value));
+    expect(sseHead).toEqual({ status: 200, type: "text/event-stream; charset=utf-8", cache: "no-cache, no-transform", buffering: "no" });
+    expect(dec.decode((await nestReader.read()).value)).toBe("retry: 5000\n\n");
     for (const fn of [...shared.liveListeners]) fn({ type: "chat", conversationId: CHAT_ID });
-    expect(dec.decode((await nestReader.read()).value)).toBe(dec.decode((await legacyReader.read()).value));
+    expect(dec.decode((await nestReader.read()).value)).toBe(`data: ${JSON.stringify({ type: "chat", conversationId: CHAT_ID })}\n\n`);
     nestAc.abort();
-    legacyAc.abort();
-    await Promise.all([nestReader.cancel().catch(() => {}), legacyReader.cancel().catch(() => {})]);
+    await nestReader.cancel().catch(() => {});
 
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: "/api/admin/notifications", headers: asSales, body: { id: NOTIF_ID } });
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: "/api/admin/notifications", headers: asSales });
+    await assertRoute({ nest: app, method: "POST", url: "/api/admin/notifications", headers: asSales, body: { id: NOTIF_ID } });
+    await assertRoute({ nest: app, method: "POST", url: "/api/admin/notifications", headers: asSales });
 
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/admin/push", headers: asSales });
-    await assertRouteParity({
+    await assertRoute({ nest: app, method: "GET", url: "/api/admin/push", headers: asSales });
+    await assertRoute({
       nest: app,
-      legacy,
       method: "POST",
       url: "/api/admin/push",
       headers: asSales,
       body: { endpoint: "https://push.example/1", keys: { p256dh: "1234567890abcdef", auth: "abcd" } },
     });
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "DELETE",
       url: "/api/admin/push",
       headers: asSales,
       body: { endpoint: "https://push.example/1" },
     });
-    await assertRouteParity({ nest: app, legacy, method: "PUT", url: "/api/admin/push", headers: asSales });
+    await assertRoute({ nest: app, method: "PUT", url: "/api/admin/push", headers: asSales });
 
-    const zip = await assertRouteParity({ nest: app, legacy, method: "GET", url: `/api/admin/orders/${ORDER_ID}/package`, headers: asOwner });
-    expect(zip.nestRes.headers["content-disposition"]).toBe(zip.legacyRes.headers.get("content-disposition"));
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: `/api/admin/orders/${ORDER_ID}/package`, headers: asSales });
+    const zip = await assertRoute({ nest: app, method: "GET", url: `/api/admin/orders/${ORDER_ID}/package`, headers: asOwner });
+    await assertRoute({ nest: app, method: "GET", url: `/api/admin/orders/${ORDER_ID}/package`, headers: asSales });
   });
 
   it("паритет: все 9 экспортов CSV и vCard", async () => {
@@ -863,13 +826,11 @@ describe("побайтовый паритет NestJS ↔ mybook-api: 28 марш
       "/api/admin/export/vcard?since=2026-11-01",
     ];
     for (const url of urls) {
-      const res = await assertRouteParity({ nest: app, legacy, method: "GET", url, headers: asOwner });
-      expect(res.nestRes.headers["content-type"], url).toBe(res.legacyRes.headers.get("content-type"));
-      expect(res.nestRes.headers["content-disposition"], url).toBe(res.legacyRes.headers.get("content-disposition"));
+      const res = await assertRoute({ nest: app, method: "GET", url, headers: asOwner });
     }
     // Проверяем также роль «только свои» на экспортах аналитики (без finance.view — без колонок рекламы/комиссии)
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/admin/export/leads?p=month", headers: asSales });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/admin/export/sales?p=month", headers: asSales });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/admin/export/payments?days=30", headers: asSales });
+    await assertRoute({ nest: app, method: "GET", url: "/api/admin/export/leads?p=month", headers: asSales });
+    await assertRoute({ nest: app, method: "GET", url: "/api/admin/export/sales?p=month", headers: asSales });
+    await assertRoute({ nest: app, method: "GET", url: "/api/admin/export/payments?days=30", headers: asSales });
   });
 });

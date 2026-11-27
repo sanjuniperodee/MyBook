@@ -179,9 +179,9 @@ const mockContainer = {
   },
 };
 
-vi.mock("next/headers", () => import("../../../apps/api/src/http/next-shim"));
-vi.mock("next/server", () => import("../../../apps/api/src/http/next-shim"));
-vi.mock("next/navigation", () => import("../../../apps/api/src/http/next-shim"));
+vi.mock("next/headers", () => import("@/server/http/next-shim"));
+vi.mock("next/server", () => import("@/server/http/next-shim"));
+vi.mock("next/navigation", () => import("@/server/http/next-shim"));
 vi.mock("@/server/container", () => ({ container: () => mockContainer }));
 vi.mock("@/server/shift", () => ({ autoShiftOnVisit: async () => true }));
 vi.mock("@/server/audio-convert", () => ({
@@ -213,7 +213,7 @@ vi.mock("@/server/crm-lists/work", () => ({
   }),
 }));
 vi.mock("@/server/auth", async () => {
-  const shim = await import("../../../apps/api/src/http/next-shim");
+  const shim = await import("@/server/http/next-shim");
   return {
     sessionToken: async () => {
       const jar = await shim.cookies();
@@ -394,10 +394,9 @@ vi.mock("@/modules/workspace", async (orig) => ({
   staffNotifications: async () => [{ id: "n-1", title: "Новая заявка", at: FIXED_NOTE_AT.toISOString(), read: false }],
 }));
 
-const { assertRouteParity, createLegacyTestApp } = await import("./parity");
+const { assertRoute } = await import("./expected");
 const { legacyCrmMobileApiPorts } = await import("../src/legacy/crm-mobile-api.ports");
 const { legacyCrmMobileSitePorts } = await import("../src/legacy/crm-mobile-site.ports");
-const { handleSiteRoute } = await import("../../../apps/api/src/site-routes");
 const { legacyCrmListsPorts } = await import("../src/legacy/crm-core.ports");
 const { legacyIdentityAuthPort } = await import("../src/legacy/identity.ports");
 
@@ -490,7 +489,6 @@ const asSales = { cookie: `mb_session=${sessionOf(SALES)}` };
 const asRegular = { cookie: `mb_session=${sessionOf(REGULAR)}` };
 
 let app: NestFastifyApplication;
-let legacy: ReturnType<typeof createLegacyTestApp>;
 
 beforeAll(async () => {
   const apiPorts = (legacyCrmMobileApiPorts as { useFactory: (c: unknown) => unknown }).useFactory(mockContainer);
@@ -507,7 +505,6 @@ beforeAll(async () => {
       [IDENTITY_AUTH, identityAuth],
     ],
   }));
-  legacy = createLegacyTestApp({ users: ALL_USERS, siteRoutes: handleSiteRoute });
 });
 
 afterAll(() => app.close());
@@ -566,7 +563,7 @@ const BODIES: Record<string, Record<string, unknown>> = {
   [`POST /api/mobile/orders/${ID}/status`]: { status: "paid" },
 };
 
-describe("паритет NestJS ↔ сайт: 77 маршрутов старого мобильного CRM и раздачи приложений (Контекст 6)", () => {
+describe("ответы Nest байт в байт (эталон — прежний mybook-api): 77 маршрутов старого мобильного CRM и раздачи приложений (Контекст 6)", () => {
   it("список маршрутов — 77, без повторов", () => {
     expect(ROUTES).toHaveLength(77);
     expect(new Set(ROUTES.map(([m, u]) => `${m} ${u}`)).size).toBe(77);
@@ -581,7 +578,7 @@ describe("паритет NestJS ↔ сайт: 77 маршрутов старог
       const failed: string[] = [];
       for (const [method, url] of ROUTES) {
         try {
-          await assertRouteParity({ nest: app, legacy, method, url, headers, body: bodyFor(method) });
+          await assertRoute({ nest: app, method, url, headers, body: bodyFor(method) });
         } catch (err) {
           failed.push(String(err instanceof Error ? err.message : err).split("\n")[0]);
         }
@@ -596,7 +593,7 @@ describe("паритет NestJS ↔ сайт: 77 маршрутов старог
     for (const [method, url] of ROUTES) {
       const key = `${method} ${url}`;
       try {
-        const r = await assertRouteParity({ nest: app, legacy, method, url, headers: asOwner, body: BODIES[key] ?? bodyFor(method) });
+        const r = await assertRoute({ nest: app, method, url, headers: asOwner, body: BODIES[key] ?? bodyFor(method) });
         statuses.push(`${key} → ${r.nestRes.statusCode}`);
       } catch (err) {
         failed.push(String(err instanceof Error ? err.message : err).split("\n")[0]);
@@ -612,38 +609,38 @@ describe("паритет NestJS ↔ сайт: 77 маршрутов старог
 
   it("файлы: APK (скачать и загрузить), аудио сообщения с правами по сделке, голосовое — байт в байт", async () => {
     // APK: нет файла → 404, есть → сам файл; загрузка — не APK, не .apk, пусто и успешная, сотрудник без права — 403.
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/admin/mobile-apk", headers: asOwner });
+    await assertRoute({ nest: app, method: "GET", url: "/api/admin/mobile-apk", headers: asOwner });
     shared.apkPresent = true;
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/admin/mobile-apk", headers: asOwner });
+    await assertRoute({ nest: app, method: "GET", url: "/api/admin/mobile-apk", headers: asOwner });
     for (const [name, data] of [
       ["crm.apk", Buffer.from("PK\x03\x04apk-bytes")],
       ["crm.apk", Buffer.from("not an apk")],
       ["crm.zip", Buffer.from("PK\x03\x04apk-bytes")],
     ] as const) {
       const mp = multipartFile("apk", name, "application/vnd.android.package-archive", data);
-      await assertRouteParity({ nest: app, legacy, method: "POST", url: "/api/admin/mobile-apk", headers: { ...asOwner, ...mp.headers }, body: mp.body });
+      await assertRoute({ nest: app, method: "POST", url: "/api/admin/mobile-apk", headers: { ...asOwner, ...mp.headers }, body: mp.body });
     }
     const apk = multipartFile("apk", "crm.apk", "application/vnd.android.package-archive", Buffer.from("PK\x03\x04apk-bytes"));
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: "/api/admin/mobile-apk", headers: { ...asSales, ...apk.headers }, body: apk.body });
+    await assertRoute({ nest: app, method: "POST", url: "/api/admin/mobile-apk", headers: { ...asSales, ...apk.headers }, body: apk.body });
 
     // Аудио: свой диалог, чужой диалог по своей сделке нет (сделка руководителя) → 403, нет сообщения → 404.
     const audio = `/api/mobile/chats/messages/${MSG_ID}/audio`;
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: audio, headers: asOwner });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: audio, headers: asSales });
+    await assertRoute({ nest: app, method: "GET", url: audio, headers: asOwner });
+    await assertRoute({ nest: app, method: "GET", url: audio, headers: asSales });
     shared.chatAssigneeId = OWNER.id;
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: audio, headers: asSales });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: `/api/mobile/chats/messages/${TASK_ID}/audio`, headers: asOwner });
+    await assertRoute({ nest: app, method: "GET", url: audio, headers: asSales });
+    await assertRoute({ nest: app, method: "GET", url: `/api/mobile/chats/messages/${TASK_ID}/audio`, headers: asOwner });
     shared.chatAssigneeId = SALES.id;
 
     // Голосовое: перекодировано, без ffmpeg — как есть, пустая запись, чужой диалог.
     const voice = multipartFile("voice", "clip.m4a", "audio/mp4", Buffer.from("voice-bytes"));
     const voiceUrl = `/api/mobile/chats/${CHAT_ID}/voice`;
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: voiceUrl, headers: { ...asSales, ...voice.headers }, body: voice.body });
+    await assertRoute({ nest: app, method: "POST", url: voiceUrl, headers: { ...asSales, ...voice.headers }, body: voice.body });
     shared.convertVoiceOk = false;
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: voiceUrl, headers: { ...asSales, ...voice.headers }, body: voice.body });
+    await assertRoute({ nest: app, method: "POST", url: voiceUrl, headers: { ...asSales, ...voice.headers }, body: voice.body });
     const empty = multipartFile("voice", "clip.m4a", "audio/mp4", Buffer.alloc(0));
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: voiceUrl, headers: { ...asSales, ...empty.headers }, body: empty.body });
+    await assertRoute({ nest: app, method: "POST", url: voiceUrl, headers: { ...asSales, ...empty.headers }, body: empty.body });
     shared.chatAssigneeId = OWNER.id;
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: voiceUrl, headers: { ...asSales, ...voice.headers }, body: voice.body });
+    await assertRoute({ nest: app, method: "POST", url: voiceUrl, headers: { ...asSales, ...voice.headers }, body: voice.body });
   });
 });

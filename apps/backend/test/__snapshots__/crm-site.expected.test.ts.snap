@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 5 маршрутов досок, вложений задач и поддержки (включая НОЛЬ next/headers и after() в Nest) 1`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: 5 маршрутов досок, вложений задач и поддержки (включая НОЛЬ next/headers и after() в Nest) 1`] = `
 {
   "body": "{"boards":[{"id":"66661111-1111-4111-8111-111111111111","name":"Производство"}],"templates":[{"key":"sales","name":"Продажи"}]}",
   "headers": {
@@ -12,7 +12,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 28 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 5 маршрутов досок, вложений задач и поддержки (включая НОЛЬ next/headers и after() в Nest) 2`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: 5 маршрутов досок, вложений задач и поддержки (включая НОЛЬ next/headers и after() в Nest) 2`] = `
 {
   "body": "{"id":"66661111-1111-4111-8111-111111111111","columns":[],"cards":[]}",
   "headers": {
@@ -24,7 +24,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 28 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 5 маршрутов досок, вложений задач и поддержки (включая НОЛЬ next/headers и after() в Nest) 3`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: 5 маршрутов досок, вложений задач и поддержки (включая НОЛЬ next/headers и after() в Nest) 3`] = `
 {
   "body": "{"id":"66661111-1111-4111-8111-111111111111"}",
   "headers": {
@@ -36,7 +36,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 28 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 5 маршрутов досок, вложений задач и поддержки (включая НОЛЬ next/headers и after() в Nest) 4`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: 5 маршрутов досок, вложений задач и поддержки (включая НОЛЬ next/headers и after() в Nest) 4`] = `
 {
   "body": "{"ok":true}",
   "headers": {
@@ -48,7 +48,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 28 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 5 маршрутов досок, вложений задач и поддержки (включая НОЛЬ next/headers и after() в Nest) 5`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: 5 маршрутов досок, вложений задач и поддержки (включая НОЛЬ next/headers и after() в Nest) 5`] = `
 {
   "body": "{"ok":true}",
   "headers": {
@@ -60,7 +60,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 28 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 5 маршрутов досок, вложений задач и поддержки (включая НОЛЬ next/headers и after() в Nest) 6`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: 5 маршрутов досок, вложений задач и поддержки (включая НОЛЬ next/headers и after() в Nest) 6`] = `
 {
   "body": "{"ok":true}",
   "headers": {
@@ -72,7 +72,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 28 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 5 маршрутов досок, вложений задач и поддержки (включая НОЛЬ next/headers и after() в Nest) 7`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: 5 маршрутов досок, вложений задач и поддержки (включая НОЛЬ next/headers и after() в Nest) 7`] = `
 {
   "body": "{"id":"att:note.txt"}",
   "headers": {
@@ -84,7 +84,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 28 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 5 маршрутов досок, вложений задач и поддержки (включая НОЛЬ next/headers и after() в Nest) 8`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: 5 маршрутов досок, вложений задач и поддержки (включая НОЛЬ next/headers и after() в Nest) 8`] = `
 {
   "body": "{"error":"Не найдено","code":"notFound"}",
   "headers": {
@@ -96,7 +96,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 28 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 5 маршрутов досок, вложений задач и поддержки (включая НОЛЬ next/headers и after() в Nest) 9`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: 5 маршрутов досок, вложений задач и поддержки (включая НОЛЬ next/headers и after() в Nest) 9`] = `
 {
   "body": "PART",
   "headers": {
@@ -111,7 +111,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 28 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 5 маршрутов досок, вложений задач и поддержки (включая НОЛЬ next/headers и after() в Nest) 10`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: 5 маршрутов досок, вложений задач и поддержки (включая НОЛЬ next/headers и after() в Nest) 10`] = `
 {
   "body": "{"error":"Нет прав на карточку"}",
   "headers": {
@@ -122,7 +122,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 28 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 5 маршрутов досок, вложений задач и поддержки (включая НОЛЬ next/headers и after() в Nest) 11`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: 5 маршрутов досок, вложений задач и поддержки (включая НОЛЬ next/headers и after() в Nest) 11`] = `
 {
   "body": "{"number":99,"phone":"+77012223344"}",
   "headers": {
@@ -133,7 +133,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 28 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 5 маршрутов досок, вложений задач и поддержки (включая НОЛЬ next/headers и after() в Nest) 12`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: 5 маршрутов досок, вложений задач и поддержки (включая НОЛЬ next/headers и after() в Nest) 12`] = `
 {
   "body": "{"error":"Опишите проблему подробнее"}",
   "headers": {
@@ -144,7 +144,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 28 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 5 маршрутов досок, вложений задач и поддержки (включая НОЛЬ next/headers и after() в Nest) 13`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: 5 маршрутов досок, вложений задач и поддержки (включая НОЛЬ next/headers и after() в Nest) 13`] = `
 {
   "body": "FILE:support/s1.png",
   "headers": {
@@ -158,18 +158,18 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 28 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 5 маршрутов досок, вложений задач и поддержки (включая НОЛЬ next/headers и after() в Nest) 14`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: 5 маршрутов досок, вложений задач и поддержки (включая НОЛЬ next/headers и after() в Nest) 14`] = `
 {
   "body": "{"error":"Не найдено","code":"notFound"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "GET /api/admin/support/ffff1111-1111-4111-8111-111111111111/files/1-abc",
   "status": 404,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 5 маршрутов досок, вложений задач и поддержки (включая НОЛЬ next/headers и after() в Nest) 15`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: 5 маршрутов досок, вложений задач и поддержки (включая НОЛЬ next/headers и after() в Nest) 15`] = `
 {
   "body": "{"tickets":[{"number":99,"release":"v2","count":1}]}",
   "headers": {
@@ -180,7 +180,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 28 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 5 маршрутов досок, вложений задач и поддержки (включая НОЛЬ next/headers и after() в Nest) 16`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: 5 маршрутов досок, вложений задач и поддержки (включая НОЛЬ next/headers и after() в Nest) 16`] = `
 {
   "body": "{"error":"forbidden"}",
   "headers": {
@@ -191,7 +191,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 28 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 5 маршрутов досок, вложений задач и поддержки (включая НОЛЬ next/headers и after() в Nest) 17`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: 5 маршрутов досок, вложений задач и поддержки (включая НОЛЬ next/headers и after() в Nest) 17`] = `
 {
   "body": "{"error":"bad request"}",
   "headers": {
@@ -202,7 +202,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 28 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 7 маршрутов чатов и материалов бота 1`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: 7 маршрутов чатов и материалов бота 1`] = `
 {
   "body": "{"items":[{"op":"chats.inbox","args":{"f":"open","q":"test"}}]}",
   "headers": {
@@ -214,18 +214,18 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 28 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 7 маршрутов чатов и материалов бота 2`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: 7 маршрутов чатов и материалов бота 2`] = `
 {
   "body": "{"error":"Запрос отклонён","code":"forbidden"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "GET /api/v1/site/admin/chats/inbox",
   "status": 403,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 7 маршрутов чатов и материалов бота 3`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: 7 маршрутов чатов и материалов бота 3`] = `
 {
   "body": "",
   "headers": {
@@ -236,7 +236,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 28 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 7 маршрутов чатов и материалов бота 4`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: 7 маршрутов чатов и материалов бота 4`] = `
 {
   "body": "{"results":[{"name":"a.jpg","id":"bbbb1111-1111-4111-8111-111111111111","status":"sent"}]}",
   "headers": {
@@ -247,29 +247,29 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 28 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 7 маршрутов чатов и материалов бота 5`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: 7 маршрутов чатов и материалов бота 5`] = `
 {
   "body": "{"error":"В подписи номер карты. Оплата — только через счёт или ссылку из CRM, контакты клиента — через CRM. Уберите это из подписи; если номер действительно нужен (например, курьера) — отправьте его сообщением с причиной.","code":"sensitiveCaption"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/admin/chats/aaaa1111-1111-4111-8111-111111111111/files",
   "status": 400,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 7 маршрутов чатов и материалов бота 6`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: 7 маршрутов чатов и материалов бота 6`] = `
 {
   "body": "{"error":"Запрос отклонён","code":"forbidden"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/admin/chats/aaaa2222-2222-4222-8222-222222222222/files",
   "status": 403,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 7 маршрутов чатов и материалов бота 7`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: 7 маршрутов чатов и материалов бота 7`] = `
 {
   "body": "{"messages":[{"id":"bbbb1111-1111-4111-8111-111111111111","direction":"in","type":"text","text":"aaaa1111-1111-4111-8111-111111111111:30:","mediaUrl":null,"transcript":null,"gateway":false,"status":"delivered","error":null,"internal":false,"edited":false,"deleted":false,"author":null,"authorId":null,"replyTo":null,"at":"2026-11-26T10:00:00.000Z"}],"more":false}",
   "headers": {
@@ -281,29 +281,29 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 28 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 7 маршрутов чатов и материалов бота 8`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: 7 маршрутов чатов и материалов бота 8`] = `
 {
   "body": "{"error":"Не найдено","code":"notFound"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "GET /api/admin/chats/aaaa2222-2222-4222-8222-222222222222/messages",
   "status": 404,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 7 маршрутов чатов и материалов бота 9`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: 7 маршрутов чатов и материалов бота 9`] = `
 {
   "body": "{"error":"Некорректный запрос","code":"badRequest"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "GET /api/admin/chats/bad/messages",
   "status": 400,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 7 маршрутов чатов и материалов бота 10`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: 7 маршрутов чатов и материалов бота 10`] = `
 {
   "body": "{"id":"bbbb1111-1111-4111-8111-111111111111","status":"sent","error":null,"converted":true}",
   "headers": {
@@ -314,7 +314,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 28 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 7 маршрутов чатов и материалов бота 11`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: 7 маршрутов чатов и материалов бота 11`] = `
 {
   "body": "{"error":"Запись пустая"}",
   "headers": {
@@ -325,7 +325,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 28 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 7 маршрутов чатов и материалов бота 12`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: 7 маршрутов чатов и материалов бота 12`] = `
 {
   "body": "PART",
   "headers": {
@@ -339,7 +339,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 28 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 7 маршрутов чатов и материалов бота 13`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: 7 маршрутов чатов и материалов бота 13`] = `
 {
   "body": "gateway err",
   "headers": {
@@ -350,7 +350,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 28 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 7 маршрутов чатов и материалов бота 14`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: 7 маршрутов чатов и материалов бота 14`] = `
 {
   "body": "{"material":{"id":"mat12345","kind":"image","key":"bot-media/mat.jpg","name":"book.jpg","mime":"image/jpeg","size":4,"caption":"Пример","lang":"ru","about":"","on":true}}",
   "headers": {
@@ -361,18 +361,18 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 28 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 7 маршрутов чатов и материалов бота 15`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: 7 маршрутов чатов и материалов бота 15`] = `
 {
   "body": "{"error":"Запрос отклонён","code":"forbidden"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/admin/bot/materials",
   "status": 403,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 7 маршрутов чатов и материалов бота 16`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: 7 маршрутов чатов и материалов бота 16`] = `
 {
   "body": "",
   "headers": {
@@ -385,18 +385,18 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 28 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: 7 маршрутов чатов и материалов бота 17`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: 7 маршрутов чатов и материалов бота 17`] = `
 {
   "body": "{"error":"Не найдено","code":"notFound"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "GET /api/admin/bot/materials/nope",
   "status": 404,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: все 9 экспортов CSV и vCard 1`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: все 9 экспортов CSV и vCard 1`] = `
 {
   "body": "﻿Имя;E-mail;Телефон;Теги;Регистрация;Последний визит;Книг;Лучший прогресс (ответов);Заказов;LTV;Последний заказ;Ответственный;Канал;Повод;Последняя книга
 Асель;asel@example.kz;+77010001122;vip;2026-11-26T10:00:00.000Z;2026-11-26T10:00:00.000Z;2;15;1;29000;2026-11-26T10:00:00.000Z;Данияр;Instagram;День рождения;2026-11-26T10:00:00.000Z
@@ -411,7 +411,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 28 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: все 9 экспортов CSV и vCard 2`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: все 9 экспортов CSV и vCard 2`] = `
 {
   "body": "﻿День;Категория;Что;"Сумма, ₸";Количество;Заметка;Внёс
 2026-11-20;Печать книг;Печать;12000;1;;Айгерим
@@ -426,7 +426,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 28 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: все 9 экспортов CSV и vCard 3`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: все 9 экспортов CSV и vCard 3`] = `
 {
   "body": "﻿День;"Сумма, ₸";Способ;Что;Сделка / заказ;Клиент;Ответственный;Принял;Операция;Проверено
 ",
@@ -440,7 +440,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 28 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: все 9 экспортов CSV и vCard 4`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: все 9 экспортов CSV и vCard 4`] = `
 {
   "body": "﻿День;Заявки;Нецелевые;Счета;Оплаты;"Конверсия, %";"Первые оплаты, ₸";"По договорам, ₸";"Средний договор, ₸";"Реклама, ₸";"Заявка, ₸";"Покупатель, ₸";"Доля рекламы, %"
 2026-11-01;0;0;0;0;;0;0;;0;;;
@@ -480,7 +480,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 28 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: все 9 экспортов CSV и vCard 5`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: все 9 экспортов CSV и vCard 5`] = `
 {
   "body": "﻿Номер;Создан;Оплачен;Статус;Тариф;Кол-во;Книги;Скидка;Промокод;Доставка;Итого;Валюта;Имя;Телефон;E-mail;Способ доставки;Страна;Город;Адрес;Индекс;Нужна к;Трек-номер;Комментарий
 1042;2026-11-26T10:00:00.000Z;2026-11-26T10:00:00.000Z;Оплачен;Твёрдая обложка;1;29000;0;;2000;31000;KZT;Асель;+77010001122;asel@example.kz;courier;KZ;Алматы;Абая 1;050000;2026-12-01;;
@@ -495,7 +495,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 28 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: все 9 экспортов CSV и vCard 6`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: все 9 экспортов CSV и vCard 6`] = `
 {
   "body": "﻿Дата оплаты;"Сумма, ₸";Откуда;Тип;Заказ / сделка;Клиент;Телефон;Менеджер;Чек приложен
 2026-11-26T10:00:00.000Z;29000;заказ на сайте;kaspi;№1042;Асель;+77010001122;Данияр;да
@@ -510,7 +510,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 28 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: все 9 экспортов CSV и vCard 7`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: все 9 экспортов CSV и vCard 7`] = `
 {
   "body": "﻿Период;"Выручка, ₸";"Себестоимость, ₸";"Реклама, ₸";"Команда, ₸";"Прочее, ₸";"Расходы всего, ₸";"Прибыль, ₸"
 1 нояб.;0;0;0;0;0;0;0
@@ -551,7 +551,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 28 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: все 9 экспортов CSV и vCard 8`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: все 9 экспортов CSV и vCard 8`] = `
 {
   "body": "﻿Дата продажи;Сделка;Дата заявки;Клиент;Телефон;Город;Источник;Менеджер;Тариф;Книг;Кому;К дате;"Цена, ₸";"Оплачено, ₸";"Остаток, ₸";Форма оплаты;"Комиссия банка, ₸";"На счёт, ₸";Состояние;Этап;Способ оплаты;Заказ
 ",
@@ -565,7 +565,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 28 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: все 9 экспортов CSV и vCard 9`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: все 9 экспортов CSV и vCard 9`] = `
 {
   "body": "BEGIN:VCARD
 VERSION:3.0
@@ -586,7 +586,7 @@ END:VCARD
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: все 9 экспортов CSV и vCard 10`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: все 9 экспортов CSV и vCard 10`] = `
 {
   "body": "﻿День;Заявки;Нецелевые;Счета;Оплаты;"Конверсия, %";"Первые оплаты, ₸";"По договорам, ₸";"Средний договор, ₸"
 2026-11-01;0;0;0;0;;0;0;
@@ -626,7 +626,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 28 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: все 9 экспортов CSV и vCard 11`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: все 9 экспортов CSV и vCard 11`] = `
 {
   "body": "﻿Дата продажи;Сделка;Дата заявки;Клиент;Телефон;Город;Источник;Менеджер;Тариф;Книг;Кому;К дате;"Цена, ₸";"Оплачено, ₸";"Остаток, ₸";Форма оплаты;Состояние;Этап;Способ оплаты;Заказ
 ",
@@ -640,7 +640,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 28 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: все 9 экспортов CSV и vCard 12`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: все 9 экспортов CSV и vCard 12`] = `
 {
   "body": "﻿Дата оплаты;"Сумма, ₸";Откуда;Тип;Заказ / сделка;Клиент;Телефон;Менеджер;Чек приложен
 2026-11-26T10:00:00.000Z;29000;заказ на сайте;kaspi;№1042;Асель;+7 701 ••• •• 22;Данияр;да
@@ -655,7 +655,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 28 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: каталог (2), live/SSE, уведомления, push и ZIP-пакет заказа (5) 1`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: каталог (2), live/SSE, уведомления, push и ZIP-пакет заказа (5) 1`] = `
 {
   "body": "	",
   "headers": {
@@ -668,18 +668,18 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 28 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: каталог (2), live/SSE, уведомления, push и ZIP-пакет заказа (5) 2`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: каталог (2), live/SSE, уведомления, push и ZIP-пакет заказа (5) 2`] = `
 {
   "body": "{"error":"Не найдено","code":"notFound"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "GET /api/admin/catalog/photo?u=https%3A%2F%2Fbad.example%2Fa.jpg",
   "status": 404,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: каталог (2), live/SSE, уведомления, push и ZIP-пакет заказа (5) 3`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: каталог (2), live/SSE, уведомления, push и ZIP-пакет заказа (5) 3`] = `
 {
   "body": "",
   "headers": {
@@ -692,29 +692,29 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 28 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: каталог (2), live/SSE, уведомления, push и ZIP-пакет заказа (5) 4`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: каталог (2), live/SSE, уведомления, push и ZIP-пакет заказа (5) 4`] = `
 {
   "body": "{"error":"Запрос отклонён","code":"forbidden"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "GET /api/admin/catalog/555/image",
   "status": 403,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: каталог (2), live/SSE, уведомления, push и ZIP-пакет заказа (5) 5`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: каталог (2), live/SSE, уведомления, push и ZIP-пакет заказа (5) 5`] = `
 {
   "body": "{"error":"Не найдено","code":"notFound"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "GET /api/admin/catalog/abc/image",
   "status": 404,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: каталог (2), live/SSE, уведомления, push и ZIP-пакет заказа (5) 6`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: каталог (2), live/SSE, уведомления, push и ZIP-пакет заказа (5) 6`] = `
 {
   "body": "{"counters":{"attention":1,"tasks":2,"chats":3,"calls":0,"deals":4,"reviews":0,"finance":1},"unread":5,"notifications":[],"ringing":[]}",
   "headers": {
@@ -726,7 +726,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 28 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: каталог (2), live/SSE, уведомления, push и ZIP-пакет заказа (5) 7`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: каталог (2), live/SSE, уведомления, push и ZIP-пакет заказа (5) 7`] = `
 {
   "body": "",
   "headers": {
@@ -737,7 +737,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 28 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: каталог (2), live/SSE, уведомления, push и ZIP-пакет заказа (5) 8`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: каталог (2), live/SSE, уведомления, push и ZIP-пакет заказа (5) 8`] = `
 {
   "body": "{"ok":true}",
   "headers": {
@@ -748,7 +748,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 28 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: каталог (2), live/SSE, уведомления, push и ZIP-пакет заказа (5) 9`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: каталог (2), live/SSE, уведомления, push и ZIP-пакет заказа (5) 9`] = `
 {
   "body": "{"ok":true}",
   "headers": {
@@ -759,7 +759,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 28 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: каталог (2), live/SSE, уведомления, push и ZIP-пакет заказа (5) 10`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: каталог (2), live/SSE, уведомления, push и ZIP-пакет заказа (5) 10`] = `
 {
   "body": "{"publicKey":"PARITY-VAPID-KEY"}",
   "headers": {
@@ -770,7 +770,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 28 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: каталог (2), live/SSE, уведомления, push и ZIP-пакет заказа (5) 11`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: каталог (2), live/SSE, уведомления, push и ZIP-пакет заказа (5) 11`] = `
 {
   "body": "{"ok":true}",
   "headers": {
@@ -781,7 +781,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 28 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: каталог (2), live/SSE, уведомления, push и ZIP-пакет заказа (5) 12`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: каталог (2), live/SSE, уведомления, push и ZIP-пакет заказа (5) 12`] = `
 {
   "body": "{"ok":true}",
   "headers": {
@@ -792,7 +792,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 28 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: каталог (2), live/SSE, уведомления, push и ZIP-пакет заказа (5) 13`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: каталог (2), live/SSE, уведомления, push и ZIP-пакет заказа (5) 13`] = `
 {
   "body": "",
   "headers": {
@@ -803,7 +803,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 28 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: каталог (2), live/SSE, уведомления, push и ZIP-пакет заказа (5) 14`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: каталог (2), live/SSE, уведомления, push и ZIP-пакет заказа (5) 14`] = `
 {
   "body": "base64(602):UEsDBBQACAAIAABQel0AAAAAAAAAAAAAAAAUAAAAb3JkZXItMTA0Mi9ibG9jay5wZGYLCPL0C7FKyslPzgYAUEsHCG7WvNcNAAAACwAAAFBLAwQUAAgACAAAUHpdAAAAAAAAAAAAAAAAFAAAAG9yZGVyLTEwNDIvY292ZXIucGRmCwjy9AuxSs4vSy0CAFBLBwiJx6/ZDQAAAAsAAABQSwMEFAAIAAgAAFB6XQAAAAAAAAAAAAAAABUAAABvcmRlci0xMDQyL2xheW91dC5wZGYLCPL0C7HKSazMLy0BAFBLBwgYwQRFDgAAAAwAAABQSwMEFAAIAAgAAFB6XQAAAAAAAAAAAAAAABMAAABvcmRlci0xMDQyL3NwZWMudHh0Cwjy9AuxKi5ITQYAUEsHCMhyGLkMAAAACgAAAFBLAQItAxQACAAIAABQel1u1rzXDQAAAAsAAAAUAAAAAAAAAAAAIACkgQAAAABvcmRlci0xMDQyL2Jsb2NrLnBkZlBLAQItAxQACAAIAABQel2Jx6/ZDQAAAAsAAAAUAAAAAAAAAAAAIACkgU8AAABvcmRlci0xMDQyL2NvdmVyLnBkZlBLAQItAxQACAAIAABQel0YwQRFDgAAAAwAAAAVAAAAAAAAAAAAIACkgZ4AAABvcmRlci0xMDQyL2xheW91dC5wZGZQSwECLQMUAAgACAAAUHpdyHIYuQwAAAAKAAAAEwAAAAAAAAAAACAApIHvAAAAb3JkZXItMTA0Mi9zcGVjLnR4dFBLBQYAAAAABAAEAAgBAAA8AQAAAAA=",
   "headers": {
@@ -816,11 +816,11 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: 28 марш�
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: 28 маршрутов сайта CRM (Контекст 5B) > паритет: каталог (2), live/SSE, уведомления, push и ZIP-пакет заказа (5) 15`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): 28 маршрутов сайта CRM (Контекст 5B) > паритет: каталог (2), live/SSE, уведомления, push и ZIP-пакет заказа (5) 15`] = `
 {
   "body": "{"error":"Запрос отклонён","code":"forbidden"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "GET /api/admin/orders/99991111-1111-4111-8111-111111111111/package",
   "status": 403,

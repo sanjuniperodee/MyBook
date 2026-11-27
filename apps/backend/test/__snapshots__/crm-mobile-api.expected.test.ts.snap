@@ -1,0 +1,814 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > ветки ошибок и особых статусов (401, 403, 400 badData/refused, 404, 405, 503, blocked, voice fallback) совпадают байт в байт 1`] = `
+{
+  "body": "{"error":"Нужно войти в аккаунт","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/crm/me",
+  "status": 401,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > ветки ошибок и особых статусов (401, 403, 400 badData/refused, 404, 405, 503, blocked, voice fallback) совпадают байт в байт 2`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/crm/overview",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > ветки ошибок и особых статусов (401, 403, 400 badData/refused, 404, 405, 503, blocked, voice fallback) совпадают байт в байт 3`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/crm/overview",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > ветки ошибок и особых статусов (401, 403, 400 badData/refused, 404, 405, 503, blocked, voice fallback) совпадают байт в байт 4`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/orders/99999999-9999-4999-8999-999999999999/status",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > ветки ошибок и особых статусов (401, 403, 400 badData/refused, 404, 405, 503, blocked, voice fallback) совпадают байт в байт 5`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/me/shift",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > ветки ошибок и особых статусов (401, 403, 400 badData/refused, 404, 405, 503, blocked, voice fallback) совпадают байт в байт 6`] = `
+{
+  "body": "{"error":"Некорректные данные","code":"badData"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/crm/tasks/not-a-uuid",
+  "status": 400,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > ветки ошибок и особых статусов (401, 403, 400 badData/refused, 404, 405, 503, blocked, voice fallback) совпадают байт в байт 7`] = `
+{
+  "body": "",
+  "headers": {
+    "allow": "GET",
+  },
+  "request": "DELETE /api/v1/crm/me",
+  "status": 405,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > ветки ошибок и особых статусов (401, 403, 400 badData/refused, 404, 405, 503, blocked, voice fallback) совпадают байт в байт 8`] = `
+{
+  "body": "{"error":"Не найдено","code":"notFound"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/crm/tasks/ffffffff-ffff-4fff-8fff-ffffffffffff",
+  "status": 404,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > ветки ошибок и особых статусов (401, 403, 400 badData/refused, 404, 405, 503, blocked, voice fallback) совпадают байт в байт 9`] = `
+{
+  "body": "{"error":"Каталог WhatsApp сейчас недоступен — шлюз не отвечает. Попробуйте позже.","code":"serviceUnavailable"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "GET /api/v1/crm/catalog/for-chat",
+  "status": 503,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > ветки ошибок и особых статусов (401, 403, 400 badData/refused, 404, 405, 503, blocked, voice fallback) совпадают байт в байт 10`] = `
+{
+  "body": "{"error":"Проверьте номер телефона","code":"refused"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/crm/deals",
+  "status": 400,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > ветки ошибок и особых статусов (401, 403, 400 badData/refused, 404, 405, 503, blocked, voice fallback) совпадают байт в байт 11`] = `
+{
+  "body": "{"error":"Сообщение не найдено","code":"refused"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/crm/chats/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/forward",
+  "status": 400,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > ветки ошибок и особых статусов (401, 403, 400 badData/refused, 404, 405, 503, blocked, voice fallback) совпадают байт в байт 12`] = `
+{
+  "body": "{"error":"Неоплаченный заказ нельзя в печать","code":"refused"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/crm/orders/99999999-9999-4999-8999-999999999999/status",
+  "status": 400,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > ветки ошибок и особых статусов (401, 403, 400 badData/refused, 404, 405, 503, blocked, voice fallback) совпадают байт в байт 13`] = `
+{
+  "body": "{"id":null,"status":null,"error":null,"blocked":"В сообщении номер карты"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/chats/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/messages",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > ветки ошибок и особых статусов (401, 403, 400 badData/refused, 404, 405, 503, blocked, voice fallback) совпадают байт в байт 14`] = `
+{
+  "body": "{"error":"Не найдено","code":"notFound"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/chats/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/voice",
+  "status": 404,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > ветки ошибок и особых статусов (401, 403, 400 badData/refused, 404, 405, 503, blocked, voice fallback) совпадают байт в байт 15`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/chats/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/voice",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > ветки ошибок и особых статусов (401, 403, 400 badData/refused, 404, 405, 503, blocked, voice fallback) совпадают байт в байт 16`] = `
+{
+  "body": "{"error":"Пустая запись","code":"refused"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/crm/chats/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/voice",
+  "status": 400,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > ветки ошибок и особых статусов (401, 403, 400 badData/refused, 404, 405, 503, blocked, voice fallback) совпадают байт в байт 17`] = `
+{
+  "body": "{"id":"cccccccc-cccc-4ccc-8ccc-cccccccccccc","status":"sent","error":null,"converted":false}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/chats/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/voice",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > все 44 маршрута совпадают байт в байт на успешном ответе (GET — с ETag и 304) 1`] = `
+{
+  "body": "{"id":"11111111-1111-4111-8111-111111111111","name":"Айгерим","email":"owner@mybooks.kz","role":"Руководитель","isOwner":true,"scope":"all","onShift":true,"layout":"leader","permissions":["deals.view","deals.edit","deals.delete","prices.discount_unlimited","orders.reprice_paid","chats.view","chats.send","catalog.manage","calls.view","calls.make","calls.recordings","clients.view","clients.edit","clients.create","clients.contacts","clients.reveal","clients.export","orders.view","orders.edit","orders.files","orders.payment_void","tasks.all","boards.manage","promo.manage","promo.give","gifts.manage","reviews.manage","analytics.view","finance.view","finance.manage","team.manage","settings.manage","audit.view"],"counters":{"attention":2,"tasks":5,"chats":3,"calls":1,"deals":4,"reviews":0,"finance":1},"unread":7}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json; charset=utf-8",
+    "etag": ""tyD1hkEcf29Ui0U8TXqawTd_uKQ"",
+  },
+  "request": "GET /api/v1/crm/me",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > все 44 маршрута совпадают байт в байт на успешном ответе (GET — с ETag и 304) 2`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""tyD1hkEcf29Ui0U8TXqawTd_uKQ"",
+  },
+  "request": "GET /api/v1/crm/me",
+  "status": 304,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > все 44 маршрута совпадают байт в байт на успешном ответе (GET — с ETag и 304) 3`] = `
+{
+  "body": "{"ok":true,"onShift":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/me/shift",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > все 44 маршрута совпадают байт в байт на успешном ответе (GET — с ETag и 304) 4`] = `
+{
+  "body": "{"period":30,"revenue":{"cur":145000,"prev":87000},"sales":{"cur":5,"prev":3},"avgCheck":{"cur":29000,"prev":29000},"newClients":{"cur":18,"prev":12},"series":[{"day":"2026-11-25","sum":58000,"n":2}],"funnel":{"registered":100,"withBook":60,"engaged":40,"ordered":20,"paid":10},"byPlan":[{"plan":"hardcover","label":"Твёрдая обложка","sum":125000,"n":3},{"plan":"digital","label":"Электронная","sum":20000,"n":2}],"stages":[{"id":"eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeef","name":"В работе","color":"#3b82f6","n":6}],"attention":{"orders":1,"deadlines":2},"counters":{"attention":2,"tasks":5,"chats":3,"calls":1,"deals":4,"reviews":0,"finance":1}}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json; charset=utf-8",
+    "etag": ""yhCKdKTIQvRs4rl9eR1pg01_o6E"",
+  },
+  "request": "GET /api/v1/crm/overview?period=30",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > все 44 маршрута совпадают байт в байт на успешном ответе (GET — с ETag и 304) 5`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""yhCKdKTIQvRs4rl9eR1pg01_o6E"",
+  },
+  "request": "GET /api/v1/crm/overview?period=30",
+  "status": 304,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > все 44 маршрута совпадают байт в байт на успешном ответе (GET — с ETag и 304) 6`] = `
+{
+  "body": "{"mine":[{"id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","title":"Личный","text":"Привет!"}],"shared":[{"id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaab","title":"Общий","text":"Здравствуйте!"}]}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json; charset=utf-8",
+    "etag": ""Fr9BfxYLy8dIKPq-hTqIg0Q4y00"",
+  },
+  "request": "GET /api/v1/crm/my-templates",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > все 44 маршрута совпадают байт в байт на успешном ответе (GET — с ETag и 304) 7`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""Fr9BfxYLy8dIKPq-hTqIg0Q4y00"",
+  },
+  "request": "GET /api/v1/crm/my-templates",
+  "status": 304,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > все 44 маршрута совпадают байт в байт на успешном ответе (GET — с ETag и 304) 8`] = `
+{
+  "body": "{"ok":true,"id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/my-templates",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > все 44 маршрута совпадают байт в байт на успешном ответе (GET — с ETag и 304) 9`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "DELETE /api/v1/crm/my-templates/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > все 44 маршрута совпадают байт в байт на успешном ответе (GET — с ETag и 304) 10`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/my-templates/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/duplicate",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > все 44 маршрута совпадают байт в байт на успешном ответе (GET — с ETag и 304) 11`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/my-templates/reorder",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > все 44 маршрута совпадают байт в байт на успешном ответе (GET — с ETag и 304) 12`] = `
+{
+  "body": "{"title":"Приветствие","text":"Здравствуйте, {{name}}!","replaced":[{"was":"Асель","placeholder":"{{name}}"}],"ai":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/my-templates/draft",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > все 44 маршрута совпадают байт в байт на успешном ответе (GET — с ETag и 304) 13`] = `
+{
+  "body": "{"ok":true,"message":"Сейчас зазвонит ваш телефон"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/calls/dial",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > все 44 маршрута совпадают байт в байт на успешном ответе (GET — с ETag и 304) 14`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/calls/dddddddd-dddd-4ddd-8ddd-dddddddddddd/handled",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > все 44 маршрута совпадают байт в байт на успешном ответе (GET — с ETag и 304) 15`] = `
+{
+  "body": "{"enabled":true,"products":[{"id":"101","name":"Книга А5","price":29000,"currency":"KZT","hidden":false,"image":true}]}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json; charset=utf-8",
+    "etag": ""EVM5cQNON3MFk-TSBryyeXWQj4g"",
+  },
+  "request": "GET /api/v1/crm/catalog/for-chat",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > все 44 маршрута совпадают байт в байт на успешном ответе (GET — с ETag и 304) 16`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""EVM5cQNON3MFk-TSBryyeXWQj4g"",
+  },
+  "request": "GET /api/v1/crm/catalog/for-chat",
+  "status": 304,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > все 44 маршрута совпадают байт в байт на успешном ответе (GET — с ETag и 304) 17`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/chats/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/catalog",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > все 44 маршрута совпадают байт в байт на успешном ответе (GET — с ETag и 304) 18`] = `
+{
+  "body": "{"items":[{"name":"Книга А5","quantity":1,"price":29000}],"total":29000,"currency":"KZT"}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json; charset=utf-8",
+    "etag": ""CNBNfOpUadMkrFz6DsXVt5pqbqM"",
+  },
+  "request": "GET /api/v1/crm/chat-messages/cccccccc-cccc-4ccc-8ccc-cccccccccccc/order",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > все 44 маршрута совпадают байт в байт на успешном ответе (GET — с ETag и 304) 19`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""CNBNfOpUadMkrFz6DsXVt5pqbqM"",
+  },
+  "request": "GET /api/v1/crm/chat-messages/cccccccc-cccc-4ccc-8ccc-cccccccccccc/order",
+  "status": 304,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > все 44 маршрута совпадают байт в байт на успешном ответе (GET — с ETag и 304) 20`] = `
+{
+  "body": "{"ok":true,"id":"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/chats/open",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > все 44 маршрута совпадают байт в байт на успешном ответе (GET — с ETag и 304) 21`] = `
+{
+  "body": "{"targets":[{"id":"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbc","title":"Асель","channel":"WhatsApp","last":"Добрый день"}]}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json; charset=utf-8",
+    "etag": ""my_-pMQ6Qc7yiUqjbax5z1hZC7w"",
+  },
+  "request": "GET /api/v1/crm/chat-targets?q=test",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > все 44 маршрута совпадают байт в байт на успешном ответе (GET — с ETag и 304) 22`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""my_-pMQ6Qc7yiUqjbax5z1hZC7w"",
+  },
+  "request": "GET /api/v1/crm/chat-targets?q=test",
+  "status": 304,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > все 44 маршрута совпадают байт в байт на успешном ответе (GET — с ETag и 304) 23`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/chats/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/assign",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > все 44 маршрута совпадают байт в байт на успешном ответе (GET — с ETag и 304) 24`] = `
+{
+  "body": "{"id":"eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/chats/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/deal",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > все 44 маршрута совпадают байт в байт на успешном ответе (GET — с ETag и 304) 25`] = `
+{
+  "body": "{"ok":true,"forwarded":1,"total":1,"failed":[]}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/chats/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/forward",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > все 44 маршрута совпадают байт в байт на успешном ответе (GET — с ETag и 304) 26`] = `
+{
+  "body": "{"id":"cccccccc-cccc-4ccc-8ccc-cccccccccccc"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/chats/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/note",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > все 44 маршрута совпадают байт в байт на успешном ответе (GET — с ETag и 304) 27`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/chats/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/pin",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > все 44 маршрута совпадают байт в байт на успешном ответе (GET — с ETag и 304) 28`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/chats/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/read",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > все 44 маршрута совпадают байт в байт на успешном ответе (GET — с ETag и 304) 29`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/chats/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/status",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > все 44 маршрута совпадают байт в байт на успешном ответе (GET — с ETag и 304) 30`] = `
+{
+  "body": "{"id":"cccccccc-cccc-4ccc-8ccc-cccccccccccc","status":"sent","error":null,"blocked":null}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/chats/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/messages",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > все 44 маршрута совпадают байт в байт на успешном ответе (GET — с ETag и 304) 31`] = `
+{
+  "body": "{"id":"cccccccc-cccc-4ccc-8ccc-cccccccccccc","status":"sent","error":null,"converted":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/chats/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/voice",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > все 44 маршрута совпадают байт в байт на успешном ответе (GET — с ETag и 304) 32`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "PATCH /api/v1/crm/chats/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/messages/cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > все 44 маршрута совпадают байт в байт на успешном ответе (GET — с ETag и 304) 33`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "DELETE /api/v1/crm/chats/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/messages/cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > все 44 маршрута совпадают байт в байт на успешном ответе (GET — с ETag и 304) 34`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/chats/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/messages/cccccccc-cccc-4ccc-8ccc-cccccccccccc/resend",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > все 44 маршрута совпадают байт в байт на успешном ответе (GET — с ETag и 304) 35`] = `
+{
+  "body": "{"text":"Хочу заказать книгу маме"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/chats/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/messages/cccccccc-cccc-4ccc-8ccc-cccccccccccc/transcribe",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > все 44 маршрута совпадают байт в байт на успешном ответе (GET — с ETag и 304) 36`] = `
+{
+  "body": "{"ok":true,"id":"eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/deals",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > все 44 маршрута совпадают байт в байт на успешном ответе (GET — с ETag и 304) 37`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/deals/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee/accept",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > все 44 маршрута совпадают байт в байт на успешном ответе (GET — с ETag и 304) 38`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/deals/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee/assign",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > все 44 маршрута совпадают байт в байт на успешном ответе (GET — с ETag и 304) 39`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/deals/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee/move",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > все 44 маршрута совпадают байт в байт на успешном ответе (GET — с ETag и 304) 40`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/deals/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee/notes",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > все 44 маршрута совпадают байт в байт на успешном ответе (GET — с ETag и 304) 41`] = `
+{
+  "body": "{"requested":false,"message":"Заявка отклонена","deleted":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/deals/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee/reject",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > все 44 маршрута совпадают байт в байт на успешном ответе (GET — с ETag и 304) 42`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/deals/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee/tasks",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > все 44 маршрута совпадают байт в байт на успешном ответе (GET — с ETag и 304) 43`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/tasks",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > все 44 маршрута совпадают байт в байт на успешном ответе (GET — с ETag и 304) 44`] = `
+{
+  "body": "{"item":{"id":"ffffffff-ffff-4fff-8fff-ffffffffffff","title":"Перезвонить по макету","kind":"call","dueAt":"2026-11-28T10:00:00.000Z","overdue":false,"done":false,"remindBeforeMin":15,"fromBot":false,"assigneeId":"11111111-1111-4111-8111-111111111111","editable":true,"context":{"type":"deal","id":"eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee","label":"Д42 · Асель"},"target":{"dealId":"eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee","orderId":null,"clientId":"12121212-1212-4121-8121-121212121212"},"contact":{"phone":"77011234567","target":{"dealId":"eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"},"pbx":true,"chat":true}},"task":{"id":"ffffffff-ffff-4fff-8fff-ffffffffffff","title":"Перезвонить по макету","kind":"call","dueAt":"2026-11-28T10:00:00.000Z","doneAt":null,"result":"","assigneeId":"11111111-1111-4111-8111-111111111111","assignee":"Айгерим","createdBy":"Айгерим","fromBot":false,"overdue":false,"editable":true,"done":false,"remindBeforeMin":15},"deal":{"id":"eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee","number":42,"title":"Книга для мамы","stage":{"name":"В работе","color":"#3b82f6","kind":"open"},"amount":29000,"amountLabel":"29 000 ₸","source":"WhatsApp","assignee":"Айгерим","unsorted":false,"contactName":"Асель"},"client":{"id":"12121212-1212-4121-8121-121212121212","name":"Асель","email":"asel@example.kz","phone":"+7 701 123-45-67","masked":false},"contact":{"name":"Асель","phone":"+7 701 123-45-67","email":"asel@example.kz","masked":false},"order":{"id":"99999999-9999-4999-8999-999999999999","number":1042,"status":"paid","statusLabel":"Оплачен","amountLabel":"29 000 ₸"},"chat":{"id":"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","preview":"Спасибо!","unread":1},"notes":[{"id":"n-1","kind":"note","text":"Согласовали обложку","author":"Айгерим","at":"2026-11-26T09:00:00.000Z"}],"others":[{"id":"t-2","title":"Уточнить доставку","dueAt":"2026-11-28T10:00:00.000Z","overdue":false}],"reach":{"phone":"77011234567","target":{"dealId":"eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"},"pbx":true,"chat":true}}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json; charset=utf-8",
+    "etag": ""AMncTakIkR-Lyv2v9Bl5gEdQRSM"",
+  },
+  "request": "GET /api/v1/crm/tasks/ffffffff-ffff-4fff-8fff-ffffffffffff",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > все 44 маршрута совпадают байт в байт на успешном ответе (GET — с ETag и 304) 45`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""AMncTakIkR-Lyv2v9Bl5gEdQRSM"",
+  },
+  "request": "GET /api/v1/crm/tasks/ffffffff-ffff-4fff-8fff-ffffffffffff",
+  "status": 304,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > все 44 маршрута совпадают байт в байт на успешном ответе (GET — с ETag и 304) 46`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "PATCH /api/v1/crm/tasks/ffffffff-ffff-4fff-8fff-ffffffffffff",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > все 44 маршрута совпадают байт в байт на успешном ответе (GET — с ETag и 304) 47`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "DELETE /api/v1/crm/tasks/ffffffff-ffff-4fff-8fff-ffffffffffff",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > все 44 маршрута совпадают байт в байт на успешном ответе (GET — с ETag и 304) 48`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/tasks/ffffffff-ffff-4fff-8fff-ffffffffffff/complete",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > все 44 маршрута совпадают байт в байт на успешном ответе (GET — с ETag и 304) 49`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/tasks/ffffffff-ffff-4fff-8fff-ffffffffffff/snooze",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > все 44 маршрута совпадают байт в байт на успешном ответе (GET — с ETag и 304) 50`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/tasks/ffffffff-ffff-4fff-8fff-ffffffffffff/toggle",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest) > все 44 маршрута совпадают байт в байт на успешном ответе (GET — с ETag и 304) 51`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/orders/99999999-9999-4999-8999-999999999999/status",
+  "status": 200,
+}
+`;

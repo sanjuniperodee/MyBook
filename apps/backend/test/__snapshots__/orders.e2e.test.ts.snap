@@ -1,0 +1,3966 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > без входа: ответ каждого маршрута совпадает байт в байт 1`] = `
+{
+  "body": "{"error":"Нужно войти в аккаунт","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/cabinet/books/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/checkout",
+  "status": 401,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > без входа: ответ каждого маршрута совпадает байт в байт 2`] = `
+{
+  "body": "{"error":"Нужно войти в аккаунт","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/cabinet/books/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/checkout/quote",
+  "status": 401,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > без входа: ответ каждого маршрута совпадает байт в байт 3`] = `
+{
+  "body": "{"error":"Нужно войти в аккаунт","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/cabinet/books/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/orders",
+  "status": 401,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > без входа: ответ каждого маршрута совпадает байт в байт 4`] = `
+{
+  "body": "{"error":"Нужно войти в аккаунт","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/cabinet/orders",
+  "status": 401,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > без входа: ответ каждого маршрута совпадает байт в байт 5`] = `
+{
+  "body": "{"error":"Нужно войти в аккаунт","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/cabinet/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+  "status": 401,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > без входа: ответ каждого маршрута совпадает байт в байт 6`] = `
+{
+  "body": "{"error":"Нужно войти в аккаунт","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/cabinet/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/kaspi",
+  "status": 401,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > без входа: ответ каждого маршрута совпадает байт в байт 7`] = `
+{
+  "body": "{"error":"Нужно войти в аккаунт","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/cabinet/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/kaspi/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+  "status": 401,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > без входа: ответ каждого маршрута совпадает байт в байт 8`] = `
+{
+  "body": "{"error":"Нужно войти в аккаунт","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/cabinet/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/claim",
+  "status": 401,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > без входа: ответ каждого маршрута совпадает байт в байт 9`] = `
+{
+  "body": "{"error":"Нужно войти в аккаунт","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/cabinet/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/cancel",
+  "status": 401,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > без входа: ответ каждого маршрута совпадает байт в байт 10`] = `
+{
+  "body": "{"error":"Нужно войти в аккаунт","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/web/books/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/checkout?locale=ru",
+  "status": 401,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > без входа: ответ каждого маршрута совпадает байт в байт 11`] = `
+{
+  "body": "{"error":"Нужно войти в аккаунт","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/web/checkout/promo-check",
+  "status": 401,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > без входа: ответ каждого маршрута совпадает байт в байт 12`] = `
+{
+  "body": "{"error":"Нужно войти в аккаунт","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/web/orders",
+  "status": 401,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > без входа: ответ каждого маршрута совпадает байт в байт 13`] = `
+{
+  "body": "{"error":"Нужно войти в аккаунт","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/web/orders?locale=ru",
+  "status": 401,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > без входа: ответ каждого маршрута совпадает байт в байт 14`] = `
+{
+  "body": "{"error":"Нужно войти в аккаунт","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/web/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc?locale=ru",
+  "status": 401,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > без входа: ответ каждого маршрута совпадает байт в байт 15`] = `
+{
+  "body": "{"error":"Нужно войти в аккаунт","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/web/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/layout-approval",
+  "status": 401,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > без входа: ответ каждого маршрута совпадает байт в байт 16`] = `
+{
+  "body": "{"token":"x","number":0,"label":"x","state":"paid","viewed":false,"amount":0,"plan":"x","purpose":"prepayment","booksCount":0,"gifts":[],"expiresAt":"2026-11-25T08:00:00.000Z","claimed":false,"accessStatus":"none","seller":{"legalName":"x","bin":"x"},"online":null,"transfer":null,"kaspi":null}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json; charset=utf-8",
+    "etag": ""CbKYltqVSdG3urfdPUgwSAmyzBU"",
+  },
+  "request": "GET /api/v1/web/pay/pay-token",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > без входа: ответ каждого маршрута совпадает байт в байт 17`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""CbKYltqVSdG3urfdPUgwSAmyzBU"",
+  },
+  "request": "GET /api/v1/web/pay/pay-token",
+  "status": 304,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > без входа: ответ каждого маршрута совпадает байт в байт 18`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/web/pay/pay-token/viewed",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > без входа: ответ каждого маршрута совпадает байт в байт 19`] = `
+{
+  "body": "{"claimed":true,"token":"pay-token"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/web/pay/claim",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > без входа: ответ каждого маршрута совпадает байт в байт 20`] = `
+{
+  "body": "{"error":"Нужно войти в аккаунт","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/money",
+  "status": 401,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > без входа: ответ каждого маршрута совпадает байт в байт 21`] = `
+{
+  "body": "{"error":"Нужно войти в аккаунт","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/payments?amount=29000&requestKey=dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+  "status": 401,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > без входа: ответ каждого маршрута совпадает байт в байт 22`] = `
+{
+  "body": "{"error":"Нужно войти в аккаунт","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/refunds?amount=29000&requestKey=dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+  "status": 401,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > без входа: ответ каждого маршрута совпадает байт в байт 23`] = `
+{
+  "body": "{"error":"Нужно войти в аккаунт","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/orders/payments/dddddddd-dddd-4ddd-8ddd-dddddddddddd/void",
+  "status": 401,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > без входа: ответ каждого маршрута совпадает байт в байт 24`] = `
+{
+  "body": "{"error":"Нужно войти в аккаунт","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/orders/payments/dddddddd-dddd-4ddd-8ddd-dddddddddddd/review",
+  "status": 401,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > без входа: ответ каждого маршрута совпадает байт в байт 25`] = `
+{
+  "body": "{"error":"Нужно войти в аккаунт","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/postpay",
+  "status": 401,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > без входа: ответ каждого маршрута совпадает байт в байт 26`] = `
+{
+  "body": "{"error":"Нужно войти в аккаунт","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "PUT /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/terms",
+  "status": 401,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > без входа: ответ каждого маршрута совпадает байт в байт 27`] = `
+{
+  "body": "{"error":"Нужно войти в аккаунт","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/reprice-request",
+  "status": 401,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > без входа: ответ каждого маршрута совпадает байт в байт 28`] = `
+{
+  "body": "{"error":"Нужно войти в аккаунт","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "PATCH /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/delivery",
+  "status": 401,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > без входа: ответ каждого маршрута совпадает байт в байт 29`] = `
+{
+  "body": "{"error":"Нужно войти в аккаунт","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/files",
+  "status": 401,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > без входа: ответ каждого маршрута совпадает байт в байт 30`] = `
+{
+  "body": "{"error":"Нужно войти в аккаунт","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/details",
+  "status": 401,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > без входа: ответ каждого маршрута совпадает байт в байт 31`] = `
+{
+  "body": "{"error":"Нужно войти в аккаунт","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "PUT /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/details",
+  "status": 401,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > без входа: ответ каждого маршрута совпадает байт в байт 32`] = `
+{
+  "body": "{"error":"Нужно войти в аккаунт","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/links",
+  "status": 401,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > без входа: ответ каждого маршрута совпадает байт в байт 33`] = `
+{
+  "body": "{"error":"Нужно войти в аккаунт","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "PUT /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/note",
+  "status": 401,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > без входа: ответ каждого маршрута совпадает байт в байт 34`] = `
+{
+  "body": "{"error":"Нужно войти в аккаунт","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/book-lock",
+  "status": 401,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > без входа: ответ каждого маршрута совпадает байт в байт 35`] = `
+{
+  "body": "{"error":"Нужно войти в аккаунт","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/crm/finance?p=month",
+  "status": 401,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > без входа: ответ каждого маршрута совпадает байт в байт 36`] = `
+{
+  "body": "{"error":"Нужно войти в аккаунт","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/finance/review",
+  "status": 401,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > без входа: ответ каждого маршрута совпадает байт в байт 37`] = `
+{
+  "body": "{"error":"Нужно войти в аккаунт","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/finance/issues",
+  "status": 401,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > без входа: ответ каждого маршрута совпадает байт в байт 38`] = `
+{
+  "body": "{"error":"Нужно войти в аккаунт","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/finance/resolutions/abababab-abab-4bab-8bab-abababababab/undo",
+  "status": 401,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > без входа: ответ каждого маршрута совпадает байт в байт 39`] = `
+{
+  "body": "{"error":"Нужно войти в аккаунт","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/crm/expenses?p=month",
+  "status": 401,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > без входа: ответ каждого маршрута совпадает байт в байт 40`] = `
+{
+  "body": "{"error":"Нужно войти в аккаунт","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/expenses",
+  "status": 401,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > без входа: ответ каждого маршрута совпадает байт в байт 41`] = `
+{
+  "body": "{"error":"Нужно войти в аккаунт","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "PUT /api/v1/crm/expenses/ffffffff-ffff-4fff-8fff-ffffffffffff",
+  "status": 401,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > без входа: ответ каждого маршрута совпадает байт в байт 42`] = `
+{
+  "body": "{"error":"Нужно войти в аккаунт","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "DELETE /api/v1/crm/expenses/ffffffff-ffff-4fff-8fff-ffffffffffff?source=expense",
+  "status": 401,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > без входа: ответ каждого маршрута совпадает байт в байт 43`] = `
+{
+  "body": "{"error":"Нужно войти в аккаунт","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/crm/profit?p=month",
+  "status": 401,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > без входа: ответ каждого маршрута совпадает байт в байт 44`] = `
+{
+  "body": "{"error":"Нужно войти в аккаунт","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "PUT /api/v1/crm/profit/fees",
+  "status": 401,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > без входа: ответ каждого маршрута совпадает байт в байт 45`] = `
+{
+  "body": "{"error":"Нужно войти в аккаунт","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/crm/invoices/form?dealId=cdcdcdcd-cdcd-4dcd-8dcd-cdcdcdcdcdcd",
+  "status": 401,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > без входа: ответ каждого маршрута совпадает байт в байт 46`] = `
+{
+  "body": "{"error":"Нужно войти в аккаунт","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/invoices",
+  "status": 401,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > без входа: ответ каждого маршрута совпадает байт в байт 47`] = `
+{
+  "body": "{"error":"Нужно войти в аккаунт","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/invoices/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee/cancel",
+  "status": 401,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > без входа: ответ каждого маршрута совпадает байт в байт 48`] = `
+{
+  "body": "{"error":"Нужно войти в аккаунт","code":"unauthorized"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/invoices/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee/resend",
+  "status": 401,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > менеджер «только свои» (заказ не его): ответ каждого маршрута совпадает байт в байт 1`] = `
+{
+  "body": "{"error":"Книга не найдена","code":"bookNotFound"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/cabinet/books/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/checkout",
+  "status": 404,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > менеджер «только свои» (заказ не его): ответ каждого маршрута совпадает байт в байт 2`] = `
+{
+  "body": "{"error":"Книга не найдена","code":"bookNotFound"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/cabinet/books/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/checkout/quote",
+  "status": 404,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > менеджер «только свои» (заказ не его): ответ каждого маршрута совпадает байт в байт 3`] = `
+{
+  "body": "{"error":"Книга не найдена","code":"bookNotFound"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/cabinet/books/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/orders",
+  "status": 404,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > менеджер «только свои» (заказ не его): ответ каждого маршрута совпадает байт в байт 4`] = `
+{
+  "body": "{"title":"x","lead":"x","empty":"x","emptyText":"x","orders":[]}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json; charset=utf-8",
+    "etag": ""t-svgaUVsyhAUfT4jLT-FNWqlD8"",
+  },
+  "request": "GET /api/v1/cabinet/orders",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > менеджер «только свои» (заказ не его): ответ каждого маршрута совпадает байт в байт 5`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""t-svgaUVsyhAUfT4jLT-FNWqlD8"",
+  },
+  "request": "GET /api/v1/cabinet/orders",
+  "status": 304,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > менеджер «только свои» (заказ не его): ответ каждого маршрута совпадает байт в байт 6`] = `
+{
+  "body": "{"error":"Не найдено","code":"notFound"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/cabinet/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+  "status": 404,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > менеджер «только свои» (заказ не его): ответ каждого маршрута совпадает байт в байт 7`] = `
+{
+  "body": "{"error":"Не найдено","code":"notFound"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/cabinet/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/kaspi",
+  "status": 404,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > менеджер «только свои» (заказ не его): ответ каждого маршрута совпадает байт в байт 8`] = `
+{
+  "body": "{"error":"Не найдено","code":"notFound"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/cabinet/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/kaspi/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+  "status": 404,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > менеджер «только свои» (заказ не его): ответ каждого маршрута совпадает байт в байт 9`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/cabinet/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/claim",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > менеджер «только свои» (заказ не его): ответ каждого маршрута совпадает байт в байт 10`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/cabinet/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/cancel",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > менеджер «только свои» (заказ не его): ответ каждого маршрута совпадает байт в байт 11`] = `
+{
+  "body": "{"error":"Книга не найдена","code":"bookNotFound"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/web/books/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/checkout?locale=ru",
+  "status": 404,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > менеджер «только свои» (заказ не его): ответ каждого маршрута совпадает байт в байт 12`] = `
+{
+  "body": "{"ok":false}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/web/checkout/promo-check",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > менеджер «только свои» (заказ не его): ответ каждого маршрута совпадает байт в байт 13`] = `
+{
+  "body": "{"orderId":"cccccccc-cccc-4ccc-8ccc-cccccccccccc","amount":29000}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/web/orders",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > менеджер «только свои» (заказ не его): ответ каждого маршрута совпадает байт в байт 14`] = `
+{
+  "body": "{"orders":[],"agreement":null,"agreementBooks":[]}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json; charset=utf-8",
+    "etag": ""jFdGCBs5js8-1aZVPI-CSpvZaDM"",
+  },
+  "request": "GET /api/v1/web/orders?locale=ru",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > менеджер «только свои» (заказ не его): ответ каждого маршрута совпадает байт в байт 15`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""jFdGCBs5js8-1aZVPI-CSpvZaDM"",
+  },
+  "request": "GET /api/v1/web/orders?locale=ru",
+  "status": 304,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > менеджер «только свои» (заказ не его): ответ каждого маршрута совпадает байт в байт 16`] = `
+{
+  "body": "{"own":false,"printed":false,"paid":false,"statusLabel":"x","statusTone":"warning","reviewable":false,"reviewThankYouPercent":0,"referral":{"friendPercent":0,"rewardPercent":0},"review":null,"upgrade":null,"payment":null,"layout":{"state":"notRequired","again":false,"approvedAt":null},"order":{"id":"00000000-0000-4000-8000-000000000000","number":0,"status":"pending_payment","plan":"x","quantity":0,"currency":"x","itemsAmount":0,"discountAmount":0,"addonsAmount":0,"deliveryAmount":0,"prepaidAmount":0,"amount":0,"promoCode":null,"addons":[],"deliveryMethod":null,"deliveryCountry":null,"postalCode":null,"city":null,"address":null,"contactName":"x","contactPhone":"x","contactEmail":"x","giftNote":null,"desiredDate":null,"surprise":false,"customerComment":null,"trackingNumber":null,"paymentClaimedAt":null,"createdAt":"2026-11-25T08:00:00.000Z","book":{"id":"00000000-0000-4000-8000-000000000000","title":"x","subtitle":"x","coverTemplate":"x","coverLines":false,"format":"x","theme":"x","authorName":"x","recipientName":"x","hideRecipientOnCover":false,"namesOnCover":"x","coverPhotoId":null,"coverPhotoExtra":null,"coverDesign":null}}}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json; charset=utf-8",
+    "etag": ""FBd0KiGpXBXFJNwFhfLlqbdUVH4"",
+  },
+  "request": "GET /api/v1/web/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc?locale=ru",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > менеджер «только свои» (заказ не его): ответ каждого маршрута совпадает байт в байт 17`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""FBd0KiGpXBXFJNwFhfLlqbdUVH4"",
+  },
+  "request": "GET /api/v1/web/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc?locale=ru",
+  "status": 304,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > менеджер «только свои» (заказ не его): ответ каждого маршрута совпадает байт в байт 18`] = `
+{
+  "body": "{"error":"Заказ не найден","code":"orderNotFound"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/web/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/layout-approval",
+  "status": 404,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > менеджер «только свои» (заказ не его): ответ каждого маршрута совпадает байт в байт 19`] = `
+{
+  "body": "{"token":"x","number":0,"label":"x","state":"paid","viewed":false,"amount":0,"plan":"x","purpose":"prepayment","booksCount":0,"gifts":[],"expiresAt":"2026-11-25T08:00:00.000Z","claimed":false,"accessStatus":"none","seller":{"legalName":"x","bin":"x"},"online":null,"transfer":null,"kaspi":null}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json; charset=utf-8",
+    "etag": ""CbKYltqVSdG3urfdPUgwSAmyzBU"",
+  },
+  "request": "GET /api/v1/web/pay/pay-token",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > менеджер «только свои» (заказ не его): ответ каждого маршрута совпадает байт в байт 20`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""CbKYltqVSdG3urfdPUgwSAmyzBU"",
+  },
+  "request": "GET /api/v1/web/pay/pay-token",
+  "status": 304,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > менеджер «только свои» (заказ не его): ответ каждого маршрута совпадает байт в байт 21`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/web/pay/pay-token/viewed",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > менеджер «только свои» (заказ не его): ответ каждого маршрута совпадает байт в байт 22`] = `
+{
+  "body": "{"claimed":true,"token":"pay-token"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/web/pay/claim",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > менеджер «только свои» (заказ не его): ответ каждого маршрута совпадает байт в байт 23`] = `
+{
+  "body": "{"error":"Не найдено","code":"notFound"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/money",
+  "status": 404,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > менеджер «только свои» (заказ не его): ответ каждого маршрута совпадает байт в байт 24`] = `
+{
+  "body": "{"ok":true,"message":"Оплата записана, заказ оплачен — переплата 1 000 ₸"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/payments?amount=29000&requestKey=dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > менеджер «только свои» (заказ не его): ответ каждого маршрута совпадает байт в байт 25`] = `
+{
+  "body": "{"ok":true,"message":"Возврат записан"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/refunds?amount=29000&requestKey=dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > менеджер «только свои» (заказ не его): ответ каждого маршрута совпадает байт в байт 26`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/orders/payments/dddddddd-dddd-4ddd-8ddd-dddddddddddd/void",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > менеджер «только свои» (заказ не его): ответ каждого маршрута совпадает байт в байт 27`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/orders/payments/dddddddd-dddd-4ddd-8ddd-dddddddddddd/review",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > менеджер «только свои» (заказ не его): ответ каждого маршрута совпадает байт в байт 28`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/postpay",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > менеджер «только свои» (заказ не его): ответ каждого маршрута совпадает байт в байт 29`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "PUT /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/terms",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > менеджер «только свои» (заказ не его): ответ каждого маршрута совпадает байт в байт 30`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/reprice-request",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > менеджер «только свои» (заказ не его): ответ каждого маршрута совпадает байт в байт 31`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "PATCH /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/delivery",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > менеджер «только свои» (заказ не его): ответ каждого маршрута совпадает байт в байт 32`] = `
+{
+  "body": "{"error":"Не найдено","code":"notFound"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/files",
+  "status": 404,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > менеджер «только свои» (заказ не его): ответ каждого маршрута совпадает байт в байт 33`] = `
+{
+  "body": "{"error":"Не найдено","code":"notFound"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/details",
+  "status": 404,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > менеджер «только свои» (заказ не его): ответ каждого маршрута совпадает байт в байт 34`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "PUT /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/details",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > менеджер «только свои» (заказ не его): ответ каждого маршрута совпадает байт в байт 35`] = `
+{
+  "body": "{"error":"Не найдено","code":"notFound"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/links",
+  "status": 404,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > менеджер «только свои» (заказ не его): ответ каждого маршрута совпадает байт в байт 36`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "PUT /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/note",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > менеджер «только свои» (заказ не его): ответ каждого маршрута совпадает байт в байт 37`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/book-lock",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > менеджер «только свои» (заказ не его): ответ каждого маршрута совпадает байт в байт 38`] = `
+{
+  "body": "{"period":{"preset":"month","label":"1–26 ноября 2026 г.","first":"2026-11-01","last":"2026-11-26","presets":[{"id":"today","label":"Сегодня"},{"id":"7d","label":"7 дней"},{"id":"month","label":"Месяц"},{"id":"prev","label":"Прошлый месяц"}]},"own":true,"totals":{"net":0,"incoming":0,"refunds":0,"online":0,"manual":0,"count":0,"refundCount":0,"prevNet":0,"delta":0,"expected":0,"expectedReady":0,"postpay":0,"postpayCount":0,"overpaid":0,"overpaidCount":0,"reviewCount":0,"reviewSum":0},"flow":null,"byDay":[{"date":"2026-11-01","incoming":0,"refunds":0},{"date":"2026-11-02","incoming":0,"refunds":0},{"date":"2026-11-03","incoming":0,"refunds":0},{"date":"2026-11-04","incoming":0,"refunds":0},{"date":"2026-11-05","incoming":0,"refunds":0},{"date":"2026-11-06","incoming":0,"refunds":0},{"date":"2026-11-07","incoming":0,"refunds":0},{"date":"2026-11-08","incoming":0,"refunds":0},{"date":"2026-11-09","incoming":0,"refunds":0},{"date":"2026-11-10","incoming":0,"refunds":0},{"date":"2026-11-11","incoming":0,"refunds":0},{"date":"2026-11-12","incoming":0,"refunds":0},{"date":"2026-11-13","incoming":0,"refunds":0},{"date":"2026-11-14","incoming":0,"refunds":0},{"date":"2026-11-15","incoming":0,"refunds":0},{"date":"2026-11-16","incoming":0,"refunds":0},{"date":"2026-11-17","incoming":0,"refunds":0},{"date":"2026-11-18","incoming":0,"refunds":0},{"date":"2026-11-19","incoming":0,"refunds":0},{"date":"2026-11-20","incoming":0,"refunds":0},{"date":"2026-11-21","incoming":0,"refunds":0},{"date":"2026-11-22","incoming":0,"refunds":0},{"date":"2026-11-23","incoming":0,"refunds":0},{"date":"2026-11-24","incoming":0,"refunds":0},{"date":"2026-11-25","incoming":0,"refunds":0},{"date":"2026-11-26","incoming":0,"refunds":0}],"byMethod":[],"byManager":[],"review":[],"issues":[],"resolved":[],"recent":[],"refunds":[],"expected":{"rows":[],"groups":[{"key":"ready","label":"Книга готова или заказ оформлен","value":0,"count":0},{"key":"progress","label":"Книга в работе","value":0,"count":0},{"key":"none","label":"Книга не начата","value":0,"count":0}],"total":0},"perms":{"reviewDeal":false,"reviewOrder":false,"resolveDeal":false,"resolveOrder":false,"refundDeal":false,"editOrder":false}}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json; charset=utf-8",
+    "etag": ""KpU76ptUZv3OKkW3JrnPOyMYC8s"",
+  },
+  "request": "GET /api/v1/crm/finance?p=month",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > менеджер «только свои» (заказ не его): ответ каждого маршрута совпадает байт в байт 39`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""KpU76ptUZv3OKkW3JrnPOyMYC8s"",
+  },
+  "request": "GET /api/v1/crm/finance?p=month",
+  "status": 304,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > менеджер «только свои» (заказ не его): ответ каждого маршрута совпадает байт в байт 40`] = `
+{
+  "body": "{"ok":true,"message":"Сохранено"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/finance/review",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > менеджер «только свои» (заказ не его): ответ каждого маршрута совпадает байт в байт 41`] = `
+{
+  "body": "{"ok":true,"message":"Сохранено"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/finance/issues",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > менеджер «только свои» (заказ не его): ответ каждого маршрута совпадает байт в байт 42`] = `
+{
+  "body": "{"ok":true,"message":"Сохранено"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/finance/resolutions/abababab-abab-4bab-8bab-abababababab/undo",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > менеджер «только свои» (заказ не его): ответ каждого маршрута совпадает байт в байт 43`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/crm/expenses?p=month",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > менеджер «только свои» (заказ не его): ответ каждого маршрута совпадает байт в байт 44`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/expenses",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > менеджер «только свои» (заказ не его): ответ каждого маршрута совпадает байт в байт 45`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "PUT /api/v1/crm/expenses/ffffffff-ffff-4fff-8fff-ffffffffffff",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > менеджер «только свои» (заказ не его): ответ каждого маршрута совпадает байт в байт 46`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "DELETE /api/v1/crm/expenses/ffffffff-ffff-4fff-8fff-ffffffffffff?source=expense",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > менеджер «только свои» (заказ не его): ответ каждого маршрута совпадает байт в байт 47`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/crm/profit?p=month",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > менеджер «только свои» (заказ не его): ответ каждого маршрута совпадает байт в байт 48`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "PUT /api/v1/crm/profit/fees",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > менеджер «только свои» (заказ не его): ответ каждого маршрута совпадает байт в байт 49`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/crm/invoices/form?dealId=cdcdcdcd-cdcd-4dcd-8dcd-cdcdcdcdcdcd",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > менеджер «только свои» (заказ не его): ответ каждого маршрута совпадает байт в байт 50`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/invoices",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > менеджер «только свои» (заказ не его): ответ каждого маршрута совпадает байт в байт 51`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/invoices/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee/cancel",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > менеджер «только свои» (заказ не его): ответ каждого маршрута совпадает байт в байт 52`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/invoices/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee/resend",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 1`] = `
+{
+  "body": "{"closed":false,"orderId":null}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json; charset=utf-8",
+    "etag": ""xjcA4Sv9hj84daw3U79J7A3Zgjs"",
+  },
+  "request": "GET /api/v1/cabinet/books/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/checkout",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 2`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""xjcA4Sv9hj84daw3U79J7A3Zgjs"",
+  },
+  "request": "GET /api/v1/cabinet/books/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/checkout",
+  "status": 304,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 3`] = `
+{
+  "body": "{"plan":"x","lines":[],"totalLabel":"x","total":"x","quotedTotal":null,"promo":null}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/cabinet/books/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/checkout/quote",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 4`] = `
+{
+  "body": "{"orderId":"cccccccc-cccc-4ccc-8ccc-cccccccccccc"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/cabinet/books/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/orders",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 5`] = `
+{
+  "body": "{"title":"x","lead":"x","empty":"x","emptyText":"x","orders":[]}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json; charset=utf-8",
+    "etag": ""t-svgaUVsyhAUfT4jLT-FNWqlD8"",
+  },
+  "request": "GET /api/v1/cabinet/orders",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 6`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""t-svgaUVsyhAUfT4jLT-FNWqlD8"",
+  },
+  "request": "GET /api/v1/cabinet/orders",
+  "status": 304,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 7`] = `
+{
+  "body": "{"id":"00000000-0000-4000-8000-000000000000","number":0,"title":"x","created":"x","bookId":"x","bookTitle":"x","status":"x","statusLabel":"x","tone":"x","printed":false,"paid":false,"nowTitle":"x","nowText":"x","steps":[],"stepOf":null,"trackingLabel":"x","trackingNumber":null,"detailsTitle":"x","facts":[],"lines":[],"totalLabel":"x","total":"x","quotedNote":null,"payment":null}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json; charset=utf-8",
+    "etag": ""L5dMhWVWZuKsLgJ5bUb_jzLUoUM"",
+  },
+  "request": "GET /api/v1/cabinet/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 8`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""L5dMhWVWZuKsLgJ5bUb_jzLUoUM"",
+  },
+  "request": "GET /api/v1/cabinet/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+  "status": 304,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 9`] = `
+{
+  "body": "{"invoice":{"id":"x","method":"x","status":"x","amount":0,"phone":null,"link":null,"qrSvg":null,"expiresAt":null,"paidAt":null}}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/cabinet/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/kaspi",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 10`] = `
+{
+  "body": "{"invoice":{"id":"x","method":"x","status":"x","amount":0,"phone":null,"link":null,"qrSvg":null,"expiresAt":null,"paidAt":null}}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json; charset=utf-8",
+    "etag": ""i7Fx1TMS8Ciyk0k1ddAbQbKhlTQ"",
+  },
+  "request": "GET /api/v1/cabinet/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/kaspi/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 11`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""i7Fx1TMS8Ciyk0k1ddAbQbKhlTQ"",
+  },
+  "request": "GET /api/v1/cabinet/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/kaspi/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+  "status": 304,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 12`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/cabinet/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/claim",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 13`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/cabinet/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/cancel",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 14`] = `
+{
+  "body": "{"closed":false,"data":null}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json; charset=utf-8",
+    "etag": ""0AutWtW9w8FNN-qpDZAC3kFgmDo"",
+  },
+  "request": "GET /api/v1/web/books/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/checkout?locale=ru",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 15`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""0AutWtW9w8FNN-qpDZAC3kFgmDo"",
+  },
+  "request": "GET /api/v1/web/books/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/checkout?locale=ru",
+  "status": 304,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 16`] = `
+{
+  "body": "{"ok":false}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/web/checkout/promo-check",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 17`] = `
+{
+  "body": "{"error":"Нельзя: заказ уже оплачен","code":"refused"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/web/orders",
+  "status": 400,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 18`] = `
+{
+  "body": "{"orders":[],"agreement":null,"agreementBooks":[]}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json; charset=utf-8",
+    "etag": ""jFdGCBs5js8-1aZVPI-CSpvZaDM"",
+  },
+  "request": "GET /api/v1/web/orders?locale=ru",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 19`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""jFdGCBs5js8-1aZVPI-CSpvZaDM"",
+  },
+  "request": "GET /api/v1/web/orders?locale=ru",
+  "status": 304,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 20`] = `
+{
+  "body": "{"own":false,"printed":false,"paid":false,"statusLabel":"x","statusTone":"warning","reviewable":false,"reviewThankYouPercent":0,"referral":{"friendPercent":0,"rewardPercent":0},"review":null,"upgrade":null,"payment":null,"layout":{"state":"notRequired","again":false,"approvedAt":null},"order":{"id":"00000000-0000-4000-8000-000000000000","number":0,"status":"pending_payment","plan":"x","quantity":0,"currency":"x","itemsAmount":0,"discountAmount":0,"addonsAmount":0,"deliveryAmount":0,"prepaidAmount":0,"amount":0,"promoCode":null,"addons":[],"deliveryMethod":null,"deliveryCountry":null,"postalCode":null,"city":null,"address":null,"contactName":"x","contactPhone":"x","contactEmail":"x","giftNote":null,"desiredDate":null,"surprise":false,"customerComment":null,"trackingNumber":null,"paymentClaimedAt":null,"createdAt":"2026-11-25T08:00:00.000Z","book":{"id":"00000000-0000-4000-8000-000000000000","title":"x","subtitle":"x","coverTemplate":"x","coverLines":false,"format":"x","theme":"x","authorName":"x","recipientName":"x","hideRecipientOnCover":false,"namesOnCover":"x","coverPhotoId":null,"coverPhotoExtra":null,"coverDesign":null}}}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json; charset=utf-8",
+    "etag": ""FBd0KiGpXBXFJNwFhfLlqbdUVH4"",
+  },
+  "request": "GET /api/v1/web/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc?locale=ru",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 21`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""FBd0KiGpXBXFJNwFhfLlqbdUVH4"",
+  },
+  "request": "GET /api/v1/web/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc?locale=ru",
+  "status": 304,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 22`] = `
+{
+  "body": "{"state":"approved","again":false,"approvedAt":"2026-11-25T08:00:00.000Z"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/web/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/layout-approval",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 23`] = `
+{
+  "body": "{"token":"x","number":0,"label":"x","state":"paid","viewed":false,"amount":0,"plan":"x","purpose":"prepayment","booksCount":0,"gifts":[],"expiresAt":"2026-11-25T08:00:00.000Z","claimed":false,"accessStatus":"none","seller":{"legalName":"x","bin":"x"},"online":null,"transfer":null,"kaspi":null}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json; charset=utf-8",
+    "etag": ""CbKYltqVSdG3urfdPUgwSAmyzBU"",
+  },
+  "request": "GET /api/v1/web/pay/pay-token",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 24`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""CbKYltqVSdG3urfdPUgwSAmyzBU"",
+  },
+  "request": "GET /api/v1/web/pay/pay-token",
+  "status": 304,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 25`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/web/pay/pay-token/viewed",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 26`] = `
+{
+  "body": "{"claimed":true,"token":"pay-token"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/web/pay/claim",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 27`] = `
+{
+  "body": "{"id":"cccccccc-cccc-4ccc-8ccc-cccccccccccc","number":1042,"status":"paid","statusLabel":"Оплачен","statuses":[{"id":"pending_payment","label":"Ожидает оплаты"},{"id":"paid","label":"Оплачен"},{"id":"in_production","label":"В производстве"},{"id":"shipped","label":"Отправлен"},{"id":"delivered","label":"Доставлен"},{"id":"cancelled","label":"Отменён"}],"printed":true,"trackingNumber":null,"amount":29000,"received":29000,"refundable":0,"settled":true,"postpay":false,"cancelled":false,"payments":[{"id":"dddddddd-dddd-4ddd-8ddd-dddddddddddd","kind":"payment","amount":29000,"method":"Kaspi","at":"2026-11-25T08:00:00.000Z","note":null,"receipt":false,"payForm":null,"by":"Айгерим","reviewed":null,"voided":false,"voidReason":null}],"payForms":["Kaspi","Наличные"],"plan":"hardcover","plans":[{"id":"digital","label":"Электронная","price":9900},{"id":"hardcover","label":"Твёрдая обложка","price":30000},{"id":"premium","label":"Премиум (скрыт)","price":35000}],"agreed":null,"maxDiscountPercent":15,"canEdit":true,"canVoid":true,"canReview":true,"canTerms":true,"canRequestReprice":false}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json; charset=utf-8",
+    "etag": ""LoDQ3NkBUQa49WfZ61-rgahXQa8"",
+  },
+  "request": "GET /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/money",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 28`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""LoDQ3NkBUQa49WfZ61-rgahXQa8"",
+  },
+  "request": "GET /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/money",
+  "status": 304,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 29`] = `
+{
+  "body": "{"error":"Нельзя: заказ уже оплачен"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/payments?amount=29000&requestKey=dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+  "status": 400,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 30`] = `
+{
+  "body": "{"error":"Нельзя: заказ уже оплачен"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/refunds?amount=29000&requestKey=dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+  "status": 400,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 31`] = `
+{
+  "body": "{"error":"Нельзя: заказ уже оплачен","code":"refused"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/crm/orders/payments/dddddddd-dddd-4ddd-8ddd-dddddddddddd/void",
+  "status": 400,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 32`] = `
+{
+  "body": "{"error":"Нельзя: заказ уже оплачен","code":"refused"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/crm/orders/payments/dddddddd-dddd-4ddd-8ddd-dddddddddddd/review",
+  "status": 400,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 33`] = `
+{
+  "body": "{"error":"Нельзя: заказ уже оплачен","code":"refused"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/postpay",
+  "status": 400,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 34`] = `
+{
+  "body": "{"error":"Нельзя: заказ уже оплачен","code":"refused"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "PUT /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/terms",
+  "status": 400,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 35`] = `
+{
+  "body": "{"error":"Нельзя: заказ уже оплачен","code":"refused"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/reprice-request",
+  "status": 400,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 36`] = `
+{
+  "body": "{"error":"Нельзя: заказ уже оплачен","code":"refused"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "PATCH /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/delivery",
+  "status": 400,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 37`] = `
+{
+  "body": "{"canFiles":true,"layout":{"state":"pending","again":false,"approvedAt":null,"blocked":"Клиент ещё не согласовал макет","clientUrl":"http://localhost:3000/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc"},"spec":null,"files":[{"kind":"block","label":"Блок книги","url":"/api/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/files/block"},{"kind":"cover","label":"Обложка","url":"/api/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/files/cover"},{"kind":"layout","label":"Каркас обложки","url":"/api/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/files/layout"},{"kind":"spec","label":"Техзадание","url":"/api/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/files/spec"},{"kind":"reading","label":"PDF для чтения","url":"/api/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/files/reading"}],"packageUrl":"/api/admin/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/package","progressUrl":"/api/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/render-progress","bookLocked":true,"canLock":true,"canRegenerate":true}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json; charset=utf-8",
+    "etag": ""Uyk6UwGXCrMxX3rQfity2p1yMig"",
+  },
+  "request": "GET /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/files",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 38`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""Uyk6UwGXCrMxX3rQfity2p1yMig"",
+  },
+  "request": "GET /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/files",
+  "status": 304,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 39`] = `
+{
+  "body": "{"canEdit":true,"contactName":"Асель","contactPhone":"+77011234567","contactEmail":"asel@example.kz","deliveryMethod":"courier","deliveryMethods":[{"id":"courier","label":"Курьер по городу"},{"id":"post","label":"Доставка по Казахстану"},{"id":"pickup","label":"Самовывоз"},{"id":"abroad","label":"В другую страну (стоимость считает менеджер)"}],"country":"KZ","city":"Алматы","address":"Абая 1","postalCode":null,"desiredDate":null,"giftNote":null}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json; charset=utf-8",
+    "etag": ""Sgj6L9YArCMqSMIiTBVeM4hSlbc"",
+  },
+  "request": "GET /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/details",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 40`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""Sgj6L9YArCMqSMIiTBVeM4hSlbc"",
+  },
+  "request": "GET /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/details",
+  "status": 304,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 41`] = `
+{
+  "body": "{"error":"Нельзя: заказ уже оплачен","code":"refused"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "PUT /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/details",
+  "status": 400,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 42`] = `
+{
+  "body": "{"clientId":"88888888-8888-4888-8888-888888888888","dealId":"cdcdcdcd-cdcd-4dcd-8dcd-cdcdcdcdcdcd","dealNumber":42,"chatId":null,"bookId":"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","adminNote":"","canNote":true,"printUrl":"/print/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc"}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json; charset=utf-8",
+    "etag": ""Iw5IHHoVkks-TteBQTUEplq8-wE"",
+  },
+  "request": "GET /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/links",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 43`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""Iw5IHHoVkks-TteBQTUEplq8-wE"",
+  },
+  "request": "GET /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/links",
+  "status": 304,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 44`] = `
+{
+  "body": "{"error":"Нельзя: заказ уже оплачен","code":"refused"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "PUT /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/note",
+  "status": 400,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 45`] = `
+{
+  "body": "{"ok":true,"message":"Книга открыта для правок клиентом"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/book-lock",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 46`] = `
+{
+  "body": "{"period":{"preset":"month","label":"1–26 ноября 2026 г.","first":"2026-11-01","last":"2026-11-26","presets":[{"id":"today","label":"Сегодня"},{"id":"7d","label":"7 дней"},{"id":"month","label":"Месяц"},{"id":"prev","label":"Прошлый месяц"}]},"own":false,"totals":{"net":0,"incoming":0,"refunds":0,"online":0,"manual":0,"count":0,"refundCount":0,"prevNet":0,"delta":0,"expected":0,"expectedReady":0,"postpay":0,"postpayCount":0,"overpaid":0,"overpaidCount":0,"reviewCount":0,"reviewSum":0},"flow":{"incoming":0,"refunds":0,"fees":0,"tax":0,"net":0,"other":0,"profit":0},"byDay":[{"date":"2026-11-01","incoming":0,"refunds":0},{"date":"2026-11-02","incoming":0,"refunds":0},{"date":"2026-11-03","incoming":0,"refunds":0},{"date":"2026-11-04","incoming":0,"refunds":0},{"date":"2026-11-05","incoming":0,"refunds":0},{"date":"2026-11-06","incoming":0,"refunds":0},{"date":"2026-11-07","incoming":0,"refunds":0},{"date":"2026-11-08","incoming":0,"refunds":0},{"date":"2026-11-09","incoming":0,"refunds":0},{"date":"2026-11-10","incoming":0,"refunds":0},{"date":"2026-11-11","incoming":0,"refunds":0},{"date":"2026-11-12","incoming":0,"refunds":0},{"date":"2026-11-13","incoming":0,"refunds":0},{"date":"2026-11-14","incoming":0,"refunds":0},{"date":"2026-11-15","incoming":0,"refunds":0},{"date":"2026-11-16","incoming":0,"refunds":0},{"date":"2026-11-17","incoming":0,"refunds":0},{"date":"2026-11-18","incoming":0,"refunds":0},{"date":"2026-11-19","incoming":0,"refunds":0},{"date":"2026-11-20","incoming":0,"refunds":0},{"date":"2026-11-21","incoming":0,"refunds":0},{"date":"2026-11-22","incoming":0,"refunds":0},{"date":"2026-11-23","incoming":0,"refunds":0},{"date":"2026-11-24","incoming":0,"refunds":0},{"date":"2026-11-25","incoming":0,"refunds":0},{"date":"2026-11-26","incoming":0,"refunds":0}],"byMethod":[],"byManager":[],"review":[],"issues":[],"resolved":[],"recent":[],"refunds":[],"expected":{"rows":[],"groups":[{"key":"ready","label":"Книга готова или заказ оформлен","value":0,"count":0},{"key":"progress","label":"Книга в работе","value":0,"count":0},{"key":"none","label":"Книга не начата","value":0,"count":0}],"total":0},"perms":{"reviewDeal":true,"reviewOrder":true,"resolveDeal":true,"resolveOrder":true,"refundDeal":true,"editOrder":true}}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json; charset=utf-8",
+    "etag": ""7vte-rM2eGm8NPpBPhjhxZBPuhE"",
+  },
+  "request": "GET /api/v1/crm/finance?p=month",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 47`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""7vte-rM2eGm8NPpBPhjhxZBPuhE"",
+  },
+  "request": "GET /api/v1/crm/finance?p=month",
+  "status": 304,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 48`] = `
+{
+  "body": "{"error":"Нельзя: заказ уже оплачен","code":"refused"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/crm/finance/review",
+  "status": 400,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 49`] = `
+{
+  "body": "{"error":"Нельзя: заказ уже оплачен","code":"refused"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/crm/finance/issues",
+  "status": 400,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 50`] = `
+{
+  "body": "{"error":"Нельзя: заказ уже оплачен","code":"refused"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/crm/finance/resolutions/abababab-abab-4bab-8bab-abababababab/undo",
+  "status": 400,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 51`] = `
+{
+  "body": "{"period":{"preset":"month","label":"1–26 ноября 2026 г.","first":"2026-11-01","last":"2026-11-26","presets":[{"id":"today","label":"Сегодня"},{"id":"7d","label":"7 дней"},{"id":"month","label":"Месяц"},{"id":"prev","label":"Прошлый месяц"}]},"total":0,"byCategory":[],"byGroup":[{"key":"cogs","label":"Себестоимость","value":0,"count":0},{"key":"marketing","label":"Реклама","value":0,"count":0},{"key":"team","label":"Команда","value":0,"count":0},{"key":"operating","label":"Прочие расходы","value":0,"count":0}],"rows":[],"canManage":true,"categories":[{"id":"ads","label":"Реклама","group":"marketing"},{"id":"print","label":"Печать книг","group":"cogs"},{"id":"delivery","label":"Доставка","group":"cogs"},{"id":"packaging","label":"Упаковка и расходники","group":"cogs"},{"id":"fees","label":"Комиссии банка и рассрочки","group":"cogs"},{"id":"payroll","label":"Зарплата и бонусы","group":"team"},{"id":"services","label":"Сервисы, ИИ и связь","group":"operating"},{"id":"equipment","label":"Оборудование и инвентарь","group":"operating"},{"id":"tax","label":"Налоги","group":"operating"},{"id":"other","label":"Прочее","group":"operating"}],"channels":[{"id":"instagram","label":"Instagram"},{"id":"tiktok","label":"TikTok"},{"id":"facebook","label":"Facebook"},{"id":"whatsapp","label":"WhatsApp"},{"id":"telegram","label":"Telegram"},{"id":"youtube","label":"YouTube"},{"id":"vk","label":"ВКонтакте"},{"id":"google_ads","label":"Google Ads"},{"id":"google","label":"Google (поиск)"},{"id":"yandex_ads","label":"Яндекс Директ"},{"id":"yandex","label":"Яндекс (поиск)"},{"id":"bloggers","label":"Блогеры"},{"id":"email","label":"E-mail рассылка"},{"id":"referral","label":"Другие сайты"},{"id":"call","label":"Звонок"},{"id":"offline","label":"Офлайн (листовки, QR)"},{"id":"recommendation","label":"Рекомендация знакомых"},{"id":"repeat","label":"Повторный клиент"},{"id":"other","label":"Другое"},{"id":"direct","label":"Прямой заход"}]}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json; charset=utf-8",
+    "etag": ""pWQJWcw-9-5TrW0sL8J3qWfLEBk"",
+  },
+  "request": "GET /api/v1/crm/expenses?p=month",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 52`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""pWQJWcw-9-5TrW0sL8J3qWfLEBk"",
+  },
+  "request": "GET /api/v1/crm/expenses?p=month",
+  "status": 304,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 53`] = `
+{
+  "body": "{"error":"Нельзя: заказ уже оплачен","code":"refused"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/crm/expenses",
+  "status": 400,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 54`] = `
+{
+  "body": "{"error":"Нельзя: заказ уже оплачен","code":"refused"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "PUT /api/v1/crm/expenses/ffffffff-ffff-4fff-8fff-ffffffffffff",
+  "status": 400,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 55`] = `
+{
+  "body": "{"error":"Нельзя: заказ уже оплачен","code":"refused"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "DELETE /api/v1/crm/expenses/ffffffff-ffff-4fff-8fff-ffffffffffff?source=expense",
+  "status": 400,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 56`] = `
+{
+  "body": "{"period":{"preset":"month","label":"1–26 ноября 2026 г.","first":"2026-11-01","last":"2026-11-26","presets":[{"id":"today","label":"Сегодня"},{"id":"7d","label":"7 дней"},{"id":"month","label":"Месяц"},{"id":"prev","label":"Прошлый месяц"}]},"totals":{"revenue":0,"expenses":0,"profit":0,"margin":null,"deltaRevenue":0,"deltaExpenses":0,"deltaProfit":null},"lines":[{"label":"Пришло от клиентов","value":0,"prev":0,"kind":"sub","minus":false},{"label":"Возвраты клиентам","value":0,"prev":0,"kind":"sub","minus":true},{"label":"Выручка","value":0,"prev":0,"kind":"sum","minus":false},{"label":"Валовая прибыль","value":0,"prev":0,"kind":"sum","minus":false},{"label":"Реклама","value":0,"prev":0,"kind":null,"minus":true},{"label":"Команда","value":0,"prev":0,"kind":null,"minus":true},{"label":"Прочие расходы","value":0,"prev":0,"kind":null,"minus":true},{"label":"Прибыль","value":0,"prev":0,"kind":"result","minus":false}],"step":"day","rows":[{"key":"2026-11-01","label":"1 нояб.","revenue":0,"expenses":0,"profit":0},{"key":"2026-11-02","label":"2 нояб.","revenue":0,"expenses":0,"profit":0},{"key":"2026-11-03","label":"3 нояб.","revenue":0,"expenses":0,"profit":0},{"key":"2026-11-04","label":"4 нояб.","revenue":0,"expenses":0,"profit":0},{"key":"2026-11-05","label":"5 нояб.","revenue":0,"expenses":0,"profit":0},{"key":"2026-11-06","label":"6 нояб.","revenue":0,"expenses":0,"profit":0},{"key":"2026-11-07","label":"7 нояб.","revenue":0,"expenses":0,"profit":0},{"key":"2026-11-08","label":"8 нояб.","revenue":0,"expenses":0,"profit":0},{"key":"2026-11-09","label":"9 нояб.","revenue":0,"expenses":0,"profit":0},{"key":"2026-11-10","label":"10 нояб.","revenue":0,"expenses":0,"profit":0},{"key":"2026-11-11","label":"11 нояб.","revenue":0,"expenses":0,"profit":0},{"key":"2026-11-12","label":"12 нояб.","revenue":0,"expenses":0,"profit":0},{"key":"2026-11-13","label":"13 нояб.","revenue":0,"expenses":0,"profit":0},{"key":"2026-11-14","label":"14 нояб.","revenue":0,"expenses":0,"profit":0},{"key":"2026-11-15","label":"15 нояб.","revenue":0,"expenses":0,"profit":0},{"key":"2026-11-16","label":"16 нояб.","revenue":0,"expenses":0,"profit":0},{"key":"2026-11-17","label":"17 нояб.","revenue":0,"expenses":0,"profit":0},{"key":"2026-11-18","label":"18 нояб.","revenue":0,"expenses":0,"profit":0},{"key":"2026-11-19","label":"19 нояб.","revenue":0,"expenses":0,"profit":0},{"key":"2026-11-20","label":"20 нояб.","revenue":0,"expenses":0,"profit":0},{"key":"2026-11-21","label":"21 нояб.","revenue":0,"expenses":0,"profit":0},{"key":"2026-11-22","label":"22 нояб.","revenue":0,"expenses":0,"profit":0},{"key":"2026-11-23","label":"23 нояб.","revenue":0,"expenses":0,"profit":0},{"key":"2026-11-24","label":"24 нояб.","revenue":0,"expenses":0,"profit":0},{"key":"2026-11-25","label":"25 нояб.","revenue":0,"expenses":0,"profit":0},{"key":"2026-11-26","label":"26 нояб.","revenue":0,"expenses":0,"profit":0}],"flow":{"incoming":0,"refunds":0,"fees":0,"tax":0,"net":0,"other":0,"profit":0},"unit":{"leads":0,"buyers":0,"orders":0,"conversion":null,"cpl":null,"cac":null,"roasCash":null,"roasFirst":null,"roasAgreed":null,"adShare":null,"avgFirst":null,"avgAgreed":null,"printPerBook":null,"profitPerBuyer":null},"fees":{"auto":0,"base":0,"byForm":[]},"tax":{"rate":0,"auto":0},"noExpenses":true,"canManage":true,"payForms":["Kaspi Gold","Kaspi Рассрочка","Kaspi Red","Перевод","Наличные"],"feeRates":{"Kaspi Рассрочка":15,"Kaspi Red":12}}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json; charset=utf-8",
+    "etag": ""9YJv3kKxGN8O5JvqSczPCfdzOTw"",
+  },
+  "request": "GET /api/v1/crm/profit?p=month",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 57`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""9YJv3kKxGN8O5JvqSczPCfdzOTw"",
+  },
+  "request": "GET /api/v1/crm/profit?p=month",
+  "status": 304,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 58`] = `
+{
+  "body": "{"error":"Нельзя: заказ уже оплачен","code":"refused"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "PUT /api/v1/crm/profit/fees",
+  "status": 400,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 59`] = `
+{
+  "body": "{"error":"Нельзя: заказ уже оплачен","code":"refused"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "GET /api/v1/crm/invoices/form?dealId=cdcdcdcd-cdcd-4dcd-8dcd-cdcdcdcdcdcd",
+  "status": 400,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 60`] = `
+{
+  "body": "{"error":"Нельзя: заказ уже оплачен","code":"refused"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/crm/invoices",
+  "status": 400,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 61`] = `
+{
+  "body": "{"error":"Нельзя: заказ уже оплачен","code":"refused"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/crm/invoices/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee/cancel",
+  "status": 400,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 62`] = `
+{
+  "body": "{"error":"Нельзя: заказ уже оплачен","code":"refused"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/crm/invoices/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee/resend",
+  "status": 400,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 63`] = `
+{
+  "body": "{"error":"Слишком много счетов подряд. Подождите пару минут.","code":"kaspiRate"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/cabinet/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/kaspi",
+  "status": 429,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 64`] = `
+{
+  "body": "{"error":"Слишком много попыток. Попробуйте позже.","code":"tooMany"}",
+  "headers": {
+    "content-type": "application/json",
+  },
+  "request": "POST /api/v1/web/pay/claim",
+  "status": 429,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 65`] = `
+{
+  "body": "{"error":"Некорректные данные","code":"badData"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/crm/orders/not-a-uuid/money",
+  "status": 400,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 66`] = `
+{
+  "body": "{"error":"Некорректные данные","code":"badData"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/expenses",
+  "status": 400,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 67`] = `
+{
+  "body": "",
+  "headers": {
+    "allow": "GET",
+  },
+  "request": "DELETE /api/v1/crm/finance",
+  "status": 405,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 68`] = `
+{
+  "body": "{"error":"Счёт не найден","code":"invoiceNotFound"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/web/pay/unknown",
+  "status": 404,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 69`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/web/pay/pay-token/viewed",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > отказы, лимиты и кривой вход совпадают байт в байт 70`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/web/pay/pay-token/viewed",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > согласование макета: отказы домена (книга открыта для правок, книги нет, заказ без печати) — те же статусы и тексты 1`] = `
+{
+  "body": "{"error":"Книга открыта для правок — согласовать макет можно, когда правки закончены","code":"layoutBookEditing"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/web/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/layout-approval",
+  "status": 409,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > согласование макета: отказы домена (книга открыта для правок, книги нет, заказ без печати) — те же статусы и тексты 2`] = `
+{
+  "body": "{"error":"Клиент ещё не согласовал макет","code":"layoutNotApproved"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/web/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/layout-approval",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > согласование макета: отказы домена (книга открыта для правок, книги нет, заказ без печати) — те же статусы и тексты 3`] = `
+{
+  "body": "{"error":"Макет этого заказа согласовывать не нужно","code":"layoutNotNeeded"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/web/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/layout-approval",
+  "status": 409,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > согласование макета: отказы домена (книга открыта для правок, книги нет, заказ без печати) — те же статусы и тексты 4`] = `
+{
+  "body": "{"state":"approved","again":false,"approvedAt":"2026-11-25T08:00:00.000Z"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/web/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/layout-approval",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > согласование макета: отказы домена (книга открыта для правок, книги нет, заказ без печати) — те же статусы и тексты 5`] = `
+{
+  "body": "{"error":"Заказ не найден","code":"orderNotFound"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/web/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/layout-approval",
+  "status": 404,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > сотрудник без прав: ответ каждого маршрута совпадает байт в байт 1`] = `
+{
+  "body": "{"error":"Книга не найдена","code":"bookNotFound"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/cabinet/books/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/checkout",
+  "status": 404,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > сотрудник без прав: ответ каждого маршрута совпадает байт в байт 2`] = `
+{
+  "body": "{"error":"Книга не найдена","code":"bookNotFound"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/cabinet/books/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/checkout/quote",
+  "status": 404,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > сотрудник без прав: ответ каждого маршрута совпадает байт в байт 3`] = `
+{
+  "body": "{"error":"Книга не найдена","code":"bookNotFound"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/cabinet/books/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/orders",
+  "status": 404,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > сотрудник без прав: ответ каждого маршрута совпадает байт в байт 4`] = `
+{
+  "body": "{"title":"x","lead":"x","empty":"x","emptyText":"x","orders":[]}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json; charset=utf-8",
+    "etag": ""t-svgaUVsyhAUfT4jLT-FNWqlD8"",
+  },
+  "request": "GET /api/v1/cabinet/orders",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > сотрудник без прав: ответ каждого маршрута совпадает байт в байт 5`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""t-svgaUVsyhAUfT4jLT-FNWqlD8"",
+  },
+  "request": "GET /api/v1/cabinet/orders",
+  "status": 304,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > сотрудник без прав: ответ каждого маршрута совпадает байт в байт 6`] = `
+{
+  "body": "{"error":"Не найдено","code":"notFound"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/cabinet/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+  "status": 404,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > сотрудник без прав: ответ каждого маршрута совпадает байт в байт 7`] = `
+{
+  "body": "{"error":"Не найдено","code":"notFound"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/cabinet/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/kaspi",
+  "status": 404,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > сотрудник без прав: ответ каждого маршрута совпадает байт в байт 8`] = `
+{
+  "body": "{"error":"Не найдено","code":"notFound"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/cabinet/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/kaspi/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+  "status": 404,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > сотрудник без прав: ответ каждого маршрута совпадает байт в байт 9`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/cabinet/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/claim",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > сотрудник без прав: ответ каждого маршрута совпадает байт в байт 10`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/cabinet/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/cancel",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > сотрудник без прав: ответ каждого маршрута совпадает байт в байт 11`] = `
+{
+  "body": "{"error":"Книга не найдена","code":"bookNotFound"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/web/books/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/checkout?locale=ru",
+  "status": 404,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > сотрудник без прав: ответ каждого маршрута совпадает байт в байт 12`] = `
+{
+  "body": "{"ok":false}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/web/checkout/promo-check",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > сотрудник без прав: ответ каждого маршрута совпадает байт в байт 13`] = `
+{
+  "body": "{"orderId":"cccccccc-cccc-4ccc-8ccc-cccccccccccc","amount":29000}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/web/orders",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > сотрудник без прав: ответ каждого маршрута совпадает байт в байт 14`] = `
+{
+  "body": "{"orders":[],"agreement":null,"agreementBooks":[]}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json; charset=utf-8",
+    "etag": ""jFdGCBs5js8-1aZVPI-CSpvZaDM"",
+  },
+  "request": "GET /api/v1/web/orders?locale=ru",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > сотрудник без прав: ответ каждого маршрута совпадает байт в байт 15`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""jFdGCBs5js8-1aZVPI-CSpvZaDM"",
+  },
+  "request": "GET /api/v1/web/orders?locale=ru",
+  "status": 304,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > сотрудник без прав: ответ каждого маршрута совпадает байт в байт 16`] = `
+{
+  "body": "{"own":false,"printed":false,"paid":false,"statusLabel":"x","statusTone":"warning","reviewable":false,"reviewThankYouPercent":0,"referral":{"friendPercent":0,"rewardPercent":0},"review":null,"upgrade":null,"payment":null,"layout":{"state":"notRequired","again":false,"approvedAt":null},"order":{"id":"00000000-0000-4000-8000-000000000000","number":0,"status":"pending_payment","plan":"x","quantity":0,"currency":"x","itemsAmount":0,"discountAmount":0,"addonsAmount":0,"deliveryAmount":0,"prepaidAmount":0,"amount":0,"promoCode":null,"addons":[],"deliveryMethod":null,"deliveryCountry":null,"postalCode":null,"city":null,"address":null,"contactName":"x","contactPhone":"x","contactEmail":"x","giftNote":null,"desiredDate":null,"surprise":false,"customerComment":null,"trackingNumber":null,"paymentClaimedAt":null,"createdAt":"2026-11-25T08:00:00.000Z","book":{"id":"00000000-0000-4000-8000-000000000000","title":"x","subtitle":"x","coverTemplate":"x","coverLines":false,"format":"x","theme":"x","authorName":"x","recipientName":"x","hideRecipientOnCover":false,"namesOnCover":"x","coverPhotoId":null,"coverPhotoExtra":null,"coverDesign":null}}}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json; charset=utf-8",
+    "etag": ""FBd0KiGpXBXFJNwFhfLlqbdUVH4"",
+  },
+  "request": "GET /api/v1/web/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc?locale=ru",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > сотрудник без прав: ответ каждого маршрута совпадает байт в байт 17`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""FBd0KiGpXBXFJNwFhfLlqbdUVH4"",
+  },
+  "request": "GET /api/v1/web/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc?locale=ru",
+  "status": 304,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > сотрудник без прав: ответ каждого маршрута совпадает байт в байт 18`] = `
+{
+  "body": "{"error":"Заказ не найден","code":"orderNotFound"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/web/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/layout-approval",
+  "status": 404,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > сотрудник без прав: ответ каждого маршрута совпадает байт в байт 19`] = `
+{
+  "body": "{"token":"x","number":0,"label":"x","state":"paid","viewed":false,"amount":0,"plan":"x","purpose":"prepayment","booksCount":0,"gifts":[],"expiresAt":"2026-11-25T08:00:00.000Z","claimed":false,"accessStatus":"none","seller":{"legalName":"x","bin":"x"},"online":null,"transfer":null,"kaspi":null}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json; charset=utf-8",
+    "etag": ""CbKYltqVSdG3urfdPUgwSAmyzBU"",
+  },
+  "request": "GET /api/v1/web/pay/pay-token",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > сотрудник без прав: ответ каждого маршрута совпадает байт в байт 20`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""CbKYltqVSdG3urfdPUgwSAmyzBU"",
+  },
+  "request": "GET /api/v1/web/pay/pay-token",
+  "status": 304,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > сотрудник без прав: ответ каждого маршрута совпадает байт в байт 21`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/web/pay/pay-token/viewed",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > сотрудник без прав: ответ каждого маршрута совпадает байт в байт 22`] = `
+{
+  "body": "{"claimed":true,"token":"pay-token"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/web/pay/claim",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > сотрудник без прав: ответ каждого маршрута совпадает байт в байт 23`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/money",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > сотрудник без прав: ответ каждого маршрута совпадает байт в байт 24`] = `
+{
+  "body": "{"ok":true,"message":"Оплата записана, заказ оплачен — переплата 1 000 ₸"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/payments?amount=29000&requestKey=dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > сотрудник без прав: ответ каждого маршрута совпадает байт в байт 25`] = `
+{
+  "body": "{"ok":true,"message":"Возврат записан"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/refunds?amount=29000&requestKey=dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > сотрудник без прав: ответ каждого маршрута совпадает байт в байт 26`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/orders/payments/dddddddd-dddd-4ddd-8ddd-dddddddddddd/void",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > сотрудник без прав: ответ каждого маршрута совпадает байт в байт 27`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/orders/payments/dddddddd-dddd-4ddd-8ddd-dddddddddddd/review",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > сотрудник без прав: ответ каждого маршрута совпадает байт в байт 28`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/postpay",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > сотрудник без прав: ответ каждого маршрута совпадает байт в байт 29`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "PUT /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/terms",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > сотрудник без прав: ответ каждого маршрута совпадает байт в байт 30`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/reprice-request",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > сотрудник без прав: ответ каждого маршрута совпадает байт в байт 31`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "PATCH /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/delivery",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > сотрудник без прав: ответ каждого маршрута совпадает байт в байт 32`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/files",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > сотрудник без прав: ответ каждого маршрута совпадает байт в байт 33`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/details",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > сотрудник без прав: ответ каждого маршрута совпадает байт в байт 34`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "PUT /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/details",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > сотрудник без прав: ответ каждого маршрута совпадает байт в байт 35`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/links",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > сотрудник без прав: ответ каждого маршрута совпадает байт в байт 36`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "PUT /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/note",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > сотрудник без прав: ответ каждого маршрута совпадает байт в байт 37`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/book-lock",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > сотрудник без прав: ответ каждого маршрута совпадает байт в байт 38`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/crm/finance?p=month",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > сотрудник без прав: ответ каждого маршрута совпадает байт в байт 39`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/finance/review",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > сотрудник без прав: ответ каждого маршрута совпадает байт в байт 40`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/finance/issues",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > сотрудник без прав: ответ каждого маршрута совпадает байт в байт 41`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/finance/resolutions/abababab-abab-4bab-8bab-abababababab/undo",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > сотрудник без прав: ответ каждого маршрута совпадает байт в байт 42`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/crm/expenses?p=month",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > сотрудник без прав: ответ каждого маршрута совпадает байт в байт 43`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/expenses",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > сотрудник без прав: ответ каждого маршрута совпадает байт в байт 44`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "PUT /api/v1/crm/expenses/ffffffff-ffff-4fff-8fff-ffffffffffff",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > сотрудник без прав: ответ каждого маршрута совпадает байт в байт 45`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "DELETE /api/v1/crm/expenses/ffffffff-ffff-4fff-8fff-ffffffffffff?source=expense",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > сотрудник без прав: ответ каждого маршрута совпадает байт в байт 46`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/crm/profit?p=month",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > сотрудник без прав: ответ каждого маршрута совпадает байт в байт 47`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "PUT /api/v1/crm/profit/fees",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > сотрудник без прав: ответ каждого маршрута совпадает байт в байт 48`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/crm/invoices/form?dealId=cdcdcdcd-cdcd-4dcd-8dcd-cdcdcdcdcdcd",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > сотрудник без прав: ответ каждого маршрута совпадает байт в байт 49`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/invoices",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > сотрудник без прав: ответ каждого маршрута совпадает байт в байт 50`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/invoices/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee/cancel",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > сотрудник без прав: ответ каждого маршрута совпадает байт в байт 51`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/invoices/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee/resend",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 1`] = `
+{
+  "body": "{"closed":false,"orderId":null}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json; charset=utf-8",
+    "etag": ""xjcA4Sv9hj84daw3U79J7A3Zgjs"",
+  },
+  "request": "GET /api/v1/cabinet/books/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/checkout",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 2`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""xjcA4Sv9hj84daw3U79J7A3Zgjs"",
+  },
+  "request": "GET /api/v1/cabinet/books/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/checkout",
+  "status": 304,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 3`] = `
+{
+  "body": "{"plan":"x","lines":[],"totalLabel":"x","total":"x","quotedTotal":null,"promo":null}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/cabinet/books/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/checkout/quote",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 4`] = `
+{
+  "body": "{"orderId":"cccccccc-cccc-4ccc-8ccc-cccccccccccc"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/cabinet/books/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/orders",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 5`] = `
+{
+  "body": "{"title":"x","lead":"x","empty":"x","emptyText":"x","orders":[]}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json; charset=utf-8",
+    "etag": ""t-svgaUVsyhAUfT4jLT-FNWqlD8"",
+  },
+  "request": "GET /api/v1/cabinet/orders",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 6`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""t-svgaUVsyhAUfT4jLT-FNWqlD8"",
+  },
+  "request": "GET /api/v1/cabinet/orders",
+  "status": 304,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 7`] = `
+{
+  "body": "{"id":"00000000-0000-4000-8000-000000000000","number":0,"title":"x","created":"x","bookId":"x","bookTitle":"x","status":"x","statusLabel":"x","tone":"x","printed":false,"paid":false,"nowTitle":"x","nowText":"x","steps":[],"stepOf":null,"trackingLabel":"x","trackingNumber":null,"detailsTitle":"x","facts":[],"lines":[],"totalLabel":"x","total":"x","quotedNote":null,"payment":null}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json; charset=utf-8",
+    "etag": ""L5dMhWVWZuKsLgJ5bUb_jzLUoUM"",
+  },
+  "request": "GET /api/v1/cabinet/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 8`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""L5dMhWVWZuKsLgJ5bUb_jzLUoUM"",
+  },
+  "request": "GET /api/v1/cabinet/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+  "status": 304,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 9`] = `
+{
+  "body": "{"invoice":{"id":"x","method":"x","status":"x","amount":0,"phone":null,"link":null,"qrSvg":null,"expiresAt":null,"paidAt":null}}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/cabinet/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/kaspi",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 10`] = `
+{
+  "body": "{"invoice":{"id":"x","method":"x","status":"x","amount":0,"phone":null,"link":null,"qrSvg":null,"expiresAt":null,"paidAt":null}}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json; charset=utf-8",
+    "etag": ""i7Fx1TMS8Ciyk0k1ddAbQbKhlTQ"",
+  },
+  "request": "GET /api/v1/cabinet/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/kaspi/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 11`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""i7Fx1TMS8Ciyk0k1ddAbQbKhlTQ"",
+  },
+  "request": "GET /api/v1/cabinet/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/kaspi/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+  "status": 304,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 12`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/cabinet/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/claim",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 13`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/cabinet/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/cancel",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 14`] = `
+{
+  "body": "{"closed":false,"data":null}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json; charset=utf-8",
+    "etag": ""0AutWtW9w8FNN-qpDZAC3kFgmDo"",
+  },
+  "request": "GET /api/v1/web/books/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/checkout?locale=ru",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 15`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""0AutWtW9w8FNN-qpDZAC3kFgmDo"",
+  },
+  "request": "GET /api/v1/web/books/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/checkout?locale=ru",
+  "status": 304,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 16`] = `
+{
+  "body": "{"ok":false}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/web/checkout/promo-check",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 17`] = `
+{
+  "body": "{"orderId":"cccccccc-cccc-4ccc-8ccc-cccccccccccc","amount":29000}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/web/orders",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 18`] = `
+{
+  "body": "{"orders":[],"agreement":null,"agreementBooks":[]}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json; charset=utf-8",
+    "etag": ""jFdGCBs5js8-1aZVPI-CSpvZaDM"",
+  },
+  "request": "GET /api/v1/web/orders?locale=ru",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 19`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""jFdGCBs5js8-1aZVPI-CSpvZaDM"",
+  },
+  "request": "GET /api/v1/web/orders?locale=ru",
+  "status": 304,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 20`] = `
+{
+  "body": "{"own":false,"printed":false,"paid":false,"statusLabel":"x","statusTone":"warning","reviewable":false,"reviewThankYouPercent":0,"referral":{"friendPercent":0,"rewardPercent":0},"review":null,"upgrade":null,"payment":null,"layout":{"state":"notRequired","again":false,"approvedAt":null},"order":{"id":"00000000-0000-4000-8000-000000000000","number":0,"status":"pending_payment","plan":"x","quantity":0,"currency":"x","itemsAmount":0,"discountAmount":0,"addonsAmount":0,"deliveryAmount":0,"prepaidAmount":0,"amount":0,"promoCode":null,"addons":[],"deliveryMethod":null,"deliveryCountry":null,"postalCode":null,"city":null,"address":null,"contactName":"x","contactPhone":"x","contactEmail":"x","giftNote":null,"desiredDate":null,"surprise":false,"customerComment":null,"trackingNumber":null,"paymentClaimedAt":null,"createdAt":"2026-11-25T08:00:00.000Z","book":{"id":"00000000-0000-4000-8000-000000000000","title":"x","subtitle":"x","coverTemplate":"x","coverLines":false,"format":"x","theme":"x","authorName":"x","recipientName":"x","hideRecipientOnCover":false,"namesOnCover":"x","coverPhotoId":null,"coverPhotoExtra":null,"coverDesign":null}}}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json; charset=utf-8",
+    "etag": ""FBd0KiGpXBXFJNwFhfLlqbdUVH4"",
+  },
+  "request": "GET /api/v1/web/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc?locale=ru",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 21`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""FBd0KiGpXBXFJNwFhfLlqbdUVH4"",
+  },
+  "request": "GET /api/v1/web/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc?locale=ru",
+  "status": 304,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 22`] = `
+{
+  "body": "{"state":"approved","again":false,"approvedAt":"2026-11-25T08:00:00.000Z"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/web/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/layout-approval",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 23`] = `
+{
+  "body": "{"token":"x","number":0,"label":"x","state":"paid","viewed":false,"amount":0,"plan":"x","purpose":"prepayment","booksCount":0,"gifts":[],"expiresAt":"2026-11-25T08:00:00.000Z","claimed":false,"accessStatus":"none","seller":{"legalName":"x","bin":"x"},"online":null,"transfer":null,"kaspi":null}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json; charset=utf-8",
+    "etag": ""CbKYltqVSdG3urfdPUgwSAmyzBU"",
+  },
+  "request": "GET /api/v1/web/pay/pay-token",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 24`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""CbKYltqVSdG3urfdPUgwSAmyzBU"",
+  },
+  "request": "GET /api/v1/web/pay/pay-token",
+  "status": 304,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 25`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/web/pay/pay-token/viewed",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 26`] = `
+{
+  "body": "{"claimed":true,"token":"pay-token"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/web/pay/claim",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 27`] = `
+{
+  "body": "{"id":"cccccccc-cccc-4ccc-8ccc-cccccccccccc","number":1042,"status":"paid","statusLabel":"Оплачен","statuses":[{"id":"pending_payment","label":"Ожидает оплаты"},{"id":"paid","label":"Оплачен"},{"id":"in_production","label":"В производстве"},{"id":"shipped","label":"Отправлен"},{"id":"delivered","label":"Доставлен"},{"id":"cancelled","label":"Отменён"}],"printed":true,"trackingNumber":null,"amount":29000,"received":29000,"refundable":0,"settled":true,"postpay":false,"cancelled":false,"payments":[{"id":"dddddddd-dddd-4ddd-8ddd-dddddddddddd","kind":"payment","amount":29000,"method":"Kaspi","at":"2026-11-25T08:00:00.000Z","note":null,"receipt":false,"payForm":null,"by":"Айгерим","reviewed":null,"voided":false,"voidReason":null}],"payForms":["Kaspi","Наличные"],"plan":"hardcover","plans":[{"id":"digital","label":"Электронная","price":9900},{"id":"hardcover","label":"Твёрдая обложка","price":30000},{"id":"premium","label":"Премиум (скрыт)","price":35000}],"agreed":null,"maxDiscountPercent":15,"canEdit":true,"canVoid":true,"canReview":true,"canTerms":true,"canRequestReprice":false}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json; charset=utf-8",
+    "etag": ""LoDQ3NkBUQa49WfZ61-rgahXQa8"",
+  },
+  "request": "GET /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/money",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 28`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""LoDQ3NkBUQa49WfZ61-rgahXQa8"",
+  },
+  "request": "GET /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/money",
+  "status": 304,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 29`] = `
+{
+  "body": "{"ok":true,"message":"Оплата записана, заказ оплачен — переплата 1 000 ₸"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/payments?amount=29000&requestKey=dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 30`] = `
+{
+  "body": "{"ok":true,"message":"Возврат записан"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/refunds?amount=29000&requestKey=dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 31`] = `
+{
+  "body": "{"ok":true,"message":"Сохранено"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/orders/payments/dddddddd-dddd-4ddd-8ddd-dddddddddddd/void",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 32`] = `
+{
+  "body": "{"ok":true,"message":"Сохранено"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/orders/payments/dddddddd-dddd-4ddd-8ddd-dddddddddddd/review",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 33`] = `
+{
+  "body": "{"ok":true,"message":"Сохранено"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/postpay",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 34`] = `
+{
+  "body": "{"ok":true,"message":"Сохранено"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "PUT /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/terms",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 35`] = `
+{
+  "body": "{"ok":true,"message":"Сохранено"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/reprice-request",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 36`] = `
+{
+  "body": "{"ok":true,"message":"Сохранено"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "PATCH /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/delivery",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 37`] = `
+{
+  "body": "{"canFiles":true,"layout":{"state":"pending","again":false,"approvedAt":null,"blocked":"Клиент ещё не согласовал макет","clientUrl":"http://localhost:3000/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc"},"spec":null,"files":[{"kind":"block","label":"Блок книги","url":"/api/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/files/block"},{"kind":"cover","label":"Обложка","url":"/api/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/files/cover"},{"kind":"layout","label":"Каркас обложки","url":"/api/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/files/layout"},{"kind":"spec","label":"Техзадание","url":"/api/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/files/spec"},{"kind":"reading","label":"PDF для чтения","url":"/api/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/files/reading"}],"packageUrl":"/api/admin/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/package","progressUrl":"/api/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/render-progress","bookLocked":true,"canLock":true,"canRegenerate":true}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json; charset=utf-8",
+    "etag": ""Uyk6UwGXCrMxX3rQfity2p1yMig"",
+  },
+  "request": "GET /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/files",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 38`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""Uyk6UwGXCrMxX3rQfity2p1yMig"",
+  },
+  "request": "GET /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/files",
+  "status": 304,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 39`] = `
+{
+  "body": "{"canEdit":true,"contactName":"Асель","contactPhone":"+77011234567","contactEmail":"asel@example.kz","deliveryMethod":"courier","deliveryMethods":[{"id":"courier","label":"Курьер по городу"},{"id":"post","label":"Доставка по Казахстану"},{"id":"pickup","label":"Самовывоз"},{"id":"abroad","label":"В другую страну (стоимость считает менеджер)"}],"country":"KZ","city":"Алматы","address":"Абая 1","postalCode":null,"desiredDate":null,"giftNote":null}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json; charset=utf-8",
+    "etag": ""Sgj6L9YArCMqSMIiTBVeM4hSlbc"",
+  },
+  "request": "GET /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/details",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 40`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""Sgj6L9YArCMqSMIiTBVeM4hSlbc"",
+  },
+  "request": "GET /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/details",
+  "status": 304,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 41`] = `
+{
+  "body": "{"ok":true,"message":"Сохранено"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "PUT /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/details",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 42`] = `
+{
+  "body": "{"clientId":"88888888-8888-4888-8888-888888888888","dealId":"cdcdcdcd-cdcd-4dcd-8dcd-cdcdcdcdcdcd","dealNumber":42,"chatId":null,"bookId":"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","adminNote":"","canNote":true,"printUrl":"/print/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc"}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json; charset=utf-8",
+    "etag": ""Iw5IHHoVkks-TteBQTUEplq8-wE"",
+  },
+  "request": "GET /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/links",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 43`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""Iw5IHHoVkks-TteBQTUEplq8-wE"",
+  },
+  "request": "GET /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/links",
+  "status": 304,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 44`] = `
+{
+  "body": "{"ok":true,"message":"Сохранено"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "PUT /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/note",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 45`] = `
+{
+  "body": "{"ok":true,"message":"Книга открыта для правок клиентом"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/book-lock",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 46`] = `
+{
+  "body": "{"period":{"preset":"month","label":"1–26 ноября 2026 г.","first":"2026-11-01","last":"2026-11-26","presets":[{"id":"today","label":"Сегодня"},{"id":"7d","label":"7 дней"},{"id":"month","label":"Месяц"},{"id":"prev","label":"Прошлый месяц"}]},"own":false,"totals":{"net":0,"incoming":0,"refunds":0,"online":0,"manual":0,"count":0,"refundCount":0,"prevNet":0,"delta":0,"expected":0,"expectedReady":0,"postpay":0,"postpayCount":0,"overpaid":0,"overpaidCount":0,"reviewCount":0,"reviewSum":0},"flow":{"incoming":0,"refunds":0,"fees":0,"tax":0,"net":0,"other":0,"profit":0},"byDay":[{"date":"2026-11-01","incoming":0,"refunds":0},{"date":"2026-11-02","incoming":0,"refunds":0},{"date":"2026-11-03","incoming":0,"refunds":0},{"date":"2026-11-04","incoming":0,"refunds":0},{"date":"2026-11-05","incoming":0,"refunds":0},{"date":"2026-11-06","incoming":0,"refunds":0},{"date":"2026-11-07","incoming":0,"refunds":0},{"date":"2026-11-08","incoming":0,"refunds":0},{"date":"2026-11-09","incoming":0,"refunds":0},{"date":"2026-11-10","incoming":0,"refunds":0},{"date":"2026-11-11","incoming":0,"refunds":0},{"date":"2026-11-12","incoming":0,"refunds":0},{"date":"2026-11-13","incoming":0,"refunds":0},{"date":"2026-11-14","incoming":0,"refunds":0},{"date":"2026-11-15","incoming":0,"refunds":0},{"date":"2026-11-16","incoming":0,"refunds":0},{"date":"2026-11-17","incoming":0,"refunds":0},{"date":"2026-11-18","incoming":0,"refunds":0},{"date":"2026-11-19","incoming":0,"refunds":0},{"date":"2026-11-20","incoming":0,"refunds":0},{"date":"2026-11-21","incoming":0,"refunds":0},{"date":"2026-11-22","incoming":0,"refunds":0},{"date":"2026-11-23","incoming":0,"refunds":0},{"date":"2026-11-24","incoming":0,"refunds":0},{"date":"2026-11-25","incoming":0,"refunds":0},{"date":"2026-11-26","incoming":0,"refunds":0}],"byMethod":[],"byManager":[],"review":[],"issues":[],"resolved":[],"recent":[],"refunds":[],"expected":{"rows":[],"groups":[{"key":"ready","label":"Книга готова или заказ оформлен","value":0,"count":0},{"key":"progress","label":"Книга в работе","value":0,"count":0},{"key":"none","label":"Книга не начата","value":0,"count":0}],"total":0},"perms":{"reviewDeal":true,"reviewOrder":true,"resolveDeal":true,"resolveOrder":true,"refundDeal":true,"editOrder":true}}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json; charset=utf-8",
+    "etag": ""7vte-rM2eGm8NPpBPhjhxZBPuhE"",
+  },
+  "request": "GET /api/v1/crm/finance?p=month",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 47`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""7vte-rM2eGm8NPpBPhjhxZBPuhE"",
+  },
+  "request": "GET /api/v1/crm/finance?p=month",
+  "status": 304,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 48`] = `
+{
+  "body": "{"ok":true,"message":"Сохранено"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/finance/review",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 49`] = `
+{
+  "body": "{"ok":true,"message":"Сохранено"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/finance/issues",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 50`] = `
+{
+  "body": "{"ok":true,"message":"Сохранено"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/finance/resolutions/abababab-abab-4bab-8bab-abababababab/undo",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 51`] = `
+{
+  "body": "{"period":{"preset":"month","label":"1–26 ноября 2026 г.","first":"2026-11-01","last":"2026-11-26","presets":[{"id":"today","label":"Сегодня"},{"id":"7d","label":"7 дней"},{"id":"month","label":"Месяц"},{"id":"prev","label":"Прошлый месяц"}]},"total":0,"byCategory":[],"byGroup":[{"key":"cogs","label":"Себестоимость","value":0,"count":0},{"key":"marketing","label":"Реклама","value":0,"count":0},{"key":"team","label":"Команда","value":0,"count":0},{"key":"operating","label":"Прочие расходы","value":0,"count":0}],"rows":[],"canManage":true,"categories":[{"id":"ads","label":"Реклама","group":"marketing"},{"id":"print","label":"Печать книг","group":"cogs"},{"id":"delivery","label":"Доставка","group":"cogs"},{"id":"packaging","label":"Упаковка и расходники","group":"cogs"},{"id":"fees","label":"Комиссии банка и рассрочки","group":"cogs"},{"id":"payroll","label":"Зарплата и бонусы","group":"team"},{"id":"services","label":"Сервисы, ИИ и связь","group":"operating"},{"id":"equipment","label":"Оборудование и инвентарь","group":"operating"},{"id":"tax","label":"Налоги","group":"operating"},{"id":"other","label":"Прочее","group":"operating"}],"channels":[{"id":"instagram","label":"Instagram"},{"id":"tiktok","label":"TikTok"},{"id":"facebook","label":"Facebook"},{"id":"whatsapp","label":"WhatsApp"},{"id":"telegram","label":"Telegram"},{"id":"youtube","label":"YouTube"},{"id":"vk","label":"ВКонтакте"},{"id":"google_ads","label":"Google Ads"},{"id":"google","label":"Google (поиск)"},{"id":"yandex_ads","label":"Яндекс Директ"},{"id":"yandex","label":"Яндекс (поиск)"},{"id":"bloggers","label":"Блогеры"},{"id":"email","label":"E-mail рассылка"},{"id":"referral","label":"Другие сайты"},{"id":"call","label":"Звонок"},{"id":"offline","label":"Офлайн (листовки, QR)"},{"id":"recommendation","label":"Рекомендация знакомых"},{"id":"repeat","label":"Повторный клиент"},{"id":"other","label":"Другое"},{"id":"direct","label":"Прямой заход"}]}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json; charset=utf-8",
+    "etag": ""pWQJWcw-9-5TrW0sL8J3qWfLEBk"",
+  },
+  "request": "GET /api/v1/crm/expenses?p=month",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 52`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""pWQJWcw-9-5TrW0sL8J3qWfLEBk"",
+  },
+  "request": "GET /api/v1/crm/expenses?p=month",
+  "status": 304,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 53`] = `
+{
+  "body": "{"ok":true,"message":"Расход внесён"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/expenses",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 54`] = `
+{
+  "body": "{"ok":true,"message":"Сохранено"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "PUT /api/v1/crm/expenses/ffffffff-ffff-4fff-8fff-ffffffffffff",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 55`] = `
+{
+  "body": "{"ok":true,"message":"Расход удалён"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "DELETE /api/v1/crm/expenses/ffffffff-ffff-4fff-8fff-ffffffffffff?source=expense",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 56`] = `
+{
+  "body": "{"period":{"preset":"month","label":"1–26 ноября 2026 г.","first":"2026-11-01","last":"2026-11-26","presets":[{"id":"today","label":"Сегодня"},{"id":"7d","label":"7 дней"},{"id":"month","label":"Месяц"},{"id":"prev","label":"Прошлый месяц"}]},"totals":{"revenue":0,"expenses":0,"profit":0,"margin":null,"deltaRevenue":0,"deltaExpenses":0,"deltaProfit":null},"lines":[{"label":"Пришло от клиентов","value":0,"prev":0,"kind":"sub","minus":false},{"label":"Возвраты клиентам","value":0,"prev":0,"kind":"sub","minus":true},{"label":"Выручка","value":0,"prev":0,"kind":"sum","minus":false},{"label":"Валовая прибыль","value":0,"prev":0,"kind":"sum","minus":false},{"label":"Реклама","value":0,"prev":0,"kind":null,"minus":true},{"label":"Команда","value":0,"prev":0,"kind":null,"minus":true},{"label":"Прочие расходы","value":0,"prev":0,"kind":null,"minus":true},{"label":"Прибыль","value":0,"prev":0,"kind":"result","minus":false}],"step":"day","rows":[{"key":"2026-11-01","label":"1 нояб.","revenue":0,"expenses":0,"profit":0},{"key":"2026-11-02","label":"2 нояб.","revenue":0,"expenses":0,"profit":0},{"key":"2026-11-03","label":"3 нояб.","revenue":0,"expenses":0,"profit":0},{"key":"2026-11-04","label":"4 нояб.","revenue":0,"expenses":0,"profit":0},{"key":"2026-11-05","label":"5 нояб.","revenue":0,"expenses":0,"profit":0},{"key":"2026-11-06","label":"6 нояб.","revenue":0,"expenses":0,"profit":0},{"key":"2026-11-07","label":"7 нояб.","revenue":0,"expenses":0,"profit":0},{"key":"2026-11-08","label":"8 нояб.","revenue":0,"expenses":0,"profit":0},{"key":"2026-11-09","label":"9 нояб.","revenue":0,"expenses":0,"profit":0},{"key":"2026-11-10","label":"10 нояб.","revenue":0,"expenses":0,"profit":0},{"key":"2026-11-11","label":"11 нояб.","revenue":0,"expenses":0,"profit":0},{"key":"2026-11-12","label":"12 нояб.","revenue":0,"expenses":0,"profit":0},{"key":"2026-11-13","label":"13 нояб.","revenue":0,"expenses":0,"profit":0},{"key":"2026-11-14","label":"14 нояб.","revenue":0,"expenses":0,"profit":0},{"key":"2026-11-15","label":"15 нояб.","revenue":0,"expenses":0,"profit":0},{"key":"2026-11-16","label":"16 нояб.","revenue":0,"expenses":0,"profit":0},{"key":"2026-11-17","label":"17 нояб.","revenue":0,"expenses":0,"profit":0},{"key":"2026-11-18","label":"18 нояб.","revenue":0,"expenses":0,"profit":0},{"key":"2026-11-19","label":"19 нояб.","revenue":0,"expenses":0,"profit":0},{"key":"2026-11-20","label":"20 нояб.","revenue":0,"expenses":0,"profit":0},{"key":"2026-11-21","label":"21 нояб.","revenue":0,"expenses":0,"profit":0},{"key":"2026-11-22","label":"22 нояб.","revenue":0,"expenses":0,"profit":0},{"key":"2026-11-23","label":"23 нояб.","revenue":0,"expenses":0,"profit":0},{"key":"2026-11-24","label":"24 нояб.","revenue":0,"expenses":0,"profit":0},{"key":"2026-11-25","label":"25 нояб.","revenue":0,"expenses":0,"profit":0},{"key":"2026-11-26","label":"26 нояб.","revenue":0,"expenses":0,"profit":0}],"flow":{"incoming":0,"refunds":0,"fees":0,"tax":0,"net":0,"other":0,"profit":0},"unit":{"leads":0,"buyers":0,"orders":0,"conversion":null,"cpl":null,"cac":null,"roasCash":null,"roasFirst":null,"roasAgreed":null,"adShare":null,"avgFirst":null,"avgAgreed":null,"printPerBook":null,"profitPerBuyer":null},"fees":{"auto":0,"base":0,"byForm":[]},"tax":{"rate":0,"auto":0},"noExpenses":true,"canManage":true,"payForms":["Kaspi Gold","Kaspi Рассрочка","Kaspi Red","Перевод","Наличные"],"feeRates":{"Kaspi Рассрочка":15,"Kaspi Red":12}}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json; charset=utf-8",
+    "etag": ""9YJv3kKxGN8O5JvqSczPCfdzOTw"",
+  },
+  "request": "GET /api/v1/crm/profit?p=month",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 57`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""9YJv3kKxGN8O5JvqSczPCfdzOTw"",
+  },
+  "request": "GET /api/v1/crm/profit?p=month",
+  "status": 304,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 58`] = `
+{
+  "body": "{"ok":true,"message":"Проценты сохранены"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "PUT /api/v1/crm/profit/fees",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 59`] = `
+{
+  "body": "{"dealId":null,"dealNumber":null,"plan":null,"agreedTotal":0,"paid":0,"hasOrder":false,"orderId":null,"closed":false,"open":null,"clientName":"x","locale":"x","channel":"x","chat":null,"plans":[],"gifts":[],"giftPrices":{"giftwrap":0,"delivery":0},"methods":{"kaspi":false,"card":false,"transfer":false},"kaspiPhoneMasked":null,"maxDiscountPercent":null,"preview":{"until":{},"link":{}}}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json; charset=utf-8",
+    "etag": ""3QcrzGju9ECdikII2MEidLflxyU"",
+  },
+  "request": "GET /api/v1/crm/invoices/form?dealId=cdcdcdcd-cdcd-4dcd-8dcd-cdcdcdcdcdcd",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 60`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""3QcrzGju9ECdikII2MEidLflxyU"",
+  },
+  "request": "GET /api/v1/crm/invoices/form?dealId=cdcdcdcd-cdcd-4dcd-8dcd-cdcdcdcdcdcd",
+  "status": 304,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 61`] = `
+{
+  "body": "{"ok":true,"message":"Счёт отправлен","link":"https://pay.example/1","text":"Оплатите","sent":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/invoices",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 62`] = `
+{
+  "body": "{"ok":true,"message":"Счёт отменён"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/invoices/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee/cancel",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > успешный вызов каждого маршрута совпадает байт в байт (GET — с ETag и 304) 63`] = `
+{
+  "body": "{"ok":true,"message":"Счёт отправлен","link":"https://pay.example/1","text":"Оплатите","sent":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/invoices/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee/resend",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > чужой клиент: ответ каждого маршрута совпадает байт в байт 1`] = `
+{
+  "body": "{"error":"Книга не найдена","code":"bookNotFound"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/cabinet/books/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/checkout",
+  "status": 404,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > чужой клиент: ответ каждого маршрута совпадает байт в байт 2`] = `
+{
+  "body": "{"error":"Книга не найдена","code":"bookNotFound"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/cabinet/books/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/checkout/quote",
+  "status": 404,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > чужой клиент: ответ каждого маршрута совпадает байт в байт 3`] = `
+{
+  "body": "{"error":"Книга не найдена","code":"bookNotFound"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/cabinet/books/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/orders",
+  "status": 404,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > чужой клиент: ответ каждого маршрута совпадает байт в байт 4`] = `
+{
+  "body": "{"title":"x","lead":"x","empty":"x","emptyText":"x","orders":[]}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json; charset=utf-8",
+    "etag": ""t-svgaUVsyhAUfT4jLT-FNWqlD8"",
+  },
+  "request": "GET /api/v1/cabinet/orders",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > чужой клиент: ответ каждого маршрута совпадает байт в байт 5`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""t-svgaUVsyhAUfT4jLT-FNWqlD8"",
+  },
+  "request": "GET /api/v1/cabinet/orders",
+  "status": 304,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > чужой клиент: ответ каждого маршрута совпадает байт в байт 6`] = `
+{
+  "body": "{"error":"Не найдено","code":"notFound"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/cabinet/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+  "status": 404,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > чужой клиент: ответ каждого маршрута совпадает байт в байт 7`] = `
+{
+  "body": "{"error":"Не найдено","code":"notFound"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/cabinet/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/kaspi",
+  "status": 404,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > чужой клиент: ответ каждого маршрута совпадает байт в байт 8`] = `
+{
+  "body": "{"error":"Не найдено","code":"notFound"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/cabinet/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/kaspi/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+  "status": 404,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > чужой клиент: ответ каждого маршрута совпадает байт в байт 9`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/cabinet/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/claim",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > чужой клиент: ответ каждого маршрута совпадает байт в байт 10`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/cabinet/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/cancel",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > чужой клиент: ответ каждого маршрута совпадает байт в байт 11`] = `
+{
+  "body": "{"error":"Книга не найдена","code":"bookNotFound"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/web/books/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/checkout?locale=ru",
+  "status": 404,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > чужой клиент: ответ каждого маршрута совпадает байт в байт 12`] = `
+{
+  "body": "{"ok":false}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/web/checkout/promo-check",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > чужой клиент: ответ каждого маршрута совпадает байт в байт 13`] = `
+{
+  "body": "{"orderId":"cccccccc-cccc-4ccc-8ccc-cccccccccccc","amount":29000}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/web/orders",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > чужой клиент: ответ каждого маршрута совпадает байт в байт 14`] = `
+{
+  "body": "{"orders":[],"agreement":null,"agreementBooks":[]}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json; charset=utf-8",
+    "etag": ""jFdGCBs5js8-1aZVPI-CSpvZaDM"",
+  },
+  "request": "GET /api/v1/web/orders?locale=ru",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > чужой клиент: ответ каждого маршрута совпадает байт в байт 15`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""jFdGCBs5js8-1aZVPI-CSpvZaDM"",
+  },
+  "request": "GET /api/v1/web/orders?locale=ru",
+  "status": 304,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > чужой клиент: ответ каждого маршрута совпадает байт в байт 16`] = `
+{
+  "body": "{"own":false,"printed":false,"paid":false,"statusLabel":"x","statusTone":"warning","reviewable":false,"reviewThankYouPercent":0,"referral":{"friendPercent":0,"rewardPercent":0},"review":null,"upgrade":null,"payment":null,"layout":{"state":"notRequired","again":false,"approvedAt":null},"order":{"id":"00000000-0000-4000-8000-000000000000","number":0,"status":"pending_payment","plan":"x","quantity":0,"currency":"x","itemsAmount":0,"discountAmount":0,"addonsAmount":0,"deliveryAmount":0,"prepaidAmount":0,"amount":0,"promoCode":null,"addons":[],"deliveryMethod":null,"deliveryCountry":null,"postalCode":null,"city":null,"address":null,"contactName":"x","contactPhone":"x","contactEmail":"x","giftNote":null,"desiredDate":null,"surprise":false,"customerComment":null,"trackingNumber":null,"paymentClaimedAt":null,"createdAt":"2026-11-25T08:00:00.000Z","book":{"id":"00000000-0000-4000-8000-000000000000","title":"x","subtitle":"x","coverTemplate":"x","coverLines":false,"format":"x","theme":"x","authorName":"x","recipientName":"x","hideRecipientOnCover":false,"namesOnCover":"x","coverPhotoId":null,"coverPhotoExtra":null,"coverDesign":null}}}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json; charset=utf-8",
+    "etag": ""FBd0KiGpXBXFJNwFhfLlqbdUVH4"",
+  },
+  "request": "GET /api/v1/web/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc?locale=ru",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > чужой клиент: ответ каждого маршрута совпадает байт в байт 17`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""FBd0KiGpXBXFJNwFhfLlqbdUVH4"",
+  },
+  "request": "GET /api/v1/web/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc?locale=ru",
+  "status": 304,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > чужой клиент: ответ каждого маршрута совпадает байт в байт 18`] = `
+{
+  "body": "{"error":"Заказ не найден","code":"orderNotFound"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/web/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/layout-approval",
+  "status": 404,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > чужой клиент: ответ каждого маршрута совпадает байт в байт 19`] = `
+{
+  "body": "{"token":"x","number":0,"label":"x","state":"paid","viewed":false,"amount":0,"plan":"x","purpose":"prepayment","booksCount":0,"gifts":[],"expiresAt":"2026-11-25T08:00:00.000Z","claimed":false,"accessStatus":"none","seller":{"legalName":"x","bin":"x"},"online":null,"transfer":null,"kaspi":null}",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "content-type": "application/json; charset=utf-8",
+    "etag": ""CbKYltqVSdG3urfdPUgwSAmyzBU"",
+  },
+  "request": "GET /api/v1/web/pay/pay-token",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > чужой клиент: ответ каждого маршрута совпадает байт в байт 20`] = `
+{
+  "body": "",
+  "headers": {
+    "cache-control": "private, no-cache",
+    "etag": ""CbKYltqVSdG3urfdPUgwSAmyzBU"",
+  },
+  "request": "GET /api/v1/web/pay/pay-token",
+  "status": 304,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > чужой клиент: ответ каждого маршрута совпадает байт в байт 21`] = `
+{
+  "body": "{"ok":true}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/web/pay/pay-token/viewed",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > чужой клиент: ответ каждого маршрута совпадает байт в байт 22`] = `
+{
+  "body": "{"claimed":true,"token":"pay-token"}",
+  "headers": {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/web/pay/claim",
+  "status": 200,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > чужой клиент: ответ каждого маршрута совпадает байт в байт 23`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/money",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > чужой клиент: ответ каждого маршрута совпадает байт в байт 24`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/payments?amount=29000&requestKey=dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > чужой клиент: ответ каждого маршрута совпадает байт в байт 25`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/refunds?amount=29000&requestKey=dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > чужой клиент: ответ каждого маршрута совпадает байт в байт 26`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/orders/payments/dddddddd-dddd-4ddd-8ddd-dddddddddddd/void",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > чужой клиент: ответ каждого маршрута совпадает байт в байт 27`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/orders/payments/dddddddd-dddd-4ddd-8ddd-dddddddddddd/review",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > чужой клиент: ответ каждого маршрута совпадает байт в байт 28`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/postpay",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > чужой клиент: ответ каждого маршрута совпадает байт в байт 29`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "PUT /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/terms",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > чужой клиент: ответ каждого маршрута совпадает байт в байт 30`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/reprice-request",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > чужой клиент: ответ каждого маршрута совпадает байт в байт 31`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "PATCH /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/delivery",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > чужой клиент: ответ каждого маршрута совпадает байт в байт 32`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/files",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > чужой клиент: ответ каждого маршрута совпадает байт в байт 33`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/details",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > чужой клиент: ответ каждого маршрута совпадает байт в байт 34`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "PUT /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/details",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > чужой клиент: ответ каждого маршрута совпадает байт в байт 35`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/links",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > чужой клиент: ответ каждого маршрута совпадает байт в байт 36`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "PUT /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/note",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > чужой клиент: ответ каждого маршрута совпадает байт в байт 37`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/orders/cccccccc-cccc-4ccc-8ccc-cccccccccccc/book-lock",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > чужой клиент: ответ каждого маршрута совпадает байт в байт 38`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/crm/finance?p=month",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > чужой клиент: ответ каждого маршрута совпадает байт в байт 39`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/finance/review",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > чужой клиент: ответ каждого маршрута совпадает байт в байт 40`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/finance/issues",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > чужой клиент: ответ каждого маршрута совпадает байт в байт 41`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/finance/resolutions/abababab-abab-4bab-8bab-abababababab/undo",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > чужой клиент: ответ каждого маршрута совпадает байт в байт 42`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/crm/expenses?p=month",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > чужой клиент: ответ каждого маршрута совпадает байт в байт 43`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/expenses",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > чужой клиент: ответ каждого маршрута совпадает байт в байт 44`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "PUT /api/v1/crm/expenses/ffffffff-ffff-4fff-8fff-ffffffffffff",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > чужой клиент: ответ каждого маршрута совпадает байт в байт 45`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "DELETE /api/v1/crm/expenses/ffffffff-ffff-4fff-8fff-ffffffffffff?source=expense",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > чужой клиент: ответ каждого маршрута совпадает байт в байт 46`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/crm/profit?p=month",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > чужой клиент: ответ каждого маршрута совпадает байт в байт 47`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "PUT /api/v1/crm/profit/fees",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > чужой клиент: ответ каждого маршрута совпадает байт в байт 48`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "GET /api/v1/crm/invoices/form?dealId=cdcdcdcd-cdcd-4dcd-8dcd-cdcdcdcdcdcd",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > чужой клиент: ответ каждого маршрута совпадает байт в байт 49`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/invoices",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > чужой клиент: ответ каждого маршрута совпадает байт в байт 50`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/invoices/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee/cancel",
+  "status": 403,
+}
+`;
+
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7A — 47 маршрутов заказов и денег > чужой клиент: ответ каждого маршрута совпадает байт в байт 51`] = `
+{
+  "body": "{"error":"Запрос отклонён","code":"forbidden"}",
+  "headers": {
+    "content-type": "application/json; charset=utf-8",
+  },
+  "request": "POST /api/v1/crm/invoices/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee/resend",
+  "status": 403,
+}
+`;

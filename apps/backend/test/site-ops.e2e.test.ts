@@ -109,9 +109,9 @@ vi.mock("@/server/site-handlers/payments/kaspi-invoice-item", async (orig) => ec
 vi.mock("@/server/site-handlers/payments/kaspi-invoices", async (orig) => echoModule(await orig()));
 vi.mock("@/server/site-handlers/payments/kaspi-webhook", async (orig) => echoModule(await orig()));
 
-vi.mock("next/headers", () => import("../../../apps/api/src/http/next-shim"));
-vi.mock("next/server", () => import("../../../apps/api/src/http/next-shim"));
-vi.mock("next/navigation", () => import("../../../apps/api/src/http/next-shim"));
+vi.mock("next/headers", () => import("@/server/http/next-shim"));
+vi.mock("next/server", () => import("@/server/http/next-shim"));
+vi.mock("next/navigation", () => import("@/server/http/next-shim"));
 vi.mock("@/server/auth", async (orig) => {
   const actual = await orig<typeof import("@/server/auth")>();
   const { legacyRequestContext } = await import("@/server/request-context");
@@ -146,9 +146,8 @@ vi.mock("@/server/access", async (orig) => {
 shared.users = ALL_USERS;
 shared.tokenOf = (u) => sessionOf(u as typeof OWNER);
 
-const { assertRouteParity, createLegacyTestApp } = await import("./parity");
+const { assertRoute } = await import("./expected");
 const { legacySiteOpsPorts } = await import("../src/legacy/site-ops.ports");
-const { handleSiteRoute } = await import("../../../apps/api/src/site-routes");
 
 /** Все 32 маршрута контекста 7B — как в адаптере legacy/site-ops.ports.ts и реестре сайта. */
 const ROUTES = [
@@ -196,12 +195,10 @@ const asClient = { cookie: `mb_session=${sessionOf(CLIENT)}` };
 const asBearer = { authorization: `Bearer ${sessionOf(CLIENT)}` };
 
 let app: NestFastifyApplication;
-let legacy: ReturnType<typeof createLegacyTestApp>;
 
 beforeAll(async () => {
   const ports = (legacySiteOpsPorts as { useFactory: () => unknown }).useFactory();
   ({ app } = await bootTestApp({ users: ALL_USERS, overrides: [[STAFF_ACCESS, staffAccess], [SITE_OPS_PORTS, ports]] }));
-  legacy = createLegacyTestApp({ users: ALL_USERS, siteRoutes: handleSiteRoute });
 });
 
 afterAll(() => app.close());
@@ -221,7 +218,7 @@ async function each(fn: (method: string, path: string) => Promise<unknown>) {
 
 const jsonBody = { event: "payment", amount: 29000, note: "Оплата — «Kaspi»" };
 
-describe("паритет NestJS ↔ mybook-api: Контекст 7B — 32 маршрута сайта через мост к обработчикам сайта", () => {
+describe("ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 7B — 32 маршрута сайта через мост к обработчикам сайта", () => {
   it("маршрутов 32, без повторов", () => {
     expect(ROUTES).toHaveLength(32);
     expect(new Set(ROUTES).size).toBe(32);
@@ -237,9 +234,8 @@ describe("паритет NestJS ↔ mybook-api: Контекст 7B — 32 ма�
   ] as const) {
     it(`${who}: каждый маршрут видит тот же запрос и вход`, async () => {
       const failed = await each((method, url) =>
-        assertRouteParity({
+        assertRoute({
           nest: app,
-          legacy,
           method: method as "GET",
           url: method === "GET" || method === "DELETE" ? `${url}?a=1&b=${encodeURIComponent("два")}` : url,
           headers: { ...headers, "x-mybook-locale": "kk" },
@@ -253,14 +249,14 @@ describe("паритет NestJS ↔ mybook-api: Контекст 7B — 32 ма�
   it("сырые байты тела для подписей вебхуков (JSON с пробелами, form-urlencoded, text) — те же", async () => {
     const raw = '{ "event" : "payment",  "amount":29000 , "note":"Оплата"}';
     for (const url of ["/api/payments/kaspi/webhook", "/api/integrations/gowa", "/api/v1/site/payments/kaspi/webhook"]) {
-      await assertRouteParity({ nest: app, legacy, method: "POST", url, headers: { "content-type": "application/json", "x-signature": "sig-1" }, body: raw });
+      await assertRoute({ nest: app, method: "POST", url, headers: { "content-type": "application/json", "x-signature": "sig-1" }, body: raw });
     }
     const form = "Id=1&Amount=29000.00&Data=%7B%22a%22%3A1%7D&Description=%D0%9E%D0%BF%D0%BB%D0%B0%D1%82%D0%B0";
     for (const url of ["/api/payments/cloudpayments/pay", "/api/integrations/zadarma", "/api/integrations/pbx"]) {
-      await assertRouteParity({ nest: app, legacy, method: "POST", url, headers: { "content-type": "application/x-www-form-urlencoded", "content-hmac": "hmac-1" }, body: form });
+      await assertRoute({ nest: app, method: "POST", url, headers: { "content-type": "application/x-www-form-urlencoded", "content-hmac": "hmac-1" }, body: form });
     }
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: "/api/integrations/email", headers: { "content-type": "text/plain" }, body: "From: a@b\r\n\r\nПривет" });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/integrations/zadarma?zd_echo=abc123" });
+    await assertRoute({ nest: app, method: "POST", url: "/api/integrations/email", headers: { "content-type": "text/plain" }, body: "From: a@b\r\n\r\nПривет" });
+    await assertRoute({ nest: app, method: "GET", url: "/api/integrations/zadarma?zd_echo=abc123" });
   });
 
   it("multipart с файлом чека — те же поля и файл", async () => {
@@ -273,7 +269,7 @@ describe("паритет NestJS ↔ mybook-api: Контекст 7B — 32 ма�
     ]);
     const headers = { ...asOwner, "content-type": `multipart/form-data; boundary=${boundary}` };
     for (const url of [`/api/admin/orders/${ID}/payments`, `/api/admin/deals/${ID}/receipts`, `/api/v1/site/admin/gifts/${ID}/receipt`]) {
-      await assertRouteParity({ nest: app, legacy, method: "POST", url, headers, body });
+      await assertRoute({ nest: app, method: "POST", url, headers, body });
     }
   });
 });

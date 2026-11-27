@@ -238,8 +238,8 @@ const shared = vi.hoisted(() => ({
   freshUser: vi.fn<(tokenHash: string) => Promise<CurrentUser | null>>(),
 }));
 
-vi.mock("next/headers", () => import("../../../apps/api/src/http/next-shim"));
-vi.mock("next/server", () => import("../../../apps/api/src/http/next-shim"));
+vi.mock("next/headers", () => import("@/server/http/next-shim"));
+vi.mock("next/server", () => import("@/server/http/next-shim"));
 vi.mock("@/server/rateLimit", () => ({ rateLimit: () => shared.allowRate(), trustedClientIp: async () => "203.0.113.10" }));
 vi.mock("@/server/catalog", () => ({ ensureCatalog: async () => {}, syncCatalogFromSettings: async () => {} }));
 vi.mock("@/server/account-deletion", () => ({
@@ -318,7 +318,7 @@ vi.mock("@/server/container", () => ({
   }),
 }));
 
-const { assertRouteParity, createLegacyTestApp } = await import("./parity");
+const { assertRoute } = await import("./expected");
 
 const asClient = { cookie: `mb_session=${sessionOf(CLIENT)}` };
 const asStaff = { cookie: `mb_session=${sessionOf(STAFF)}` };
@@ -326,7 +326,6 @@ const origin = { origin: "http://localhost:3000" };
 
 let app: NestFastifyApplication;
 let limiter: FakeLimiter;
-let legacy: ReturnType<typeof createLegacyTestApp>;
 
 beforeAll(async () => {
   vi.useFakeTimers({ toFake: ["Date"] });
@@ -382,15 +381,6 @@ beforeAll(async () => {
       ],
     ],
   }));
-  legacy = createLegacyTestApp({
-    users: [CLIENT, STAFF],
-    staff: async (user) => {
-      if (user.role !== "admin" || user.staffDisabled) {
-        const { HttpError } = await import("@/server/api");
-        throw new HttpError(403, "forbidden");
-      }
-    },
-  });
 });
 
 afterAll(async () => {
@@ -438,111 +428,108 @@ beforeEach(() => {
   shared.helpAsk.mockResolvedValue({ outcome: "answered", handoff: null, suggestions: ["Ещё"], messages: [{ id: "m2", from: "bot", at: "2026-11-26T10:00:00.000Z", text: "Готово", place: "" }] });
 });
 
-describe("побайтовый паритет NestJS ↔ mybook-api (Контекст 1: 33 маршрута)", () => {
+describe("ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 1: 33 маршрута)", () => {
   it("auth (5 маршрутов): authLogin, authSecondFactor, authLogout, authWebSession, me", async () => {
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: "/api/v1/auth/login", body: { login: "aigerim@example.kz", password: "secretpassword" } });
+    await assertRoute({ nest: app, method: "POST", url: "/api/v1/auth/login", body: { login: "aigerim@example.kz", password: "secretpassword" } });
 
-    shared.auth.login.mockResolvedValueOnce({ kind: "second_factor", userId: STAFF_ID }).mockResolvedValueOnce({ kind: "second_factor", userId: STAFF_ID });
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: "/api/v1/auth/login", body: { login: "owner@mybook.kz", password: "secretpassword" } });
+    shared.auth.login.mockResolvedValueOnce({ kind: "second_factor", userId: STAFF_ID });
+    await assertRoute({ nest: app, method: "POST", url: "/api/v1/auth/login", body: { login: "owner@mybook.kz", password: "secretpassword" } });
 
-    shared.auth.login.mockRejectedValueOnce(new IdentityError("credentials")).mockRejectedValueOnce(new IdentityError("credentials"));
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: "/api/v1/auth/login", headers: { [LOCALE_HEADER]: "kk" }, body: { login: "x@y.kz", password: "bad" } });
+    shared.auth.login.mockRejectedValueOnce(new IdentityError("credentials"));
+    await assertRoute({ nest: app, method: "POST", url: "/api/v1/auth/login", headers: { [LOCALE_HEADER]: "kk" }, body: { login: "x@y.kz", password: "bad" } });
 
     limiter.deny = true;
     shared.allowRate.mockResolvedValueOnce(false);
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: "/api/v1/auth/login", body: { login: "x@y.kz", password: "bad" } });
+    await assertRoute({ nest: app, method: "POST", url: "/api/v1/auth/login", body: { login: "x@y.kz", password: "bad" } });
     limiter.deny = false;
 
     const ticket = issueTicket(STAFF_ID);
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: "/api/v1/auth/2fa", body: { ticket, code: "123456" } });
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: "/api/v1/auth/2fa", body: { ticket: "bad-ticket-value", code: "123456" } });
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: "/api/v1/auth/logout", headers: { ...asClient, ...origin } });
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: "/api/v1/auth/web-session", headers: { ...asClient, ...origin } });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/v1/me", headers: asClient });
+    await assertRoute({ nest: app, method: "POST", url: "/api/v1/auth/2fa", body: { ticket, code: "123456" } });
+    await assertRoute({ nest: app, method: "POST", url: "/api/v1/auth/2fa", body: { ticket: "bad-ticket-value", code: "123456" } });
+    await assertRoute({ nest: app, method: "POST", url: "/api/v1/auth/logout", headers: { ...asClient, ...origin } });
+    await assertRoute({ nest: app, method: "POST", url: "/api/v1/auth/web-session", headers: { ...asClient, ...origin } });
+    await assertRoute({ nest: app, method: "GET", url: "/api/v1/me", headers: asClient });
   });
 
   it("me (13 маршрутов): аккаунт, профиль, пароль, напоминания, язык, устройства, CRM push, app-config, удаление", async () => {
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/v1/me/account?locale=ru", headers: asClient });
-    await assertRouteParity({ nest: app, legacy, method: "PATCH", url: "/api/v1/me/profile", headers: { ...asClient, ...origin }, body: { name: "Айгерим", phone: "+77011112233" } });
-    await assertRouteParity({ nest: app, legacy, method: "PATCH", url: "/api/v1/me/profile", headers: { ...asClient, ...origin }, body: { name: "  ", phone: "" } });
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: "/api/v1/me/password", headers: { ...asClient, ...origin }, body: { current: "oldpass123", next: "newpass123" } });
+    await assertRoute({ nest: app, method: "GET", url: "/api/v1/me/account?locale=ru", headers: asClient });
+    await assertRoute({ nest: app, method: "PATCH", url: "/api/v1/me/profile", headers: { ...asClient, ...origin }, body: { name: "Айгерим", phone: "+77011112233" } });
+    await assertRoute({ nest: app, method: "PATCH", url: "/api/v1/me/profile", headers: { ...asClient, ...origin }, body: { name: "  ", phone: "" } });
+    await assertRoute({ nest: app, method: "POST", url: "/api/v1/me/password", headers: { ...asClient, ...origin }, body: { current: "oldpass123", next: "newpass123" } });
 
-    shared.accounts.changePassword.mockRejectedValueOnce(new IdentityError("password")).mockRejectedValueOnce(new IdentityError("password"));
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: "/api/v1/me/password", headers: { ...asClient, ...origin }, body: { current: "oldpass123", next: "123" } });
+    shared.accounts.changePassword.mockRejectedValueOnce(new IdentityError("password"));
+    await assertRoute({ nest: app, method: "POST", url: "/api/v1/me/password", headers: { ...asClient, ...origin }, body: { current: "oldpass123", next: "123" } });
 
-    await assertRouteParity({ nest: app, legacy, method: "PUT", url: "/api/v1/me/reminders", headers: { ...asClient, ...origin }, body: { on: false } });
-    await assertRouteParity({ nest: app, legacy, method: "PUT", url: "/api/v1/me/locale", headers: { ...asClient, ...origin }, body: { locale: "kk" } });
-    await assertRouteParity({ nest: app, legacy, method: "PUT", url: "/api/v1/me/devices", headers: { ...asClient, ...origin }, body: { platform: "ios", token: DEVICE_TOKEN } });
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: "/api/v1/me/devices/forget", headers: { ...asClient, ...origin }, body: { token: DEVICE_TOKEN } });
+    await assertRoute({ nest: app, method: "PUT", url: "/api/v1/me/reminders", headers: { ...asClient, ...origin }, body: { on: false } });
+    await assertRoute({ nest: app, method: "PUT", url: "/api/v1/me/locale", headers: { ...asClient, ...origin }, body: { locale: "kk" } });
+    await assertRoute({ nest: app, method: "PUT", url: "/api/v1/me/devices", headers: { ...asClient, ...origin }, body: { platform: "ios", token: DEVICE_TOKEN } });
+    await assertRoute({ nest: app, method: "POST", url: "/api/v1/me/devices/forget", headers: { ...asClient, ...origin }, body: { token: DEVICE_TOKEN } });
 
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/v1/crm/push", headers: asStaff });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/v1/crm/push", headers: asClient });
-    await assertRouteParity({ nest: app, legacy, method: "PUT", url: "/api/v1/crm/devices", headers: { ...asStaff, ...origin }, body: { platform: "android", token: DEVICE_TOKEN } });
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: "/api/v1/crm/devices/forget", headers: { ...asStaff, ...origin }, body: { token: DEVICE_TOKEN } });
+    await assertRoute({ nest: app, method: "GET", url: "/api/v1/crm/push", headers: asStaff });
+    await assertRoute({ nest: app, method: "GET", url: "/api/v1/crm/push", headers: asClient });
+    await assertRoute({ nest: app, method: "PUT", url: "/api/v1/crm/devices", headers: { ...asStaff, ...origin }, body: { platform: "android", token: DEVICE_TOKEN } });
+    await assertRoute({ nest: app, method: "POST", url: "/api/v1/crm/devices/forget", headers: { ...asStaff, ...origin }, body: { token: DEVICE_TOKEN } });
 
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/v1/app-config?locale=kk" });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/v1/me/deletion?locale=ru", headers: asClient });
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: "/api/v1/me/delete?locale=ru", headers: { ...asClient, ...origin }, body: { password: "secretpassword" } });
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: "/api/v1/me/delete", headers: { ...asStaff, ...origin }, body: { password: "secretpassword" } });
+    await assertRoute({ nest: app, method: "GET", url: "/api/v1/app-config?locale=kk" });
+    await assertRoute({ nest: app, method: "GET", url: "/api/v1/me/deletion?locale=ru", headers: asClient });
+    await assertRoute({ nest: app, method: "POST", url: "/api/v1/me/delete?locale=ru", headers: { ...asClient, ...origin }, body: { password: "secretpassword" } });
+    await assertRoute({ nest: app, method: "POST", url: "/api/v1/me/delete", headers: { ...asStaff, ...origin }, body: { password: "secretpassword" } });
   });
 
   it("web-cabinet (10 маршрутов): сессия, регистрация, сброс, полка, книги, приглашения, здоровье", async () => {
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/v1/web/session" });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/v1/web/session", headers: asClient });
+    await assertRoute({ nest: app, method: "GET", url: "/api/v1/web/session" });
+    await assertRoute({ nest: app, method: "GET", url: "/api/v1/web/session", headers: asClient });
 
     const regBody = { name: "Айгерим", email: "new@example.kz", password: "password123", locale: "ru" };
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: "/api/v1/web/auth/register", body: regBody });
+    await assertRoute({ nest: app, method: "POST", url: "/api/v1/web/auth/register", body: regBody });
 
-    shared.auth.register.mockRejectedValueOnce(new IdentityError("exists")).mockRejectedValueOnce(new IdentityError("exists"));
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: "/api/v1/web/auth/register", body: regBody });
+    shared.auth.register.mockRejectedValueOnce(new IdentityError("exists"));
+    await assertRoute({ nest: app, method: "POST", url: "/api/v1/web/auth/register", body: regBody });
 
     applySiteFlags({ registration: false });
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: "/api/v1/web/auth/register", body: regBody });
+    await assertRoute({ nest: app, method: "POST", url: "/api/v1/web/auth/register", body: regBody });
     applySiteFlags({ registration: true });
 
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: "/api/v1/web/auth/forgot", body: { email: "a@b.kz", locale: "ru" } });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: `/api/v1/web/auth/reset/${RESET_TOKEN}` });
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: "/api/v1/web/auth/reset", body: { token: RESET_TOKEN, password: "newpassword123" } });
+    await assertRoute({ nest: app, method: "POST", url: "/api/v1/web/auth/forgot", body: { email: "a@b.kz", locale: "ru" } });
+    await assertRoute({ nest: app, method: "GET", url: `/api/v1/web/auth/reset/${RESET_TOKEN}` });
+    await assertRoute({ nest: app, method: "POST", url: "/api/v1/web/auth/reset", body: { token: RESET_TOKEN, password: "newpassword123" } });
 
-    shared.auth.linkInfo.mockResolvedValueOnce({ purpose: "access", valid: false }).mockResolvedValueOnce({ purpose: "access", valid: false });
-    shared.auth.redeemAccessLink.mockRejectedValueOnce(new IdentityError("resetExpired")).mockRejectedValueOnce(new IdentityError("resetExpired"));
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: "/api/v1/web/auth/reset", body: { token: RESET_TOKEN, password: "newpassword123" } });
+    shared.auth.linkInfo.mockResolvedValueOnce({ purpose: "access", valid: false });
+    shared.auth.redeemAccessLink.mockRejectedValueOnce(new IdentityError("resetExpired"));
+    await assertRoute({ nest: app, method: "POST", url: "/api/v1/web/auth/reset", body: { token: RESET_TOKEN, password: "newpassword123" } });
 
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/v1/web/shelf?locale=ru", headers: asClient });
-    await assertRouteParity({
+    await assertRoute({ nest: app, method: "GET", url: "/api/v1/web/shelf?locale=ru", headers: asClient });
+    await assertRoute({
       nest: app,
-      legacy,
       method: "POST",
       url: "/api/v1/web/books",
       headers: { ...asClient, ...origin },
       body: { theme: "mom", language: "ru", authorName: "Айгерим", authorGender: "f", recipientName: "Мама", recipientGender: "f" },
     });
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "POST",
       url: "/api/v1/web/books",
       headers: { ...asClient, ...origin },
       body: { theme: "mom", language: "ru", authorName: "Айгерим", authorGender: "f" },
     });
 
-    await assertRouteParity({ nest: app, legacy, method: "DELETE", url: `/api/v1/web/books/${BOOK_ID}`, headers: { ...asClient, ...origin } });
+    await assertRoute({ nest: app, method: "DELETE", url: `/api/v1/web/books/${BOOK_ID}`, headers: { ...asClient, ...origin } });
 
-    shared.deleteBook.mockRejectedValueOnce(new AuthoringError("bookHasOrders")).mockRejectedValueOnce(new AuthoringError("bookHasOrders"));
-    await assertRouteParity({ nest: app, legacy, method: "DELETE", url: `/api/v1/web/books/${BOOK_ID}`, headers: { ...asClient, ...origin } });
+    shared.deleteBook.mockRejectedValueOnce(new AuthoringError("bookHasOrders"));
+    await assertRoute({ nest: app, method: "DELETE", url: `/api/v1/web/books/${BOOK_ID}`, headers: { ...asClient, ...origin } });
 
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/v1/web/invite?locale=ru", headers: asClient });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/v1/web/health" });
+    await assertRoute({ nest: app, method: "GET", url: "/api/v1/web/invite?locale=ru", headers: asClient });
+    await assertRoute({ nest: app, method: "GET", url: "/api/v1/web/health" });
   });
 
   it("cabinet (5 маршрутов): cabinetShelf, cabinetBook, cabinetPhotos, cabinetHelp, cabinetHelpAsk", async () => {
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/v1/cabinet/shelf", headers: asClient });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: `/api/v1/cabinet/books/${BOOK_ID}`, headers: asClient });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: `/api/v1/cabinet/books/${BOOK_ID}/photos`, headers: asClient });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: `/api/v1/cabinet/books/${BOOK_ID}/help?section=photos`, headers: asClient });
-    await assertRouteParity({
+    await assertRoute({ nest: app, method: "GET", url: "/api/v1/cabinet/shelf", headers: asClient });
+    await assertRoute({ nest: app, method: "GET", url: `/api/v1/cabinet/books/${BOOK_ID}`, headers: asClient });
+    await assertRoute({ nest: app, method: "GET", url: `/api/v1/cabinet/books/${BOOK_ID}/photos`, headers: asClient });
+    await assertRoute({ nest: app, method: "GET", url: `/api/v1/cabinet/books/${BOOK_ID}/help?section=photos`, headers: asClient });
+    await assertRoute({
       nest: app,
-      legacy,
       method: "POST",
       url: `/api/v1/cabinet/books/${BOOK_ID}/help`,
       headers: { ...asClient, ...origin },
@@ -550,7 +537,7 @@ describe("побайтовый паритет NestJS ↔ mybook-api (Конте�
     });
 
     // Несуществующая книга → 404 bookNotFound, чужой метод → 405 Allow
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/v1/cabinet/books/99999999-9999-4999-8999-999999999999", headers: asClient });
-    await assertRouteParity({ nest: app, legacy, method: "DELETE", url: `/api/v1/cabinet/books/${BOOK_ID}/help`, headers: asClient });
+    await assertRoute({ nest: app, method: "GET", url: "/api/v1/cabinet/books/99999999-9999-4999-8999-999999999999", headers: asClient });
+    await assertRoute({ nest: app, method: "DELETE", url: `/api/v1/cabinet/books/${BOOK_ID}/help`, headers: asClient });
   });
 });

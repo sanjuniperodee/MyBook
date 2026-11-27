@@ -1,11 +1,11 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 5 маршрутов crm/chats + crm/kp (200, 400 refused, 403, 404 чужой чат) 1`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 5 маршрутов crm/chats + crm/kp (200, 400 refused, 403, 404 чужой чат) 1`] = `
 {
   "body": "{"rows":[{"label":"Модель решила","lines":["ответить · этап: предложение · язык: русский"],"warn":false},{"label":"Заметка модели","lines":["Предложил твёрдую обложку"],"warn":false},{"label":"Итог хода","lines":["беседа продолжается"],"warn":false},{"label":"Записал в сделку","lines":["plan: hardcover"],"warn":false}]}",
   "headers": {
     "cache-control": "private, no-cache",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
     "etag": ""tw3QxsKgbpkjGZXXuBNjxLIcrlk"",
   },
   "request": "GET /api/v1/crm/chats/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee/messages/12121212-1212-4121-8121-121212121212/trace",
@@ -13,7 +13,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 5 маршрутов crm/chats + crm/kp (200, 400 refused, 403, 404 чужой чат) 2`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 5 маршрутов crm/chats + crm/kp (200, 400 refused, 403, 404 чужой чат) 2`] = `
 {
   "body": "",
   "headers": {
@@ -25,7 +25,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 5 маршрутов crm/chats + crm/kp (200, 400 refused, 403, 404 чужой чат) 3`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 5 маршрутов crm/chats + crm/kp (200, 400 refused, 403, 404 чужой чат) 3`] = `
 {
   "body": "{"error":"След хода не найден","code":"refused"}",
   "headers": {
@@ -37,12 +37,12 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 5 маршрутов crm/chats + crm/kp (200, 400 refused, 403, 404 чужой чат) 4`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 5 маршрутов crm/chats + crm/kp (200, 400 refused, 403, 404 чужой чат) 4`] = `
 {
   "body": "{"items":[{"id":"12121212-1212-4121-8121-121212121212","at":"2026-11-25T10:00:00.000Z","messageId":null,"silent":true,"summary":"ответить · этап: предложение · язык: русский","rows":[{"label":"Модель решила","lines":["ответить · этап: предложение · язык: русский"],"warn":false},{"label":"Заметка модели","lines":["Предложил твёрдую обложку"],"warn":false},{"label":"Итог хода","lines":["беседа продолжается"],"warn":false},{"label":"Записал в сделку","lines":["plan: hardcover"],"warn":false}]}]}",
   "headers": {
     "cache-control": "private, no-cache",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
     "etag": ""70BlwyM4e7JPc-NH4YwMHv1Zm4I"",
   },
   "request": "GET /api/v1/crm/chats/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee/bot/traces",
@@ -50,7 +50,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 5 маршрутов crm/chats + crm/kp (200, 400 refused, 403, 404 чужой чат) 5`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 5 маршрутов crm/chats + crm/kp (200, 400 refused, 403, 404 чужой чат) 5`] = `
 {
   "body": "",
   "headers": {
@@ -62,58 +62,58 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 5 маршрутов crm/chats + crm/kp (200, 400 refused, 403, 404 чужой чат) 6`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 5 маршрутов crm/chats + crm/kp (200, 400 refused, 403, 404 чужой чат) 6`] = `
 {
   "body": "{"error":"Не найдено","code":"notFound"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "GET /api/v1/crm/chats/eeeeeeee-eeee-4eee-8eee-ffffffffffff/bot/traces",
   "status": 404,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 5 маршрутов crm/chats + crm/kp (200, 400 refused, 403, 404 чужой чат) 7`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 5 маршрутов crm/chats + crm/kp (200, 400 refused, 403, 404 чужой чат) 7`] = `
 {
   "body": "{"ok":true,"message":"Бот запущен"}",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/v1/crm/chats/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee/bot",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 5 маршрутов crm/chats + crm/kp (200, 400 refused, 403, 404 чужой чат) 8`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 5 маршрутов crm/chats + crm/kp (200, 400 refused, 403, 404 чужой чат) 8`] = `
 {
   "body": "{"ok":true,"message":"Бот остановлен"}",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/v1/crm/chats/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee/bot",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 5 маршрутов crm/chats + crm/kp (200, 400 refused, 403, 404 чужой чат) 9`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 5 маршрутов crm/chats + crm/kp (200, 400 refused, 403, 404 чужой чат) 9`] = `
 {
   "body": "{"error":"Запрос отклонён","code":"forbidden"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/v1/crm/chats/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee/bot",
   "status": 403,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 5 маршрутов crm/chats + crm/kp (200, 400 refused, 403, 404 чужой чат) 10`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 5 маршрутов crm/chats + crm/kp (200, 400 refused, 403, 404 чужой чат) 10`] = `
 {
   "body": "{"order":{"number":105},"book":{"title":"Мама"},"maxDiscount":12,"percents":[5,10,12],"hours":[24,48,72,168],"hourOptions":[{"hours":24,"label":"на сутки"},{"hours":48,"label":"на 2 дня"},{"hours":72,"label":"на 3 дня"},{"hours":168,"label":"на неделю"}],"canSend":true}",
   "headers": {
     "cache-control": "private, no-cache",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
     "etag": ""8UIyt3XlvZccefiIs7ySViCYNC0"",
   },
   "request": "GET /api/v1/crm/chats/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee/offers",
@@ -121,7 +121,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 5 маршрутов crm/chats + crm/kp (200, 400 refused, 403, 404 чужой чат) 11`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 5 маршрутов crm/chats + crm/kp (200, 400 refused, 403, 404 чужой чат) 11`] = `
 {
   "body": "",
   "headers": {
@@ -133,12 +133,12 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 5 маршрутов crm/chats + crm/kp (200, 400 refused, 403, 404 чужой чат) 12`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 5 маршрутов crm/chats + crm/kp (200, 400 refused, 403, 404 чужой чат) 12`] = `
 {
   "body": "{"order":{"number":105},"book":{"title":"Мама"},"maxDiscount":0,"percents":[],"hours":[24,48,72,168],"hourOptions":[{"hours":24,"label":"на сутки"},{"hours":48,"label":"на 2 дня"},{"hours":72,"label":"на 3 дня"},{"hours":168,"label":"на неделю"}],"canSend":true}",
   "headers": {
     "cache-control": "private, no-cache",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
     "etag": ""ea3bgK7gxDnrNBE7XIZHhgK6isM"",
   },
   "request": "GET /api/v1/crm/chats/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee/offers",
@@ -146,7 +146,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 5 маршрутов crm/chats + crm/kp (200, 400 refused, 403, 404 чужой чат) 13`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 5 маршрутов crm/chats + crm/kp (200, 400 refused, 403, 404 чужой чат) 13`] = `
 {
   "body": "",
   "headers": {
@@ -158,30 +158,30 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 5 маршрутов crm/chats + crm/kp (200, 400 refused, 403, 404 чужой чат) 14`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 5 маршрутов crm/chats + crm/kp (200, 400 refused, 403, 404 чужой чат) 14`] = `
 {
   "body": "{"error":"Не найдено","code":"notFound"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "GET /api/v1/crm/chats/eeeeeeee-eeee-4eee-8eee-ffffffffffff/offers",
   "status": 404,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 5 маршрутов crm/chats + crm/kp (200, 400 refused, 403, 404 чужой чат) 15`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 5 маршрутов crm/chats + crm/kp (200, 400 refused, 403, 404 чужой чат) 15`] = `
 {
   "body": "{"ok":true,"message":"Отправлено"}",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/v1/crm/chats/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee/offers",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 5 маршрутов crm/chats + crm/kp (200, 400 refused, 403, 404 чужой чат) 16`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 5 маршрутов crm/chats + crm/kp (200, 400 refused, 403, 404 чужой чат) 16`] = `
 {
   "body": "{"error":"Нет активной книги","code":"refused"}",
   "headers": {
@@ -193,7 +193,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 5 маршрутов crm/chats + crm/kp (200, 400 refused, 403, 404 чужой чат) 17`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 5 маршрутов crm/chats + crm/kp (200, 400 refused, 403, 404 чужой чат) 17`] = `
 {
   "body": "{"error":"Укажите размер скидки и срок","code":"refused"}",
   "headers": {
@@ -205,19 +205,19 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 7 маршрутов crm/clients + crm/new-client + crmDealReceipt (200, 400 refused, 403, 404, 409) 1`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 7 маршрутов crm/clients + crm/new-client + crmDealReceipt (200, 400 refused, 403, 404, 409) 1`] = `
 {
   "body": "{"login":"+77015551122","password":"pw2","message":"Доступ"}",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/v1/crm/clients/cccccccc-cccc-4ccc-8ccc-cccccccccccc/access",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 7 маршрутов crm/clients + crm/new-client + crmDealReceipt (200, 400 refused, 403, 404, 409) 2`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 7 маршрутов crm/clients + crm/new-client + crmDealReceipt (200, 400 refused, 403, 404, 409) 2`] = `
 {
   "body": "{"error":"Это клиент другого менеджера","code":"refused"}",
   "headers": {
@@ -229,19 +229,19 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 7 маршрутов crm/clients + crm/new-client + crmDealReceipt (200, 400 refused, 403, 404, 409) 3`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 7 маршрутов crm/clients + crm/new-client + crmDealReceipt (200, 400 refused, 403, 404, 409) 3`] = `
 {
   "body": "{"ok":true,"message":"Напоминание отправлено"}",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/v1/crm/clients/cccccccc-cccc-4ccc-8ccc-cccccccccccc/remind",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 7 маршрутов crm/clients + crm/new-client + crmDealReceipt (200, 400 refused, 403, 404, 409) 4`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 7 маршрутов crm/clients + crm/new-client + crmDealReceipt (200, 400 refused, 403, 404, 409) 4`] = `
 {
   "body": "{"error":"У клиента нет почты","code":"refused"}",
   "headers": {
@@ -253,12 +253,12 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 7 маршрутов crm/clients + crm/new-client + crmDealReceipt (200, 400 refused, 403, 404, 409) 5`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 7 маршрутов crm/clients + crm/new-client + crmDealReceipt (200, 400 refused, 403, 404, 409) 5`] = `
 {
   "body": "{"id":"cccccccc-cccc-4ccc-8ccc-cccccccccccc","name":"Алия","phone":null,"extraPhones":[],"canEditPhones":false,"tags":["vip"],"fields":[{"key":"hobby","label":"Хобби","type":"text","options":[],"value":"Чтение"}],"noMarketing":false,"locale":"ru","locales":[{"id":"ru","label":"Русский"},{"id":"kk","label":"Казахский"},{"id":"uz","label":"Узбекский"},{"id":"en","label":"Английский"}],"channel":null,"channels":[{"id":"instagram","label":"Instagram"},{"id":"whatsapp","label":"WhatsApp"},{"id":"telegram","label":"Telegram"},{"id":"tiktok","label":"TikTok"},{"id":"facebook","label":"Facebook"},{"id":"youtube","label":"YouTube"},{"id":"vk","label":"ВКонтакте"},{"id":"bloggers","label":"Блогеры"},{"id":"call","label":"Звонок"},{"id":"recommendation","label":"Рекомендация знакомых"},{"id":"repeat","label":"Повторный клиент"},{"id":"offline","label":"Офлайн (листовки, QR)"},{"id":"other","label":"Другое"}],"managerId":"22222222-2222-4222-8222-222222222222","managers":[{"id":"22222222-2222-4222-8222-222222222222","label":"Менеджер Свои"}],"canEdit":true}",
   "headers": {
     "cache-control": "private, no-cache",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
     "etag": ""oaujqTrNjnTpEb0jvmMC83Ru_X4"",
   },
   "request": "GET /api/v1/crm/clients/cccccccc-cccc-4ccc-8ccc-cccccccccccc/form",
@@ -266,7 +266,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 7 маршрутов crm/clients + crm/new-client + crmDealReceipt (200, 400 refused, 403, 404, 409) 6`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 7 маршрутов crm/clients + crm/new-client + crmDealReceipt (200, 400 refused, 403, 404, 409) 6`] = `
 {
   "body": "",
   "headers": {
@@ -278,30 +278,30 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 7 маршрутов crm/clients + crm/new-client + crmDealReceipt (200, 400 refused, 403, 404, 409) 7`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 7 маршрутов crm/clients + crm/new-client + crmDealReceipt (200, 400 refused, 403, 404, 409) 7`] = `
 {
   "body": "{"error":"Не найдено","code":"notFound"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "GET /api/v1/crm/clients/cccccccc-cccc-4ccc-8ccc-dddddddddddd/form",
   "status": 404,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 7 маршрутов crm/clients + crm/new-client + crmDealReceipt (200, 400 refused, 403, 404, 409) 8`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 7 маршрутов crm/clients + crm/new-client + crmDealReceipt (200, 400 refused, 403, 404, 409) 8`] = `
 {
   "body": "{"ok":true,"message":"Канал: Instagram"}",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "PATCH /api/v1/crm/clients/cccccccc-cccc-4ccc-8ccc-cccccccccccc",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 7 маршрутов crm/clients + crm/new-client + crmDealReceipt (200, 400 refused, 403, 404, 409) 9`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 7 маршрутов crm/clients + crm/new-client + crmDealReceipt (200, 400 refused, 403, 404, 409) 9`] = `
 {
   "body": "{"error":"Выберите язык","code":"refused"}",
   "headers": {
@@ -313,12 +313,12 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 7 маршрутов crm/clients + crm/new-client + crmDealReceipt (200, 400 refused, 403, 404, 409) 10`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 7 маршрутов crm/clients + crm/new-client + crmDealReceipt (200, 400 refused, 403, 404, 409) 10`] = `
 {
   "body": "{"channels":[{"id":"instagram","label":"Instagram"},{"id":"whatsapp","label":"WhatsApp"},{"id":"telegram","label":"Telegram"},{"id":"tiktok","label":"TikTok"},{"id":"facebook","label":"Facebook"},{"id":"youtube","label":"YouTube"},{"id":"vk","label":"ВКонтакте"},{"id":"bloggers","label":"Блогеры"},{"id":"call","label":"Звонок"},{"id":"recommendation","label":"Рекомендация знакомых"},{"id":"repeat","label":"Повторный клиент"},{"id":"offline","label":"Офлайн (листовки, QR)"},{"id":"other","label":"Другое"}],"locales":[{"id":"ru","label":"Русский"},{"id":"kk","label":"Казахский"},{"id":"uz","label":"Узбекский"},{"id":"en","label":"Английский"}],"plans":[{"id":"digital","label":"Электронная версия","price":9900},{"id":"hardcover","label":"Твёрдая обложка","price":30000}],"payForms":["Kaspi Gold","Перевод"],"stages":[{"id":"90909090-9090-4909-8909-909090909090","label":"Основная · Взяли в работу"}],"defaultStageId":"90909090-9090-4909-8909-909090909090","managers":[{"id":"22222222-2222-4222-8222-222222222222","label":"Менеджер Свои"}],"me":"22222222-2222-4222-8222-222222222222","canAssign":false,"canDeal":true,"maxDiscountPercent":15}",
   "headers": {
     "cache-control": "private, no-cache",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
     "etag": ""BZmJQ2x6_rBFJNZT7090anQXHEc"",
   },
   "request": "GET /api/v1/crm/clients/new",
@@ -326,7 +326,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 7 маршрутов crm/clients + crm/new-client + crmDealReceipt (200, 400 refused, 403, 404, 409) 11`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 7 маршрутов crm/clients + crm/new-client + crmDealReceipt (200, 400 refused, 403, 404, 409) 11`] = `
 {
   "body": "",
   "headers": {
@@ -338,19 +338,19 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 7 маршрутов crm/clients + crm/new-client + crmDealReceipt (200, 400 refused, 403, 404, 409) 12`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 7 маршрутов crm/clients + crm/new-client + crmDealReceipt (200, 400 refused, 403, 404, 409) 12`] = `
 {
   "body": "{"clientId":"cccccccc-cccc-4ccc-8ccc-cccccccccccc","clientName":"Алия","dealId":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","dealNumber":42,"parts":[{"dealId":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","dealNumber":42,"agreed":29000,"prepaid":10000,"paymentId":"abababab-abab-4aba-8aba-abababababab"}],"count":1,"loginText":"+77015551122","password":"pw3","loginUrl":"http://localhost:3000/login","message":"Доступ","agreed":29000,"prepaid":10000,"remainder":19000,"tasks":1}",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/v1/crm/clients",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 7 маршрутов crm/clients + crm/new-client + crmDealReceipt (200, 400 refused, 403, 404, 409) 13`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 7 маршрутов crm/clients + crm/new-client + crmDealReceipt (200, 400 refused, 403, 404, 409) 13`] = `
 {
   "body": "{"error":"Укажите канал продаж","code":"refused"}",
   "headers": {
@@ -362,19 +362,19 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 7 маршрутов crm/clients + crm/new-client + crmDealReceipt (200, 400 refused, 403, 404, 409) 14`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 7 маршрутов crm/clients + crm/new-client + crmDealReceipt (200, 400 refused, 403, 404, 409) 14`] = `
 {
   "body": "{"ok":true,"message":"Чек приложен"}",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/v1/crm/deals/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/receipts?amount=10000&paymentId=abababab-abab-4aba-8aba-abababababab",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 7 маршрутов crm/clients + crm/new-client + crmDealReceipt (200, 400 refused, 403, 404, 409) 15`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 7 маршрутов crm/clients + crm/new-client + crmDealReceipt (200, 400 refused, 403, 404, 409) 15`] = `
 {
   "body": "{"error":"Чек уже приложен к сделке Д10"}",
   "headers": {
@@ -385,7 +385,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 7 маршрутов crm/clients + crm/new-client + crmDealReceipt (200, 400 refused, 403, 404, 409) 16`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 7 маршрутов crm/clients + crm/new-client + crmDealReceipt (200, 400 refused, 403, 404, 409) 16`] = `
 {
   "body": "{"error":"Запрос отклонён","code":"forbidden"}",
   "headers": {
@@ -396,23 +396,23 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 7 маршрутов crm/clients + crm/new-client + crmDealReceipt (200, 400 refused, 403, 404, 409) 17`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 7 маршрутов crm/clients + crm/new-client + crmDealReceipt (200, 400 refused, 403, 404, 409) 17`] = `
 {
   "body": "{"error":"Запрос отклонён","code":"forbidden"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/v1/crm/deals/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/receipts?amount=10000",
   "status": 403,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет) 1`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет) 1`] = `
 {
   "body": "{"id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","number":42,"title":"Книга для мамы","contactName":"Алия","phone":"+77015551122","email":"aliya@example.kz","extraPhones":["+77015553344"],"canEditContacts":true,"amount":29000,"maxDiscountPercent":null,"source":"whatsapp","sources":[{"id":"site","label":"Сайт"},{"id":"whatsapp","label":"WhatsApp"},{"id":"instagram","label":"Instagram"},{"id":"telegram","label":"Telegram"},{"id":"call","label":"Звонок"},{"id":"email","label":"E-mail"},{"id":"gift","label":"Сертификат"},{"id":"referral","label":"Рекомендация"},{"id":"repeat","label":"Повторная продажа"},{"id":"manual","label":"Вручную"}],"tags":["срочно"],"fields":[{"key":"city","label":"Город","type":"text","options":[],"value":"Алматы"},{"key":"vip","label":"VIP","type":"checkbox","options":[],"value":"true"}],"canEdit":true,"plan":"hardcover","plans":[{"id":"digital","label":"Электронная версия","price":9900},{"id":"hardcover","label":"Твёрдая обложка","price":30000}],"gifts":["giftwrap"],"giftOptions":[{"id":"giftwrap","label":"Подарочная упаковка"},{"id":"delivery","label":"Доставка"}],"agreementLocked":false}",
   "headers": {
     "cache-control": "private, no-cache",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
     "etag": ""HmJ9B7dG6rFPLJlK1yz7OdKn5yQ"",
   },
   "request": "GET /api/v1/crm/deals/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/form",
@@ -420,7 +420,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет) 2`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет) 2`] = `
 {
   "body": "",
   "headers": {
@@ -432,12 +432,12 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет) 3`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет) 3`] = `
 {
   "body": "{"id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","number":42,"title":"Книга для мамы","contactName":"Алия","phone":null,"email":null,"extraPhones":[],"canEditContacts":false,"amount":29000,"maxDiscountPercent":15,"source":"whatsapp","sources":[{"id":"site","label":"Сайт"},{"id":"whatsapp","label":"WhatsApp"},{"id":"instagram","label":"Instagram"},{"id":"telegram","label":"Telegram"},{"id":"call","label":"Звонок"},{"id":"email","label":"E-mail"},{"id":"gift","label":"Сертификат"},{"id":"referral","label":"Рекомендация"},{"id":"repeat","label":"Повторная продажа"},{"id":"manual","label":"Вручную"}],"tags":["срочно"],"fields":[{"key":"city","label":"Город","type":"text","options":[],"value":"Алматы"},{"key":"vip","label":"VIP","type":"checkbox","options":[],"value":"true"}],"canEdit":true,"plan":"hardcover","plans":[{"id":"digital","label":"Электронная версия","price":9900},{"id":"hardcover","label":"Твёрдая обложка","price":30000}],"gifts":["giftwrap"],"giftOptions":[{"id":"giftwrap","label":"Подарочная упаковка"},{"id":"delivery","label":"Доставка"}],"agreementLocked":false}",
   "headers": {
     "cache-control": "private, no-cache",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
     "etag": ""xQ6qB_9XnVYKRnVUOJqYGJqc6Qo"",
   },
   "request": "GET /api/v1/crm/deals/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/form",
@@ -445,7 +445,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет) 4`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет) 4`] = `
 {
   "body": "",
   "headers": {
@@ -457,30 +457,30 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет) 5`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет) 5`] = `
 {
   "body": "{"error":"Не найдено","code":"notFound"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "GET /api/v1/crm/deals/aaaaaaaa-aaaa-4aaa-8aaa-bbbbbbbbbbbb/form",
   "status": 404,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет) 6`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет) 6`] = `
 {
   "body": "{"ok":true,"message":"Сохранено"}",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "PATCH /api/v1/crm/deals/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет) 7`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет) 7`] = `
 {
   "body": "{"error":"Скидка выше лимита","code":"refused"}",
   "headers": {
@@ -492,19 +492,19 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет) 8`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет) 8`] = `
 {
   "body": "{"ok":true,"message":"Тариф сохранён"}",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "PUT /api/v1/crm/deals/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/plan",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет) 9`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет) 9`] = `
 {
   "body": "{"error":"Неизвестный тариф","code":"refused"}",
   "headers": {
@@ -516,19 +516,19 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет) 10`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет) 10`] = `
 {
   "body": "{"ok":true,"message":"Сохранено"}",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "PUT /api/v1/crm/deals/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/gifts",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет) 11`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет) 11`] = `
 {
   "body": "{"error":"Подарок недоступен","code":"refused"}",
   "headers": {
@@ -540,12 +540,12 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет) 12`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет) 12`] = `
 {
   "body": "{"clientId":null,"suggested":null,"canCreateClient":true,"canLink":true,"channels":[{"id":"instagram","label":"Instagram"},{"id":"whatsapp","label":"WhatsApp"},{"id":"telegram","label":"Telegram"},{"id":"tiktok","label":"TikTok"},{"id":"facebook","label":"Facebook"},{"id":"youtube","label":"YouTube"},{"id":"vk","label":"ВКонтакте"},{"id":"bloggers","label":"Блогеры"},{"id":"call","label":"Звонок"},{"id":"recommendation","label":"Рекомендация знакомых"},{"id":"repeat","label":"Повторный клиент"},{"id":"offline","label":"Офлайн (листовки, QR)"},{"id":"other","label":"Другое"}],"duplicates":[{"id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","number":50,"title":"Дубль","stage":"В работе","amount":25000,"dateLabel":"10 ноября 2026 г."}],"canMerge":false,"past":[],"pipelines":[{"id":"56565656-5656-4565-8565-565656565656","label":"Основная"},{"id":"78787878-7878-4787-8787-787878787878","label":"Повторные"}],"pipelineId":"56565656-5656-4565-8565-565656565656","canMovePipeline":true,"canDelete":false}",
   "headers": {
     "cache-control": "private, no-cache",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
     "etag": ""nW2JsZpj4351M-m3qXaPb12dec8"",
   },
   "request": "GET /api/v1/crm/deals/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/extras",
@@ -553,7 +553,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет) 13`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет) 13`] = `
 {
   "body": "",
   "headers": {
@@ -565,30 +565,30 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет) 14`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет) 14`] = `
 {
   "body": "{"error":"Не найдено","code":"notFound"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "GET /api/v1/crm/deals/aaaaaaaa-aaaa-4aaa-8aaa-bbbbbbbbbbbb/extras",
   "status": 404,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет) 15`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет) 15`] = `
 {
   "body": "{"clientId":"cccccccc-cccc-4ccc-8ccc-cccccccccccc","login":"+77015551122","password":"pw1","message":"Готово"}",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/v1/crm/deals/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/client",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет) 16`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет) 16`] = `
 {
   "body": "{"error":"Неверный канал","code":"refused"}",
   "headers": {
@@ -600,43 +600,43 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет) 17`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет) 17`] = `
 {
   "body": "{"ok":true,"message":"Сделка привязана к клиенту"}",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "PUT /api/v1/crm/deals/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/client",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет) 18`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет) 18`] = `
 {
   "body": "{"ok":true,"message":"Сделка отвязана от клиента"}",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "PUT /api/v1/crm/deals/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/client",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет) 19`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет) 19`] = `
 {
   "body": "{"ok":true,"message":"Сделки объединены"}",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/v1/crm/deals/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/merge",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет) 20`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет) 20`] = `
 {
   "body": "{"error":"Нельзя слить с собой","code":"refused"}",
   "headers": {
@@ -648,19 +648,19 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет) 21`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет) 21`] = `
 {
   "body": "{"ok":true,"message":"Сделка перенесена в другую воронку"}",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "PUT /api/v1/crm/deals/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/pipeline",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет) 22`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет) 22`] = `
 {
   "body": "{"error":"В воронке нет этапов «в работе»","code":"refused"}",
   "headers": {
@@ -672,19 +672,19 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет) 23`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет) 23`] = `
 {
   "body": "{"ok":true,"message":"Сделка удалена"}",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "DELETE /api/v1/crm/deals/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет) 24`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет) 24`] = `
 {
   "body": "{"error":"По сделке приняты деньги","code":"refused"}",
   "headers": {
@@ -696,23 +696,23 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет) 25`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет) 25`] = `
 {
   "body": "{"error":"Запрос отклонён","code":"forbidden"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "DELETE /api/v1/crm/deals/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
   "status": 403,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 1`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 1`] = `
 {
   "body": "{"counts":{"tasks":1,"overdueTasks":0,"waiting":1,"missed":0,"unsorted":0,"openDeals":2,"openDealsSum":58000,"noNextStep":0},"plan":{"planAmount":300000,"factAmount":58000,"planDeals":10,"factDeals":2},"tasks":[],"waiting":[],"missed":[]}",
   "headers": {
     "cache-control": "private, no-cache",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
     "etag": ""3qo2zZeKsIpRI0svWM2CFuSZChU"",
   },
   "request": "GET /api/v1/crm/today",
@@ -720,7 +720,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 2`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 2`] = `
 {
   "body": "",
   "headers": {
@@ -732,12 +732,12 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 3`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 3`] = `
 {
   "body": "{"tasks":[]}",
   "headers": {
     "cache-control": "private, no-cache",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
     "etag": ""vYhJ-637j7hGzLiQJl8ECNUD9Wk"",
   },
   "request": "GET /api/v1/crm/tasks?done=1&who=all&kind=call&q=test",
@@ -745,7 +745,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 4`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 4`] = `
 {
   "body": "",
   "headers": {
@@ -757,12 +757,12 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 5`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 5`] = `
 {
   "body": "{"stats":{"total":2,"answered":1,"missed":1,"talk":45},"calls":[]}",
   "headers": {
     "cache-control": "private, no-cache",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
     "etag": ""98mRPAaeGA3cEOco4i5Prvbai8s"",
   },
   "request": "GET /api/v1/crm/calls?f=missed&days=7",
@@ -770,7 +770,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 6`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 6`] = `
 {
   "body": "",
   "headers": {
@@ -782,12 +782,12 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 7`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 7`] = `
 {
   "body": "{"total":1,"page":1,"pageSize":40,"clients":[]}",
   "headers": {
     "cache-control": "private, no-cache",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
     "etag": ""wd7hgbpipGxRL8hmO4KZJBNOCbk"",
   },
   "request": "GET /api/v1/crm/clients?q=ali&sort=ltv&page=1&mine=1",
@@ -795,7 +795,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 8`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 8`] = `
 {
   "body": "",
   "headers": {
@@ -807,12 +807,12 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 9`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 9`] = `
 {
   "body": "{"id":"cccccccc-cccc-4ccc-8ccc-cccccccccccc","name":"Алия","phone":"+7 701 555 11 22","email":"aliya@example.kz","tags":["vip"],"manager":"Менеджер Свои","lastSeenAt":null,"createdAt":"2026-11-01T10:00:00.000Z","money":{"total":29000,"sales":1},"canWrite":true,"books":[],"orders":[],"deals":[],"tasks":[],"notes":[]}",
   "headers": {
     "cache-control": "private, no-cache",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
     "etag": ""_bMgQAJTa2VAx4_iL-cYcINo3gA"",
   },
   "request": "GET /api/v1/crm/clients/cccccccc-cccc-4ccc-8ccc-cccccccccccc",
@@ -820,7 +820,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 10`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 10`] = `
 {
   "body": "",
   "headers": {
@@ -832,12 +832,12 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 11`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 11`] = `
 {
   "body": "{"canAssignOthers":true,"staff":[{"id":"11111111-1111-4111-8111-111111111111","name":"Руководитель"}]}",
   "headers": {
     "cache-control": "private, no-cache",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
     "etag": ""JSJRW9AitJbe-YRdJmOtPmjtXLg"",
   },
   "request": "GET /api/v1/crm/staff",
@@ -845,7 +845,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 12`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 12`] = `
 {
   "body": "",
   "headers": {
@@ -857,12 +857,12 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 13`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 13`] = `
 {
   "body": "{"notifications":[{"id":"12121212-1212-4121-8121-121212121212","kind":"deal","title":"Новая сделка","body":"Д42","link":"/admin/deals/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","read":false,"at":"2026-11-25T10:00:00.000Z"}]}",
   "headers": {
     "cache-control": "private, no-cache",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
     "etag": ""ygFQaIf8IaXdGAG3Qo8ypvt-RWg"",
   },
   "request": "GET /api/v1/crm/notifications?limit=20",
@@ -870,7 +870,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 14`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 14`] = `
 {
   "body": "",
   "headers": {
@@ -882,12 +882,12 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 15`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 15`] = `
 {
   "body": "{"chats":[]}",
   "headers": {
     "cache-control": "private, no-cache",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
     "etag": ""y6T9drNJ1MyBdTZ7n5oGd5kkgAc"",
   },
   "request": "GET /api/v1/crm/chats?f=open&q=test",
@@ -895,7 +895,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 16`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 16`] = `
 {
   "body": "",
   "headers": {
@@ -907,12 +907,12 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 17`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 17`] = `
 {
   "body": "{"conversation":{"pinned":false,"id":"eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee","title":"Алия","channel":"whatsapp","channelLabel":"WhatsApp","avatarUrl":null,"status":"open","unread":2,"assigneeId":"22222222-2222-4222-8222-222222222222","assignee":"Менеджер Свои","dealId":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","clientId":"cccccccc-cccc-4ccc-8ccc-cccccccccccc","clientName":"Алия"},"messages":[],"more":false,"deal":null,"perms":{"canReply":true,"canNote":true,"canInvoice":true,"canEditInvoices":true,"canCreateDeal":true,"mine":true},"sendBlocker":null,"bot":{"label":null,"canStart":true,"canStop":false},"templates":[],"invoices":[]}",
   "headers": {
     "cache-control": "private, no-cache",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
     "etag": ""rV_HDCzMhT1mgJhBMVM9w_OWcLc"",
   },
   "request": "GET /api/v1/crm/chats/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee?limit=30",
@@ -920,7 +920,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 18`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 18`] = `
 {
   "body": "",
   "headers": {
@@ -932,12 +932,12 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 19`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 19`] = `
 {
   "body": "{"messages":[],"more":false,"unread":2,"status":"open"}",
   "headers": {
     "cache-control": "private, no-cache",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
     "etag": ""G3-3ZrlbJnmk0PI9qCVKFNnocEc"",
   },
   "request": "GET /api/v1/crm/chats/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee/messages?limit=25&before=2026-11-25T10:00:00.000Z",
@@ -945,7 +945,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 20`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 20`] = `
 {
   "body": "",
   "headers": {
@@ -957,12 +957,12 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 21`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 21`] = `
 {
   "body": "{"pipelines":[{"id":"56565656-5656-4565-8565-565656565656","name":"Основная"}],"pipeline":{"id":"56565656-5656-4565-8565-565656565656","name":"Основная"},"stages":[],"deals":[]}",
   "headers": {
     "cache-control": "private, no-cache",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
     "etag": ""jIbnZgHI03JqR7Bxj3n-4plAjzk"",
   },
   "request": "GET /api/v1/crm/deals?mine=1&q=mama",
@@ -970,7 +970,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 22`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 22`] = `
 {
   "body": "",
   "headers": {
@@ -982,12 +982,12 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 23`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 23`] = `
 {
   "body": "{"id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","number":42,"title":"Книга для мамы","contactName":"Алия","phone":"+7 701 555 11 22","amount":29000,"paid":0,"source":"WhatsApp","stage":{"id":"90909090-9090-4909-8909-909090909090","name":"В работе","color":"#3b82f6","kind":"open"},"stages":[{"id":"90909090-9090-4909-8909-909090909090","name":"В работе","color":"#3b82f6","kind":"open"}],"assigneeId":"22222222-2222-4222-8222-222222222222","assignee":"Менеджер Свои","unsorted":false,"tags":["срочно"],"customFields":{},"createdAt":"2026-11-19T10:00:00.000Z","perms":{"canEdit":true,"canMove":true,"canInvoice":true,"mine":true},"maxDiscountPercent":15,"chatId":"eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee","client":{"id":"cccccccc-cccc-4ccc-8ccc-cccccccccccc","name":"Алия"},"order":null,"tasks":[],"notes":[],"payments":[],"payForms":["Kaspi Gold"],"hasOrder":false,"invoices":[]}",
   "headers": {
     "cache-control": "private, no-cache",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
     "etag": ""508t3I4YKA7ifU5VgED6ytS9cco"",
   },
   "request": "GET /api/v1/crm/deals/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
@@ -995,7 +995,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 24`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 24`] = `
 {
   "body": "",
   "headers": {
@@ -1007,12 +1007,12 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 25`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 25`] = `
 {
   "body": "{"canEdit":true,"statuses":[{"key":"paid","label":"Оплачен"}],"orders":[]}",
   "headers": {
     "cache-control": "private, no-cache",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
     "etag": ""ZHr_sSWS6sxfhFBD9WTXsISYi70"",
   },
   "request": "GET /api/v1/crm/orders",
@@ -1020,7 +1020,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 26`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 26`] = `
 {
   "body": "",
   "headers": {
@@ -1032,12 +1032,12 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 27`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 27`] = `
 {
   "body": "{"id":"34343434-3434-4343-8343-343434343434","number":105,"status":"paid","statusLabel":"Оплачен","canEdit":true,"planName":"Твёрдая обложка","printed":true,"quantity":1,"amountLabel":"29 000 ₸","addons":[],"book":{"title":"Мама","author":"Алия","recipient":"Мама"},"contact":{"name":"Алия","phone":"+77015551122","email":"aliya@example.kz","masked":false},"delivery":{"method":"Курьер","quoted":false,"address":"Алматы"},"tracking":null,"desiredDate":null,"comment":null,"giftNote":null,"surprise":false,"claimed":false,"events":[]}",
   "headers": {
     "cache-control": "private, no-cache",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
     "etag": ""vOc1ZVCoGkOZGEeynVcqxABgEBs"",
   },
   "request": "GET /api/v1/crm/orders/34343434-3434-4343-8343-343434343434",
@@ -1045,7 +1045,7 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 28`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 28`] = `
 {
   "body": "",
   "headers": {
@@ -1057,74 +1057,74 @@ exports[`побайтовый паритет NestJS ↔ mybook-api: Контек
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 29`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 29`] = `
 {
   "body": "{"ok":true}",
   "headers": {
     "cache-control": "no-store",
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "POST /api/v1/crm/notifications/read",
   "status": 200,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 30`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 30`] = `
 {
   "body": "{"error":"Запрос отклонён","code":"forbidden"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "GET /api/v1/crm/chats/eeeeeeee-eeee-4eee-8eee-ffffffffffff/messages",
   "status": 403,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 31`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 31`] = `
 {
   "body": "{"error":"Не найдено","code":"notFound"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "GET /api/v1/crm/chats/34343434-3434-4343-8343-343434343434/messages",
   "status": 404,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 32`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 32`] = `
 {
   "body": "{"error":"Запрос отклонён","code":"forbidden"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "GET /api/v1/crm/calls",
   "status": 403,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 33`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 33`] = `
 {
   "body": "{"error":"Нужно войти в аккаунт","code":"unauthorized"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "GET /api/v1/crm/today",
   "status": 401,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 34`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 34`] = `
 {
   "body": "{"error":"Запрос отклонён","code":"forbidden"}",
   "headers": {
-    "content-type": "application/json",
+    "content-type": "application/json; charset=utf-8",
   },
   "request": "GET /api/v1/crm/today",
   "status": 403,
 }
 `;
 
-exports[`побайтовый паритет NestJS ↔ mybook-api: Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 35`] = `
+exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 15 маршрутов crm-lists (200 + ETag/304 + права + 403/404/400/405) 35`] = `
 {
   "body": "",
   "headers": {

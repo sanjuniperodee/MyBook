@@ -166,9 +166,9 @@ const mockContainer = {
   },
 };
 
-vi.mock("next/headers", () => import("../../../apps/api/src/http/next-shim"));
-vi.mock("next/server", () => import("../../../apps/api/src/http/next-shim"));
-vi.mock("next/navigation", () => import("../../../apps/api/src/http/next-shim"));
+vi.mock("next/headers", () => import("@/server/http/next-shim"));
+vi.mock("next/server", () => import("@/server/http/next-shim"));
+vi.mock("next/navigation", () => import("@/server/http/next-shim"));
 vi.mock("@/server/container", () => ({ container: () => mockContainer }));
 vi.mock("@/server/shift", () => ({ autoShiftOnVisit: async () => true }));
 vi.mock("@/server/audio-convert", () => ({
@@ -194,7 +194,7 @@ vi.mock("@/server/crm-lists/work", () => ({
   }),
 }));
 vi.mock("@/server/auth", async () => {
-  const shim = await import("../../../apps/api/src/http/next-shim");
+  const shim = await import("@/server/http/next-shim");
   return {
     getCurrentUser: async () => {
       const jar = await shim.cookies();
@@ -315,7 +315,7 @@ vi.mock("@/server/crm-actions/admin", () => ({
   moveOrderAction: async () => (shared.orderMoveError ? { error: shared.orderMoveError } : {}),
 }));
 
-const { assertRouteParity, createLegacyTestApp } = await import("./parity");
+const { assertRoute } = await import("./expected");
 const { legacyCrmMobileApiPorts } = await import("../src/legacy/crm-mobile-api.ports");
 
 function multipartVoice(data?: Buffer) {
@@ -343,7 +343,6 @@ const asNoPerms = { cookie: `mb_session=${sessionOf(NO_PERMS)}` };
 const asRegular = { cookie: `mb_session=${sessionOf(REGULAR)}` };
 
 let app: NestFastifyApplication;
-let legacy: ReturnType<typeof createLegacyTestApp>;
 
 beforeAll(async () => {
   const factoryProvider = legacyCrmMobileApiPorts as { useFactory: (c: unknown) => unknown };
@@ -355,15 +354,6 @@ beforeAll(async () => {
       [CRM_MOBILE_API_PORTS, realPorts],
     ],
   }));
-  legacy = createLegacyTestApp({
-    users: ALL_USERS,
-    staff: async (user) => {
-      if (!resolveStaffSync(user)) {
-        const { HttpError } = await import("@/server/api");
-        throw new HttpError(403, "forbidden");
-      }
-    },
-  });
 });
 
 afterAll(() => app.close());
@@ -430,7 +420,7 @@ const PARITY_CASES: Record<
   crmOrderStatus: { method: "POST", url: `/api/v1/crm/orders/${ORDER_ID}/status`, body: { status: "printing" } },
 };
 
-describe("побайтовый паритет NestJS ↔ mybook-api (Контекст 4B — все 44 маршрута crm-mobile-rest)", () => {
+describe("ответы Nest байт в байт (эталон — прежний mybook-api) (Контекст 4B — все 44 маршрута crm-mobile-rest)", () => {
   it("все 44 маршрута совпадают байт в байт на успешном ответе (GET — с ETag и 304)", async () => {
     const keys = Object.keys(crmMobileRestRoutes) as (keyof typeof crmMobileRestRoutes)[];
     expect(keys).toHaveLength(44);
@@ -440,18 +430,16 @@ describe("побайтовый паритет NestJS ↔ mybook-api (Конте�
       const c = PARITY_CASES[key];
       if (c.multipart) {
         const mp = multipartVoice(Buffer.from("voice-bytes"));
-        await assertRouteParity({
+        await assertRoute({
           nest: app,
-          legacy,
           method: c.method,
           url: c.url,
           headers: { ...asOwner, ...mp.headers },
           body: mp.body,
         });
       } else {
-        await assertRouteParity({
+        await assertRoute({
           nest: app,
-          legacy,
           method: c.method,
           url: c.url,
           headers: asOwner,
@@ -463,13 +451,12 @@ describe("побайтовый паритет NestJS ↔ mybook-api (Конте�
 
   it("ветки ошибок и особых статусов (401, 403, 400 badData/refused, 404, 405, 503, blocked, voice fallback) совпадают байт в байт", async () => {
     // 401 без входа и 403 не-сотрудник / нет прав / чужой Origin
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/v1/crm/me" });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/v1/crm/overview", headers: asRegular });
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/v1/crm/overview", headers: asNoPerms });
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: `/api/v1/crm/orders/${ORDER_ID}/status`, headers: asNoPerms, body: { status: "printing" } });
-    await assertRouteParity({
+    await assertRoute({ nest: app, method: "GET", url: "/api/v1/crm/me" });
+    await assertRoute({ nest: app, method: "GET", url: "/api/v1/crm/overview", headers: asRegular });
+    await assertRoute({ nest: app, method: "GET", url: "/api/v1/crm/overview", headers: asNoPerms });
+    await assertRoute({ nest: app, method: "POST", url: `/api/v1/crm/orders/${ORDER_ID}/status`, headers: asNoPerms, body: { status: "printing" } });
+    await assertRoute({
       nest: app,
-      legacy,
       method: "POST",
       url: "/api/v1/crm/me/shift",
       headers: { ...asOwner, origin: "https://evil.example" },
@@ -477,28 +464,27 @@ describe("побайтовый паритет NestJS ↔ mybook-api (Конте�
     });
 
     // 400 badData и 405 Allow
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/v1/crm/tasks/not-a-uuid", headers: asOwner });
-    await assertRouteParity({ nest: app, legacy, method: "DELETE", url: "/api/v1/crm/me", headers: asOwner });
+    await assertRoute({ nest: app, method: "GET", url: "/api/v1/crm/tasks/not-a-uuid", headers: asOwner });
+    await assertRoute({ nest: app, method: "DELETE", url: "/api/v1/crm/me", headers: asOwner });
 
     // 404 на задаче и на голосовом
     shared.taskMissing = true;
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: `/api/v1/crm/tasks/${TASK_ID}`, headers: asOwner });
+    await assertRoute({ nest: app, method: "GET", url: `/api/v1/crm/tasks/${TASK_ID}`, headers: asOwner });
     shared.taskMissing = false;
 
     // 503 на каталоге при сбое шлюза
     shared.catalogThrow = true;
-    await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/v1/crm/catalog/for-chat", headers: asOwner });
+    await assertRoute({ nest: app, method: "GET", url: "/api/v1/crm/catalog/for-chat", headers: asOwner });
     shared.catalogThrow = false;
 
     // 400 refused: сделка, пересылка, статус заказа
     shared.dealCreateError = "Проверьте номер телефона";
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: "/api/v1/crm/deals", headers: asOwner, body: { title: "Сделка" } });
+    await assertRoute({ nest: app, method: "POST", url: "/api/v1/crm/deals", headers: asOwner, body: { title: "Сделка" } });
     shared.dealCreateError = null;
 
     shared.forwardError = "Сообщение не найдено";
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "POST",
       url: `/api/v1/crm/chats/${CHAT_ID}/forward`,
       headers: asOwner,
@@ -507,9 +493,8 @@ describe("побайтовый паритет NestJS ↔ mybook-api (Конте�
     shared.forwardError = null;
 
     shared.orderMoveError = "Неоплаченный заказ нельзя в печать";
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "POST",
       url: `/api/v1/crm/orders/${ORDER_ID}/status`,
       headers: asOwner,
@@ -519,9 +504,8 @@ describe("побайтовый паритет NestJS ↔ mybook-api (Конте�
 
     // Заблокированное фильтром сообщение (200 с blocked)
     shared.sendBlocked = "В сообщении номер карты";
-    await assertRouteParity({
+    await assertRoute({
       nest: app,
-      legacy,
       method: "POST",
       url: `/api/v1/crm/chats/${CHAT_ID}/messages`,
       headers: asOwner,
@@ -532,17 +516,17 @@ describe("побайтовый паритет NestJS ↔ mybook-api (Конте�
     // Голосовое: 404 нет диалога, 403 чужой диалог, 400 пустая запись, fallback без ffmpeg
     const voiceMp = multipartVoice(Buffer.from("voice-bytes"));
     shared.convMissing = true;
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: `/api/v1/crm/chats/${CHAT_ID}/voice`, headers: { ...asSales, ...voiceMp.headers }, body: voiceMp.body });
+    await assertRoute({ nest: app, method: "POST", url: `/api/v1/crm/chats/${CHAT_ID}/voice`, headers: { ...asSales, ...voiceMp.headers }, body: voiceMp.body });
     shared.convMissing = false;
 
     shared.chatAssigneeId = OWNER.id;
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: `/api/v1/crm/chats/${CHAT_ID}/voice`, headers: { ...asSales, ...voiceMp.headers }, body: voiceMp.body });
+    await assertRoute({ nest: app, method: "POST", url: `/api/v1/crm/chats/${CHAT_ID}/voice`, headers: { ...asSales, ...voiceMp.headers }, body: voiceMp.body });
     shared.chatAssigneeId = SALES.id;
 
     const emptyMp = multipartVoice();
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: `/api/v1/crm/chats/${CHAT_ID}/voice`, headers: { ...asSales, ...emptyMp.headers }, body: emptyMp.body });
+    await assertRoute({ nest: app, method: "POST", url: `/api/v1/crm/chats/${CHAT_ID}/voice`, headers: { ...asSales, ...emptyMp.headers }, body: emptyMp.body });
 
     shared.convertVoiceOk = false;
-    await assertRouteParity({ nest: app, legacy, method: "POST", url: `/api/v1/crm/chats/${CHAT_ID}/voice`, headers: { ...asSales, ...voiceMp.headers }, body: voiceMp.body });
+    await assertRoute({ nest: app, method: "POST", url: `/api/v1/crm/chats/${CHAT_ID}/voice`, headers: { ...asSales, ...voiceMp.headers }, body: voiceMp.body });
   });
 });
