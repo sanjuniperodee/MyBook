@@ -29,6 +29,7 @@ import * as h_admin_calls_whatsapp_id_recording from "@/server/site-handlers/adm
 import * as h_admin_calls_id_recording from "@/server/site-handlers/admin/calls-id-recording";
 import * as h_admin_webphone from "@/server/site-handlers/admin/webphone";
 import { SITE_OPS_PORTS, type SiteOpsPorts, type SiteOpsRoute } from "../modules/site-ops/site-ops.tokens";
+import { requestContext } from "@/server/http/request-scope";
 import { runInLegacyRequest } from "./legacy-request";
 
 /** Обработчик маршрута сайта; объявлен методом, чтобы принять обработчики с узким типом параметров пути ({ id }, { event }). */
@@ -78,6 +79,24 @@ const HANDLERS: Record<SiteOpsRoute, SiteHandler> = {
 export const legacySiteOpsPorts: Provider<SiteOpsPorts> = {
   provide: SITE_OPS_PORTS,
   useFactory: (): SiteOpsPorts => ({
-    handle: (meta, route, req, params) => runInLegacyRequest(meta, async () => HANDLERS[route](req, { params: Promise.resolve(params) })),
+    handle: (meta, route, req, params) => runInLegacyRequest(meta, () => runWithAfter(req, () => HANDLERS[route](req, { params: Promise.resolve(params) }))),
   }),
 };
+
+/**
+ * `after()` из next/server (вебхук GOWA: фото профиля нового клиента) — задача после ответа. Вне области запроса прокладка
+ * бросала «вызов вне HTTP-запроса»: вебхук падал посреди обработки (статусы, правки, удаления пачки терялись, шлюзу —
+ * 500). Задачи копятся в области запроса и запускаются фоном, когда обработчик вернул ответ; сбой задачи — только в лог.
+ */
+async function runWithAfter(req: Request, fn: () => Response | Promise<Response>): Promise<Response> {
+  const scope = { request: req, afterResponse: [] as (() => unknown)[] };
+  const res = await requestContext.run(scope, fn);
+  for (const task of scope.afterResponse) {
+    setImmediate(() => {
+      void Promise.resolve()
+        .then(task)
+        .catch((err: unknown) => console.error("[site-ops] after()", err));
+    });
+  }
+  return res;
+}
