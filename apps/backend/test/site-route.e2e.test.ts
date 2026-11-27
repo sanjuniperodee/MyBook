@@ -9,9 +9,9 @@ import { loadConfig } from "../src/core/config/app-config";
 import { CurrentUser } from "../src/core/auth/current-user.decorator";
 import { STAFF_ACCESS, type StaffAccessPort, type StaffMember } from "../src/core/auth/staff";
 import { CurrentStaff, Permissions } from "../src/core/auth/staff.decorators";
-import { RequestLocale, SessionToken } from "../src/core/http/decorators";
-import { Endpoint } from "../src/core/http/endpoint";
+import { RequestLocale } from "../src/core/http/decorators";
 import { RawBody, SiteRoute } from "../src/core/http/site-route";
+import { ORDERS_API_PORTS, type OrdersCallMeta } from "../src/modules/orders/orders.tokens";
 import { bootTestApp, sessionOf, testUser } from "./app";
 
 const HMAC_SECRET = "kaspi-test-secret";
@@ -111,10 +111,6 @@ class TestSiteController {
     throw Object.assign(new Error("NEXT_NOT_FOUND"), { digest: "NEXT_NOT_FOUND" });
   }
 
-  @Endpoint("webOrdersList")
-  probeWebResponse(@SessionToken() token: string | null) {
-    return Response.json({ seenToken: token !== null }, { status: 202, headers: { "cache-control": "no-store" } });
-  }
 }
 
 @Module({ controllers: [TestSiteController] })
@@ -206,7 +202,7 @@ describe("@SiteRoute и rawBody (NestJS ↔ сайт)", () => {
 
   it("стримит Web Response (Range 206, бинарное, SSE, несколько Set-Cookie) и считает ETag/304", async () => {
     const user = testUser("u-1");
-    const nest = await boot([user]);
+    const nest = await boot([user], [[ORDERS_API_PORTS, { run: async (meta: OrdersCallMeta) => Response.json({ seenToken: meta.token !== null }, { status: 202, headers: { "cache-control": "no-store" } }) }]]);
     const auth = { authorization: `Bearer ${sessionOf(user)}` };
 
     const range = await nest.inject({ method: "GET", url: "/api/orders/ord-9/file", headers: { ...auth, range: "bytes=0-2" } });

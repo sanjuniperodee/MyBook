@@ -31,6 +31,7 @@ import { AUTHORING_SITE_PORTS, type AuthoringSitePorts } from "../src/modules/au
 import { CRM_ADMIN_PORTS, type CrmAdminPorts } from "../src/modules/crm-admin/crm-admin.tokens";
 import { CRM_MOBILE_API_PORTS, type CrmMobileApiPorts } from "../src/modules/crm-mobile-api/crm-mobile-api.tokens";
 import { CRM_SITE_PORTS, type CrmSitePorts } from "../src/modules/crm-site/crm-site.tokens";
+import { ORDERS_API_PORTS } from "../src/modules/orders/orders.tokens";
 import { CRM_MOBILE_SITE_PORTS, type CrmMobileSitePorts } from "../src/modules/crm-mobile-site/crm-mobile-site.tokens";
 import {
   CRM_CHATS_PORTS,
@@ -724,6 +725,11 @@ export async function bootTestApp(opts: { users: CurrentUser[]; overrides?: [tok
     .overrideProvider(CRM_ADMIN_PORTS).useValue(defaultCrmAdminPorts)
     .overrideProvider(CRM_MOBILE_API_PORTS).useValue(defaultCrmMobileApiPorts)
     .overrideProvider(CRM_SITE_PORTS).useValue(defaultCrmSitePorts)
+    .overrideProvider(ORDERS_API_PORTS).useValue({
+      run: async (_meta: unknown, name: string) => {
+        throw new Error(`ORDERS_API_PORTS.run(${name}) не подменён в тесте`);
+      },
+    })
     .overrideProvider(CRM_MOBILE_SITE_PORTS).useValue(defaultCrmMobileSitePorts)
     .overrideProvider(CRM_LISTS_PORTS).useValue(defaultCrmListsPorts)
     .overrideProvider(CRM_DEALS_PORTS).useValue(defaultCrmDealsPorts)

@@ -1,34 +1,22 @@
 /**
- * CRM — счета сделки в API v1 (перенос /api/mobile/invoices*): те же действия, что у формы счёта в CRM на сайте (права,
- * проверки, лимит скидки, защита от двойного нажатия). Отказ действия — 400 refused с текстом для сотрудника.
+ * CRM — счета сделки в API v1 (перенос /api/mobile/invoices*): права — здесь, сам маршрут — общий код
+ * src/server/api-v1/orders.ts (те же действия, что у формы счёта в CRM на сайте).
  */
-import { cancelInvoiceAction, invoiceFormInfoAction, issueInvoiceAction, resendInvoiceAction } from "@/server/crm-actions/invoices";
 import { apiStaff } from "@/server/api";
+import { ORDERS_API_PERMISSIONS as P, ordersApi } from "@/server/api-v1/orders";
 import type { Handlers } from "../app";
-import { refused } from "./crm/common";
 
 export const crmInvoiceHandlers: Pick<Handlers, "crmInvoiceForm" | "crmInvoiceIssue" | "crmInvoiceCancel" | "crmInvoiceResend"> = {
   async crmInvoiceForm({ req, input }) {
-    await apiStaff(req, "chats.send", "deals.edit");
-    const r = await invoiceFormInfoAction({ dealId: input.dealId, conversationId: input.conversationId });
-    return r.ok ? r.info : refused(r.message);
+    return ordersApi.crmInvoiceForm({ input, staff: await apiStaff(req, ...P.crmInvoiceForm), user: null, book: null, req });
   },
-
   async crmInvoiceIssue({ req, input }) {
-    await apiStaff(req, "chats.send", "deals.edit");
-    const r = await issueInvoiceAction(input.body);
-    return r.ok ? r : refused(r.message);
+    return ordersApi.crmInvoiceIssue({ input, staff: await apiStaff(req, ...P.crmInvoiceIssue), user: null, book: null, req });
   },
-
   async crmInvoiceCancel({ req, input }) {
-    await apiStaff(req, "deals.edit");
-    const r = await cancelInvoiceAction(input.invoiceId);
-    return r.ok ? { ok: true as const, message: r.message } : refused(r.message);
+    return ordersApi.crmInvoiceCancel({ input, staff: await apiStaff(req, ...P.crmInvoiceCancel), user: null, book: null, req });
   },
-
   async crmInvoiceResend({ req, input }) {
-    await apiStaff(req, "chats.send", "deals.edit");
-    const r = await resendInvoiceAction(input.invoiceId);
-    return r.ok ? r : refused(r.message);
+    return ordersApi.crmInvoiceResend({ input, staff: await apiStaff(req, ...P.crmInvoiceResend), user: null, book: null, req });
   },
 };
