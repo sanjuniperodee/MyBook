@@ -28,6 +28,7 @@ import {
   type PagesPorts,
 } from "../src/modules/authoring-studio/authoring-studio.tokens";
 import { AUTHORING_SITE_PORTS, type AuthoringSitePorts } from "../src/modules/authoring-site/authoring-site.tokens";
+import { CRM_MOBILE_API_PORTS, type CrmMobileApiPorts } from "../src/modules/crm-mobile-api/crm-mobile-api.tokens";
 import { FEEDBACK_PORTS } from "../src/modules/feedback/feedback.tokens";
 import {
   CABINET_BOOK_PORTS,
@@ -247,6 +248,68 @@ const defaultAuthoringSitePorts: AuthoringSitePorts = {
   fetchYoutubeTitle: async () => ({ ok: true, title: null }),
 };
 
+const defaultCrmMobileApiPorts: CrmMobileApiPorts = {
+  autoShiftOnVisit: async () => true,
+  setShift: async () => {},
+  live: async () => ({ counters: { attention: 0, tasks: 0, chats: 0, calls: 0, deals: 0, reviews: 0, finance: 0 }, unread: 0 }),
+  dashboard: async () => ({
+    cur: { sum: 0, n: 0 },
+    prev: { sum: 0, n: 0 },
+    newUsers: { cur: 0, prev: 0 },
+    daily: [],
+    funnelRows: { rows: [] },
+    byPlan: [],
+    attention: [],
+    deadlines: [],
+    dealDeadlines: [],
+  }),
+  stageCounts: async () => [],
+  listStages: async () => [],
+  listTemplates: async () => [],
+  saveMyTemplate: async () => ({ ok: true, id: "00000000-0000-4000-8000-000000000000" }),
+  deleteMyTemplate: async () => ({ ok: true }),
+  duplicateTemplate: async () => ({ ok: true }),
+  reorderMyTemplates: async () => ({ ok: true }),
+  aiTemplateDraft: async () => ({ ok: true, title: "", text: "", replaced: [], ai: false }),
+  callDial: async () => ({ ok: true }),
+  markCallHandled: async () => ({ ok: true }),
+  chatProducts: async () => ({ ok: true, enabled: false, products: [] }),
+  sendProduct: async () => ({ ok: true }),
+  sendCatalogLink: async () => ({ ok: true }),
+  orderItems: async () => ({ ok: true, items: [], total: null, currency: "KZT" }),
+  openChat: async () => ({ ok: true, id: "00000000-0000-4000-8000-000000000000" }),
+  forwardTargets: async () => [],
+  assignConversation: async () => {},
+  createDealFromChat: async () => ({ id: "00000000-0000-4000-8000-000000000000" }),
+  forwardMessage: async () => ({ sent: 1, failed: [] }),
+  sendInternalNote: async () => ({ id: "00000000-0000-4000-8000-000000000000" }),
+  pinChat: async () => ({ ok: true }),
+  markRead: async () => {},
+  setConversationStatus: async () => {},
+  sendMessage: async () => ({ id: "00000000-0000-4000-8000-000000000000", status: "sent", error: null }),
+  findConversation: async () => null,
+  convertAudio: async () => null,
+  sendUpload: async () => ({ id: "00000000-0000-4000-8000-000000000000", status: "sent", error: null }),
+  editMessage: async () => ({ ok: true }),
+  deleteMessage: async () => ({ ok: true }),
+  resendMessage: async () => ({ ok: true }),
+  transcribeMessage: async () => ({ text: "" }),
+  createDeal: async () => ({ error: "CRM_MOBILE_API_PORTS.createDeal не подменён в тесте" }),
+  acceptDeal: async () => ({ ok: true }),
+  assignDeal: async () => ({ ok: true }),
+  moveDeal: async () => ({ ok: true }),
+  addNote: async () => ({}),
+  rejectDeal: async () => ({ requested: false, message: "Отклонено", deleted: true }),
+  createTask: async () => ({}),
+  taskDetail: async () => null,
+  updateTask: async () => ({}),
+  deleteTask: async () => ({}),
+  completeTask: async () => ({}),
+  snoozeTask: async () => ({}),
+  toggleTask: async () => ({}),
+  moveOrder: async () => ({}),
+};
+
 /** Лимитер в памяти: сколько раз звали с каким ключом; `deny` — следующий вызов вернёт «лимит исчерпан». */
 export class FakeLimiter implements RateLimiter {
   readonly hits: string[] = [];
@@ -334,6 +397,7 @@ export async function bootTestApp(opts: { users: CurrentUser[]; overrides?: [tok
     })
     .overrideProvider(PAGES_PORTS).useValue(defaultPagesPorts)
     .overrideProvider(ANSWER_FILES_PORTS).useValue(defaultAnswerFilesPorts)
+    .overrideProvider(CRM_MOBILE_API_PORTS).useValue(defaultCrmMobileApiPorts)
     .overrideProvider(PUBLIC_PORTS).useValue(defaultPublicPorts)
     .overrideProvider(AUTHORING).useValue(defaultAuthoringStub)
     .overrideProvider(AUTHORING_BOOK_OWNERSHIP).useValue({ bookOwnership: async () => null })

@@ -4,6 +4,7 @@ import { LegacyModule } from "./legacy/legacy.module";
 import { AuthoringApiModule } from "./modules/authoring/authoring.module";
 import { AuthoringSiteModule } from "./modules/authoring-site/authoring-site.module";
 import { AuthoringStudioApiModule } from "./modules/authoring-studio/authoring-studio.module";
+import { CrmMobileApiModule } from "./modules/crm-mobile-api/crm-mobile-api.module";
 import { FeedbackApiModule } from "./modules/feedback/feedback.module";
 import { IdentityApiModule } from "./modules/identity/identity.module";
 import { PublicApiModule } from "./modules/public/public.module";
@@ -19,6 +20,7 @@ import { PublicApiModule } from "./modules/public/public.module";
     AuthoringApiModule,
     AuthoringStudioApiModule,
     AuthoringSiteModule,
+    CrmMobileApiModule,
   ],
 })
 export class AppModule {}
