@@ -18,6 +18,14 @@ export interface StageOrderConfig {
   lostReason: string;
   /** Этап для сделки, по которой пришла оплата (предоплата при заведении клиента, платёж, счёт); пусто — не двигать. */
   paidStageId: string;
+  /**
+   * Тёплые замолчавшие (по выводу ИИ, когда клиент молчит silentDays): «дожим» — интересовался, знает цену, но не решил;
+   * «напомнить позже» — сам сказал «подумаю», «после зарплаты», назвал срок. Пусто — такие идут на «не отвечает».
+   */
+  pushStageId: string;
+  laterStageId: string;
+  /** «Рассылки»: тёплые («дожим», «напомнить позже») молчат lostDays дней — сюда, а не в отказ. Пусто — в отказ. */
+  mailingStageId: string;
 }
 
 export const STAGE_ORDER_DEFAULTS = { silentDays: 3, lostDays: 14, lostReason: "Не отвечает" } as const;
@@ -49,6 +57,9 @@ export function parseStageOrder(raw: string | null | undefined): StageOrderConfi
     lostDays,
     lostReason: typeof v.lostReason === "string" && v.lostReason.trim() ? v.lostReason.trim().slice(0, 80) : STAGE_ORDER_DEFAULTS.lostReason,
     paidStageId: typeof v.paidStageId === "string" ? v.paidStageId : "",
+    pushStageId: typeof v.pushStageId === "string" ? v.pushStageId : "",
+    laterStageId: typeof v.laterStageId === "string" ? v.laterStageId : "",
+    mailingStageId: typeof v.mailingStageId === "string" ? v.mailingStageId : "",
   };
 }
 
@@ -68,7 +79,10 @@ export interface StageOrderDeal {
   eventDate?: string | null;
 }
 
-export type StageOrderMove = { to: "work" | "silent" | "lost"; why: string };
+export type StageOrderMove = { to: "work" | "silent" | "lost" | "mailing"; why: string };
+
+/** Этапы ожидания: клиент написал после перевода туда — обратно «в работе». */
+export const waitingStageIds = (cfg: StageOrderConfig) => [cfg.silentStageId, cfg.pushStageId, cfg.laterStageId, cfg.mailingStageId].filter(Boolean);
 
 const DAY = 86_400_000;
 const days = (n: number) => `${n} ${n % 10 === 1 && n % 100 !== 11 ? "день" : [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100) ? "дня" : "дней"}`;
@@ -87,11 +101,15 @@ export function stageOrderMove(d: StageOrderDeal, cfg: StageOrderConfig, now: Da
   const lastClient = d.lastIn ?? d.createdAt;
   const silentFor = Math.floor((now.getTime() - lastClient.getTime()) / DAY);
   const answered = !!d.lastOut && (!d.lastIn || d.lastOut >= d.lastIn);
-  if (d.stageId === cfg.silentStageId) {
+  if (waitingStageIds(cfg).includes(d.stageId)) {
     if (d.lastIn && d.lastIn > d.stageChangedAt) return { to: "work", why: "клиент снова написал" };
+    // «Рассылки» — конечная остановка тёплых: оттуда только обратно в работу.
+    if (d.stageId === cfg.mailingStageId) return null;
     const eventAhead = !!d.eventDate && /^\d{4}-\d{2}-\d{2}$/.test(d.eventDate) && d.eventDate >= zonedDay(now);
-    if (!d.hasOpenTask && !eventAhead && silentFor >= cfg.lostDays) return { to: "lost", why: `клиент не отвечает ${days(silentFor)}` };
-    return null;
+    if (d.hasOpenTask || eventAhead || silentFor < cfg.lostDays) return null;
+    const warm = d.stageId === cfg.pushStageId || d.stageId === cfg.laterStageId;
+    if (warm && cfg.mailingStageId) return { to: "mailing", why: `клиент не отвечает ${days(silentFor)} — в базу рассылок` };
+    return { to: "lost", why: `клиент не отвечает ${days(silentFor)}` };
   }
   if (!d.onEntryStage && d.stageId !== cfg.workStageId) return null;
   if (answered && !d.hasOpenTask && silentFor >= cfg.silentDays) return { to: "silent", why: `клиент не отвечает ${days(silentFor)}` };

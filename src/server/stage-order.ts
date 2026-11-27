@@ -2,7 +2,7 @@ import "server-only";
 import { container } from "@/server/container";
 import { getSetting } from "@/modules/workspace";
 import { lostReasons } from "@/modules/sales/domain/meta";
-import { parseStageOrder, stageOrderMove, type StageOrderConfig, type StageOrderDeal } from "@/shared/domain/stageOrder";
+import { parseStageOrder, stageOrderMove, waitingStageIds, type StageOrderConfig, type StageOrderDeal } from "@/shared/domain/stageOrder";
 
 /** За один проход (раз в минуту): не больше стольких переводов и стольких разборов переписки моделью (до 180 в час). */
 export const STAGE_ORDER_MOVES = 40;
@@ -15,7 +15,7 @@ interface Candidate extends StageOrderDeal {
 }
 
 export interface StageOrderVerdict {
-  verdict: "refused" | "later" | "silent" | "active" | "spam";
+  verdict: "refused" | "later" | "warm" | "silent" | "active" | "spam";
   reason: string | null;
   later: string | null;
   note: string;
@@ -62,7 +62,10 @@ export async function stageOrderPass(d: StageOrderDeps, now = new Date()): Promi
   const funnel = await d.funnel();
   // Этапы из настройки удалили или перенесли в другую воронку — молча ничего не делаем: порядок включат заново.
   if (!funnel || !funnel.openStageIds.includes(cfg.workStageId) || !funnel.openStageIds.includes(cfg.silentStageId)) return null;
-  const stageIds = [...new Set([funnel.entryStageId, cfg.workStageId, cfg.silentStageId])];
+  // Этапы «дожим», «напомнить позже», «рассылки» — только если они в основной воронке «в работе» (их могли удалить).
+  const extra = waitingStageIds(cfg).filter((id) => funnel.openStageIds.includes(id));
+  const stageIds = [...new Set([funnel.entryStageId, cfg.workStageId, ...extra])];
+  const has = (id: string) => !!id && extra.includes(id);
   const result: StageOrderResult = { paid: 0, work: 0, silent: 0, lost: 0, assessed: 0 };
   let moves = 0;
   // Оплата — первой: клиенту завели кабинет с предоплатой или он оплатил счёт, сделка сразу уходит на свой этап.
@@ -90,7 +93,11 @@ export async function stageOrderPass(d: StageOrderDeps, now = new Date()): Promi
       if (move.to === "work") {
         await d.move(deal.id, cfg.workStageId, null);
         result.work++;
-      } else if (move.to === "lost") {
+      } else if (move.to === "mailing" && has(cfg.mailingStageId)) {
+        await d.move(deal.id, cfg.mailingStageId, null);
+        await d.note(deal, `Порядок в воронке: ${move.why}.`);
+        result.silent++;
+      } else if (move.to === "lost" || move.to === "mailing") {
         await d.move(deal.id, funnel.lostStageId, cfg.lostReason);
         await d.note(deal, `Порядок в воронке: ${move.why} — закрыта отказом «${cfg.lostReason}».`);
         result.lost++;
@@ -108,8 +115,11 @@ export async function stageOrderPass(d: StageOrderDeps, now = new Date()): Promi
           await d.note(deal, `Порядок в воронке: не покупатель — «Спам / ошибка».${summary}`);
           result.lost++;
         } else {
-          if (deal.stageId !== cfg.silentStageId) await d.move(deal.id, cfg.silentStageId, null);
-          await d.note(deal, `Порядок в воронке: ${move.why}.${verdict?.later ? ` Обещал вернуться: ${verdict.later}.` : ""}${summary}`);
+          // Тёплые — на свои этапы: «подумаю / позже» → «напомнить позже», знает цену и не решил → «дожим».
+          const to = verdict?.verdict === "later" && has(cfg.laterStageId) ? cfg.laterStageId : verdict?.verdict === "warm" && has(cfg.pushStageId) ? cfg.pushStageId : cfg.silentStageId;
+          const where = to === cfg.laterStageId ? "клиент обещал вернуться" : to === cfg.pushStageId ? "клиент интересовался и не решил — дожать" : move.why;
+          if (deal.stageId !== to) await d.move(deal.id, to, null);
+          await d.note(deal, `Порядок в воронке: ${where}.${verdict?.later ? ` Обещал вернуться: ${verdict.later}.` : ""}${summary}`);
           result.silent++;
         }
       }

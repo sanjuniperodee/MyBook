@@ -43,6 +43,8 @@ export const crmStages = pgTable("crm_stages", {
   kind: text("kind", { enum: ["open", "won", "lost"] }).notNull().default("open"),
   /** Событие на сайте, которое само переводит сделку на этот этап (только вперёд по воронке). */
   milestone: text("milestone").$type<StageMilestone>(),
+  /** Колонка на доске свёрнута по умолчанию (сотрудник разворачивает её у себя; выбор помнит браузер). */
+  collapsed: boolean("collapsed").notNull().default(false),
   ...timestamps,
 });
 

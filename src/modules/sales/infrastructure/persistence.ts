@@ -373,6 +373,9 @@ export class DrizzlePipelineRepository implements PipelineRepository {
       .set({ milestone: null })
       .where(and(eq(crmStages.milestone, milestone), eq(crmStages.pipelineId, pipelineId), exceptStageId ? ne(crmStages.id, exceptStageId) : undefined));
   }
+  async setStageCollapsed(id: string, collapsed: boolean) {
+    await executor().update(crmStages).set({ collapsed, updatedAt: new Date() }).where(eq(crmStages.id, id));
+  }
   async updateStage(id: string, patch: { name: string; color: string; milestone: StageMilestone | null }) {
     await executor().update(crmStages).set({ ...patch, updatedAt: new Date() }).where(eq(crmStages.id, id));
   }

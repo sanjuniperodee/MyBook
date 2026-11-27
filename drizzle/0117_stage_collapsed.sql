@@ -1,0 +1,1 @@
+ALTER TABLE "crm_stages" ADD COLUMN "collapsed" boolean DEFAULT false NOT NULL;

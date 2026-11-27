@@ -820,6 +820,13 @@
       "when": 1795787804820,
       "tag": "0116_deal_note",
       "breakpoints": true
+    },
+    {
+      "idx": 117,
+      "version": "7",
+      "when": 1795789671437,
+      "tag": "0117_stage_collapsed",
+      "breakpoints": true
     }
   ]
 }

@@ -10,6 +10,8 @@ export interface PipelineRepository {
   /** Одно событие — один этап в воронке: снять событие с остальных этапов. */
   releaseMilestone(pipelineId: string, milestone: StageMilestone, exceptStageId: string | null): Promise<void>;
   updateStage(id: string, patch: { name: string; color: string; milestone: StageMilestone | null }): Promise<void>;
+  /** Колонка на доске свёрнута по умолчанию. */
+  setStageCollapsed(id: string, collapsed: boolean): Promise<void>;
   /** Новый открытый этап — перед закрывающими (успех/отказ). */
   insertOpenStage(pipelineId: string, stage: { name: string; color: string; milestone: StageMilestone | null }): Promise<void>;
   swapPositions(a: { id: string; position: number }, b: { id: string; position: number }): Promise<void>;
@@ -34,6 +36,12 @@ export class PipelinesService {
     const patch = { name: input.name, color: input.color, milestone: input.milestone };
     if (existing) await this.repo.updateStage(existing.id, patch);
     else await this.repo.insertOpenStage(pipelineId, patch);
+  }
+
+  /** Свернуть колонку этапа на доске по умолчанию (или развернуть). */
+  async setCollapsed(id: string, collapsed: boolean) {
+    if (!(await this.repo.stage(id))) throw new SalesError("stageNotFound", "Этап не найден");
+    await this.repo.setStageCollapsed(id, collapsed);
   }
 
   /** Сдвинуть этап «в работе» на одну позицию; закрывающие этапы остаются в конце. */

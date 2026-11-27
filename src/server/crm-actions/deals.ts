@@ -298,6 +298,15 @@ export async function deleteDealAction(dealId: string): Promise<{ error: string 
   redirect("/admin/deals");
 }
 
+/** Колонка этапа на доске свёрнута по умолчанию: у каждого сотрудника, пока он сам её не развернёт (выбор помнит браузер). */
+export async function setStageCollapsedAction(stageId: string, collapsed: boolean): Promise<{ ok?: true; error?: string }> {
+  const staff = await assertStaff("settings.manage");
+  const id = uuid.parse(stageId);
+  await container().sales.pipelines.setCollapsed(id, collapsed === true);
+  await audit(staff, "settings.update", "stage", id, { collapsed: collapsed === true });
+  return { ok: true };
+}
+
 /** Привязать сделку к клиенту (например, по номеру из чата нашёлся аккаунт на сайте). */
 export async function linkDealClientAction(dealId: string, clientId: string | null): Promise<DealActionResult> {
   const staff = await assertStaff("deals.edit", "clients.view");
@@ -628,6 +637,9 @@ const stageOrderSchema = z.object({
   workStageId: z.string().max(40),
   silentStageId: z.string().max(40),
   paidStageId: z.string().max(40),
+  pushStageId: z.string().max(40).default(""),
+  laterStageId: z.string().max(40).default(""),
+  mailingStageId: z.string().max(40).default(""),
   silentDays: z.coerce.number().int().min(1, "Дней — от 1").max(STAGE_ORDER_LIMITS.silentDays, `Дней — не больше ${STAGE_ORDER_LIMITS.silentDays}`),
   lostDays: z.coerce.number().int().min(2, "Дней — от 2").max(STAGE_ORDER_LIMITS.lostDays, `Дней — не больше ${STAGE_ORDER_LIMITS.lostDays}`),
 });
@@ -649,7 +661,10 @@ export async function saveStageOrderAction(input: z.input<typeof stageOrderSchem
     if (d.lostDays <= d.silentDays) return { error: "Отказ — позже, чем «не отвечает»" };
   }
   if (d.paidStageId && !open.includes(d.paidStageId)) return { error: "Этап для оплаченных — из этапов «в работе» основной воронки" };
-  const next = { on: d.on, workStageId: d.workStageId, silentStageId: d.silentStageId, paidStageId: d.paidStageId, silentDays: d.silentDays, lostDays: d.lostDays, lostReason: STAGE_ORDER_DEFAULTS.lostReason };
+  const warm = [d.pushStageId, d.laterStageId, d.mailingStageId].filter(Boolean);
+  if (warm.some((id) => !open.includes(id))) return { error: "«Дожим», «напомнить позже» и «рассылки» — из этапов «в работе» основной воронки" };
+  if (new Set([d.workStageId, d.silentStageId, ...warm]).size !== warm.length + 2) return { error: "Каждому шагу — свой этап: «в работе», «не отвечает», «дожим», «напомнить позже» и «рассылки» не должны совпадать" };
+  const next = { on: d.on, workStageId: d.workStageId, silentStageId: d.silentStageId, paidStageId: d.paidStageId, pushStageId: d.pushStageId, laterStageId: d.laterStageId, mailingStageId: d.mailingStageId, silentDays: d.silentDays, lostDays: d.lostDays, lostReason: STAGE_ORDER_DEFAULTS.lostReason };
   const before = await getSetting("crm.stageOrder");
   await saveSettings({ "crm.stageOrder": JSON.stringify(next) }, staff.user.id);
   await audit(staff, "settings.update", "settings", "crm.stageOrder", { from: before, to: next });

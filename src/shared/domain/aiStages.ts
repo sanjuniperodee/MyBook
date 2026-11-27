@@ -34,7 +34,7 @@ export const AI_STAGES = {
  * Роль этапа в воронке — по настройкам, а не по названию (этапы переименовывают): первый открытый — новая заявка;
  * «в работе», «не отвечает», «оплачено» — из «Порядка в воронке»; этап с вехой сайта — веха; успех и отказ — по виду.
  */
-export type AiStageRole = "entry" | "work" | "silent" | "paid" | "milestone" | "open" | "won" | "lost";
+export type AiStageRole = "entry" | "work" | "silent" | "push" | "later" | "mailing" | "paid" | "milestone" | "open" | "won" | "lost";
 
 export interface AiStageOption {
   id: string;
@@ -60,6 +60,12 @@ export function stageRoles(stages: readonly { id: string; name: string; kind: "o
             ? "work"
             : s.id === order.silentStageId
               ? "silent"
+              : s.id === order.pushStageId
+                ? "push"
+                : s.id === order.laterStageId
+                  ? "later"
+                  : s.id === order.mailingStageId
+                    ? "mailing"
               : s.id === order.paidStageId
                 ? "paid"
                 : s.milestone
@@ -69,7 +75,7 @@ export function stageRoles(stages: readonly { id: string; name: string; kind: "o
 }
 
 /** Этапы «разговора»: между ними ИИ двигает сам — за ними не стоят ни деньги, ни события на сайте. */
-const TALK: readonly AiStageRole[] = ["entry", "work", "silent", "open"];
+const TALK: readonly AiStageRole[] = ["entry", "work", "silent", "push", "later", "mailing", "open"];
 
 export interface AiStageInput {
   current: AiStageOption;

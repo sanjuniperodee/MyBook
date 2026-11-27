@@ -141,6 +141,55 @@ describe("Порядок в воронке: проход", () => {
   });
 });
 
+describe("Порядок в воронке: дожим, напомнить позже, рассылки", () => {
+  const warmCfg = parseStageOrder(JSON.stringify({ on: true, workStageId: "work", silentStageId: "silent", pushStageId: "push", laterStageId: "later", mailingStageId: "mail", silentDays: 3, lostDays: 14 }));
+  const at = (stageId: string, p: Partial<StageOrderDeal> = {}) => deal({ stageId, onEntryStage: false, stageChangedAt: ago(4), ...p });
+
+  it("тёплые молчат 14 дней — в «рассылки», не в отказ; холодные «не отвечает» — отказ", () => {
+    expect(stageOrderMove(at("push", { lastIn: ago(14, 1), lastOut: ago(13) }), warmCfg, now)).toEqual({ to: "mailing", why: "клиент не отвечает 14 дней — в базу рассылок" });
+    expect(stageOrderMove(at("later", { lastIn: ago(15), lastOut: ago(14) }), warmCfg, now)?.to).toBe("mailing");
+    expect(stageOrderMove(at("silent", { lastIn: ago(15), lastOut: ago(14) }), warmCfg, now)?.to).toBe("lost");
+    expect(stageOrderMove(at("push", { lastIn: ago(9), lastOut: ago(8) }), warmCfg, now)).toBeNull();
+  });
+
+  it("написал снова — из любого этапа ожидания в работу; из «рассылок» сами не уходим", () => {
+    for (const s of ["push", "later", "mail"]) expect(stageOrderMove(at(s, { lastIn: ago(1), lastOut: ago(8) }), warmCfg, now)?.to).toBe("work");
+    expect(stageOrderMove(at("mail", { lastIn: ago(60), lastOut: ago(59) }), warmCfg, now)).toBeNull();
+  });
+
+  it("без этапа «рассылки» тёплые закрываются отказом, как раньше", () => {
+    const noMail = parseStageOrder(JSON.stringify({ on: true, workStageId: "work", silentStageId: "silent", pushStageId: "push", silentDays: 3, lostDays: 14 }));
+    expect(stageOrderMove(at("push", { lastIn: ago(15), lastOut: ago(14) }), noMail, now)?.to).toBe("lost");
+  });
+
+  it("проход: вывод модели «warm» — «дожим», «later» — «напомнить позже»; молчащие тёплые — в «рассылки»", async () => {
+    const { stageOrderPass } = await import("@/server/stage-order");
+    const run = async (verdict: unknown, cand: StageOrderDeal) => {
+      const moves: [string, string, string | null][] = [];
+      await stageOrderPass(
+        {
+          config: async () => warmCfg,
+          funnel: async () => ({ pipelineId: "p", entryStageId: "new", lostStageId: "lost", openStageIds: ["new", "work", "silent", "push", "later", "mail"] }),
+          candidates: async () => [{ id: "a", number: 1, clientId: null, ...cand }],
+          paid: async () => [],
+          aiReady: async () => true,
+          assess: async () => verdict as never,
+          move: async (id, stage, reason) => void moves.push([id, stage, reason]),
+          note: async () => {},
+          logError: () => {},
+        },
+        now,
+      );
+      return moves;
+    };
+    const quiet = at("work", { lastIn: ago(4), lastOut: ago(3) });
+    expect(await run({ verdict: "warm", reason: null, later: null, note: "" }, quiet)).toEqual([["a", "push", null]]);
+    expect(await run({ verdict: "later", reason: null, later: "в декабре", note: "" }, quiet)).toEqual([["a", "later", null]]);
+    expect(await run({ verdict: "silent", reason: null, later: null, note: "" }, quiet)).toEqual([["a", "silent", null]]);
+    expect(await run(null, at("push", { lastIn: ago(20), lastOut: ago(19) }))).toEqual([["a", "mail", null]]);
+  });
+});
+
 describe("Вывод модели по заявке", () => {
   const reasons = ["Дорого", "Передумал", "Не успеваем к дате", "Выбрал другой подарок"];
 
