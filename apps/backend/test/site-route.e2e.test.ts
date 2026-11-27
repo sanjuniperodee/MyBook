@@ -34,7 +34,7 @@ class TestSiteController {
     return { raw: raw.toString("utf8"), parsed };
   }
 
-  @SiteRoute("GET", "/api/admin/boards/{path*}", { auth: "staff" })
+  @SiteRoute("GET", "/api/site-test/boards/{path*}", { auth: "staff" })
   boards(@Param("*") tail: string | undefined, @CurrentStaff() staff: StaffMember) {
     return { tail: tail ?? "", role: staff.roleKey };
   }
@@ -144,12 +144,12 @@ describe("@SiteRoute и rawBody (NestJS ↔ сайт)", () => {
     const nest = await boot([staff], [[STAFF_ACCESS, access]]);
     const headers = { cookie: `mb_session=${sessionOf(staff)}` };
 
-    for (const url of ["/api/admin/boards", "/api/v1/site/admin/boards"]) {
+    for (const url of ["/api/site-test/boards", "/api/v1/site/site-test/boards"]) {
       const res = await nest.inject({ method: "GET", url, headers });
       expect(res.statusCode).toBe(200);
       expect(res.json()).toEqual({ tail: "", role: "sales" });
     }
-    for (const url of ["/api/admin/boards/col/42", "/api/v1/site/admin/boards/col/42"]) {
+    for (const url of ["/api/site-test/boards/col/42", "/api/v1/site/site-test/boards/col/42"]) {
       const res = await nest.inject({ method: "GET", url, headers });
       expect(res.statusCode).toBe(200);
       expect(res.json()).toEqual({ tail: "col/42", role: "sales" });

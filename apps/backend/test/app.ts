@@ -30,6 +30,7 @@ import {
 import { AUTHORING_SITE_PORTS, type AuthoringSitePorts } from "../src/modules/authoring-site/authoring-site.tokens";
 import { CRM_ADMIN_PORTS, type CrmAdminPorts } from "../src/modules/crm-admin/crm-admin.tokens";
 import { CRM_MOBILE_API_PORTS, type CrmMobileApiPorts } from "../src/modules/crm-mobile-api/crm-mobile-api.tokens";
+import { CRM_SITE_PORTS, type CrmSitePorts } from "../src/modules/crm-site/crm-site.tokens";
 import {
   CRM_CHATS_PORTS,
   CRM_CLIENTS_PORTS,
@@ -538,6 +539,76 @@ const defaultCrmAdminPorts: CrmAdminPorts = {
   deleteSharedTemplate: async () => {},
 };
 
+const defaultCrmSitePorts: CrmSitePorts = {
+  chatsInbox: async () => [],
+  findConversation: async () => null,
+  chatMessages: async () => [],
+  sensitiveFor: async () => [],
+  sendChatUpload: async () => ({ id: "00000000-0000-4000-8000-000000000000", status: "sent", error: null }),
+  convertAudio: async () => null,
+  findMessageMedia: async () => null,
+  findDealById: async () => null,
+  openMessageMedia: async () => null,
+  addBotMaterial: async () => {
+    throw new Error("CRM_SITE_PORTS.addBotMaterial не подменён в тесте");
+  },
+  botMaterialFile: async () => null,
+  boardsDispatch: async () => Response.json({ error: "Не найдено", code: "notFound" }, { status: 404 }),
+  boardCardFile: async () => {
+    throw new Error("CRM_SITE_PORTS.boardCardFile не подменён в тесте");
+  },
+  serveBoardFile: async () => null,
+  createSupportTicket: async () => {
+    throw new Error("CRM_SITE_PORTS.createSupportTicket не подменён в тесте");
+  },
+  linkSupportChat: async () => {},
+  processSupportTicket: async () => {},
+  scheduleBackground: (fn) => {
+    void Promise.resolve().then(fn);
+  },
+  findSupportTicket: async () => null,
+  findSupportAttachment: async () => null,
+  serveSupportAttachment: async () => null,
+  isReleaseTokenValid: () => false,
+  markSupportReleased: async () => [],
+  catalogRemoteImage: async () => null,
+  catalogProductImage: async () => null,
+  liveState: async () => ({
+    counters: { attention: 0, tasks: 0, chats: 0, calls: 0, deals: 0, reviews: 0, finance: 0 },
+    unread: 0,
+    notifications: [],
+    ringing: [],
+  }),
+  subscribeLive: async () => () => {},
+  markNotificationsRead: async () => {},
+  syncMobileBadge: async () => {},
+  vapidKeys: async () => ({ publicKey: "" }),
+  subscribePush: async () => {},
+  unsubscribePush: async () => {},
+  findOrderDetails: async () => null,
+  canSeeOrder: async () => false,
+  preparePrintFiles: async () => {},
+  getPrintFile: async () => Buffer.alloc(0),
+  audit: async () => {},
+  allStaff: async () => [],
+  getSetting: async () => null,
+  exportClients: async () => ({ rows: [], total: 0 }),
+  exportExpenses: async () => [],
+  exportFinance: async () => ({ money: [], deals: [], orders: [], unrecorded: [], review: [], resolutions: [] }),
+  exportLeadStats: async () => ({ deals: [], payments: [], invoices: [], spend: [] }),
+  exportOrders: async () => [],
+  exportPayments: async () => [],
+  exportProfit: async () => ({
+    money: [],
+    expenses: [],
+    counts: { leads: 0, buyers: 0, buyersFirstSum: 0, buyersAgreed: 0, orders: 0, books: 0 },
+    prevCounts: { leads: 0, buyers: 0, buyersFirstSum: 0, buyersAgreed: 0, orders: 0, books: 0 },
+    forms: {},
+  }),
+  exportSalesRegister: async () => [],
+  exportVcard: async () => [],
+};
+
 /** Лимитер в памяти: сколько раз звали с каким ключом; `deny` — следующий вызов вернёт «лимит исчерпан». */
 export class FakeLimiter implements RateLimiter {
   readonly hits: string[] = [];
@@ -627,6 +698,7 @@ export async function bootTestApp(opts: { users: CurrentUser[]; overrides?: [tok
     .overrideProvider(ANSWER_FILES_PORTS).useValue(defaultAnswerFilesPorts)
     .overrideProvider(CRM_ADMIN_PORTS).useValue(defaultCrmAdminPorts)
     .overrideProvider(CRM_MOBILE_API_PORTS).useValue(defaultCrmMobileApiPorts)
+    .overrideProvider(CRM_SITE_PORTS).useValue(defaultCrmSitePorts)
     .overrideProvider(CRM_LISTS_PORTS).useValue(defaultCrmListsPorts)
     .overrideProvider(CRM_DEALS_PORTS).useValue(defaultCrmDealsPorts)
     .overrideProvider(CRM_CLIENTS_PORTS).useValue(defaultCrmClientsPorts)

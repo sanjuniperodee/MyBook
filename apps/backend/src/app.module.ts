@@ -8,6 +8,7 @@ import { CrmAdminApiModule } from "./modules/crm-admin/crm-admin.module";
 import { CrmCoreApiModule } from "./modules/crm-core/crm-core.module";
 import { CrmMobileApiModule } from "./modules/crm-mobile-api/crm-mobile-api.module";
 import { CrmOpsApiModule } from "./modules/crm-ops/crm-ops.module";
+import { CrmSiteModule } from "./modules/crm-site/crm-site.module";
 import { FeedbackApiModule } from "./modules/feedback/feedback.module";
 import { IdentityApiModule } from "./modules/identity/identity.module";
 import { PublicApiModule } from "./modules/public/public.module";
@@ -27,6 +28,7 @@ import { PublicApiModule } from "./modules/public/public.module";
     CrmMobileApiModule,
     CrmAdminApiModule,
     CrmOpsApiModule,
+    CrmSiteModule,
   ],
 })
 export class AppModule {}

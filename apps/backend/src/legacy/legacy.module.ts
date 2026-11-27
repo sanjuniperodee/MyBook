@@ -5,6 +5,7 @@ import { AUTHORING_SITE_PORTS } from "../modules/authoring-site/authoring-site.t
 import { CRM_ADMIN_PORTS } from "../modules/crm-admin/crm-admin.tokens";
 import { CRM_MOBILE_API_PORTS } from "../modules/crm-mobile-api/crm-mobile-api.tokens";
 import { CRM_OPS_PORTS } from "../modules/crm-ops/crm-ops.tokens";
+import { CRM_SITE_PORTS } from "../modules/crm-site/crm-site.tokens";
 import { FEEDBACK_PORTS } from "../modules/feedback/feedback.tokens";
 import { PUBLIC_PORTS } from "../modules/public/public.tokens";
 import { legacyAuthoringExports, legacyAuthoringProviders } from "./authoring.ports";
@@ -14,6 +15,7 @@ import { legacyCrmAdminPorts } from "./crm-admin.ports";
 import { LEGACY_CRM_CORE_TOKENS, legacyCrmCorePorts } from "./crm-core.ports";
 import { legacyCrmMobileApiPorts } from "./crm-mobile-api.ports";
 import { legacyCrmOpsPorts } from "./crm-ops.ports";
+import { legacyCrmSitePorts } from "./crm-site.ports";
 import { legacyFeedbackPorts } from "./feedback.ports";
 import { LEGACY_IDENTITY_TOKENS, legacyIdentityPorts } from "./identity.ports";
 import { LEGACY_CONTAINER } from "./legacy.tokens";
@@ -36,6 +38,7 @@ import { legacyPublicPorts } from "./public.ports";
     legacyCrmAdminPorts,
     ...legacyCrmCorePorts,
     legacyCrmMobileApiPorts,
+    legacyCrmSitePorts,
     legacyFeedbackPorts,
     ...legacyIdentityPorts,
     legacyPublicPorts,
@@ -50,6 +53,7 @@ import { legacyPublicPorts } from "./public.ports";
     RATE_LIMITER,
     CRM_ADMIN_PORTS,
     CRM_MOBILE_API_PORTS,
+    CRM_SITE_PORTS,
     FEEDBACK_PORTS,
     ...LEGACY_IDENTITY_TOKENS,
     PUBLIC_PORTS,
