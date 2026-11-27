@@ -132,7 +132,8 @@ function readFlag(name) {
     return "";
   }
 }
-const siteOn = process.env.MYBOOK_SITE !== "off" && readFlag("site") !== "off";
+// С 27.11 релиз собирается без Next (сайт в mybook-web): процесса сайта нет, если в релизе нет server.js.
+const siteOn = process.env.MYBOOK_SITE !== "off" && readFlag("site") !== "off" && fs.existsSync(path.join(releasesDir, "current", "server.js"));
 
 const nestWorker = process.env.MYBOOK_WORKER_RUNTIME !== "legacy" && readFlag("worker-runtime") !== "legacy" && fs.existsSync(nestWorkerFile);
 if (worker && nestWorker) worker.script = "backend-worker.mjs";

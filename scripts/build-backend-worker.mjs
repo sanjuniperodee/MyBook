@@ -1,4 +1,4 @@
-// Собирает процесс-воркер на Nest (apps/backend/src/worker.ts, ADR 0014, шаг 6) в .next/standalone/backend-worker.mjs —
+// Собирает процесс-воркер на Nest (apps/backend/src/worker.ts, ADR 0014, шаг 6) в build/backend-worker.mjs —
 // рядом с worker.mjs. Фон тот же (src/worker/run.ts), поэтому next/* — заглушка воркера (вызов вне HTTP-запроса —
 // понятная ошибка, after() — сразу), а не прокладка запроса API. Свой tsconfig — декораторы Nest.
 import { bundleNodeProcess } from "./node-bundle.mjs";

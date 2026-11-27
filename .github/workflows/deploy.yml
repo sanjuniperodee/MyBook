@@ -172,8 +172,6 @@ jobs:
             --title "Клиент API v1 из бэкенда ${GITHUB_SHA::8}" \
             --body "Сгенерирован scripts/contracts/generate.ts в MyBook ${GITHUB_SHA}. Проверки — CI этого репозитория."
 
-  # Сборка и архив релиза. Кэш .next/cache не сохраняем: это кэш Turbopack на гигабайты, а сборка (~1 мин) короче
-  # тестов и общее время не задаёт.
   shared-package:
     # Пакет @sanjuniperodee/mybook-shared для mybook-web (ADR 0013, шаг 3): контракт API v1 и общий чистый код, типы
     # бэкенда — объявлениями. Версия 0.1.<номер сборки>; веб берёт её в .mybook-shared-version. Публикует GITHUB_TOKEN.
@@ -195,6 +193,7 @@ jobs:
         working-directory: dist/mybook-shared
         env: { NODE_AUTH_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
 
+  # Сборка и архив релиза: бандлы процессов бэкенда esbuild-ом (~30 с, без Next — сайт в mybook-web).
   build:
     name: Сборка
     runs-on: ubuntu-24.04
@@ -204,20 +203,12 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm }
       - run: npm ci --no-audit --no-fund
-      # Версии страницы после выкатки (node_modules/next/dist/docs/01-app/02-guides/self-hosting.md, «Version Skew»):
-      # постоянный ключ серверных действий — их ID не меняются между сборками, если не менялся код действия (иначе каждая
-      # выкатка ломала отправку форм у открытых вкладок: «Failed to find Server Action»); deploymentId = коммит — при
-      # переходе со страницы прошлой выкатки Next перезагружает её целиком. Ключ — секрет репозитория, он же в .env сервера.
       - run: npm run build
-        env:
-          MYBOOK_SKIP_TYPECHECK: 1
-          NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: ${{ secrets.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY }}
-          NEXT_DEPLOYMENT_ID: ${{ github.sha }}
       # mybook-files (services/files) — статический бинарник в релиз: <релиз>/bin/mybook-files, запускает PM2.
       - uses: actions/setup-go@v5
         with: { go-version-file: services/files/go.mod, cache-dependency-path: services/files/go.mod }
       - name: mybook-files
-        run: bash services/files/build.sh .next/standalone/bin
+        run: bash services/files/build.sh build/bin
       - name: Архив релиза
         run: |
           bash deploy/pack-release.sh release

@@ -4,7 +4,7 @@
 # Готовая сборка из GitHub Actions: bash deploy/deploy.sh --artifact <папка релиза | архив.tgz> — код уже обновлён (deploy/ci-run.sh),
 # зависимости и сборка на сервере пропускаются, архив и есть релиз.
 #
-# Сборка идёт в .next репозитория, а запускается копия в ../mybook-releases/releases/<время>-<sha>: пока идёт сборка,
+# Сборка идёт в build/ репозитория (npm run build, deploy/pack-release.sh), а запускается копия в ../mybook-releases/releases/<время>-<sha>: пока идёт сборка,
 # работающая версия не затрагивается. Порядок:
 #   код → зависимости → сборка → релиз → smoke-тест на временном порту → переключение current → перезапуск PM2.
 # Не прошёл smoke-тест — остаётся старая версия. Не ответила после переключения — откат на предыдущий релиз.
@@ -79,25 +79,9 @@ if [ -z "$ARTIFACT" ]; then
     echo "$LOCK_HASH" > node_modules/.deploy-lock-hash
   fi
 
-  # Кэш Turbopack (.next/cache/turbopack) старые файлы не удаляет: свежий весит ~400 МБ, а за месяцы дорастает до
-  # гигабайтов, и сборка не помещается в потолок памяти. Разросся — удаляем: одна сборка пройдёт холодной.
-  CACHE_DIR=.next/cache/turbopack
-  CACHE_MAX_MB="${MYBOOK_BUILD_CACHE_MAX_MB:-1200}"
-  if [ -d "$CACHE_DIR" ]; then
-    CACHE_MB="$(du -sm "$CACHE_DIR" | cut -f1)"
-    if [ "$CACHE_MB" -gt "$CACHE_MAX_MB" ]; then
-      echo "→ Кэш сборки ${CACHE_MB} МБ (больше ${CACHE_MAX_MB}) — удалён, сборка будет холодной"
-      rm -rf "$CACHE_DIR"
-    fi
-  fi
-
   echo "→ Сборка (одно ядро, низкий приоритет — сайт продолжает отвечать быстро)"
-  # Проверка типов внутри next build не помещается в память сервера (падала с heap out of memory) — типы проверяются до
-  # пуша (npx tsc --noEmit); MYBOOK_TYPECHECK=1 вернёт проверку при сборке.
-  SKIP_TS=1
-  [ "${MYBOOK_TYPECHECK:-0}" = 1 ] && SKIP_TS=0
-  # Версия выкатки — коммит (как в CI); ключ серверных действий Next берёт из .env (NEXT_SERVER_ACTIONS_ENCRYPTION_KEY).
-  NEXT_DEPLOYMENT_ID="$(git rev-parse HEAD)" MYBOOK_SKIP_TYPECHECK="$SKIP_TS" NEXT_TELEMETRY_DISABLED=1 limited npm run build
+  # Бандлы процессов бэкенда (esbuild, без Next — сайт в mybook-web); типы проверяются до пуша (npm run typecheck).
+  limited npm run build
 fi
 
 echo "→ Релиз $SHA"
@@ -120,12 +104,6 @@ if [ -n "$ARTIFACT" ]; then
   fi
 else
   bash deploy/pack-release.sh "$REL"
-fi
-
-# Куски JS и CSS прошлой выкатки (за неделю) — и в новом релизе: у открытых вкладок старая страница догружает их по
-# старым именам (имена с хэшем, новые файлы не перезаписываются). Без них после выкатки — ChunkLoadError и «Что-то пошло не так».
-if [ -d "$CURRENT/.next/static" ] && [ -d "$REL/.next/static" ]; then
-  (cd "$CURRENT/.next/static" && find . -type f -mtime -7 -print0 | rsync -a --ignore-existing --from0 --files-from=- ./ "$REL/.next/static/") || true
 fi
 
 # PM2 при reload не перечитывает cwd, поэтому процесс пересоздаётся (для fork-режима это тот же перезапуск, 1–2 с).
@@ -221,8 +199,10 @@ fi
 
 SITE=1
 has_site || SITE=0
+# С 27.11 в релизе нет сайта (server.js): он в mybook-web на Vercel, бэкенд собирается без Next.
+[ -f "$REL/server.js" ] || SITE=0
 if [ "$SITE" = 0 ] && { [ ! -f "$REL/backend.mjs" ] || [ ! -f "$REL/worker.mjs" ]; }; then
-  echo "✗ Сайт выключен (~/mybook-flags/site), а в релизе нет backend.mjs или worker.mjs — API и фону негде работать. Ничего не переключено."
+  echo "✗ Сайта нет (релиз без server.js или ~/mybook-flags/site), а в релизе нет backend.mjs или worker.mjs — API и фону негде работать. Ничего не переключено."
   rm -rf "$REL"
   exit 1
 fi
@@ -247,7 +227,7 @@ if [ "$SITE" = 1 ]; then
   # Проверенная копия на $SMOKE_PORT остаётся работать, пока PM2 перезапускает основную: в nginx она — запасной сервер
   # (backup в upstream mybook_app), и запросы в эти секунды идут к ней, а не в 502.
 else
-  echo "→ Сайт выключен (~/mybook-flags/site): проверка сайта пропущена, после переключения проверяются mybook-backend и mybook-worker"
+  echo "→ Сайта нет (сайт в mybook-web): проверка сайта пропущена, после переключения проверяются mybook-backend и mybook-worker"
 fi
 
 echo "→ Переключение на $(basename "$REL")"

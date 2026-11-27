@@ -1,26 +1,26 @@
-// Общая сборка серверных процессов в один ESM-файл рядом с server.js релиза (.next/standalone): mybook-worker
-// (build-worker.mjs), mybook-backend и воркер на Nest (build-backend*.mjs). Тяжёлые и нативные пакеты (serverExternalPackages из next.config) не
-// вшиваются — берутся из node_modules релиза; остальное — в бандле, потому что standalone-сборка кладёт в node_modules
-// только то, что Next оставил внешним.
+// Общая сборка серверных процессов в один ESM-файл в папке релиза (build/, MYBOOK_BUILD_DIR): mybook-worker
+// (build-worker.mjs), mybook-backend и воркер на Nest (build-backend*.mjs), вёрстка PDF (build-pdf-worker.mjs). Next в сборке
+// бэкенда не участвует (27.11: сайт — в mybook-web). Тяжёлые и нативные пакеты (EXTERNAL) не вшиваются — traceExternals
+// копирует их с зависимостями в <папка>/node_modules; остальное — в бандле.
 import { build } from "esbuild";
-import { cpSync, existsSync, readdirSync, readFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { asciiBundle } from "./ascii-bundle.mjs";
 
+/** Папка релиза: бандлы, node_modules внешних пакетов, bin/mybook-files (deploy/pack-release.sh добавляет assets и drizzle). */
+export const BUILD_DIR = process.env.MYBOOK_BUILD_DIR || "build";
+
 export const EXTERNAL = ["@react-pdf/renderer", "@react-pdf/layout", "sharp", "pdf-lib", "hyphen", "pg", "archiver", "hunspell-asm", "heic-decode", "libheif-js", "react", "react-dom"];
 
 /**
- * Собрать entry в .next/standalone/<name>.mjs; nextShim — чем заменить next/server, next/headers, next/navigation;
+ * Собрать entry в <BUILD_DIR>/<name>.mjs; nextShim — чем заменить next/server, next/headers, next/navigation;
  * tsconfig — свой у процесса (бэкенду на Nest нужны experimentalDecorators); optional — пакеты, которые процесс грузит
  * только при наличии (необязательные зависимости Nest), — не в бандл и не в релиз.
  */
 export async function bundleNodeProcess({ name, entry, nextShim, tsconfig = "tsconfig.json", optional = [] }) {
-  const out = path.join(".next", "standalone", `${name}.mjs`);
-  if (!existsSync(path.dirname(out))) {
-    console.error(`${name}: нет .next/standalone — сначала next build`);
-    process.exit(1);
-  }
+  const out = path.join(BUILD_DIR, `${name}.mjs`);
+  mkdirSync(BUILD_DIR, { recursive: true });
   await build({
     entryPoints: [entry],
     outfile: out,
@@ -62,10 +62,9 @@ export async function bundleNodeProcess({ name, entry, nextShim, tsconfig = "tsc
 }
 
 /**
- * Внешние пакеты бандла (pg, sharp, @react-pdf…) — в node_modules релиза вместе со своими зависимостями. Раньше их туда
- * клал трассировщик Next, потому что сайт сам импортировал БД; с ADR 0013 у веба кода бэкенда нет, и Next их больше не
- * трассирует (26.11 mybook-api упал на «Cannot find package 'pg'»). Пакет копируется папкой (с вложенными node_modules),
- * файлы, которые уже положил Next, не трогаются; затем каждый внешний пакет должен находиться из папки релиза.
+ * Внешние пакеты бандла (pg, sharp, @react-pdf…) — в node_modules релиза вместе со своими зависимостями (26.11 mybook-api
+ * упал на «Cannot find package 'pg'», когда их перестал класть трассировщик Next). Пакет копируется папкой (с вложенными
+ * node_modules), уже скопированные файлы не трогаются; затем каждый внешний пакет должен находиться из папки релиза.
  */
 /** Папки пакетов во вложенных node_modules (на любой глубине). */
 function nestedPackages(dir) {
@@ -80,7 +79,7 @@ function nestedPackages(dir) {
   return out;
 }
 
-async function traceExternals(out) {
+export async function traceExternals(out) {
   const seen = new Set();
   const stack = [...EXTERNAL];
   while (stack.length) {
@@ -89,7 +88,7 @@ async function traceExternals(out) {
     seen.add(name);
     const dir = path.join("node_modules", name);
     if (!existsSync(path.join(dir, "package.json"))) continue;
-    cpSync(dir, path.join(".next", "standalone", "node_modules", name), { recursive: true, force: false, dereference: true });
+    cpSync(dir, path.join(BUILD_DIR, "node_modules", name), { recursive: true, force: false, dereference: true });
     // Зависимости самого пакета и пакетов во вложенных node_modules: им тоже нужны поднятые наверх соседи.
     for (const pkgDir of [dir, ...nestedPackages(dir)]) {
       const pkg = JSON.parse(readFileSync(path.join(pkgDir, "package.json"), "utf8"));

@@ -1,4 +1,4 @@
-// Собирает бэкенд на NestJS (apps/backend/src/main.ts, ADR 0014) в .next/standalone/backend.mjs — весь API MyBooks.
+// Собирает бэкенд на NestJS (apps/backend/src/main.ts, ADR 0014) в build/backend.mjs — весь API MyBooks.
 // Свой tsconfig: декораторы Nest (experimentalDecorators). Старый контейнер (apps/backend/src/legacy) ещё тянет код
 // с next/* — его заменяет прокладка запроса (src/server/http/next-shim.ts). Необязательные пакеты Nest (микросервисы, веб-сокеты,
 // class-validator) процесс не использует — они вне бандла.

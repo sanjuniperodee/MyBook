@@ -18,6 +18,9 @@ describe("фон сайта: здесь или в mybook-worker", () => {
 describe("deploy/ecosystem.config.cjs", () => {
   const dir = mkdtempSync(path.join(os.tmpdir(), "mybook-eco-"));
   afterAll(() => rmSync(dir, { recursive: true, force: true }));
+  // Релиз со старым сайтом (server.js): с 27.11 бэкенд собирается без Next, и без server.js процесса сайта нет.
+  mkdirSync(path.join(dir, "current"), { recursive: true });
+  writeFileSync(path.join(dir, "current", "server.js"), "");
 
   const apps = (env: Record<string, string>) => {
     const out = execFileSync(

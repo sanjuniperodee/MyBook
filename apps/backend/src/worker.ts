@@ -1,6 +1,6 @@
 /**
  * Процесс mybook-worker на Nest (ADR 0014, шаг 6): фоновая работа — standalone-приложение (без HTTP) с модулем
- * WorkerModule. Собирается scripts/build-backend-worker.mjs в .next/standalone/backend-worker.mjs; PM2 запускает его
+ * WorkerModule. Собирается scripts/build-backend-worker.mjs в build/backend-worker.mjs; PM2 запускает его
  * вместо worker.mjs (deploy/ecosystem.config.cjs; откат без выкатки — `echo legacy > ~/mybook-flags/worker-runtime`).
  */
 import "reflect-metadata";

@@ -1,4 +1,4 @@
-// Собирает процесс фоновой работы (src/worker/main.ts) в .next/standalone/worker.mjs — рядом с server.js, откуда его
+// Собирает процесс фоновой работы (src/worker/main.ts) в build/worker.mjs, откуда его
 // запускает PM2 (mybook-worker, deploy/ecosystem.config.cjs). Общие настройки — scripts/node-bundle.mjs.
 // next/* — заглушка: фон не работает в HTTP-запросе, а код Next вне своего сервера не загружается.
 import { bundleNodeProcess } from "./node-bundle.mjs";

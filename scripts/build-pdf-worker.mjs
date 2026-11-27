@@ -1,23 +1,20 @@
-// Собирает процесс вёрстки PDF (src/modules/production/infrastructure/pdf/worker.ts) в .next/standalone/pdf-worker.mjs —
-// рядом с server.js, откуда его запускает pdf/pool.ts (child_process.fork). Next такие файлы сам не собирает. Тяжёлые пакеты не
-// вшиваются: берутся из node_modules релиза (их туда кладёт standalone-сборка — serverExternalPackages в next.config).
+// Собирает процесс вёрстки PDF (src/modules/production/infrastructure/pdf/worker.ts) в build/pdf-worker.mjs — рядом с
+// backend.mjs и воркером, откуда его запускает pdf/pool.ts (child_process.fork). Тяжёлые пакеты не вшиваются: берутся из
+// node_modules релиза (их туда копирует traceExternals, scripts/node-bundle.mjs).
 import { build } from "esbuild";
-import { existsSync } from "node:fs";
+import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { asciiBundle } from "./ascii-bundle.mjs";
+import { BUILD_DIR, traceExternals } from "./node-bundle.mjs";
 
-const out = path.join(".next", "standalone", "pdf-worker.mjs");
-if (!existsSync(path.dirname(out))) {
-  console.error("pdf-worker: нет .next/standalone — сначала next build");
-  process.exit(1);
-}
+const out = path.join(BUILD_DIR, "pdf-worker.mjs");
+mkdirSync(BUILD_DIR, { recursive: true });
 
 await build({
   entryPoints: ["src/modules/production/infrastructure/pdf/worker.ts"],
   outfile: out,
   bundle: true,
   platform: "node",
-  // ESM: зависимости react-pdf в релизе лежат в ESM-варианте (их так трассирует standalone-сборка).
   format: "esm",
   target: "node22",
   jsx: "automatic",
@@ -35,4 +32,5 @@ await build({
   logLevel: "warning",
 });
 asciiBundle(out);
+await traceExternals(out);
 console.log(`pdf-worker: ${out}`);

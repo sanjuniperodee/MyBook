@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Собирает mybook-files для сервера — статический бинарник linux/amd64: bash services/files/build.sh <папка>
-# CI кладёт его в релиз (.next/standalone/bin → <релиз>/bin/mybook-files), PM2 запускает из релиза (deploy/ecosystem.config.cjs).
+# CI кладёт его в релиз (build/bin → <релиз>/bin/mybook-files), PM2 запускает из релиза (deploy/ecosystem.config.cjs).
 set -euo pipefail
 out="$(mkdir -p "${1:?укажите папку}" && cd "$1" && pwd)"
 cd "$(dirname "$0")"
