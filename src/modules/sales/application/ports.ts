@@ -100,3 +100,25 @@ export interface DealMoney {
  * Такая сделка возвращается в работу при отмене заказа, а её сумма остаётся ценой договорённости (заказ её не переписывает).
  */
 export const heldMoney = (m: DealMoney) => (m.agreement ? Math.max(0, m.paid) : 0);
+
+/** Факты для воронки оплаченных: где сделка на самом деле — по заказу и книге клиента (контексты «Заказы» и «Книги»). */
+export interface PaidFunnelPort {
+  /** Статус заказа сделки и последняя книга клиента (когда её правили). */
+  facts(dealId: string): Promise<{ orderStatus: string | null; bookId: string | null; bookUpdatedAt: Date | null }>;
+  /**
+   * Сделки вне воронок оплаченных (pipelineIds), по которым пришли деньги: платёж по сделке или оплаченный заказ.
+   * Открытые и успешные с оплаченным заказом; отказ не трогаем — там возврат решает менеджер.
+   */
+  paidOutside(pipelineIds: string[], limit: number): Promise<string[]>;
+  /** Сделки на этапах stageIds, оплаченные раньше before (без платежа по сделке — на этапе с before), у которых книги нет или её не правили с before. */
+  stalled(stageIds: string[], before: Date, limit: number): Promise<string[]>;
+  /** Сделки на этапе stageId, книгу которых правили после перевода на этап. */
+  revived(stageId: string, limit: number): Promise<string[]>;
+}
+
+export const noPaidFunnel: PaidFunnelPort = {
+  facts: async () => ({ orderStatus: null, bookId: null, bookUpdatedAt: null }),
+  paidOutside: async () => [],
+  stalled: async () => [],
+  revived: async () => [],
+};

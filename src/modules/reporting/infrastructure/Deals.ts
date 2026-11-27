@@ -71,7 +71,16 @@ function dealWhere(viewer: Viewer, pipeline: { id: string }, sp: DealParams, sel
   }
   // На доске закрытые сделки — только за последние 30 дней, чтобы колонки «успех/отказ» не разрастались. Задан период
   // или причина отказа — человек ищет конкретные закрытые сделки, окно не действует.
-  if (view === "board" && !f.from && !f.to && !f.lostReason) w.push(or(eq(crmStages.kind, "open"), gte(crmDeals.closedAt, sql`now() - interval '${sql.raw(String(CLOSED_DAYS))} days'`))!);
+  // Закрытые — за CLOSED_DAYS дней; промежуточные этапы «успех» (воронка оплаченных: «В печати», «Отправлен»…) — все:
+  // там заказы в работе, а не архив.
+  if (view === "board" && !f.from && !f.to && !f.lostReason)
+    w.push(
+      or(
+        eq(crmStages.kind, "open"),
+        gte(crmDeals.closedAt, sql`now() - interval '${sql.raw(String(CLOSED_DAYS))} days'`),
+        sql`(${crmStages.kind} = 'won' and exists (select 1 from crm_stages s2 where s2.pipeline_id = ${crmStages.pipelineId} and s2.kind = 'won' and s2.position > ${crmStages.position}))`,
+      )!,
+    );
   return w;
 }
 

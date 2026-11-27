@@ -85,6 +85,7 @@ export const OPS_JOBS = {
   "recurring cards": { stream: "worker", label: "Повторяющиеся карточки", every: CRM, pass: "scheduler.crm" },
   "google calendar": { stream: "worker", label: "Google Календарь", every: CRM, pass: "scheduler.crm" },
   "lead routing": { stream: "worker", label: "Круг заявок", every: CRM, pass: "scheduler.crm" },
+  "paid funnel": { stream: "worker", label: "Воронка оплаченных", every: CRM, pass: "scheduler.crm" },
   "stage order": { stream: "ai", label: "Порядок в воронке", every: CRM, pass: "scheduler.crm" },
   "ai transcribe": { stream: "ai", label: "Расшифровка голосовых", every: CRM, pass: "scheduler.crm" },
   "ai stages": { stream: "ai", label: "ИИ ведёт этапы", every: CRM, pass: "scheduler.crm" },

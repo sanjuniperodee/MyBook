@@ -1,11 +1,11 @@
 import type { Clock, Logger, UnitOfWork } from "@/shared/application";
 import type { CustomFieldValues } from "@/shared/domain/customFields";
-import type { StageMilestone } from "@/shared/domain/stageMilestones";
+import { BOOK_STALLED_DAYS, type StageMilestone } from "@/shared/domain/stageMilestones";
 import { PAY_FORM_KEY } from "@/shared/domain/expenses";
 import { bookKind, progressOf } from "@/lib/content/kinds";
-import { checkDealPrice, Deal, Funnel, SalesError, type AiMove, type DealPrice, type DealRepository, type FunnelRepository, type NoteKind, type RejectionKind } from "../domain";
+import { checkDealPrice, Deal, Funnel, orderMilestones, SalesError, type AiMove, type DealPrice, type DealRepository, type FunnelRepository, type NoteKind, type RejectionKind } from "../domain";
 import type { DealSource } from "@/shared/domain/dealSources";
-import { heldMoney, noAgreedPlans, noDealInvoices, type AgreedPlans, type BookProgress, type ClientDirectory, type DealInvoicesPort, type DealMoney, type OrderOrigin, type SalesSettings, type StaffRouter } from "./ports";
+import { heldMoney, noAgreedPlans, noDealInvoices, type AgreedPlans, type BookProgress, type ClientDirectory, type DealInvoicesPort, type DealMoney, type OrderOrigin, type PaidFunnelPort, type SalesSettings, type StaffRouter, noPaidFunnel } from "./ports";
 
 /** Почему сделку нельзя удалить: по ней приняты деньги или есть счёт из чата, по которому клиент заплатил или ещё может заплатить. */
 type DeleteBlocker = { code: "dealHasPayments" } | { code: "dealHasInvoice"; label: string; reason: "open" | "paid" | "kaspi" };
@@ -154,7 +154,7 @@ export class DealsService {
     const stage = funnel.stage(stageId);
     const deal = await this.deals.findById(dealId);
     if (!deal || !stage) return deal?.snapshot() ?? null;
-    if (!deal.moveTo(stage, actorId, this.clock.now(), lostReason, ai)) return deal.snapshot();
+    if (!deal.moveTo(stage, actorId, this.clock.now(), lostReason, ai, funnel.stage(deal.stageId)?.kind)) return deal.snapshot();
     await this.uow.run(async () => {
       await this.deals.save(deal);
       this.uow.track(deal);
@@ -487,7 +487,95 @@ export class SiteFunnelService {
     private readonly money: (dealId: string) => Promise<DealMoney> = async () => ({ paid: 0, agreement: false }),
     /** Сертификат или приглашение в промокоде заказа — источник сделки (deals-24). */
     private readonly origin: OrderOrigin = async () => null,
+    /** Воронка оплаченных: заказ и книга сделки, выборки для прохода планировщика. */
+    private readonly paidFunnel: PaidFunnelPort = noPaidFunnel,
   ) {}
+
+  /** Какие вехи сделка уже прошла на самом деле: оплата, книга (начата, почти готова), заказ по статусу. */
+  private async reached(dealId: string): Promise<StageMilestone[]> {
+    const f = await this.paidFunnel.facts(dealId);
+    const out: StageMilestone[] = ["paid"];
+    if (f.bookId) {
+      out.push("book_started");
+      const p = await this.books.progress(f.bookId);
+      if (p && progressOf(bookKind(p.theme), p).ready) out.push("book_ready");
+    }
+    return [...out, ...orderMilestones(f.orderStatus)];
+  }
+
+  /**
+   * По сделке пришли деньги — она переходит в воронку оплаченных (этап с вехой «paid») и сразу встаёт туда, где она на самом
+   * деле: книга начата или готова, заказ в печати, отправлен… Успешная сделка (заказ оформлен) — только на успешный этап:
+   * продажа не «открывается» обратно. Отказ не трогаем. Возвращает, перешла ли.
+   */
+  async toPaidFunnel(dealId: string): Promise<boolean> {
+    try {
+      const funnel = await this.funnels.load();
+      const deal = await this.deals.findById(dealId);
+      const current = deal ? funnel.stage(deal.stageId) : null;
+      if (!deal || !current || current.kind === "lost") return false;
+      const paid = funnel.paidStage(current.pipelineId);
+      if (!paid) return false;
+      const target = funnel.furthest(await this.reached(deal.id), paid.pipelineId) ?? paid;
+      if (current.kind === "won" && target.kind !== "won") return false;
+      await this.service.move(deal.id, target.id, null);
+      await this.service.note(deal, `Оплата получена — сделка перешла в воронку оплаченных, этап «${target.name}».`, null);
+      return true;
+    } catch (err) {
+      this.logger.error("to paid funnel", err);
+      return false;
+    }
+  }
+
+  /** Статус заказа изменился: сделка заказа — на этап этой вехи своей воронки (только вперёд), ещё не перешедшая — в воронку оплаченных. */
+  async orderStatusChanged(orderId: string, status: string) {
+    const milestone = orderMilestones(status).at(-1);
+    if (!milestone) return;
+    const funnel = await this.funnels.load();
+    for (const d of await this.deals.findByOrder(orderId)) {
+      try {
+        const pipelineId = funnel.stage(d.stageId)?.pipelineId ?? null;
+        if (funnel.paidStage(pipelineId) && (await this.toPaidFunnel(d.id))) continue;
+        const target = funnel.milestoneStage(milestone, pipelineId);
+        if (target && funnel.shouldAdvance(d.stageId, target)) await this.service.move(d.id, target.id, null);
+      } catch (err) {
+        this.logger.error("order status → deal", err);
+      }
+    }
+  }
+
+  /**
+   * Проход планировщика по воронкам оплаченных: (1) сделки с деньгами вне них — туда; (2) клиент давно не правит книгу
+   * (или так и не начал после оплаты) — на этап «book_stalled»; (3) снова пишет — обратно на этап «book_started».
+   */
+  async sweepPaid(now = new Date(), limit = 40) {
+    const funnel = await this.funnels.load();
+    const pipelines = funnel.paidPipelineIds;
+    const result = { moved: 0, stalled: 0, revived: 0 };
+    if (!pipelines.length) return result;
+    for (const id of await this.paidFunnel.paidOutside(pipelines, limit)) if (await this.toPaidFunnel(id)) result.moved++;
+    const before = new Date(now.getTime() - BOOK_STALLED_DAYS * 86_400_000);
+    for (const pipelineId of pipelines) {
+      const stalled = funnel.milestoneStage("book_stalled", pipelineId);
+      const writing = funnel.milestoneStage("book_started", pipelineId);
+      if (!stalled || stalled.kind !== "open") continue;
+      const from = [funnel.milestoneStage("paid", pipelineId), writing].filter((s): s is NonNullable<typeof s> => !!s && s.kind === "open" && s.position < stalled.position);
+      for (const id of await this.paidFunnel.stalled(from.map((s) => s.id), before, limit)) {
+        const deal = await this.deals.findById(id);
+        if (!deal || !(await this.service.move(id, stalled.id, null))) continue;
+        await this.service.note(deal, `Клиент не правит книгу ${BOOK_STALLED_DAYS} дней (или так и не начал после оплаты) — свяжитесь с ним, помогите продолжить.`, null);
+        result.stalled++;
+      }
+      if (!writing || writing.kind !== "open") continue;
+      for (const id of await this.paidFunnel.revived(stalled.id, limit)) {
+        const deal = await this.deals.findById(id);
+        if (!deal || !(await this.service.move(id, writing.id, null))) continue;
+        await this.service.note(deal, "Клиент снова пишет книгу.", null);
+        result.revived++;
+      }
+    }
+    return result;
+  }
 
   /** Сделка держит деньги клиента (договорённость с предоплатой): сколько. */
   private async held(dealId: string) {
@@ -606,6 +694,8 @@ export class SiteFunnelService {
     // («Заказ оформлен» — успех): не найдя открытой, он заводил новую «Сайт: …» в первом этапе — дубль на каждую оплату.
     const own = deals.find((d) => d.clientId === order.userId) ?? deals[0];
     if (own) await this.advance(order.userId, "order_paid", { dealId: own.id, orderId: order.id });
+    // Есть воронка оплаченных — сделка заказа переходит туда сразу, на этап по статусу заказа.
+    for (const d of deals) await this.toPaidFunnel(d.id);
     return deals[0]?.id ?? null;
   }
 

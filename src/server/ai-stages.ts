@@ -68,6 +68,8 @@ export interface AiStagesDeps {
   reviewedToday(): Promise<number>;
   /** Основная воронка: её этапы с ролями и причины отказа. */
   funnel(): Promise<{ pipelineId: string; stages: AiStageOption[]; silentDays: number } | null>;
+  /** Воронки оплаченных (с этапом «оплачено»): там ИИ этапы не двигает. */
+  paidFunnels?(): Promise<{ pipelineId: string; stages: AiStageOption[] }[]>;
   candidates(f: { pipelineId: string; limit: number }): Promise<Candidate[]>;
   markReviewed(dealId: string): Promise<void>;
   review(dealId: string, input: { stages: { n: number; name: string; about: string }[]; current: string; reasons: string[]; messages: number; staff: string[]; tasks: boolean }): Promise<{
@@ -126,51 +128,63 @@ export async function aiStagesPass(d: AiStagesDeps, now = new Date()): Promise<A
   if ((!cfg.stages && !cfg.manager && !cfg.tasks) || !(await d.aiReady())) return null;
   const left = AI_STAGES.perDay - (await d.reviewedToday());
   if (left <= 0) return null;
-  const funnel = await d.funnel();
-  if (!funnel) return null;
-  const list = funnel.stages.map((s, i) => ({ n: i + 1, name: s.name, about: stageAbout(s) }));
+  const main = await d.funnel();
+  if (!main) return null;
   const staff = cfg.manager ? await d.staff() : [];
   const result: AiStagesResult = { reviewed: 0, applied: 0, proposed: 0, assigned: 0, attributed: 0, ...(cfg.tasks ? { tasks: { created: 0, closed: 0, raised: 0 } } : {}) };
-  for (const c of await d.candidates({ pipelineId: funnel.pipelineId, limit: Math.min(AI_STAGES.batch, left) })) {
-    const current = funnel.stages.find((s) => s.id === c.stageId);
-    if (!current) continue;
-    try {
-      await d.markReviewed(c.id);
-      const { review, messages, tasks } = await d.review(c.id, { stages: list, current: current.name, reasons: AI_REASONS, messages: AI_STAGES.messages, staff: staff.map((x) => staffForAi(x.name, x.chatNames)), tasks: !!cfg.tasks });
-      result.reviewed++;
-      if (!review) continue;
-      const target = review.stage ? (funnel.stages[review.stage - 1] ?? null) : null;
-      const msg = review.message ? messages[review.message - 1] : undefined;
-      // Отказ без названной причины — «Передумал», как у вывода «Порядка в воронке».
-      const lostReason = target?.kind === "lost" ? (review.lostReason ?? AI_REASONS.find((r) => r === "Передумал") ?? null) : null;
-      const silentFor = Math.floor((now.getTime() - c.lastIn.getTime()) / 86_400_000);
-      const decision = aiStageDecision({ current, target, confidence: review.confidence, quoteOk: !!msg && quoteIn(review.quote, msg.text), quoteFromClient: msg?.direction === "in", lostReason, silentFor, silentDays: funnel.silentDays });
-      const ai = { reason: review.reason || "по переписке", quote: review.quote || null, messageId: msg?.id ?? null };
-      if (cfg.manager) await manager(d, c, review, messages, staff, result);
-      if (cfg.tasks && result.tasks) await promisesAndTasks(d, c, review, messages, tasks ?? [], result.tasks, now);
-      if (!cfg.stages) continue;
-      if (target && decision === "apply") {
-        await d.move(c.id, target.id, lostReason, ai);
-        result.applied++;
-      } else if (target && decision === "propose") {
-        if (await d.propose({ dealId: c.id, kind: "stage", payload: { fromStageId: current.id, stageId: target.id, stageName: target.name, lostReason }, ...ai, confidence: review.confidence })) result.proposed++;
+  // Воронки оплаченных — тоже, но без этапов: там их ведут оплата, книга и заказ, а не переписка (ИИ не закроет оплаченную
+  // сделку отказом по цитате). Менеджер, обещания и «книгу получил» — как в основной. Лимит прохода — общий.
+  const paid = (await d.paidFunnels?.()) ?? [];
+  const funnels = [{ ...main, moveStages: true }, ...paid.map((f) => ({ ...f, silentDays: main.silentDays, moveStages: false }))];
+  let budget = Math.min(AI_STAGES.batch, left);
+  for (const funnel of funnels) {
+    if (budget <= 0) break;
+    const list = funnel.stages.map((s, i) => ({ n: i + 1, name: s.name, about: stageAbout(s) }));
+    const batch = await d.candidates({ pipelineId: funnel.pipelineId, limit: budget });
+    budget -= batch.length;
+    for (const c of batch) {
+      const current = funnel.stages.find((s) => s.id === c.stageId);
+      if (!current) continue;
+      try {
+        await d.markReviewed(c.id);
+        const { review, messages, tasks } = await d.review(c.id, { stages: list, current: current.name, reasons: AI_REASONS, messages: AI_STAGES.messages, staff: staff.map((x) => staffForAi(x.name, x.chatNames)), tasks: !!cfg.tasks });
+        result.reviewed++;
+        if (!review) continue;
+        const target = review.stage ? (funnel.stages[review.stage - 1] ?? null) : null;
+        const msg = review.message ? messages[review.message - 1] : undefined;
+        // Отказ без названной причины — «Передумал», как у вывода «Порядка в воронке».
+        const lostReason = target?.kind === "lost" ? (review.lostReason ?? AI_REASONS.find((r) => r === "Передумал") ?? null) : null;
+        const silentFor = Math.floor((now.getTime() - c.lastIn.getTime()) / 86_400_000);
+        const decision = aiStageDecision({ current, target, confidence: review.confidence, quoteOk: !!msg && quoteIn(review.quote, msg.text), quoteFromClient: msg?.direction === "in", lostReason, silentFor, silentDays: funnel.silentDays });
+        const ai = { reason: review.reason || "по переписке", quote: review.quote || null, messageId: msg?.id ?? null };
+        if (cfg.manager) await manager(d, c, review, messages, staff, result);
+        if (cfg.tasks && result.tasks) await promisesAndTasks(d, c, review, messages, tasks ?? [], result.tasks, now);
+        if (!cfg.stages) continue;
+        // Воронка оплаченных: этапы не двигаем, только «книгу получил» ниже.
+        const stageTarget = funnel.moveStages ? target : null;
+        if (stageTarget && decision === "apply") {
+          await d.move(c.id, stageTarget.id, lostReason, ai);
+          result.applied++;
+        } else if (stageTarget && decision === "propose") {
+          if (await d.propose({ dealId: c.id, kind: "stage", payload: { fromStageId: current.id, stageId: stageTarget.id, stageName: stageTarget.name, lostReason }, ...ai, confidence: review.confidence })) result.proposed++;
+        }
+        // Книга у клиента, а заказ всё ещё «в печати» или «в пути» — предложить отметить выданным.
+        const dm = review.delivered?.message ? messages[review.delivered.message - 1] : undefined;
+        if (c.order && (c.order.status === "in_production" || c.order.status === "shipped") && review.delivered && dm && quoteIn(review.delivered.quote, dm.text)) {
+          const ok = await d.propose({
+            dealId: c.id,
+            kind: "order_status",
+            payload: { orderId: c.order.id, orderNumber: c.order.number, fromStatus: c.order.status, status: "delivered" },
+            reason: "клиент получил книгу",
+            quote: review.delivered.quote,
+            messageId: dm.id ?? null,
+            confidence: review.confidence,
+          });
+          if (ok) result.proposed++;
+        }
+      } catch (err) {
+        d.logError(err);
       }
-      // Книга у клиента, а заказ всё ещё «в печати» или «в пути» — предложить отметить выданным.
-      const dm = review.delivered?.message ? messages[review.delivered.message - 1] : undefined;
-      if (c.order && (c.order.status === "in_production" || c.order.status === "shipped") && review.delivered && dm && quoteIn(review.delivered.quote, dm.text)) {
-        const ok = await d.propose({
-          dealId: c.id,
-          kind: "order_status",
-          payload: { orderId: c.order.id, orderNumber: c.order.number, fromStatus: c.order.status, status: "delivered" },
-          reason: "клиент получил книгу",
-          quote: review.delivered.quote,
-          messageId: dm.id ?? null,
-          confidence: review.confidence,
-        });
-        if (ok) result.proposed++;
-      }
-    } catch (err) {
-      d.logError(err);
     }
   }
   return result;
@@ -296,6 +310,16 @@ export function aiStagesDeps(now = new Date()): AiStagesDeps {
       const stages = await c.sales.queries.listStages(pipeline.id);
       const order = await getSetting("crm.stageOrder");
       return { pipelineId: pipeline.id, stages: stageRoles(stages.map((s) => ({ id: s.id, name: s.name, kind: s.kind, position: s.position, milestone: s.milestone ?? null })), order), silentDays: parseStageOrder(order).silentDays };
+    },
+    async paidFunnels() {
+      const order = await getSetting("crm.stageOrder");
+      const out: { pipelineId: string; stages: AiStageOption[] }[] = [];
+      for (const p of await c.sales.queries.listPipelines()) {
+        const stages = await c.sales.queries.listStages(p.id);
+        if (!stages.some((s) => s.milestone === "paid")) continue;
+        out.push({ pipelineId: p.id, stages: stageRoles(stages.map((s) => ({ id: s.id, name: s.name, kind: s.kind, position: s.position, milestone: s.milestone ?? null })), order) });
+      }
+      return out;
     },
     candidates: (f) => c.reporting.aiStageCandidates({ ...f, quietMinutes: AI_STAGES.quietMinutes, lookbackDays: AI_STAGES.lookbackDays, lostDays: AI_STAGES.lookbackDays * 2, now }),
     markReviewed: (dealId) => c.sales.aiProposals.markReviewed(dealId, now),

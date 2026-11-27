@@ -1,15 +1,20 @@
 /** Справочники сделок без серверных зависимостей — для интерфейса и сервера. */
-import { STAGE_MILESTONES, type StageMilestone } from "@/shared/domain/stageMilestones";
+import { BOOK_STALLED_DAYS, STAGE_MILESTONES, type StageMilestone } from "@/shared/domain/stageMilestones";
 
 /** События на сайте, по которым сделка сама идёт по воронке: подписи для настройки этапов. */
 export const stageMilestones: Record<StageMilestone, string> = {
   registered: "Клиент зарегистрировался",
+  paid: "Оплатил (предоплата или заказ) — сделка переходит в эту воронку",
   book_started: "Клиент начал книгу",
   // Подписи нейтральны к виду книги: у своей книги вехи считаются по словам (lib/content/kinds, progressOf).
   book_half: "Написал половину книги",
+  book_stalled: `Не правит книгу ${BOOK_STALLED_DAYS} дней`,
   book_ready: "Книга почти готова",
   order_created: "Оформил заказ",
   order_paid: "Оплатил заказ",
+  order_production: "Заказ передан в печать",
+  order_shipped: "Заказ отправлен",
+  order_delivered: "Заказ получен",
 };
 export const milestoneOrder: readonly StageMilestone[] = STAGE_MILESTONES;
 

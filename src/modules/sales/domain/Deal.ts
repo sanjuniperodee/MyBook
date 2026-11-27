@@ -168,12 +168,17 @@ export class Deal extends AggregateRoot<DealProps> {
   }
 
   /** Смена этапа. Закрытые этапы (успех/отказ) ставят дату закрытия; возврат в работу её снимает. */
-  moveTo(stage: Stage, actorId: string | null, now: Date, lostReason?: string | null, ai?: AiMove): boolean {
+  /**
+   * На этап. fromKind — вид прежнего этапа: между успешными этапами (воронка оплаченных: «Заказ оформлен» → «В печати»…)
+   * дата продажи (closedAt) остаётся прежней и «сделка закрыта» второй раз не звучит — аналитика и счета видят одну продажу.
+   */
+  moveTo(stage: Stage, actorId: string | null, now: Date, lostReason?: string | null, ai?: AiMove, fromKind?: Stage["kind"] | null): boolean {
     if (stage.id === this.props.stageId) return false;
     const from = this.props.stageId;
+    const stillWon = fromKind === "won" && stage.kind === "won" && !!this.props.closedAt;
     this.props.stageId = stage.id;
     this.props.stageChangedAt = now;
-    this.props.closedAt = stage.kind === "open" ? null : now;
+    this.props.closedAt = stage.kind === "open" ? null : stillWon ? this.props.closedAt : now;
     this.props.lostReason = stage.kind === "lost" ? (lostReason ?? this.props.lostReason) : null;
     this.props.unsorted = false;
     this.#stageChanges.push({ fromStageId: from, toStageId: stage.id, actorId, ...(ai ? { byAi: true, aiReason: ai.reason, messageId: ai.messageId } : {}) });
@@ -181,7 +186,7 @@ export class Deal extends AggregateRoot<DealProps> {
     this.note(ai ? aiNoteText(moved, ai.reason, ai.quote) : moved, actorId);
     this.record(SalesEvents.dealStageChanged({ ...this.ref(), fromStageId: from, stageId: stage.id, source: this.props.source, at: now.toISOString() }));
     // Закрыта (успех или отказ) — платить по ней больше нельзя: её открытые счета отменит подписчик заказов.
-    if (stage.kind !== "open") this.record(SalesEvents.dealClosed({ ...this.ref(), outcome: stage.kind, reason: stage.kind === "lost" ? this.props.lostReason : null }));
+    if (stage.kind !== "open" && !stillWon) this.record(SalesEvents.dealClosed({ ...this.ref(), outcome: stage.kind, reason: stage.kind === "lost" ? this.props.lostReason : null }));
     return true;
   }
 

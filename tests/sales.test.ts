@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { AggregateRoot, DomainEvent } from "@/shared/domain";
 import type { UnitOfWork } from "@/shared/application";
-import { Deal, Funnel, mergeRefusal, type DealRepository, type FunnelRepository, type Stage } from "@/modules/sales/domain";
+import { Deal, Funnel, mergeRefusal, orderMilestones, type DealRepository, type FunnelRepository, type Stage } from "@/modules/sales/domain";
 import { DealsService, LeadRoutingService, SiteFunnelService, type AgreedPlans, type ClientDirectory, type DealInvoicesPort, type DealMoney, type OrderOrigin } from "@/modules/sales/application";
 
 const now = new Date("2026-10-01T10:00:00Z");
@@ -43,6 +43,57 @@ describe("Funnel", () => {
     expect(Funnel.createsDeal("registered", "book_started")).toBe(false);
     expect(Funnel.createsDeal("book_ready", "book_started")).toBe(true);
     expect(Funnel.createsDeal("book_ready", "off")).toBe(false);
+  });
+});
+
+describe("Воронка оплаченных", () => {
+  const paidStages: Stage[] = [
+    ...stages,
+    { id: "p-paid", pipelineId: "paid", name: "Оплачено", kind: "open", position: 0, milestone: "paid" },
+    { id: "p-book", pipelineId: "paid", name: "Пишет книгу", kind: "open", position: 1, milestone: "book_started" },
+    { id: "p-stall", pipelineId: "paid", name: "Не пишет", kind: "open", position: 2, milestone: "book_stalled" },
+    { id: "p-ready", pipelineId: "paid", name: "Книга готова", kind: "open", position: 3, milestone: "book_ready" },
+    { id: "p-order", pipelineId: "paid", name: "Заказ оформлен", kind: "won", position: 4, milestone: "order_created" },
+    { id: "p-print", pipelineId: "paid", name: "В печати", kind: "won", position: 5, milestone: "order_production" },
+    { id: "p-done", pipelineId: "paid", name: "Получил книгу", kind: "won", position: 6, milestone: "order_delivered" },
+    { id: "p-lost", pipelineId: "paid", name: "Возврат", kind: "lost", position: 7, milestone: null },
+  ];
+  const f = new Funnel(paidStages);
+
+  it("этап «оплачено» — из другой воронки; в самой воронке оплаченных его нет", () => {
+    expect(f.paidStage("main")?.id).toBe("p-paid");
+    expect(f.paidStage("paid")).toBeNull();
+    expect(f.paidPipelineIds).toEqual(["paid"]);
+    expect(new Funnel(stages).paidStage("main")).toBeNull();
+  });
+
+  it("встаёт на самый дальний достигнутый этап", () => {
+    expect(f.furthest(["paid", "book_started", "book_ready"], "paid")?.id).toBe("p-ready");
+    expect(f.furthest(["paid", ...orderMilestones("in_production")], "paid")?.id).toBe("p-print");
+    expect(orderMilestones("cancelled")).toEqual([]);
+    expect(orderMilestones("shipped")).toEqual(["order_created", "order_paid", "order_production", "order_shipped"]);
+  });
+
+  it("успешная сделка идёт по успешным этапам своей воронки только вперёд", () => {
+    expect(f.shouldAdvance("p-order", f.stage("p-print")!)).toBe(true);
+    expect(f.shouldAdvance("p-print", f.stage("p-order")!)).toBe(false);
+    expect(f.shouldAdvance("p-print", f.stage("p-lost")!)).toBe(false);
+    expect(f.shouldAdvance("won", f.stage("p-print")!)).toBe(false);
+  });
+
+  it("новые вехи сделку не заводят", () => {
+    expect(Funnel.createsDeal("order_delivered", "registered")).toBe(false);
+    expect(Funnel.createsDeal("book_stalled", "registered")).toBe(false);
+    expect(Funnel.createsDeal("paid", "registered")).toBe(false);
+  });
+
+  it("между успешными этапами дата продажи не меняется и «закрыта» второй раз не звучит", () => {
+    const deal = Deal.open("d9", 9, { title: "Заказ", stageId: "p-order", source: "site", clientId: "c1", contactName: "", contactPhone: null, contactEmail: null, amount: 0, assigneeId: null, createdById: null, orderId: null, unsorted: false, customFields: {}, utm: null }, f.stage("p-order")!, now);
+    deal.pullEvents();
+    const later = new Date(now.getTime() + 5 * DAY);
+    deal.moveTo(f.stage("p-print")!, null, later, null, undefined, "won");
+    expect(deal.snapshot().closedAt).toEqual(now);
+    expect(deal.pullEvents().map((e) => e.type)).toEqual(["sales.deal_stage_changed"]);
   });
 });
 

@@ -6,7 +6,7 @@ import { toAttribution } from "@/shared/domain/channels";
 import type { SettingsReader, WorkSchedule } from "@/shared/application";
 import { executor } from "@/shared/infrastructure/database";
 import { answeredSql, totalSql, wordsSql } from "@/shared/infrastructure/db/bookProgress";
-import type { BookProgress, ClientDirectory, SalesSettings, StaffRouter } from "../application";
+import type { BookProgress, ClientDirectory, PaidFunnelPort, SalesSettings, StaffRouter } from "../application";
 import type { StageMilestone } from "@/shared/domain/stageMilestones";
 import { DEFAULT_MERGE_CLOSED_DAYS, MERGE_CLOSED_DAYS_MAX } from "../domain";
 import { entryGroup } from "../domain/meta";
@@ -135,5 +135,60 @@ export const sqlBookProgress: BookProgress = {
       select b.theme, ${answeredSql(bookId)} as answered, ${totalSql(bookId)} as total, ${wordsSql(bookId)} as words
       from books b where b.id = ${bookId}`);
     return rows[0] ?? null;
+  },
+};
+
+/** Последняя правка книги — сама книга или любой её ответ. */
+const bookActivity = sql.raw(`greatest(b.updated_at, (select max(q.updated_at) from book_questions q where q.book_id = b.id))`);
+const PAID_ORDER = sql.raw(`('paid', 'in_production', 'shipped', 'delivered')`);
+const dealPaidSum = sql.raw(`(select coalesce(sum(case when p.kind = 'refund' then -p.amount else p.amount end), 0) from crm_payments p where p.deal_id = d.id)`);
+const idList = (ids: string[]) => sql.join(ids.map((id) => sql`${id}::uuid`), sql`, `);
+
+/** Воронка оплаченных: заказ сделки, книга клиента, выборки для прохода планировщика. */
+export const sqlPaidFunnel: PaidFunnelPort = {
+  async facts(dealId) {
+    const { rows } = await executor().execute<{ order_status: string | null; book_id: string | null; book_at: Date | string | null }>(sql`
+      select o.status as order_status, b.id as book_id, ${bookActivity} as book_at
+      from crm_deals d
+      left join orders o on o.id = d.order_id
+      left join lateral (select b.* from books b where b.user_id = d.client_id order by b.updated_at desc limit 1) b on true
+      where d.id = ${dealId}`);
+    const r = rows[0];
+    return { orderStatus: r?.order_status ?? null, bookId: r?.book_id ?? null, bookUpdatedAt: r?.book_at ? new Date(r.book_at) : null };
+  },
+  async paidOutside(pipelineIds, limit) {
+    if (!pipelineIds.length) return [];
+    const { rows } = await executor().execute<{ id: string }>(sql`
+      select d.id from crm_deals d
+      join crm_stages s on s.id = d.stage_id
+      left join orders o on o.id = d.order_id
+      where s.pipeline_id not in (${idList(pipelineIds)})
+        and (
+          (s.kind = 'open' and (o.status in ${PAID_ORDER} or ${dealPaidSum} > 0))
+          or (s.kind = 'won' and o.id is not null and o.status <> 'cancelled' and (o.status in ${PAID_ORDER} or ${dealPaidSum} > 0))
+        )
+      order by d.stage_changed_at
+      limit ${limit}`);
+    return rows.map((r) => String(r.id));
+  },
+  async stalled(stageIds, before, limit) {
+    if (!stageIds.length) return [];
+    const { rows } = await executor().execute<{ id: string }>(sql`
+      select d.id from crm_deals d
+      where d.stage_id in (${idList(stageIds)})
+        and coalesce((select min(p.paid_at) from crm_payments p where p.deal_id = d.id), d.stage_changed_at) < ${before}
+        and not exists (select 1 from books b where b.user_id = d.client_id and ${bookActivity} >= ${before})
+      order by d.stage_changed_at
+      limit ${limit}`);
+    return rows.map((r) => String(r.id));
+  },
+  async revived(stageId, limit) {
+    const { rows } = await executor().execute<{ id: string }>(sql`
+      select d.id from crm_deals d
+      where d.stage_id = ${stageId}
+        and exists (select 1 from books b where b.user_id = d.client_id and ${bookActivity} > d.stage_changed_at)
+      order by d.stage_changed_at
+      limit ${limit}`);
+    return rows.map((r) => String(r.id));
   },
 };

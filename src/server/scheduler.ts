@@ -131,6 +131,9 @@ export async function crmTick() {
     // Круг: ночные заявки — утром первым на смене, не взятые вовремя — следующему.
     const routed = await step(p, "lead routing", () => container().sales.routing.run(), 0);
     if (routed) console.log(`[scheduler] crm leads routed=${routed}`);
+    // Воронка оплаченных: деньги пришли — сделка туда; клиент давно не правит книгу — «не пишет», снова пишет — обратно.
+    const paid = await step(p, "paid funnel", () => container().sales.funnel.sweepPaid(), null);
+    if (paid && paid.moved + paid.stalled + paid.revived) console.log(`[scheduler] paid funnel moved=${paid.moved} stalled=${paid.stalled} revived=${paid.revived}`);
     // Порядок в воронке: оплата → свой этап, ответили → «в работе», клиент молчит → «не отвечает» → отказ (вывод — модель).
     const order = await step(p, "stage order", () => stageOrderPass(stageOrderDeps()), null);
     if (order && order.paid + order.work + order.silent + order.lost) console.log(`[scheduler] stage order paid=${order.paid} work=${order.work} silent=${order.silent} lost=${order.lost} assessed=${order.assessed}`);

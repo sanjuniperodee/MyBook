@@ -73,6 +73,8 @@ export function registerSubscriptions(c: Container) {
     },
     "crm.automation.order_status_changed",
   );
+  // Статус заказа → сделка по воронке оплаченных: «В печати», «Отправлен», «Получил книгу» (только вперёд).
+  c.bus.subscribe<OrderStatusChanged>("ordering.order_status_changed", (e) => c.sales.funnel.orderStatusChanged(e.payload.orderId, e.payload.to), "crm.deal.order_status");
   c.bus.subscribe<TrackingAdded>(
     "ordering.tracking_added",
     async (e) => {
