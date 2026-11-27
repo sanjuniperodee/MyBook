@@ -20,6 +20,7 @@
 | [identity](#identity) | Identity: учётные записи, вход, пароли, второй фактор. | 21 / 1357 | 19 |
 | [marketing](#marketing) | Маркетинг: каналы привлечения, короткие ссылки, предложения из чата. | 10 / 577 | 12 |
 | [messaging](#messaging) | Переписка: единый инбокс, бот-квалификатор, виджет на сайте. | 61 / 16810 | 153 |
+| [monitoring](#monitoring) | Наблюдаемость: пульс фоновых заданий (планировщик, сверки, сборка файлов для печати), сводка очередей «Фон и очереди» и уведомление руководителей о потоке в сбое. | 6 / 758 | 2 |
 | [notifications](#notifications) | Уведомления: автописьма, напоминания из CRM, отписка. | 10 / 707 | 6 |
 | [ordering](#ordering) | Заказы. Остальной код видит только его. | 49 / 5924 | 95 |
 | [production](#production) | Производство: вёрстка PDF книги и сертификатов, предпросмотры полос и обложек, файлы для типографии, очередь сборки. В container — previews (BookPreviewService) и printFiles. | 44 / 5709 | 0 |
@@ -129,6 +130,16 @@ Identity: учётные записи, вход, пароли, второй фа
 - Публичное: `chats`, `site`, `help`, `queries`, `gowa`, `wazzup`, `email`, `view`, `media`, `bot`, `catalog`, `coach`, `autofill`, `catalogInChat`, `helpQuestionsOf`, `helpStats`, `sendUpload`, `forward`, `autoTranscribe`, `attributeShopMessages`, `transcribe`, `phoneHolder`, `setPhoneHolder`, `materials`, `saveMaterials`, `addMaterial`, `materialFile`, `removeMaterial`, `lessons`, `saveLessons`, `sendToPhone`, `whatsappProvider`, `botStatus`, `previewBot`, `botMetrics`, `botTrace`, `botTraces`, `purgeBotTraces`, `connectGowa`, `importGowaHistory`, `refreshAvatars`, `kickAvatars`, `avatarFile`, `syncGowaHistory`, `catchUpGowa`, `verifyGowaWebhook`, `widgetConfig`, `helpConfig`, `siteMessages`
 - Таблицы: `crm_conversations`, `crm_messages`, `crm_bot_events`, `crm_blocklist`, `wa_catalog_products`
 - Тесты (54): `agreement-gifts.test.ts`, `ai-autofill.integration.test.ts`, `auto-greeting.test.ts`, `automation-scheduled.integration.test.ts`, `automation.test.ts`, `bot-admin.test.tsx`, `bot-ai-seller.test.ts`, `bot-coach.test.ts`, `bot-engine.test.ts`, `bot-knowledge.test.ts`, `bot-langs.test.ts`, `bot-llm-routing.test.ts`, `bot-materials.test.ts`, `bot-persona.test.ts`, `bot-platform.test.ts`, `bot-remind.test.ts`, `bot-seller.test.ts`, `bot-store.integration.test.ts`, `bot-trace.test.tsx`, `bot-weekday.test.ts`, `cabinet-help.test.ts`, `chat-avatars.test.ts`, `chat-inbox-fixes.integration.test.ts`, `chat-inbox-fixes.test.ts`, `chat-media.integration.test.ts`, `chat-media.test.ts`, `chat-message-actions.test.ts`, `chat-sensitive-paths.test.ts`, `client-push-events.test.ts`, `crm-v4.test.ts`, `crm.test.ts`, `deal-invoice-payments.test.ts`, `delivery-abroad.test.ts`, `errors.test.ts`, `gowa-catchup.test.ts`, `gowa.test.ts`, `message-retry.integration.test.ts`, `message-retry.test.ts`, `messaging.test.ts`, `no-marketing-actions.test.ts`, `no-marketing.test.ts`, `review-fixes.test.ts`, `rule-sending.test.ts`, `seller-stats.integration.test.ts`, `sensitive.test.ts`, `settings-actions.test.ts`, `site-callback.test.ts`, `staff-line.test.ts`, `telephony.test.ts`, `whatsapp-calls.test.ts`, `whatsapp-catalog.test.ts`, `whatsapp-external-changes.test.ts`, `whatsapp-media-dedup.test.ts`, `workspace-ports.test.ts`
+
+## monitoring
+
+Наблюдаемость: пульс фоновых заданий (планировщик, сверки, сборка файлов для печати), сводка очередей «Фон и очереди» и уведомление руководителей о потоке в сбое.
+
+- Папка: `src/modules/monitoring` (domain, application, infrastructure)
+- Фасад: `MonitoringModule` → `container().monitoring`
+- Публичное: `pulses`, `health`, `alerts`
+- Таблицы: `job_pulses`, `ops_alerts`
+- Тесты (3): `ops-health.integration.test.ts`, `ops-health.test.ts`, `scheduler.test.ts`
 
 ## notifications
 

@@ -28,6 +28,8 @@ import { WorkspaceModule, getSettings, notifyMentions, smtpConfig, staffWith } f
 import { FeedbackModule, reviewUrl, THANK_YOU, type StaffAlerts, type ThankYouPromos } from "@/modules/feedback";
 import { ReferralsModule } from "@/modules/referrals";
 import { SupportModule, ticketAlert } from "@/modules/support";
+import { MonitoringModule } from "@/modules/monitoring";
+import { OPS_TEXT, opsText } from "@/shared/domain/opsHealth";
 import { convertAudio } from "./audio-convert";
 import { AutomationModule } from "@/modules/automation";
 import { BookPreviewService, PrintFilesService, RenderProgress, pdfPageRaster, pdfRenderQueue, reactPdfRenderer, renderGiftPdf, storageFileStore, type BookRenderer } from "@/modules/production";
@@ -74,9 +76,15 @@ export class Container {
   #support?: SupportModule;
   #referrals?: ReferralsModule;
   #invoiceAccess?: InvoiceAccess;
+  #monitoring?: MonitoringModule;
   /** Отчёты — только чтение. */
   readonly reporting = new ReportingModule();
   readonly workspace = new WorkspaceModule();
+
+  /** Наблюдаемость фона: пульс заданий, сводка «Фон и очереди», уведомление руководителей о сбое. */
+  get monitoring(): MonitoringModule {
+    return (this.#monitoring ??= new MonitoringModule({ clock: this.clock, logger: consoleLogger("monitoring"), settings: this.workspace.settings, notifier: this.workspace.notifier }));
+  }
 
   /** Правила CRM работают со сделками через узкий порт продаж. */
   get automation(): AutomationModule {
@@ -491,7 +499,12 @@ export class Container {
       bus: this.bus,
       clock: this.clock,
       logger: consoleLogger("ordering"),
-      printFiles: this.printFiles,
+      // Сборка файлов после оплаты — с пульсом: сбой виден в «Фон и очереди» («Файлы для печати»), а не только в логе.
+      printFiles: {
+        prepare: (job, opts) => this.printFiles.prepare(job, opts),
+        fingerprint: (bookId) => this.printFiles.fingerprint(bookId),
+        warmUp: (job) => this.monitoring.pulses.track("print.warmup", () => this.printFiles.warmUp(job), (r) => (r.status === "failed" ? opsText(OPS_TEXT.printFailed, { n: job.number }) : null)),
+      },
       giftPdf: { render: renderGiftPdf },
       mailer: this.mailer,
       books: {

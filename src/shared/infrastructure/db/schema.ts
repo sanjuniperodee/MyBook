@@ -16,6 +16,7 @@ export * from "./schema/feedback";
 export * from "./schema/identity";
 export * from "./schema/marketing";
 export * from "./schema/messaging";
+export * from "./schema/monitoring";
 export * from "./schema/notifications";
 export * from "./schema/ordering";
 export * from "./schema/outbox";

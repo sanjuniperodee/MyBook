@@ -151,6 +151,9 @@ export const crmMessages = pgTable(
     index("crm_messages_rule_idx").on(t.createdAt).where(sql`${t.source} = 'rule' and ${t.internal} = false`),
     // Неотправленные (шлюз не принял): автоповтор сообщений бота и правил в минутном проходе (chats-22) — их единицы.
     index("crm_messages_error_idx").on(t.createdAt).where(sql`${t.status} = 'error'`),
+    // «Фон и очереди»: наши сообщения, зависшие в «отправляется», и голосовые без расшифровки (их и берёт расшифровка).
+    index("crm_messages_pending_idx").on(t.createdAt).where(sql`${t.status} = 'pending'`),
+    index("crm_messages_untranscribed_idx").on(t.createdAt).where(sql`${t.type} = 'audio' and ${t.transcript} is null and ${t.deletedAt} is null`),
   ],
 );
 

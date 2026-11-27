@@ -105,7 +105,7 @@ describe("адреса", () => {
 describe("нет русских строк вне словарей", () => {
   const root = path.join(__dirname, "..", "src");
   // CRM и вебхуки интеграций — внутренние инструменты команды, они на русском.
-  const skipDirs = [/^i18n\//, /^app\/admin\//, /^app\/admin-denied\//, /^app\/crm\//, /^app\/api\/admin\//, /^app\/api\/integrations\//, /^app\/print\//, /^components\/admin\//, /^lib\/content\//, /^lib\/tools\//, /^modules\/access\//, /^modules\/sales\//, /^modules\/automation\//, /^modules\/messaging\//, /^modules\/telephony\//, /^modules\/marketing\//, /^modules\/assistant\//, /^lib\/book\/design-ai\//, /^lib\/book\/art\//, /^modules\/clients\//, /^modules\/reporting\//, /^modules\/workspace\//, /^server\/access\.ts$/, /^modules\/support\//, /^app\/api\/support\//, /^modules\/boards\//, /^server\/boards-api\.ts$/, /^server\/crm-actions\//, /^server\/crm-ops\//, /^lib\/crm\//, /^server\/settings-form-kit\.ts$/, /^web\/(access|catalog)\.ts$/, /^server\/site-handlers\/(admin|integrations|support)\//];
+  const skipDirs = [/^i18n\//, /^app\/admin\//, /^app\/admin-denied\//, /^app\/crm\//, /^app\/api\/admin\//, /^app\/api\/integrations\//, /^app\/print\//, /^components\/admin\//, /^lib\/content\//, /^lib\/tools\//, /^modules\/access\//, /^modules\/sales\//, /^modules\/automation\//, /^modules\/messaging\//, /^modules\/telephony\//, /^modules\/marketing\//, /^modules\/assistant\//, /^lib\/book\/design-ai\//, /^lib\/book\/art\//, /^modules\/clients\//, /^modules\/reporting\//, /^modules\/workspace\//, /^server\/access\.ts$/, /^modules\/support\//, /^app\/api\/support\//, /^modules\/boards\//, /^modules\/monitoring\//, /^server\/boards-api\.ts$/, /^server\/crm-actions\//, /^server\/crm-ops\//, /^lib\/crm\//, /^server\/settings-form-kit\.ts$/, /^web\/(access|catalog)\.ts$/, /^server\/site-handlers\/(admin|integrations|support)\//];
   // Обращения (modules/support и выкатка /api/support/release) — внутренний инструмент команды, по-русски, как CRM.
   // Файлы, где кириллица допустима целиком: внутренние инструменты и сам механизм языков.
   const skipFiles = new Set([
@@ -134,6 +134,7 @@ describe("нет русских строк вне словарей", () => {
     "shared/domain/dealTasks.ts", // служебная задача сделки «Получить остаток …» и итог её закрытия — для CRM, по-русски
     "shared/domain/segments.ts", // названия сегментов клиентов для CRM — на русском
     "shared/domain/customFields.ts", // переменные своих полей для шаблонов CRM: флажок — «да»/«нет»
+    "shared/domain/opsHealth.ts", // «Фон и очереди»: потоки, задания и сигналы — только CRM, по-русски
     "modules/production/infrastructure/coverPreview.ts", // образец текста для осмотра страниц ИИ-дизайнером: на экран клиенту не попадает
     "lib/book/hyphen-kk.ts", // алфавит для слоговых правил
     "lib/book/word-fit-chars.ts", // знаки таблицы ширин шрифтов (подбор кегля длинного слова)

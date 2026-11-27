@@ -1,7 +1,8 @@
 /**
  * Процесс mybook-backend (ADR 0014): весь бэкенд MyBooks на NestJS + Fastify — API v1 и маршруты сайта (с 27.11 вместо
  * mybook-api; nginx: /api/v1/ и /api/ → 3046). Применяет миграции БД до приёма запросов (SKIP_AUTO_MIGRATE=1 — без них);
- * фоновых проходов здесь нет (они в mybook-worker).
+ * фоновых проходов здесь нет (они в mybook-worker), кроме одного: оповещения о сбое фона («Фон и очереди») — его не может
+ * вести сам воркер.
  */
 import "reflect-metadata";
 import { ConsoleLogger } from "@nestjs/common";
@@ -25,3 +26,5 @@ const app = await configureApp(await NestFactory.create<NestFastifyApplication>(
 const config = app.get<AppConfig>(APP_CONFIG);
 await app.listen(config.port, config.host);
 console.log(`[backend] на ${config.host}:${config.port} (pid ${process.pid})`);
+const { startOpsAlerts } = await import("./legacy/ops-alerts");
+startOpsAlerts();

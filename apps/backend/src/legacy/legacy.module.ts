@@ -11,6 +11,7 @@ import { FEEDBACK_PORTS } from "../modules/feedback/feedback.tokens";
 import { ORDERS_API_PORTS } from "../modules/orders/orders.tokens";
 import { SITE_OPS_PORTS } from "../modules/site-ops/site-ops.tokens";
 import { PUBLIC_PORTS } from "../modules/public/public.tokens";
+import { OPS_PORTS } from "../modules/ops/ops.tokens";
 import { legacyAuthoringExports, legacyAuthoringProviders } from "./authoring.ports";
 import { legacyAuthoringSitePorts } from "./authoring-site.ports";
 import { LEGACY_AUTHORING_STUDIO_TOKENS, legacyAuthoringStudioPorts } from "./authoring-studio.ports";
@@ -26,6 +27,7 @@ import { legacySiteOpsPorts } from "./site-ops.ports";
 import { LEGACY_IDENTITY_TOKENS, legacyIdentityPorts } from "./identity.ports";
 import { LEGACY_CONTAINER } from "./legacy.tokens";
 import { legacyPublicPorts } from "./public.ports";
+import { legacyOpsPorts } from "./ops.ports";
 
 /**
  * Антикоррупционный слой переходного периода (ADR 0014, правило 9): единственное место, где бэкенд на Nest касается
@@ -54,6 +56,7 @@ import { legacyPublicPorts } from "./public.ports";
     ...legacyAuthoringProviders,
     legacyAuthoringSitePorts,
     legacyCrmOpsPorts,
+    legacyOpsPorts,
   ],
   exports: [
     LEGACY_CONTAINER,
@@ -74,6 +77,7 @@ import { legacyPublicPorts } from "./public.ports";
     AUTHORING_SITE_PORTS,
     ...LEGACY_CRM_CORE_TOKENS,
     CRM_OPS_PORTS,
+    OPS_PORTS,
   ],
 })
 export class LegacyModule {}

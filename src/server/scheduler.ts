@@ -13,6 +13,7 @@ import { aiStagesDeps, aiStagesPass } from "@/server/ai-stages";
 import { aiTranscribePass } from "@/server/ai-transcribe";
 import { tagKaspiPayForms } from "@/server/kaspi-pay-forms";
 import { purgeDeletedAccounts } from "@/server/account-deletion";
+import type { PulsePass } from "@/modules/monitoring";
 
 const INTERVAL_MS = 15 * 60_000;
 /** Сколько хранятся уведомления сотрудников (колокольчик, приложение). */
@@ -24,70 +25,73 @@ const LOCK_ID = 7_310_451;
  * Шаг фонового прохода: ошибка шага пишется в лог с его именем и не обрывает проход — следующие шаги выполняются.
  * Без этого сбой одного шага (правила CRM, база при перезапуске) останавливал напоминания, круг заявок, бота, почту
  * и выдачу доступа по оплаченным счетам до следующей минуты — и так каждую минуту, пока сбой не уйдёт.
+ * Итог шага (время, ошибка) уходит в пульс прохода — страница «Фон и очереди» (OPS_JOBS в shared/domain/opsHealth.ts).
  */
-async function step<T>(name: string, run: () => Promise<T>, fallback: T): Promise<T> {
-  try {
-    return await run();
-  } catch (err) {
-    console.error(`[scheduler] step "${name}" failed`, err);
-    return fallback;
-  }
+function step<T>(p: PulsePass, name: string, run: () => Promise<T>, fallback: T): Promise<T> {
+  return p.step(name, run, fallback, (err) => console.error(`[scheduler] step "${name}" failed`, err));
 }
+
+const pulse = (job: string) => container().monitoring.pulses.pass(job);
 
 /** Медленный проход (раз в 15 минут): сертификаты, автописьма, чистка outbox, история WhatsApp, формы оплаты Kaspi, ночной разбор бота, чистка следов бота и кэша предпросмотров. Экспорт — для тестов. */
 export async function tick() {
   // Блокировка живёт в сессии, поэтому держим одно соединение на весь проход.
   const client = await pool.connect();
   let locked = false;
+  let p: PulsePass | null = null;
   try {
     const { rows } = await client.query<{ locked: boolean }>("select pg_try_advisory_lock($1) as locked", [LOCK_ID]);
     locked = !!rows[0]?.locked;
     if (!locked) return;
-    const gifts = await step("gifts", () => container().ordering.deliverDueGifts(), 0);
+    p = pulse("scheduler.slow");
+    await p.begin();
+    const gifts = await step(p, "gifts", () => container().ordering.deliverDueGifts(), 0);
     // Общий выключатель автописем клиентам (notify.auto): выключен — ни почтой, ни в WhatsApp.
-    const emails = await step("lifecycle emails", async () => ((await getSetting("notify.auto")) === "off" ? 0 : container().notifications.lifecycle.run()), 0);
+    const emails = await step(p, "lifecycle emails", async () => ((await getSetting("notify.auto")) === "off" ? 0 : container().notifications.lifecycle.run()), 0);
     if (gifts || emails) console.log(`[scheduler] sent gifts=${gifts} lifecycle=${emails}`);
-    await step("outbox purge", () => container().outbox.purge(), undefined);
+    await step(p, "outbox purge", () => container().outbox.purge(), undefined);
     // Уведомления сотрудников живут 30 дней: старше — удаляем порциями (24.11: у админов копились десятки тысяч).
-    const notices = await step("notifications purge", () => container().workspace.inbox.purge(new Date(Date.now() - NOTIFICATIONS_KEEP_MS), 5000), 0);
+    const notices = await step(p, "notifications purge", () => container().workspace.inbox.purge(new Date(Date.now() - NOTIFICATIONS_KEEP_MS), 5000), 0);
     if (notices) console.log(`[scheduler] notifications purged=${notices}`);
     // История WhatsApp из своего шлюза: WhatsApp догружает старые сообщения связанному устройству постепенно.
-    const history = await step("whatsapp history", () => container().messaging.syncGowaHistory(), 0);
+    const history = await step(p, "whatsapp history", () => container().messaging.syncGowaHistory(), 0);
     if (history) console.log(`[scheduler] whatsapp history imported=${history}`);
     // Фото профиля клиентов WhatsApp: новые чаты и раз в неделю — не сменил ли клиент фото (порция за проход).
-    const avatars = await step("chat avatars", () => container().messaging.refreshAvatars(100), 0);
+    const avatars = await step(p, "chat avatars", () => container().messaging.refreshAvatars(100), 0);
     if (avatars) console.log(`[scheduler] chat avatars updated=${avatars}`);
     // Работа над ошибками AI-продажника: раз в сутки ночью разбор бесед за день → уроки в его инструкции.
-    const coach = await step("bot coach", () => container().messaging.coach.run(), null);
+    const coach = await step(p, "bot coach", () => container().messaging.coach.run(), null);
     if (coach) console.log(`[scheduler] bot coach reviewed=${coach.reviewed} added=${coach.added.length} removed=${coach.removed.length}${coach.error ? ` error=${coach.error}` : ""}`);
     // Пустые поля сделки (дата события, для кого, повод) из переписки менеджера — AI, до 5 диалогов за проход (bots-4).
-    const autofilled = await step("ai autofill", () => aiAutofill(aiAutofillDeps()), 0);
+    const autofilled = await step(p, "ai autofill", () => aiAutofill(aiAutofillDeps()), 0);
     if (autofilled) console.log(`[scheduler] ai autofill deals=${autofilled}`);
     // След ходов бота («Почему так?») хранится 90 дней: старые записи — порциями по частичному индексу.
-    const traces = await step("bot traces purge", () => container().messaging.purgeBotTraces(), 0);
+    const traces = await step(p, "bot traces purge", () => container().messaging.purgeBotTraces(), 0);
     if (traces) console.log(`[scheduler] bot traces purged=${traces}`);
     // Записи разговоров WhatsApp старше срока хранения (по умолчанию 90 дней) — файлы удаляются, звонок остаётся в журнале.
-    const recordings = await step("call recordings purge", () => container().telephony.purgeRecordings(), 0);
+    const recordings = await step(p, "call recordings purge", () => container().telephony.purgeRecordings(), 0);
     if (recordings) console.log(`[scheduler] call recordings removed=${recordings}`);
     // Кэш предпросмотров (сборки книг и картинки полос) пересобирается по запросу: давно не нужное — удаляем, раз в сутки.
-    const previews = await step("preview cache sweep", () => container().previews.sweep(), 0);
+    const previews = await step(p, "preview cache sweep", () => container().previews.sweep(), 0);
     if (previews) console.log(`[scheduler] preview cache removed=${previews}`);
     // Свои видео и аудио: брошенные за сутки загрузки — удалить, очередь обработки — разобрать (если её прервал сбой).
-    const abandoned = await step("answer files sweep", () => sweepAbandonedUploads(), 0);
+    const abandoned = await step(p, "answer files sweep", () => sweepAbandonedUploads(), 0);
     if (abandoned) console.log(`[scheduler] abandoned answer uploads removed=${abandoned}`);
     // Удалённые аккаунты: дочистить книги, заказы и переписку; заказ в работе — после доставки или отмены.
-    const purgedAccounts = await step("deleted accounts purge", () => purgeDeletedAccounts(), 0);
+    const purgedAccounts = await step(p, "deleted accounts purge", () => purgeDeletedAccounts(), 0);
     if (purgedAccounts) console.log(`[scheduler] deleted accounts purged=${purgedAccounts}`);
     // Одинаковые вложения WhatsApp (одни и те же фото примеров каждому клиенту с телефона магазина) — ссылки на один файл.
-    const media = await step("whatsapp media dedup", () => dedupWhatsappMedia(), null);
+    const media = await step(p, "whatsapp media dedup", () => dedupWhatsappMedia(), null);
     if (media?.linked) console.log(`[scheduler] whatsapp media linked=${media.linked} freed=${(media.freed / 1_048_576).toFixed(1)}MB`);
     // Форма оплаты онлайн-платежей Kaspi (Gold, рассрочка, Red) — из истории кассы: по ней считается комиссия банка.
-    const forms = await step("kaspi pay forms", () => tagKaspiPayForms(), 0);
+    const forms = await step(p, "kaspi pay forms", () => tagKaspiPayForms(), 0);
     if (forms) console.log(`[scheduler] kaspi pay forms tagged=${forms}`);
     kickAnswerFiles();
   } catch (err) {
     console.error("[scheduler] tick failed", err);
+    p?.fail(err);
   } finally {
+    await p?.done();
     if (locked) await client.query("select pg_advisory_unlock($1)", [LOCK_ID]).catch(() => {});
     client.release();
   }
@@ -101,67 +105,72 @@ const CRM_LOCK_ID = 7_310_452;
 export async function crmTick() {
   const client = await pool.connect();
   let locked = false;
+  let p: PulsePass | null = null;
   try {
     const { rows } = await client.query<{ locked: boolean }>("select pg_try_advisory_lock($1) as locked", [CRM_LOCK_ID]);
     locked = !!rows[0]?.locked;
     if (!locked) return;
-    const fired = await step("crm automations", () => container().automation.engine.runScheduled(), 0);
+    p = pulse("scheduler.crm");
+    await p.begin();
+    const fired = await step(p, "crm automations", () => container().automation.engine.runScheduled(), 0);
     if (fired) console.log(`[scheduler] crm automations fired=${fired}`);
     // Напоминания о задачах: ответственному — в CRM со звуком и в WhatsApp.
-    const reminded = await step("task reminders", () => container().clients.tasks.remindDue(), 0);
+    const reminded = await step(p, "task reminders", () => container().clients.tasks.remindDue(), 0);
     if (reminded) console.log(`[scheduler] task reminders=${reminded}`);
     // Просроченные задачи: одно уведомление ответственному, в рабочее время (tasks-4).
-    const overdue = await step("overdue tasks", () => container().clients.tasks.escalateOverdue(), 0);
+    const overdue = await step(p, "overdue tasks", () => container().clients.tasks.escalateOverdue(), 0);
     if (overdue) console.log(`[scheduler] overdue tasks=${overdue}`);
     // Доски: правила «срок прошёл» (метка «Просрочено» и др.) и следующие карточки повторяющихся задач.
-    const boardRules = await step("board rules", () => container().boards.cards.sweepOverdue(), 0);
+    const boardRules = await step(p, "board rules", () => container().boards.cards.sweepOverdue(), 0);
     if (boardRules) console.log(`[scheduler] board overdue rules=${boardRules}`);
-    const recurring = await step("recurring cards", () => container().boards.cards.spawnRecurring(), 0);
+    const recurring = await step(p, "recurring cards", () => container().boards.cards.spawnRecurring(), 0);
     if (recurring) console.log(`[scheduler] recurring cards=${recurring}`);
     // Google Календари сотрудников: выгрузить изменённые задачи, продлить каналы, забрать правки из Google.
-    const google = await step("google calendar", () => container().boards.google.syncAll(), 0);
+    const google = await step(p, "google calendar", () => container().boards.google.syncAll(), 0);
     if (google) console.log(`[scheduler] google calendar changes=${google}`);
     // Круг: ночные заявки — утром первым на смене, не взятые вовремя — следующему.
-    const routed = await step("lead routing", () => container().sales.routing.run(), 0);
+    const routed = await step(p, "lead routing", () => container().sales.routing.run(), 0);
     if (routed) console.log(`[scheduler] crm leads routed=${routed}`);
     // Порядок в воронке: оплата → свой этап, ответили → «в работе», клиент молчит → «не отвечает» → отказ (вывод — модель).
-    const order = await step("stage order", () => stageOrderPass(stageOrderDeps()), null);
+    const order = await step(p, "stage order", () => stageOrderPass(stageOrderDeps()), null);
     if (order && order.paid + order.work + order.silent + order.lost) console.log(`[scheduler] stage order paid=${order.paid} work=${order.work} silent=${order.silent} lost=${order.lost} assessed=${order.assessed}`);
     // Все голосовые в текст (crm.aiTranscribe) — до разбора этапов: ИИ читает слова, а не «[audio]».
-    const voices = await step("ai transcribe", () => aiTranscribePass(), null);
+    const voices = await step(p, "ai transcribe", () => aiTranscribePass(), null);
     if (voices && voices.done + voices.failed) console.log(`[scheduler] ai transcribe done=${voices.done} failed=${voices.failed}`);
     // ИИ ведёт этапы (crm.aiStages): свежая затихшая переписка → этап с пометкой «ИИ» или предложение менеджеру.
-    const aiStages = await step("ai stages", () => aiStagesPass(aiStagesDeps()), null);
+    const aiStages = await step(p, "ai stages", () => aiStagesPass(aiStagesDeps()), null);
     if (aiStages?.reviewed)
       console.log(
         `[scheduler] ai stages reviewed=${aiStages.reviewed} applied=${aiStages.applied} proposed=${aiStages.proposed} assigned=${aiStages.assigned} attributed=${aiStages.attributed}${aiStages.tasks ? ` tasks=${aiStages.tasks.created}/${aiStages.tasks.closed}/${aiStages.tasks.raised}` : ""}`,
       );
     // Бот-квалификатор: ходы, не сделанные таймером (перезапуск процесса), ожидание менеджера, брошенные опросы.
-    const botTurns = await step("bot", () => container().messaging.bot.sweep(), 0);
+    const botTurns = await step(p, "bot", () => container().messaging.bot.sweep(), 0);
     if (botTurns) console.log(`[scheduler] crm bot turns=${botTurns}`);
     // Сообщения бота и правил, не ушедшие из-за шлюза: один автоповтор, иначе — ответственному (chats-22).
-    const resent = await step("message retry", () => container().messaging.chats.retryFailedAutomated(), 0);
+    const resent = await step(p, "message retry", () => container().messaging.chats.retryFailedAutomated(), 0);
     if (resent) console.log(`[scheduler] messages resent=${resent}`);
     // Звонки WhatsApp, о конце которых никто не сообщил: звонят больше полутора минут или вкладка сотрудника пропала.
-    const calls = await step("whatsapp calls", () => container().telephony.whatsapp.sweep(), 0);
+    const calls = await step(p, "whatsapp calls", () => container().telephony.whatsapp.sweep(), 0);
     if (calls) console.log(`[scheduler] whatsapp calls closed=${calls}`);
     // Входящие письма по IMAP (если ящик подключён в «Интеграциях»).
-    const mails = await step("imap", () => container().messaging.email.pollImap(), 0);
+    const mails = await step(p, "imap", () => container().messaging.email.pollImap(), 0);
     if (mails) console.log(`[scheduler] crm emails=${mails}`);
     // Счета из чата: доступ в кабинет после оплаты (клиент, привязка, сообщение в чат; доставка) и истечение срока.
-    const access = await step("invoice access", () => container().invoiceAccess.run(), { processed: 0, failed: 0 });
+    const access = await step(p, "invoice access", () => container().invoiceAccess.run(), { processed: 0, failed: 0 });
     if (access.processed || access.failed) console.log(`[scheduler] invoice access processed=${access.processed} failed=${access.failed}`);
-    const expired = await step("invoice expiry", () => container().invoiceAccess.expire(), 0);
+    const expired = await step(p, "invoice expiry", () => container().invoiceAccess.expire(), 0);
     if (expired) console.log(`[scheduler] invoices expired=${expired}`);
     // Кассир Kaspi: запрос к Kaspi раз в 3 минуты, руководителям — только смена состояния («отключён» / «снова подключён»).
     // Здесь, а не в сверке платежей: та выходит, пока нет сессии, и пропускает ход, когда занята пятисекундная сверка.
-    const kaspi = await step("kaspi watch", () => container().ordering.kaspiWatch.check(), null);
+    const kaspi = await step(p, "kaspi watch", () => container().ordering.kaspiWatch.check(), null);
     if (kaspi) console.warn(`[scheduler] kaspi cashier ${kaspi === "down" ? "disconnected" : "reconnected"}`);
     // Утренняя сводка сотрудникам: с 09:00 в рабочий день, одна в сутки.
-    if (await step("morning digest", () => morningDigestTick(morningDigestDeps()), false)) console.log("[scheduler] morning digest sent");
+    if (await step(p, "morning digest", () => morningDigestTick(morningDigestDeps()), false)) console.log("[scheduler] morning digest sent");
   } catch (err) {
     console.error("[scheduler] crm tick failed", err);
+    p?.fail(err);
   } finally {
+    await p?.done();
     if (locked) await client.query("select pg_advisory_unlock($1)", [CRM_LOCK_ID]).catch(() => {});
     client.release();
   }
@@ -179,10 +188,12 @@ let gowaCatchUpError = "";
 async function gowaCatchUpTick() {
   const client = await pool.connect();
   let locked = false;
+  let p: PulsePass | null = null;
   try {
     const { rows } = await client.query<{ locked: boolean }>("select pg_try_advisory_lock($1) as locked", [GOWA_CATCHUP_LOCK_ID]);
     locked = !!rows[0]?.locked;
     if (!locked) return;
+    p = pulse("gowa.catchup");
     const caught = await container().messaging.catchUpGowa();
     if (caught) console.warn(`[scheduler] whatsapp: ${caught} message(s) missed by the GOWA webhook were caught up`);
     gowaCatchUpError = "";
@@ -190,7 +201,9 @@ async function gowaCatchUpTick() {
     const message = err instanceof Error ? err.message : String(err);
     if (message !== gowaCatchUpError) console.error("[scheduler] whatsapp catch-up", err);
     gowaCatchUpError = message;
+    p?.fail(err);
   } finally {
+    await p?.done();
     if (locked) await client.query("select pg_advisory_unlock($1)", [GOWA_CATCHUP_LOCK_ID]).catch(() => {});
     client.release();
   }
@@ -203,14 +216,17 @@ let outboxBusy = false;
 async function outboxTick() {
   if (outboxBusy) return 0;
   outboxBusy = true;
+  const p = pulse("outbox");
   try {
     let total = 0;
     for (let n = await container().outbox.dispatch(); n > 0 && total < 500; n = await container().outbox.dispatch()) total += n;
     return total;
   } catch (err) {
     console.error("[scheduler] outbox tick failed", err);
+    p.fail(err);
     return 0;
   } finally {
+    await p.done();
     outboxBusy = false;
   }
 }
@@ -226,24 +242,31 @@ const PAYMENTS_SLOW_WINDOW_MS = 72 * 3600_000;
 const PAYMENTS_LOCK_ID = 7_310_453;
 let paymentsBusy = false;
 
-async function paymentsTick(windowMs: number) {
+async function paymentsTick(job: "kaspi.fast" | "kaspi.slow", windowMs: number) {
   if (paymentsBusy) return;
   paymentsBusy = true;
   let client: PoolClient | null = null;
   let locked = false;
+  let p: PulsePass | null = null;
   try {
-    // Kaspi не подключён — соединение с базой не занимаем.
-    if (!(await container().ordering.kaspi.available())) return;
+    // Kaspi не подключён — соединение с базой не занимаем (пульс — «выключено»).
+    if (!(await container().ordering.kaspi.available())) {
+      p = pulse(job).off();
+      return;
+    }
     const conn = await pool.connect();
     client = conn;
     const { rows } = await conn.query<{ locked: boolean }>("select pg_try_advisory_lock($1) as locked", [PAYMENTS_LOCK_ID]);
     locked = !!rows[0]?.locked;
     if (!locked) return;
+    p = pulse(job);
     const { paid } = await container().ordering.kaspi.reconcile(windowMs);
     if (paid) console.log(`[scheduler] kaspi payments confirmed=${paid}`);
   } catch (err) {
     console.error("[scheduler] payments tick failed", err);
+    (p ??= pulse(job)).fail(err);
   } finally {
+    await p?.done();
     if (locked) await client?.query("select pg_advisory_unlock($1)", [PAYMENTS_LOCK_ID]).catch(() => {});
     client?.release();
     paymentsBusy = false;
@@ -264,22 +287,61 @@ async function dealInvoicesKaspiTick() {
   dealKaspiBusy = true;
   let client: PoolClient | null = null;
   let locked = false;
+  let p: PulsePass | null = null;
   try {
-    if (!(await container().ordering.kaspi.available())) return;
+    if (!(await container().ordering.kaspi.available())) {
+      p = pulse("kaspi.deals").off();
+      return;
+    }
     const conn = await pool.connect();
     client = conn;
     const { rows } = await conn.query<{ locked: boolean }>("select pg_try_advisory_lock($1) as locked", [DEAL_KASPI_LOCK_ID]);
     locked = !!rows[0]?.locked;
     if (!locked) return;
+    p = pulse("kaspi.deals");
     const { paid, closed } = await container().ordering.kaspi.reconcileDealInvoices(DEAL_KASPI_WINDOW_MS);
     if (paid || closed) console.log(`[scheduler] kaspi deal invoices paid=${paid} closed=${closed}`);
   } catch (err) {
     console.error("[scheduler] deal invoices kaspi tick failed", err);
+    (p ??= pulse("kaspi.deals")).fail(err);
   } finally {
+    await p?.done();
     if (locked) await client?.query("select pg_advisory_unlock($1)", [DEAL_KASPI_LOCK_ID]).catch(() => {});
     client?.release();
     dealKaspiBusy = false;
   }
+}
+
+/**
+ * Оповещение руководителей о потоке фона в сбое (модуль monitoring): раз в минуту в процессе API (mybook-backend), а не в
+ * воркере — иначе остановленный воркер не сообщил бы сам о себе. Своя блокировка — при нескольких процессах API идёт один.
+ * Отключается OPS_ALERTS=off.
+ */
+const OPS_ALERTS_MS = 60_000;
+const OPS_ALERTS_LOCK_ID = 7_310_490;
+let opsAlertsStarted = false;
+
+export async function opsAlertsTick() {
+  const client = await pool.connect();
+  let locked = false;
+  try {
+    const { rows } = await client.query<{ locked: boolean }>("select pg_try_advisory_lock($1) as locked", [OPS_ALERTS_LOCK_ID]);
+    locked = !!rows[0]?.locked;
+    if (!locked) return;
+    const sent = await container().monitoring.alerts.run();
+    if (sent) console.warn(`[ops] stream alerts sent=${sent}`);
+  } catch (err) {
+    console.error("[ops] alerts tick failed", err);
+  } finally {
+    if (locked) await client.query("select pg_advisory_unlock($1)", [OPS_ALERTS_LOCK_ID]).catch(() => {});
+    client.release();
+  }
+}
+
+export function startOpsAlerts() {
+  if (opsAlertsStarted || process.env.OPS_ALERTS === "off") return;
+  opsAlertsStarted = true;
+  setInterval(() => void opsAlertsTick(), OPS_ALERTS_MS).unref?.();
 }
 
 let started = false;
@@ -293,7 +355,7 @@ export function startScheduler() {
   setInterval(() => void crmTick(), CRM_INTERVAL_MS).unref?.();
   setInterval(() => void gowaCatchUpTick(), GOWA_CATCHUP_MS).unref?.();
   setInterval(() => void outboxTick(), OUTBOX_INTERVAL_MS).unref?.();
-  setInterval(() => void paymentsTick(PAYMENTS_FAST_WINDOW_MS), PAYMENTS_FAST_MS).unref?.();
-  setInterval(() => void paymentsTick(PAYMENTS_SLOW_WINDOW_MS), PAYMENTS_SLOW_MS).unref?.();
+  setInterval(() => void paymentsTick("kaspi.fast", PAYMENTS_FAST_WINDOW_MS), PAYMENTS_FAST_MS).unref?.();
+  setInterval(() => void paymentsTick("kaspi.slow", PAYMENTS_SLOW_WINDOW_MS), PAYMENTS_SLOW_MS).unref?.();
   setInterval(() => void dealInvoicesKaspiTick(), DEAL_KASPI_MS).unref?.();
 }

@@ -247,6 +247,7 @@ TypeScript на Node, без Go и Bun/Deno. Target A (волны 1–6 ниже
 
 | Дата | Агент | Что сделано | Проверки | Следующее |
 |---|---|---|---|---|
+| 2026-11-27 | Claude Opus 5.5 | Наблюдаемость фона: модуль `monitoring` (пульс заданий `job_pulses`, оповещения `ops_alerts`, миграция 0114 + частичные индексы outbox/сообщений), маршрут `crmOpsHealth` (контракт `v1/ops-health.ts`, Nest `modules/ops`, порт через `legacy/ops.ports.ts`), оповещение руководителей раз в минуту в процессе API (`main.ts` → `legacy/ops-alerts.ts`); страница CRM `/admin/system` в mybook-web | tsc (корень и apps/backend), eslint, полный vitest, интеграционный тест на PostgreSQL, e2e маршрута, `next build` веба | проверить на проде цифры и пороги через неделю |
 | 2026-11-05 | DeepSeek (DSH) | Baseline, inventory, план, ADR, PROGRESS, HANDOFF; ветка `refactor/microservices`, коммит `05729c23` | `tsc` 0, `vitest` 4010 passed / 135 skipped, `eslint` 0 ошибок | M0.3 Playwright |
 | 2026-11-05 | DeepSeek (DSH) | M0.3: Playwright-стенд страниц, seed, фиксированные часы, 40 эталонов | 40/40 два прогона, diff-пиксель ловится, `tsc`/`eslint` зелёные | M0.4 golden DTO + parity |
 | 2026-11-05 | DeepSeek (DSH) | S3: Yandex Object Storage, профиль `yc-storage`, `.env.local`, ADR 0008, `07-storage-s3.md`; коммит `8c268531` | ключи вне git, права 600; Yandex вернул 403 SignatureDoesNotMatch | M0.8 blocked (ключи), затем M0.4 |

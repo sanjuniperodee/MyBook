@@ -13,6 +13,7 @@ import { CrmSiteModule } from "./modules/crm-site/crm-site.module";
 import { FeedbackApiModule } from "./modules/feedback/feedback.module";
 import { IdentityApiModule } from "./modules/identity/identity.module";
 import { OrdersApiModule } from "./modules/orders/orders.module";
+import { OpsApiModule } from "./modules/ops/ops.module";
 import { SiteOpsModule } from "./modules/site-ops/site-ops.module";
 import { PublicApiModule } from "./modules/public/public.module";
 
@@ -35,6 +36,7 @@ import { PublicApiModule } from "./modules/public/public.module";
     CrmSiteModule,
     OrdersApiModule,
     SiteOpsModule,
+    OpsApiModule,
   ],
 })
 export class AppModule {}

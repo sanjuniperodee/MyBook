@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { PulseRecorder } from "@/modules/monitoring/application/PulseRecorder";
+import type { PulseRecord } from "@/modules/monitoring/application/ports";
 
 /**
  * Фоновые проходы (src/server/scheduler.ts): ошибка одного шага не обрывает проход — следующие шаги выполняются,
@@ -12,7 +14,17 @@ const stepFn = <T>(name: string, value: T) => async () => {
   return value;
 };
 
+/** Пульс проходов («Фон и очереди»): что записано за проход — в памяти. */
+const pulses: PulseRecord[][] = [];
+const started: string[] = [];
+const recorder = new PulseRecorder(
+  { start: async (job) => void started.push(job), finish: async (r) => void pulses.push(r), all: async () => [] },
+  { now: () => new Date() },
+  { info: () => {}, warn: () => {}, error: () => {} },
+);
+
 const fake = {
+  monitoring: { pulses: recorder },
   automation: { engine: { runScheduled: stepFn("automations", 0) } },
   clients: { tasks: { remindDue: stepFn("reminders", 0), escalateOverdue: stepFn("overdue", 0) } },
   sales: { routing: { run: stepFn("routing", 0) } },
@@ -49,6 +61,8 @@ describe("scheduler: шаг упал — проход идёт дальше", ()
   beforeEach(() => {
     calls.length = 0;
     failing.clear();
+    pulses.length = 0;
+    started.length = 0;
     errors = [];
     vi.spyOn(console, "error").mockImplementation((...a: unknown[]) => void errors.push(a));
     vi.spyOn(console, "log").mockImplementation(() => {});
@@ -60,6 +74,15 @@ describe("scheduler: шаг упал — проход идёт дальше", ()
     await crmTick();
     expect(calls).toEqual(["automations", "reminders", "overdue", "board rules", "recurring", "google", "routing", "bot", "retry", "whatsapp calls", "imap", "access", "expire", "kaspi watch", "digest"]);
     expect(errors.map((e) => e[0])).toEqual(['[scheduler] step "crm automations" failed', '[scheduler] step "lead routing" failed']);
+    // Пульс: начало прохода сразу, итог прохода и всех шагов — одной записью в конце; упавшие шаги — с ошибкой.
+    expect(started).toEqual(["scheduler.crm"]);
+    expect(pulses).toHaveLength(1);
+    expect(pulses[0][0]).toMatchObject({ job: "scheduler.crm", outcome: "ok", everySec: 60 });
+    expect(pulses[0].filter((r) => r.outcome === "error").map((r) => [r.job, r.error])).toEqual([
+      ["crm automations", "automations упал"],
+      ["lead routing", "routing упал"],
+    ]);
+    expect(pulses[0].map((r) => r.job)).toContain("morning digest");
   });
 
   it("минутный проход: проверка кассира Kaspi упала (kaspi-pos завис) — в логе её имя, остальные шаги уже выполнены", async () => {
@@ -76,6 +99,9 @@ describe("scheduler: шаг упал — проход идёт дальше", ()
     await tick();
     expect(calls).toEqual(["gifts", "lifecycle", "purge", "notices", "history", "avatars", "coach", "autofill", "traces", "recordings", "previews"]);
     expect(errors.map((e) => e[0])).toEqual(['[scheduler] step "gifts" failed', '[scheduler] step "outbox purge" failed']);
+    expect(started).toEqual(["scheduler.slow"]);
+    expect(pulses[0][0]).toMatchObject({ job: "scheduler.slow", outcome: "ok", everySec: 900 });
+    expect(pulses[0].filter((r) => r.outcome === "error").map((r) => r.job)).toEqual(["gifts", "outbox purge"]);
   });
 
   it("медленный проход: автописьма клиентам выключены (notify.auto = off) — не отправляются, остальные шаги идут", async () => {

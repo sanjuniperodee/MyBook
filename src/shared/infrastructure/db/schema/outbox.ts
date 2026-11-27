@@ -26,5 +26,9 @@ export const outboxEvents = pgTable(
     failedAt: timestamp("failed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("outbox_pending_idx").on(t.processedAt, t.availableAt)],
+  (t) => [
+    index("outbox_pending_idx").on(t.processedAt, t.availableAt),
+    // Недоставленные (ждут и в разборе) — сводка «Фон и очереди» раз в 20 секунд считает их без обхода всей таблицы.
+    index("outbox_unprocessed_idx").on(t.createdAt).where(sql`${t.processedAt} is null`),
+  ],
 );

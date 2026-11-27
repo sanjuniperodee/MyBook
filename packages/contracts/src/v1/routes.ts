@@ -34,6 +34,7 @@ import { crmCatalogRoutes } from "./crm-catalog";
 import { crmAdminRoutes } from "./crm-admin";
 import { crmKpRoutes } from "./crm-kp";
 import { crmSecurityRoutes } from "./crm-security";
+import { opsHealthRoutes } from "./ops-health";
 import { crmInvoiceRoutes } from "./crm-invoices";
 import { crmMobileRestRoutes } from "./crm-mobile-rest";
 import { answerFilesRoutes } from "./answer-files";
@@ -70,6 +71,7 @@ export * from "./crm-catalog";
 export * from "./crm-admin";
 export * from "./crm-kp";
 export * from "./crm-security";
+export * from "./ops-health";
 export * from "./crm-invoices";
 export * from "./crm-mobile-rest";
 export * from "./answer-files";
@@ -105,6 +107,8 @@ export const v1 = {
   ...crmAdminRoutes,
   ...crmKpRoutes,
   ...crmSecurityRoutes,
+  // Фон и очереди (наблюдаемость фона, право settings.manage).
+  ...opsHealthRoutes,
   ...crmInvoiceRoutes,
   ...crmMobileRestRoutes,
   // Доски задач и календарь (приложение CRM).
