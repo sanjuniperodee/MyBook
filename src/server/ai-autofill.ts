@@ -2,7 +2,7 @@ import "server-only";
 import { container } from "@/server/container";
 import { getSetting } from "@/modules/workspace";
 import { zonedDay, fromZonedTime } from "@/shared/domain/time";
-import { AI_CARD_SKIP_FIELDS, aiFlagOn } from "@/shared/domain/aiCrm";
+import { AI_CARD_SKIP_FIELDS, aiFlagOn, parseStaffChatNames } from "@/shared/domain/aiCrm";
 import { aiNoteText, type AiFieldPayload } from "@/shared/domain/aiProposals";
 import { nameInText } from "@/shared/domain/aiStages";
 
@@ -105,7 +105,7 @@ export function aiAutofillDeps(now = new Date()): AutofillDeps {
     fields: async (dealId) => (await c.sales.deals.findById(dealId))?.customFields ?? null,
     fillEmpty: (dealId, values) => c.sales.deals.fillEmptyFields(dealId, values),
     nameContact: (dealId, name) => c.sales.deals.nameContact(dealId, name),
-    staffNames: async () => (await c.access.queries.allStaff()).map((x) => x.name.trim()).filter(Boolean),
+    staffNames: async () => [...(await c.access.queries.allStaff()).map((x) => x.name.trim()), ...Object.values(parseStaffChatNames(await getSetting("crm.staffChatNames"))).flat()].filter(Boolean),
     propose: (dealId, payload) => c.sales.aiProposals.add({ dealId, kind: "field", payload, reason: "в переписке по-другому, чем в карточке", quote: null, messageId: null, confidence: 0.8 }),
     note: async (dealId, text) => {
       const deal = await c.sales.deals.findById(dealId);

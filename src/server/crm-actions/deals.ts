@@ -10,7 +10,7 @@ import { STAGE_ORDER_DEFAULTS, STAGE_ORDER_LIMITS } from "@/shared/domain/stageO
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { aiFlagValue, isAiCrmFlag } from "@/shared/domain/aiCrm";
+import { aiFlagValue, isAiCrmFlag, parseStaffChatNames } from "@/shared/domain/aiCrm";
 import { uuid } from "@/server/input";
 import { assertStaff, assertWorkable, audit, can, canAssignOthers, canSeeAssigned, ForbiddenError, type Staff } from "@/server/access";
 import { notify, staffNotifier } from "@/modules/workspace";
@@ -688,6 +688,19 @@ export async function saveAiFlagAction(key: string, on: boolean): Promise<{ ok?:
   const before = await getSetting(key);
   await saveSettings({ [key]: value }, staff.user.id);
   await audit(staff, "settings.update", "settings", key, { from: before, to: value });
+  revalidatePath("/admin/deals/stages");
+  return { ok: true };
+}
+
+/** Как сотрудники называют себя в чатах (crm.staffChatNames): по этим именам ИИ узнаёт, кто ведёт переписку. */
+export async function saveStaffChatNamesAction(names: Record<string, string>): Promise<{ ok?: true; error?: string }> {
+  const staff = await assertStaff("settings.manage");
+  const input = z.record(z.string().uuid(), z.string().max(200)).parse(names);
+  const active = new Set((await container().access.queries.allStaff()).filter((x) => !x.disabled).map((x) => x.id));
+  const next = parseStaffChatNames(JSON.stringify(Object.fromEntries(Object.entries(input).filter(([id]) => active.has(id)))));
+  const before = await getSetting("crm.staffChatNames");
+  await saveSettings({ "crm.staffChatNames": JSON.stringify(Object.fromEntries(Object.entries(next).map(([id, list]) => [id, list.join(", ")]))) }, staff.user.id);
+  await audit(staff, "settings.update", "settings", "crm.staffChatNames", { from: before, to: next });
   revalidatePath("/admin/deals/stages");
   return { ok: true };
 }

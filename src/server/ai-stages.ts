@@ -3,7 +3,7 @@ import { container } from "@/server/container";
 import { getSetting } from "@/modules/workspace";
 import { lostReasons, stageMilestones } from "@/modules/sales/domain/meta";
 import { AI_STAGES, aiManagerDecision, aiStageDecision, nameInText, parseAiStages, quoteIn, stageRoles, type AiStageOption } from "@/shared/domain/aiStages";
-import { AI_PROMISE_TITLES, AI_TASKS, aiFlagOn, aiPromiseTitle } from "@/shared/domain/aiCrm";
+import { AI_PROMISE_TITLES, AI_TASKS, aiFlagOn, aiPromiseTitle, parseStaffChatNames, staffForAi } from "@/shared/domain/aiCrm";
 import { aiNoteText } from "@/shared/domain/aiProposals";
 import type { AiProposalPayload } from "@/shared/domain/aiProposals";
 import type { StageMilestone } from "@/shared/domain/stageMilestones";
@@ -63,7 +63,7 @@ export interface AiStagesDeps {
   /** stages — «Двигает сделки по этапам», manager — «Определяет менеджера» (один разбор переписки на оба). */
   config(): Promise<{ stages: boolean; manager: boolean; tasks?: boolean }>;
   /** Сотрудники, которые пишут с телефона магазина (активные), — модель называет одного из них. */
-  staff(): Promise<{ id: string; name: string }[]>;
+  staff(): Promise<{ id: string; name: string; chatNames?: string[] }[]>;
   aiReady(): Promise<boolean>;
   reviewedToday(): Promise<number>;
   /** Основная воронка: её этапы с ролями и причины отказа. */
@@ -136,7 +136,7 @@ export async function aiStagesPass(d: AiStagesDeps, now = new Date()): Promise<A
     if (!current) continue;
     try {
       await d.markReviewed(c.id);
-      const { review, messages, tasks } = await d.review(c.id, { stages: list, current: current.name, reasons: AI_REASONS, messages: AI_STAGES.messages, staff: staff.map((x) => x.name), tasks: !!cfg.tasks });
+      const { review, messages, tasks } = await d.review(c.id, { stages: list, current: current.name, reasons: AI_REASONS, messages: AI_STAGES.messages, staff: staff.map((x) => staffForAi(x.name, x.chatNames)), tasks: !!cfg.tasks });
       result.reviewed++;
       if (!review) continue;
       const target = review.stage ? (funnel.stages[review.stage - 1] ?? null) : null;
@@ -186,7 +186,7 @@ async function manager(
   c: Candidate,
   review: NonNullable<Awaited<ReturnType<AiStagesDeps["review"]>>["review"]>,
   messages: ReviewMessage[],
-  staff: { id: string; name: string }[],
+  staff: { id: string; name: string; chatNames?: string[] }[],
   result: AiStagesResult,
 ) {
   const m = review.manager;
@@ -194,7 +194,8 @@ async function manager(
   const at = m?.message ? m.message - 1 : -1;
   const msg = at >= 0 ? messages[at] : undefined;
   if (!m || !who || !msg) return;
-  const decision = aiManagerDecision({ staffId: who.id, assigneeId: c.assigneeId, quoteOk: quoteIn(m.quote, msg.text), nameOk: nameInText(who.name, m.quote), fromManager: msg.direction === "out" });
+  const nameOk = [who.name, ...(who.chatNames ?? [])].some((n) => nameInText(n, m.quote));
+  const decision = aiManagerDecision({ staffId: who.id, assigneeId: c.assigneeId, quoteOk: quoteIn(m.quote, msg.text), nameOk, fromManager: msg.direction === "out" });
   if (decision === "propose") {
     if (await d.propose({ dealId: c.id, kind: "assignee", payload: { fromAssigneeId: c.assigneeId, staffId: who.id, staffName: who.name }, reason: "клиент обращается к сотруднику по имени", quote: m.quote, messageId: msg.id ?? null, confidence: review.confidence })) result.proposed++;
     return;
@@ -278,7 +279,10 @@ export function aiStagesDeps(now = new Date()): AiStagesDeps {
       const deal = await c.sales.deals.findById(dealId);
       if (deal) await c.sales.deals.note(deal, text, null);
     },
-    staff: async () => (await c.access.queries.allStaff()).filter((x) => !x.disabled && x.name.trim()).map((x) => ({ id: x.id, name: x.name.trim() })),
+    staff: async () => {
+      const chat = parseStaffChatNames(await getSetting("crm.staffChatNames"));
+      return (await c.access.queries.allStaff()).filter((x) => !x.disabled && x.name.trim()).map((x) => ({ id: x.id, name: x.name.trim(), chatNames: chat[x.id] ?? [] }));
+    },
     assign: async (dealId, staffId, note) => {
       const deal = await c.sales.deals.assign(dealId, staffId);
       await c.sales.deals.note({ id: dealId, clientId: deal.clientId }, note, null);

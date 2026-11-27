@@ -76,3 +76,25 @@ export function placeholderName(name: string | null | undefined): boolean {
   if (!n || n.startsWith("…")) return true;
   return !/\p{L}{2,}/u.test(n);
 }
+
+/**
+ * Как сотрудники называют себя в чатах (crm.staffChatNames): JSON { id сотрудника: "Марат, Марик" }. Аккаунт может
+ * называться иначе («Margo»), а клиентам сотрудник представляется своим именем — по нему ИИ узнаёт, кто ведёт переписку.
+ */
+export function parseStaffChatNames(raw: string | null | undefined): Record<string, string[]> {
+  try {
+    const v: unknown = JSON.parse(raw || "{}");
+    if (!v || typeof v !== "object" || Array.isArray(v)) return {};
+    const out: Record<string, string[]> = {};
+    for (const [id, names] of Object.entries(v as Record<string, unknown>)) {
+      const list = (typeof names === "string" ? names.split(",") : Array.isArray(names) ? names : []).map((n) => String(n).trim().slice(0, 40)).filter(Boolean).slice(0, 5);
+      if (list.length) out[id] = list;
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+/** Сотрудник для ИИ: имя аккаунта и имена из чатов — «Margo (в чатах — Марат)». */
+export const staffForAi = (name: string, chatNames: readonly string[] = []) => (chatNames.length ? `${name} (в чатах — ${chatNames.join(", ")})` : name);

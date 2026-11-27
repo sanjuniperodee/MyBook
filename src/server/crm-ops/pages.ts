@@ -192,11 +192,14 @@ export const reads = {
     const pipeline = pipelines.find((x) => x.id === p) ?? pipelines[0];
     const [stages, counts, entryRaw] = await Promise.all([container().sales.queries.listStages(pipeline.id), container().reporting.stageCounts(), getSetting("crm.entryStages")]);
     const showEntry = pipeline.id === pipelines[0].id;
-    const { AI_CRM_FLAGS, aiFlagOn } = await import("@/shared/domain/aiCrm");
+    const { AI_CRM_FLAGS, aiFlagOn, parseStaffChatNames } = await import("@/shared/domain/aiCrm");
     const [order, aiReady, aiStages] = showEntry ? await Promise.all([getSetting("crm.stageOrder").then(parseStageOrder), container().assistant.service.configured(), getSetting("crm.aiStages").then(parseAiStages)]) : [null, false, null];
     // «ИИ в CRM»: какие выключатели включены (подписи — из того же списка в shared/domain/aiCrm).
     const aiFlags = showEntry ? Object.fromEntries(await Promise.all(AI_CRM_FLAGS.map(async (f) => [f.key, aiFlagOn(f.key, await getSetting(f.key))] as const))) : null;
-    return { pipelines, pipeline, stages, counts, entryRaw, showEntry, order, aiReady, aiStages, aiFlags };
+    // Как сотрудники называют себя в чатах — для «Определяет менеджера».
+    const chatNames = showEntry ? parseStaffChatNames(await getSetting("crm.staffChatNames")) : null;
+    const aiStaff = showEntry ? (await container().access.queries.allStaff()).filter((x) => !x.disabled).map((x) => ({ id: x.id, name: x.name, chatNames: chatNames?.[x.id] ?? [] })) : null;
+    return { pipelines, pipeline, stages, counts, entryRaw, showEntry, order, aiReady, aiStages, aiFlags, aiStaff };
   }),
 
   "pages.duplicates": op(["deals.view", "deals.edit"], z.object({ limit: z.number().int().min(1).max(200) }), async ({ limit }, staff) => {

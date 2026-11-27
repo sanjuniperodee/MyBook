@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { AI_STAGES, aiManagerDecision, aiStageDecision, nameInText, parseAiStages, quoteIn, stageRoles } from "@/shared/domain/aiStages";
 import { aiNoteText, aiProposalTitle } from "@/shared/domain/aiProposals";
-import { AI_CRM_FLAGS, aiFlagOn, aiFlagValue, isAiCrmFlag } from "@/shared/domain/aiCrm";
+import { AI_CRM_FLAGS, aiFlagOn, aiFlagValue, isAiCrmFlag, parseStaffChatNames, staffForAi } from "@/shared/domain/aiCrm";
 import { cleanReason, normalizeStageReview, numberedTranscript, stageReviewSchema } from "@/modules/assistant/domain/stageReview";
 
 vi.mock("server-only", () => ({}));
@@ -229,6 +229,15 @@ describe("ИИ ведёт этапы: проход", () => {
     expect(await aiStagesPass(client.d)).toMatchObject({ assigned: 0, proposed: 1 });
     expect(client.calls.proposed).toMatchObject([{ kind: "assignee", payload: { fromAssigneeId: "s-rasul", staffId: "s-indira", staffName: "ИндираОП" } }]);
 
+    // Аккаунт «Margo», а в чатах — «Марат» (crm.staffChatNames): узнаём по имени из чатов.
+    const marat = [{ id: "m1", direction: "out" as const, text: "Здравствуйте! Меня зовут Марат" }];
+    const alias = deps(null, {
+      staff: async () => [{ id: "s-margo", name: "Margo", chatNames: ["Марат"] }],
+      review: async () => ({ review: { ...base, stage: null, manager: { n: 1, quote: "Меня зовут Марат", message: 1 } }, messages: marat }),
+    });
+    expect(await aiStagesPass(alias.d)).toMatchObject({ assigned: 1, attributed: 1 });
+    expect(alias.calls.assigned).toEqual([["d1", "s-margo", "ИИ: Ответственный — Margo. сотрудник представился в переписке — «Меня зовут Марат»."]]);
+
     // Модель назвала не того: имени сотрудника в цитате нет («Марат» при «Расул») — ничего.
     const wrong = deps(null, { review: async () => ({ review: { ...base, stage: null, manager: { n: 2, quote: "Меня зовут Индира", message: 2 } }, messages: intro }) });
     expect(await aiStagesPass(wrong.d)).toMatchObject({ assigned: 0, proposed: 0, attributed: 0 });
@@ -299,6 +308,16 @@ describe("ИИ в CRM: кто менеджер", () => {
     expect(aiManagerDecision({ ...base, quoteOk: false })).toBeNull();
     expect(aiManagerDecision({ ...base, assigneeId: "a", fromManager: false })).toBeNull();
     expect(aiManagerDecision({ ...base, assigneeId: "a" })).toBe("apply");
+  });
+});
+
+describe("ИИ в CRM: имена сотрудников в чатах", () => {
+  it("JSON { id: «Марат, Марик» } → списки; мусор — пусто; для модели — «Margo (в чатах — Марат)»", () => {
+    expect(parseStaffChatNames(JSON.stringify({ a: "Марат, Марик", b: "", c: ["Индира"] }))).toEqual({ a: ["Марат", "Марик"], c: ["Индира"] });
+    expect(parseStaffChatNames("мусор")).toEqual({});
+    expect(parseStaffChatNames("[1]")).toEqual({});
+    expect(staffForAi("Margo", ["Марат"])).toBe("Margo (в чатах — Марат)");
+    expect(staffForAi("Расул")).toBe("Расул");
   });
 });
 
