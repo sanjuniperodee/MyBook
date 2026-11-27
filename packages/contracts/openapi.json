@@ -31654,6 +31654,9 @@
               "type": "string"
             }
           },
+          "note": {
+            "type": "string"
+          },
           "fields": {
             "type": "array",
             "items": {
@@ -31705,6 +31708,7 @@
           "source",
           "sources",
           "tags",
+          "note",
           "fields",
           "canEdit",
           "plan",

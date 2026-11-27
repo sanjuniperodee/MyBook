@@ -409,11 +409,11 @@ exports[`ответы Nest байт в байт (эталон — прежний
 
 exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет) 1`] = `
 {
-  "body": "{"id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","number":42,"title":"Книга для мамы","contactName":"Алия","phone":"+77015551122","email":"aliya@example.kz","extraPhones":["+77015553344"],"canEditContacts":true,"amount":29000,"maxDiscountPercent":null,"source":"whatsapp","sources":[{"id":"site","label":"Сайт"},{"id":"whatsapp","label":"WhatsApp"},{"id":"instagram","label":"Instagram"},{"id":"telegram","label":"Telegram"},{"id":"call","label":"Звонок"},{"id":"email","label":"E-mail"},{"id":"gift","label":"Сертификат"},{"id":"referral","label":"Рекомендация"},{"id":"repeat","label":"Повторная продажа"},{"id":"manual","label":"Вручную"}],"tags":["срочно"],"fields":[{"key":"city","label":"Город","type":"text","options":[],"value":"Алматы"},{"key":"vip","label":"VIP","type":"checkbox","options":[],"value":"true"}],"canEdit":true,"plan":"hardcover","plans":[{"id":"digital","label":"Электронная версия","price":9900},{"id":"hardcover","label":"Твёрдая обложка","price":30000}],"gifts":["giftwrap"],"giftOptions":[{"id":"giftwrap","label":"Подарочная упаковка"},{"id":"delivery","label":"Доставка"}],"agreementLocked":false}",
+  "body": "{"id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","number":42,"title":"Книга для мамы","contactName":"Алия","phone":"+77015551122","email":"aliya@example.kz","extraPhones":["+77015553344"],"canEditContacts":true,"amount":29000,"maxDiscountPercent":null,"source":"whatsapp","sources":[{"id":"site","label":"Сайт"},{"id":"whatsapp","label":"WhatsApp"},{"id":"instagram","label":"Instagram"},{"id":"telegram","label":"Telegram"},{"id":"call","label":"Звонок"},{"id":"email","label":"E-mail"},{"id":"gift","label":"Сертификат"},{"id":"referral","label":"Рекомендация"},{"id":"repeat","label":"Повторная продажа"},{"id":"manual","label":"Вручную"}],"tags":["срочно"],"note":"","fields":[{"key":"city","label":"Город","type":"text","options":[],"value":"Алматы"},{"key":"vip","label":"VIP","type":"checkbox","options":[],"value":"true"}],"canEdit":true,"plan":"hardcover","plans":[{"id":"digital","label":"Электронная версия","price":9900},{"id":"hardcover","label":"Твёрдая обложка","price":30000}],"gifts":["giftwrap"],"giftOptions":[{"id":"giftwrap","label":"Подарочная упаковка"},{"id":"delivery","label":"Доставка"}],"agreementLocked":false}",
   "headers": {
     "cache-control": "private, no-cache",
     "content-type": "application/json; charset=utf-8",
-    "etag": ""HmJ9B7dG6rFPLJlK1yz7OdKn5yQ"",
+    "etag": ""4WziwnRGZbpX3gmlwZzvrdv1jjY"",
   },
   "request": "GET /api/v1/crm/deals/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/form",
   "status": 200,
@@ -425,7 +425,7 @@ exports[`ответы Nest байт в байт (эталон — прежний
   "body": "",
   "headers": {
     "cache-control": "private, no-cache",
-    "etag": ""HmJ9B7dG6rFPLJlK1yz7OdKn5yQ"",
+    "etag": ""4WziwnRGZbpX3gmlwZzvrdv1jjY"",
   },
   "request": "GET /api/v1/crm/deals/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/form",
   "status": 304,
@@ -434,11 +434,11 @@ exports[`ответы Nest байт в байт (эталон — прежний
 
 exports[`ответы Nest байт в байт (эталон — прежний mybook-api): Контекст 4A (все 37 маршрутов CRM-1) > 10 маршрутов crm/deals + crm/deal-extras (200, 400 refused, 403, 404 чужой/нет) 3`] = `
 {
-  "body": "{"id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","number":42,"title":"Книга для мамы","contactName":"Алия","phone":null,"email":null,"extraPhones":[],"canEditContacts":false,"amount":29000,"maxDiscountPercent":15,"source":"whatsapp","sources":[{"id":"site","label":"Сайт"},{"id":"whatsapp","label":"WhatsApp"},{"id":"instagram","label":"Instagram"},{"id":"telegram","label":"Telegram"},{"id":"call","label":"Звонок"},{"id":"email","label":"E-mail"},{"id":"gift","label":"Сертификат"},{"id":"referral","label":"Рекомендация"},{"id":"repeat","label":"Повторная продажа"},{"id":"manual","label":"Вручную"}],"tags":["срочно"],"fields":[{"key":"city","label":"Город","type":"text","options":[],"value":"Алматы"},{"key":"vip","label":"VIP","type":"checkbox","options":[],"value":"true"}],"canEdit":true,"plan":"hardcover","plans":[{"id":"digital","label":"Электронная версия","price":9900},{"id":"hardcover","label":"Твёрдая обложка","price":30000}],"gifts":["giftwrap"],"giftOptions":[{"id":"giftwrap","label":"Подарочная упаковка"},{"id":"delivery","label":"Доставка"}],"agreementLocked":false}",
+  "body": "{"id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","number":42,"title":"Книга для мамы","contactName":"Алия","phone":null,"email":null,"extraPhones":[],"canEditContacts":false,"amount":29000,"maxDiscountPercent":15,"source":"whatsapp","sources":[{"id":"site","label":"Сайт"},{"id":"whatsapp","label":"WhatsApp"},{"id":"instagram","label":"Instagram"},{"id":"telegram","label":"Telegram"},{"id":"call","label":"Звонок"},{"id":"email","label":"E-mail"},{"id":"gift","label":"Сертификат"},{"id":"referral","label":"Рекомендация"},{"id":"repeat","label":"Повторная продажа"},{"id":"manual","label":"Вручную"}],"tags":["срочно"],"note":"","fields":[{"key":"city","label":"Город","type":"text","options":[],"value":"Алматы"},{"key":"vip","label":"VIP","type":"checkbox","options":[],"value":"true"}],"canEdit":true,"plan":"hardcover","plans":[{"id":"digital","label":"Электронная версия","price":9900},{"id":"hardcover","label":"Твёрдая обложка","price":30000}],"gifts":["giftwrap"],"giftOptions":[{"id":"giftwrap","label":"Подарочная упаковка"},{"id":"delivery","label":"Доставка"}],"agreementLocked":false}",
   "headers": {
     "cache-control": "private, no-cache",
     "content-type": "application/json; charset=utf-8",
-    "etag": ""xQ6qB_9XnVYKRnVUOJqYGJqc6Qo"",
+    "etag": ""PpFiFS9LLT_hGop0h19pVEHR7D8"",
   },
   "request": "GET /api/v1/crm/deals/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/form",
   "status": 200,
@@ -450,7 +450,7 @@ exports[`ответы Nest байт в байт (эталон — прежний
   "body": "",
   "headers": {
     "cache-control": "private, no-cache",
-    "etag": ""xQ6qB_9XnVYKRnVUOJqYGJqc6Qo"",
+    "etag": ""PpFiFS9LLT_hGop0h19pVEHR7D8"",
   },
   "request": "GET /api/v1/crm/deals/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/form",
   "status": 304,

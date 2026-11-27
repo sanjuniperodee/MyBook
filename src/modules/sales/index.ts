@@ -7,6 +7,7 @@ import { agreementForClient, attachAgreementOrder, dealMoney, dealRefundAfterOrd
 import { setClientDealsAttribution } from "./infrastructure/attribution";
 import { dealAgreedGifts, dealAgreedPlan, dealBatch, dealBatchMoney, markBatchMembers, setDealAgreedGifts, setDealAgreedPlan, setDealBatch } from "./infrastructure/agreedPlan";
 import { DealPayments } from "./infrastructure/payments";
+import { setDealNote } from "./infrastructure/dealNote";
 import { DealAiProposals } from "./infrastructure/aiProposals";
 import { DealReceipts } from "./infrastructure/receipts";
 import { DrizzleDealRepository, DrizzleFunnelRepository, DrizzlePipelineRepository, DrizzleSalesQueries, DrizzleSavedViews, drizzlePlans } from "./infrastructure/persistence";
@@ -67,6 +68,8 @@ export class SalesModule {
     if (deal) await this.deals.note(deal, `Бесплатно по договорённости: ${list(before)} → ${list(next)}${via === "invoice" ? " (счёт из чата)" : ""}`, actorId, "system");
     return true;
   }
+  /** Примечание к сделке (свободный текст в карточке): запись, только если в базе всё ещё прежний текст. */
+  readonly dealNote = { set: setDealNote };
   /** Пакет книг: клиент оплатил сразу несколько — по сделке на книгу. */
   readonly batch = { set: setDealBatch, of: dealBatch, money: dealBatchMoney };
   /**

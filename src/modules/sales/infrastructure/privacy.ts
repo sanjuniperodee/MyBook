@@ -5,7 +5,7 @@ import { executor } from "@/shared/infrastructure/database";
 
 /**
  * Персональные данные клиента в контексте «Продажи» (удаление аккаунта): сделки остаются в воронке и отчётах, но
- * без имени, телефонов, почты, меток и своих полей; платежи и счета — суммы без имени, телефона и заметок.
+ * без имени, телефонов, почты, меток, своих полей и примечания; платежи и счета — суммы без имени, телефона и заметок.
  */
 export const salesPrivacy = {
   async dealsOf(clientId: string): Promise<string[]> {
@@ -18,7 +18,7 @@ export const salesPrivacy = {
     const db = executor();
     await db
       .update(crmDeals)
-      .set({ title: sql`'Сделка №' || ${crmDeals.number}`, contactName: "", contactPhone: null, contactEmail: null, extraPhones: [], utm: null, customFields: {}, aiSummary: null, updatedAt: new Date() })
+      .set({ title: sql`'Сделка №' || ${crmDeals.number}`, contactName: "", contactPhone: null, contactEmail: null, extraPhones: [], utm: null, customFields: {}, note: "", aiSummary: null, updatedAt: new Date() })
       .where(inArray(crmDeals.id, dealIds));
     await db.update(dealInvoices).set({ phone: null, clientName: "" }).where(inArray(dealInvoices.dealId, dealIds));
   },

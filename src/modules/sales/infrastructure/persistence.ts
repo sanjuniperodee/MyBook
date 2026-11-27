@@ -7,7 +7,7 @@ import { storeTimeZone } from "@/shared/domain/time";
 import { executor } from "@/shared/infrastructure/database";
 import type { PipelineRepository } from "../application";
 import type { StageMilestone } from "@/shared/domain/stageMilestones";
-import { Deal, Funnel, REJECTION_TAGS, type DealRepository, type FunnelRepository, type NoteKind, type PlanProgress, type Stage } from "../domain";
+import { Deal, Funnel, mergeDealNotes, REJECTION_TAGS, type DealRepository, type FunnelRepository, type NoteKind, type PlanProgress, type Stage } from "../domain";
 
 type Row = typeof crmDeals.$inferSelect;
 
@@ -42,6 +42,7 @@ function toDomain(r: Row): Deal {
     createdAt: r.createdAt,
     automationId: r.automationId,
     repeatCount: r.repeatCount,
+    note: r.note,
   });
 }
 
@@ -231,6 +232,10 @@ export class DrizzleDealRepository implements DealRepository {
     await db.update(crmReceipts).set({ dealId: target.id }).where(eq(crmReceipts.dealId, source.id));
     // С деньгами переходит и договорённость (тариф): иначе предоплата слитой сделки не вычтется при заказе.
     await db.execute(sql`update crm_deals t set agreed_plan = s.agreed_plan from crm_deals s where t.id = ${target.id} and s.id = ${source.id} and t.agreed_plan is null and t.order_id is null`);
+    // Примечание слитой сделки не теряется: дописывается к примечанию этой.
+    const [tgt] = await db.select({ t: crmDeals.note }).from(crmDeals).where(eq(crmDeals.id, target.id));
+    const [src] = await db.select({ s: crmDeals.note }).from(crmDeals).where(eq(crmDeals.id, source.id));
+    if (tgt && src?.s.trim()) await db.update(crmDeals).set({ note: mergeDealNotes(tgt.t, src.s) }).where(eq(crmDeals.id, target.id));
     await db.delete(crmDeals).where(eq(crmDeals.id, source.id));
   }
 

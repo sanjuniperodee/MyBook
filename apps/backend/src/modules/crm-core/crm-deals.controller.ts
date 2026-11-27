@@ -73,6 +73,7 @@ export class CrmDealsController {
       source: deal.source,
       sources: dealSources.map((id) => ({ id, label: dealSourceLabels[id] })),
       tags: deal.tags,
+      note: deal.note ?? "",
       fields: fieldsOut(defs, deal.customFields),
       canEdit: staff.context.can("deals.edit") && staff.context.canWork(deal.assigneeId),
       plan: plan ?? null,

@@ -77,6 +77,8 @@ export const crmDeals = pgTable(
     /** Значения своих полей (crm_fields, entity = deal): { key: значение }. */
     customFields: jsonb("custom_fields").$type<CustomFieldValues>().notNull().default({}),
     tags: text("tags").array().notNull().default(sql`'{}'::text[]`),
+    /** Примечание сотрудников к сделке: свободный текст в карточке (не лента и не сообщение клиенту), до DEAL_NOTE_MAX знаков. */
+    note: text("note").notNull().default(""),
     /** Тариф, о котором договорились с клиентом (договорная цена относится к нему): при заказе по договорённости тариф фиксирован. */
     agreedPlan: text("agreed_plan"),
     /** Что по договорённости бесплатно: giftwrap — подарочная упаковка, delivery — доставка (AgreementGift). */

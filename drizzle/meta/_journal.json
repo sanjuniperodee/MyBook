@@ -813,6 +813,13 @@
       "when": 1795786068347,
       "tag": "0115_landing_visits",
       "breakpoints": true
+    },
+    {
+      "idx": 116,
+      "version": "7",
+      "when": 1795787804820,
+      "tag": "0116_deal_note",
+      "breakpoints": true
     }
   ]
 }

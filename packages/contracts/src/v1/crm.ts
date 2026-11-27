@@ -52,6 +52,8 @@ export const DealForm = z
     source: z.string(),
     sources: z.array(Choice),
     tags: z.array(z.string()),
+    /** Примечание к сделке — свободный текст сотрудников (правится в карточке сделки на сайте). */
+    note: z.string(),
     fields: z.array(CustomField),
     /** Можно править: право deals.edit и сделка своя (или роль «все записи»). */
     canEdit: z.boolean(),

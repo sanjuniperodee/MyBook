@@ -16,7 +16,7 @@ import { normalizePhone } from "@/shared/domain/phone";
 import { getPlan } from "@/config/site";
 import { STAGE_MILESTONES } from "@/shared/domain/stageMilestones";
 import { dealSources } from "@/shared/domain/dealSources";
-import { dealPrice, MAX_PAYMENT, SalesError } from "@/modules/sales/domain";
+import { DEAL_NOTE_MAX, dealPrice, MAX_PAYMENT, normalizeDealNote, SalesError } from "@/modules/sales/domain";
 import type { DealView } from "@/modules/sales";
 import { staffActionError } from "@/server/errors";
 import { auditDiscount, discountLimit } from "@/server/discount";
@@ -211,6 +211,30 @@ export async function setDealAgreedGiftsAction(dealId: string, gifts: string[]):
   if (!(await container().sales.changeAgreedGifts(deal.id, value, staff.user.id))) return { ok: false, message: "Не удалось сохранить" };
   await audit(staff, "deal.gifts", "deal", deal.id, { gifts: value });
   return { ok: true };
+}
+
+/**
+ * Примечание к сделке (свободный текст в карточке). before — текст, от которого сотрудник начинал правку: если его за это
+ * время сменил другой, ничего не затираем и просим обновить карточку.
+ */
+export async function setDealNoteAction(dealId: string, note: string, before: string): Promise<{ ok: boolean; message?: string; note?: string }> {
+  const staff = await assertStaff("deals.edit");
+  const input = z.object({ note: z.string().max(DEAL_NOTE_MAX * 2), before: z.string().max(DEAL_NOTE_MAX * 4) }).safeParse({ note, before });
+  if (!input.success) return { ok: false, message: `Примечание — до ${DEAL_NOTE_MAX} знаков` };
+  let deal;
+  try {
+    deal = await loadDeal(staff, dealId);
+  } catch (err) {
+    const message = refusalText(err);
+    if (message === null) throw err;
+    return { ok: false, message };
+  }
+  const value = normalizeDealNote(input.data.note);
+  const saved = await container().sales.dealNote.set(deal.id, value, input.data.before);
+  if (saved === "missing") return { ok: false, message: "Сделка не найдена" };
+  if (saved === "changed") return { ok: false, message: "Примечание уже изменил другой сотрудник — обновите страницу и проверьте текст" };
+  await audit(staff, "deal.note", "deal", deal.id, { length: value.length });
+  return { ok: true, note: value };
 }
 
 /** Неразобранная заявка в работу (кнопка «Принять» и перенос на её же этап): её диалоги — тому же ответственному. */

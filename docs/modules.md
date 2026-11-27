@@ -26,7 +26,7 @@
 | [production](#production) | Производство: вёрстка PDF книги и сертификатов, предпросмотры полос и обложек, файлы для типографии, очередь сборки. В container — previews (BookPreviewService) и printFiles. | 44 / 5709 | 0 |
 | [referrals](#referrals) | Приглашения: код для друзей, награда за их заказы и покупки из чата. | 10 / 358 | 2 |
 | [reporting](#reporting) | Отчёты CRM — сторона чтения (CQRS): сводные выборки по нескольким контекстам для страниц (дашборд, аналитика, поиск, «Мой день»). Только чтение, без бизнес-правил: команды идут через модули контекстов. | 47 / 4586 | 57 |
-| [sales](#sales) | Продажи: сделки, воронки, этапы, дубли, воронка по действиям на сайте. | 30 / 3468 | 109 |
+| [sales](#sales) | Продажи: сделки, воронки, этапы, дубли, воронка по действиям на сайте. | 33 / 3543 | 110 |
 | [support](#support) | Обращения: проблемы и просьбы с формы /support, расшифровка голосовых, статусы, уведомление и закрытие по выкатке. | 7 / 737 | 9 |
 | [telephony](#telephony) | Телефония: журнал звонков из АТС, звонки из CRM, веб-телефон, записи, звонки WhatsApp. | 14 / 1171 | 28 |
 | [workspace](#workspace) | Рабочее пространство CRM: свои поля, шаблоны ответов, уведомления и push сотрудников. | 23 / 1659 | 17 |
@@ -196,9 +196,9 @@ Identity: учётные записи, вход, пароли, второй фа
 
 - Папка: `src/modules/sales` (domain, application, infrastructure, ui)
 - Фасад: `SalesModule` → `container().sales`
-- Публичное: `deals`, `routing`, `funnel`, `queries`, `pipelines`, `savedViews`, `plans`, `receipts`, `payments`, `aiProposals`, `intake`, `agreementFor`, `attachAgreementOrder`, `money`, `refundAfterOrder`, `agreedPlan`, `agreedGifts`, `batch`, `setClientAttribution`, `changeAgreedGifts`, `splitIntoBatch`
+- Публичное: `deals`, `routing`, `funnel`, `queries`, `pipelines`, `savedViews`, `plans`, `receipts`, `payments`, `aiProposals`, `intake`, `agreementFor`, `attachAgreementOrder`, `money`, `refundAfterOrder`, `agreedPlan`, `agreedGifts`, `dealNote`, `batch`, `setClientAttribution`, `changeAgreedGifts`, `splitIntoBatch`
 - Таблицы: `crm_pipelines`, `crm_stages`, `crm_deals`, `crm_payments`, `deal_invoices`, `crm_receipts`, `crm_stage_history`, `crm_saved_views`, `crm_plans`, `crm_ai_proposals`
-- Тесты (23): `automation-stats.integration.test.ts`, `backend/api-v1-crm.test.ts`, `book-modes.integration.test.ts`, `crm.test.ts`, `deal-invoice-payments.integration.test.ts`, `deal-lifecycle.integration.test.ts`, `deal-lifecycle.test.ts`, `deal-merge.test.ts`, `deal-money.integration.test.ts`, `deal-repeat.integration.test.ts`, `discount-limit.test.ts`, `errors.test.ts`, `finance-batch.integration.test.ts`, `finance.integration.test.ts`, `payments-settings.integration.test.ts`, `receipts.test.ts`, `revenue.integration.test.ts`, `routing.integration.test.ts`, `sales-intake.test.ts`, `sales.test.ts`, `server-routes-payments.test.ts`, `time.test.ts`, `workspace-ports.test.ts`
+- Тесты (24): `automation-stats.integration.test.ts`, `backend/api-v1-crm.test.ts`, `book-modes.integration.test.ts`, `crm.test.ts`, `deal-invoice-payments.integration.test.ts`, `deal-lifecycle.integration.test.ts`, `deal-lifecycle.test.ts`, `deal-merge.test.ts`, `deal-money.integration.test.ts`, `deal-note.test.ts`, `deal-repeat.integration.test.ts`, `discount-limit.test.ts`, `errors.test.ts`, `finance-batch.integration.test.ts`, `finance.integration.test.ts`, `payments-settings.integration.test.ts`, `receipts.test.ts`, `revenue.integration.test.ts`, `routing.integration.test.ts`, `sales-intake.test.ts`, `sales.test.ts`, `server-routes-payments.test.ts`, `time.test.ts`, `workspace-ports.test.ts`
 
 ## support
 
