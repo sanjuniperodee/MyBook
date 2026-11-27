@@ -55,7 +55,8 @@ export function renderModuleMap(root) {
     .filter((d) => d.isDirectory())
     .map((d) => d.name)
     .sort();
-  const callers = [...walk(path.join(src, "app"), [".ts", ".tsx"]), ...walk(path.join(src, "components"), [".ts", ".tsx"]), ...walk(path.join(src, "server"), [".ts", ".tsx"])].map(read);
+  // Страницы и компоненты сайта — в mybook-web (27.11); здесь модули вызывают src/server и apps/backend.
+  const callers = [...walk(path.join(src, "server"), [".ts", ".tsx"]), ...walk(path.join(root, "apps", "backend", "src"), [".ts", ".tsx"])].map(read);
   const tests = walk(path.join(root, "tests"), [".test.ts", ".test.tsx"]).sort();
   const testTexts = tests.map((f) => [rel(root, f), read(f)]);
 

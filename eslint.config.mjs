@@ -8,9 +8,8 @@ import nextTs from "eslint-config-next/typescript";
  *  - домен чист: без БД, Next.js и инфраструктуры;
  *  - слой приложения не знает о БД и фреймворке;
  *  - модуль не импортирует другие модули вообще, даже фасад: общение — порты в application, адаптеры подставляет container;
- *  - модуль не знает о server, components и app; общее ядро (shared) — о модулях и слое представления;
- *  - слой представления (src/app, src/components) и src/server работают с модулями через фасады, domain и ui;
- *    страницы, действия и роуты не обращаются к БД.
+ *  - модуль не знает о server и виде книги (src/book-view); общее ядро (shared) — о модулях и слое представления;
+ *  - src/server и src/book-view работают с модулями через фасады, domain и ui. Страницы сайта — в mybook-web.
  * Границы «по пути» (кто кого может импортировать) проверяет import/no-restricted-paths: он разрешает пути до файла,
  * поэтому видит и «@/…», и относительные импорты, import() и реэкспорты. Запреты «по имени» (drizzle, next, infrastructure
  * внутри модуля) — no-restricted-imports. Те же границы по графу импортов держит tests/architecture.test.ts.
@@ -30,7 +29,8 @@ const applicationOnly = { group: ["**/infrastructure/**", "@/server/*"], message
 const restrict = (patterns) => ({ "no-restricted-imports": ["error", { patterns }] });
 
 const src = (path) => `./src/${path}`;
-const presentation = [src("server"), src("components"), src("app")];
+// С 27.11 страниц и компонентов сайта здесь нет (они в mybook-web); остался вид книги для сверки превью с PDF (src/book-view).
+const presentation = [src("server"), src("book-view")];
 const zones = [
   // Модуль видит только себя. Нужное от соседа потребитель объявляет портом в application, адаптер подставляет container.
   ...modules.map((name) => ({
@@ -39,12 +39,12 @@ const zones = [
     except: [`./${name}`],
     message: "Модуль не импортирует другие модули, даже их фасад: нужное от соседа объявите портом в application, адаптер подставит container.",
   })),
-  { target: src("modules"), from: presentation, message: "Модуль не знает о server, components и app: зависимости направлены внутрь." },
+  { target: src("modules"), from: presentation, message: "Модуль не знает о server и виде книги: зависимости направлены внутрь." },
   { target: src("shared"), from: [src("modules"), ...presentation], message: "Общее ядро не знает ни модулей, ни слоя представления: общий словарь — в shared/domain." },
   // src/lib — чистые библиотеки: ни бизнес-модулей, ни слоя представления.
   { target: src("lib"), from: [src("modules"), ...presentation], message: "src/lib — чистые библиотеки без бизнес-модулей и слоя представления." },
   // src/server — корень композиции и веб-адаптеры: слой представления стоит над ним.
-  { target: src("server"), from: [src("components"), src("app")], message: "src/server не зависит от слоя представления: страницы и компоненты используют его, а не наоборот." },
+  { target: src("server"), from: [src("book-view")], message: "src/server не зависит от вида книги (src/book-view): вид использует общий код, а не наоборот." },
   // Страницы, компоненты и src/server видят модуль через фасад (index.ts), domain и ui.
   {
     target: [...presentation],
@@ -66,6 +66,8 @@ const config = [
   ...nextVitals,
   ...nextTs,
   // promo/**/dist — собранные бандлы роликов, .cc — локальные черновики (исключены из git): не наш исходный код.
+  // Страниц Next здесь нет (сайт — mybook-web): правило про ссылки на pages/ не к чему применять.
+  { rules: { "@next/next/no-html-link-for-pages": "off" } },
   { ignores: [".next/**", "build/**", "node_modules/**", "storage/**", "drizzle/**", "next-env.d.ts", ".claude/**", "mobile/**", "promo/**/dist/**", ".cc/**"] },
   { files: ["src/**/*.{ts,tsx}"], rules: { "import/no-restricted-paths": ["error", { basePath: fileURLToPath(new URL(".", import.meta.url)), zones }] } },
   // В flat config одноимённое правило из более позднего блока заменяет раннее, поэтому для каждого слоя
@@ -75,16 +77,16 @@ const config = [
   { files: ["src/shared/domain/**/*.ts"], rules: restrict([...infraImports, domainOnly]) },
   { files: ["src/shared/application/**/*.ts"], rules: restrict([...infraImports, applicationOnly]) },
   {
-    files: ["src/app/**/*.{ts,tsx}", "src/components/**/*.tsx"],
+    files: ["src/book-view/**/*.{ts,tsx}"],
     rules: restrict([
-      { group: ["drizzle-orm", "drizzle-orm/*", "pg", "@/shared/infrastructure/**"], message: "Страницы, действия и роуты не ходят в БД: команды — через сервисы модулей, чтения — через их read-модели (queries, reporting)." },
+      { group: ["drizzle-orm", "drizzle-orm/*", "pg", "@/shared/infrastructure/**"], allowTypeImports: true, message: "Вид книги не ходит в БД: данные ему дают сборщики (src/server, модули)." },
     ]),
   },
   {
     // Lookbehind «(?<=…)», «(?<!…)» Safari до 16.4 не знает: литерал роняет при разборе весь чанк, new RegExp — бросает ошибку.
     // Так на iPhone с iOS 16.3 редактор вопросов перестал сохранять ответы. Что стоит перед совпадением — проверяйте кодом
     // (см. matches в src/lib/proofread/rules.ts). Исключение — понимание сообщений бота: оно работает только на сервере,
-    // а что в браузер оно не попало, после сборки проверяет scripts/check-browser-support.mjs.
+    // а что в браузер оно не попало, после сборки проверяет scripts/check-browser-support.mjs в mybook-web.
     files: ["src/**/*.{ts,tsx}"],
     ignores: ["src/modules/messaging/domain/{bot,botNlu,botParse,botEngine,botSeller,botWeekday}.ts"],
     rules: {
