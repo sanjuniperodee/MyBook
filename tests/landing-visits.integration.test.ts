@@ -15,7 +15,7 @@ const code = (c: string) => `lp${c}${suffix}`.slice(0, 8);
 
 const visit = (p: Partial<LandingVisitInput>): LandingVisitInput => ({
   code: code("aa"),
-  landing: "skidka",
+  landing: "podarok",
   utmSource: "instagram",
   utmMedium: "paid",
   utmCampaign: "it",

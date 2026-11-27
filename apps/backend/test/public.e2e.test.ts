@@ -430,12 +430,12 @@ describe("webLandingVisit: переход на рекламный лендинг
       method: "POST",
       url: "/api/v1/web/landing-visits",
       headers: { "user-agent": IG_UA },
-      payload: { code: "lpk7x2m9", landing: "skidka", event: "click", utmSource: " instagram ", utmCampaign: "skidka-nov", fbclid: "IwAR0abc", fbp: "fb.1.1.2", adId: "120200" },
+      payload: { code: "lpk7x2m9", landing: "podarok", event: "click", utmSource: " instagram ", utmCampaign: "skidka-nov", fbclid: "IwAR0abc", fbp: "fb.1.1.2", adId: "120200" },
     });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({ ok: true });
     expect(ports.recordLandingVisit).toHaveBeenCalledWith(
-      expect.objectContaining({ code: "lpk7x2m9", landing: "skidka", utmSource: "instagram", utmCampaign: "skidka-nov", utmMedium: "", fbclid: "IwAR0abc", fbp: "fb.1.1.2", adId: "120200", device: "iphone", inApp: "instagram", userAgent: IG_UA }),
+      expect.objectContaining({ code: "lpk7x2m9", landing: "podarok", utmSource: "instagram", utmCampaign: "skidka-nov", utmMedium: "", fbclid: "IwAR0abc", fbp: "fb.1.1.2", adId: "120200", device: "iphone", inApp: "instagram", userAgent: IG_UA }),
       "click",
     );
   });
@@ -443,8 +443,10 @@ describe("webLandingVisit: переход на рекламный лендинг
   it("чужой код или лендинг — 400 без записи; неверное событие — 400; GET — 405", async () => {
     expect((await call({ method: "POST", url: "/api/v1/web/landing-visits", payload: { code: "insta-bio", landing: "skidka", event: "view" } })).statusCode).toBe(400);
     expect((await call({ method: "POST", url: "/api/v1/web/landing-visits", payload: { code: "lpk7x2m9", landing: "love", event: "view" } })).statusCode).toBe(400);
+    // Прежний адрес лендинга (/skidka) ещё принимается: страница, открытая до переезда на /podarok, допишет переход.
+    expect((await call({ method: "POST", url: "/api/v1/web/landing-visits", payload: { code: "lpk7x2m9", landing: "skidka", event: "view" } })).statusCode).toBe(200);
     expect((await call({ method: "POST", url: "/api/v1/web/landing-visits", payload: { code: "lpk7x2m9", landing: "skidka", event: "open" } })).statusCode).toBe(400);
-    expect(ports.recordLandingVisit).not.toHaveBeenCalled();
+    expect(ports.recordLandingVisit).toHaveBeenCalledTimes(1);
     expect((await call({ method: "GET", url: "/api/v1/web/landing-visits" })).statusCode).toBe(405);
   });
 });

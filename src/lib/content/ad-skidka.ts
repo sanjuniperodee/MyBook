@@ -8,7 +8,7 @@ export interface AdPhrase {
 
 /*
  * ─── КРЕАТИВЫ РЕКЛАМЫ ────────────────────────────────────────────────────────────────────────────────────────────
- * Слово из адреса лендинга (mybooks.kz/skidka?c=<слово>) → первое сообщение в WhatsApp на языке страницы. Новый
+ * Слово из адреса лендинга (mybooks.kz/podarok?c=<слово>) → первое сообщение в WhatsApp на языке страницы. Новый
  * креатив — одна строка здесь (слово — латиницей в нижнем регистре); больше на странице ничего менять не нужно. Нет
  * слова или оно неизвестное — AD_DEFAULT_TEXT. Регистр в адресе не важен.
  */
@@ -28,7 +28,7 @@ export function adCreativeText(c: string | null | undefined, locale: Locale = "r
   return (toPublic(locale) === "kk" ? phrase.kk : null) ?? phrase.ru;
 }
 
-/** Видео лендинга: файл mp4 и обложка WebP — в mybook-web/public/lp/skidka (сжимает scripts/landing-media.sh). */
+/** Видео лендинга: файл mp4 и обложка WebP — в mybook-web/public/lp/skidka (имя папки — от прежнего адреса) (сжимает scripts/landing-media.sh). */
 export interface AdVideo {
   src: string;
   poster: string;
@@ -57,7 +57,7 @@ export const AD_LANDING_MEDIA: {
 /* ──────────────────────────────────────────────────────────────────────────────────────────────────────────────── */
 
 /**
- * Лендинг под рекламу в Instagram (/skidka): одно действие — написать в WhatsApp. Текст первого сообщения — по
+ * Лендинг под рекламу в Instagram (/podarok, прежний адрес /skidka): одно действие — написать в WhatsApp. Текст первого сообщения — по
  * креативу (AD_CREATIVES); с какой рекламы заявка, CRM находит по времени нажатия кнопки (landing_visits).
  */
 export interface AdSkidkaCopy {

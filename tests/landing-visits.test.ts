@@ -12,7 +12,7 @@ const FB_ANDROID = "Mozilla/5.0 (Linux; Android 14; SM-A546E) AppleWebKit/537.36
 
 const input = (p: Partial<LandingVisitInput> = {}): LandingVisitInput => ({
   code: "lpk7x2m9",
-  landing: "skidka",
+  landing: "podarok",
   utmSource: "instagram",
   utmMedium: "paid",
   utmCampaign: "skidka-nov",
@@ -135,11 +135,11 @@ describe("код перехода и разбор адреса лендинга"
 
   it("метки сделки: UTM из адреса, без них — приложение браузера; канал в отчёте — Instagram", () => {
     const a = visitAttribution({ ...input(), adId: "" });
-    expect(a).toEqual({ source: "instagram", medium: "paid", campaign: "skidka-nov", content: "reels-1", landing: "/skidka" });
+    expect(a).toEqual({ source: "instagram", medium: "paid", campaign: "skidka-nov", content: "reels-1", landing: "/podarok" });
     expect(toAttribution(a)).toEqual(a);
     expect(channelOf(a)).toBe("instagram");
-    expect(visitAttribution({ ...input({ utmSource: "", utmMedium: "", utmCampaign: "", utmContent: "" }), adId: "120200" })).toEqual({ source: "instagram", medium: "paid", content: "120200", landing: "/skidka" });
-    expect(visitAttribution({ ...input({ utmSource: "", utmMedium: "", utmCampaign: "", utmContent: "", inApp: "" }), adId: "" })).toEqual({ source: "landing", medium: "landing", landing: "/skidka" });
+    expect(visitAttribution({ ...input({ utmSource: "", utmMedium: "", utmCampaign: "", utmContent: "" }), adId: "120200" })).toEqual({ source: "instagram", medium: "paid", content: "120200", landing: "/podarok" });
+    expect(visitAttribution({ ...input({ utmSource: "", utmMedium: "", utmCampaign: "", utmContent: "", inApp: "" }), adId: "" })).toEqual({ source: "landing", medium: "landing", landing: "/podarok" });
   });
 
   it("по времени — ближайшее свободное нажатие в окне «10 минут до — минута после» первого сообщения", () => {
@@ -160,7 +160,7 @@ describe("привязка диалога к переходу", () => {
     expect(t.rows).toHaveLength(1);
     expect(t.rows[0].clickedAt).toEqual(t.now.value);
     const r = await t.service.attribute({ text: "Здравствуйте! Хочу книгу (код: lpk7x2m9)", at: new Date("2026-11-27T09:01:00Z"), conversationId: "c1", byTime: true });
-    expect(r).toMatchObject({ match: "code", utm: { source: "instagram", campaign: "skidka-nov", landing: "/skidka" } });
+    expect(r).toMatchObject({ match: "code", utm: { source: "instagram", campaign: "skidka-nov", landing: "/podarok" } });
     expect(r!.note).toContain("код lpk7x2m9");
     expect(r!.note).toContain("instagram / paid / skidka-nov");
     expect(r!.note).toContain("14:00"); // переход 09:00 UTC — 14:00 по Алматы
@@ -212,13 +212,13 @@ describe("новый диалог WhatsApp и переход с лендинга
     const t = setup({
       links: {
         fromText: async () => null,
-        fromVisit: async (i) => (calls.push(i), { utm: { source: "instagram", medium: "paid", campaign: "skidka-nov", landing: "/skidka" }, note: "Пришёл(а) с лендинга /skidka. Источник по времени" }),
+        fromVisit: async (i) => (calls.push(i), { utm: { source: "instagram", medium: "paid", campaign: "skidka-nov", landing: "/podarok" }, note: "Пришёл(а) с лендинга /podarok. Источник по времени" }),
       },
     });
     await t.service.ingest(inbound({ text: "Здравствуйте" }));
     expect(calls).toEqual([{ text: "Здравствуйте", at: start, conversationId: t.conv().id, byTime: true }]);
-    expect(t.deals[0].utm).toEqual({ source: "instagram", medium: "paid", campaign: "skidka-nov", landing: "/skidka" });
-    expect(t.dealNotes).toContainEqual({ dealId: t.deals[0].id, text: "Пришёл(а) с лендинга /skidka. Источник по времени" });
+    expect(t.deals[0].utm).toEqual({ source: "instagram", medium: "paid", campaign: "skidka-nov", landing: "/podarok" });
+    expect(t.dealNotes).toContainEqual({ dealId: t.deals[0].id, text: "Пришёл(а) с лендинга /podarok. Источник по времени" });
     // Следующее сообщение того же диалога — заявка уже есть, переход больше не ищем.
     await t.service.ingest(inbound({ text: "Сколько стоит?" }));
     expect(calls).toHaveLength(1);
