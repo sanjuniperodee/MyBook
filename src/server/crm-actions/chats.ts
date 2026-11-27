@@ -1,8 +1,5 @@
-"use server";
-
 import { container } from "@/server/container";
 import { sourceFromChannel } from "@/modules/sales";
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { uuid } from "@/server/input";
 import { assertStaff, assertVisible, assertWorkable, audit, can, canAssignOthers, canWork, contactView, ForbiddenError, type Staff } from "@/server/access";
@@ -54,7 +51,6 @@ export async function sendMessageAction(conversationId: string, text: string, ov
       link: `/admin/chats?c=${conv.id}`,
     });
   }
-  revalidatePath("/admin/chats");
   return { id: msg.id, status: msg.status, error: "error" in msg ? (msg.error ?? null) : null };
 }
 
@@ -84,7 +80,6 @@ export async function assignConversationAction(conversationId: string, userId: s
   }
   await container().messaging.chats.assign(conv.id, next);
   if (next !== conv.assigneeId) await audit(staff, "chat.assign", "conversation", conv.id, { from: conv.assigneeId, to: next });
-  revalidatePath("/admin/chats");
 }
 
 /** Закрыть диалог (вопрос решён) — он уйдёт из «Открытых» и вернётся сам при новом сообщении клиента. */
@@ -94,7 +89,6 @@ export async function setConversationStatusAction(conversationId: string, status
   const next = z.enum(["open", "closed"]).parse(status);
   await container().messaging.chats.setStatus(conv.id, next);
   await audit(staff, next === "closed" ? "chat.close" : "chat.reopen", "conversation", conv.id, { contact: conv.contactName || conv.chatId });
-  revalidatePath("/admin/chats");
 }
 
 /** «Остановить бота»: бот больше не пишет в этот диалог (менеджер ведёт сам). */
@@ -102,7 +96,6 @@ export async function stopBotAction(conversationId: string) {
   const staff = await assertStaff("chats.view", "chats.send");
   const conv = await loadOwnConv(staff, conversationId);
   if (await container().messaging.bot.stopByHuman(conv.id, "button")) await audit(staff, "chat.bot_stop", "conversation", conv.id, { contact: conv.contactName || conv.chatId });
-  revalidatePath("/admin/chats");
 }
 
 /** «Запустить бота» в диалоге, где он не работал или уже закончил: поздоровается и спросит недостающее. */
@@ -111,7 +104,6 @@ export async function startBotAction(conversationId: string) {
   const conv = await loadOwnConv(staff, conversationId);
   await container().messaging.bot.startManually(conv.id);
   await audit(staff, "chat.bot_start", "conversation", conv.id, { contact: conv.contactName || conv.chatId });
-  revalidatePath("/admin/chats");
 }
 
 export async function createDealFromChatAction(conversationId: string) {
@@ -133,7 +125,6 @@ export async function createDealFromChatAction(conversationId: string) {
       createdById: staff.user.id,
     }));
   await container().messaging.chats.linkCreatedDeal(conv.id, deal);
-  revalidatePath("/admin/chats");
   return { id: deal.id };
 }
 
@@ -144,7 +135,6 @@ export async function sendInternalNoteAction(conversationId: string, text: strin
   const body = z.string().trim().min(1, "Пустая заметка").max(4000).parse(text);
   const msg = await container().messaging.chats.addInternalNote(conv.id, body, staff.user.id);
   await notifyMentions(body, staff.user.id, staffLabel(staff.user), `/admin/chats?c=${conv.id}`, `чат с ${conv.contactName || "клиентом"}`);
-  revalidatePath("/admin/chats");
   return { id: msg.id };
 }
 
@@ -171,7 +161,6 @@ export async function sendOfferAction(conversationId: string, request: OfferRequ
     await audit(staff, "promo.personal", "promo", offer.promo, { percent: req.kind === "discount" ? req.percent : null, conversation: conv.id });
     if (conv.dealId) await container().sales.deals.note({ id: conv.dealId, clientId: conv.clientId }, `Персональная скидка ${req.kind === "discount" ? req.percent : ""}%: промокод ${offer.promo}`, staff.user.id);
   }
-  revalidatePath("/admin/chats");
   return msg.status === "error" ? { ok: false, message: ("error" in msg && msg.error) || "Не удалось отправить" } : { ok: true, message: offer.promo ? `Отправлено, промокод ${offer.promo}` : "Отправлено" };
 }
 
@@ -195,7 +184,6 @@ export async function editMessageAction(conversationId: string, messageId: strin
   // Тот же список разрешённых номеров, что у отправки: номер клиента и магазина в правке — не находка.
   if ((await sensitiveFor(conv, body)).length) return { error: "В тексте номер, карта или реквизиты — так менять нельзя" };
   const r = await messageAction(() => container().messaging.chats.editMessage(conv.id, uuid.parse(messageId), body, staff.user.id));
-  revalidatePath("/admin/chats");
   return r && typeof r === "object" && "error" in r ? r : { ok: true };
 }
 
@@ -204,7 +192,6 @@ export async function resendMessageAction(conversationId: string, messageId: str
   const staff = await assertStaff("chats.view", "chats.send");
   const conv = await loadOwnConv(staff, conversationId);
   const r = await messageAction(() => container().messaging.chats.resend(conv.id, uuid.parse(messageId)));
-  revalidatePath("/admin/chats");
   return "error" in r ? { error: r.error } : { ok: true };
 }
 
@@ -214,7 +201,6 @@ export async function deleteMessageAction(conversationId: string, messageId: str
   const conv = await loadOwnConv(staff, conversationId);
   const r = await messageAction(() => container().messaging.chats.deleteMessage(conv.id, uuid.parse(messageId), staff.user.id));
   if (!(r && typeof r === "object" && "error" in r)) await audit(staff, "chat.message.delete", "conversation", conv.id, { messageId });
-  revalidatePath("/admin/chats");
   return r && typeof r === "object" && "error" in r ? r : { ok: true };
 }
 
@@ -223,7 +209,6 @@ export async function pinChatAction(conversationId: string, pinned: boolean): Pr
   const staff = await assertStaff("chats.view");
   const conv = await loadConv(staff, uuid.parse(conversationId));
   await container().workspace.pinnedChats.set(staff.user.id, conv.id, !!pinned);
-  revalidatePath("/admin/chats");
   return { ok: true };
 }
 
@@ -233,8 +218,6 @@ export async function createTemplateAction(title: string, text: string): Promise
   const parsed = z.object({ title: z.string().trim().min(1, "Название шаблона").max(60), text: z.string().trim().min(1, "Текст шаблона").max(2000, "Текст шаблона — не больше 2000 знаков") }).safeParse({ title, text });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   await container().workspace.personalTemplates.add(staff.user.id, parsed.data);
-  revalidatePath("/admin/chats");
-  revalidatePath("/admin/templates");
   return { ok: true };
 }
 
@@ -265,7 +248,6 @@ export async function forwardMessageAction(fromConversationId: string, messageId
   const r = await messageAction(() => container().messaging.forward(messageId, targets.map((t) => t.id), staff.user.id));
   if ("error" in r) return r;
   await audit(staff, "chat.forward", "conversation", from.id, { messageId, to: targets.map((t) => t.id) });
-  revalidatePath("/admin/chats");
   const title = new Map(targets.map((t) => [t.id, t.contactName || formatPhone(t.chatId) || t.chatId]));
   return { sent: r.sent, failed: r.failed.map((f) => ({ title: title.get(f.conversationId) ?? "диалог", error: f.error })) };
 }
@@ -307,6 +289,5 @@ export async function setPhoneHolderAction(userId: string | null): Promise<{ ok?
   }
   await container().messaging.setPhoneHolder(id ? { id, name } : null, staff.user.id);
   await audit(staff, "settings.update", "settings", "whatsapp.phoneHolder", { to: id });
-  revalidatePath("/admin/chats");
   return { ok: true };
 }

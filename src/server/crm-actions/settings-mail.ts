@@ -1,7 +1,4 @@
-"use server";
-
 import { container } from "@/server/container";
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { assertStaff, audit } from "@/server/access";
 import { ensureToken, getSettings, saveSettings, smtpConfig, smtpFromEnvironment } from "@/modules/workspace";
@@ -38,7 +35,6 @@ export async function saveEmailAction(_: SettingsState, form: FormData): Promise
   );
   await ensureToken("email.webhookToken");
   await audit(staff, "settings.update", "settings", "email", { imapHost: d.imapHost, imapUser: d.imapUser });
-  revalidatePath("/admin/settings");
   return { ok: "Сохранено" };
 }
 
@@ -87,7 +83,6 @@ export async function saveSmtpAction(_: SettingsState, form: FormData): Promise<
     staff.user.id,
   );
   await audit(staff, "settings.update", "settings", "smtp", { host: d.smtpHost, port: d.smtpPort, user: d.smtpUser, from: d.mailFrom });
-  revalidatePath("/admin/settings");
   return { ok: "Сохранено" };
 }
 

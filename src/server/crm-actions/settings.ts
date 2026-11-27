@@ -1,6 +1,3 @@
-"use server";
-
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { assertStaff, audit } from "@/server/access";
 import { fromEnv, saveSettings } from "@/modules/workspace";
@@ -13,5 +10,4 @@ export async function rotateTokenAction(key: "wazzup.webhookToken" | "pbx.token"
   if (fromEnv(k)) throw new Error("Токен задан переменной окружения");
   await saveSettings({ [k]: randomToken() }, staff.user.id);
   await audit(staff, "settings.update", "settings", k, { rotated: true });
-  revalidatePath("/admin/settings");
 }

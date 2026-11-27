@@ -1,6 +1,3 @@
-"use server";
-
-import { revalidatePath } from "next/cache";
 import { getSellerOverrides, giftNoteEnabled, registrationOpen, sanitizeSeller, SELLER_FIELDS, type SellerDetails } from "@/config/site";
 import { admin } from "@/i18n/admin";
 import { assertStaff, audit } from "@/server/access";
@@ -28,8 +25,6 @@ export async function setRegistrationAction(_: SiteState, form: FormData): Promi
   const before = registrationOpen();
   await saveRegistration(open, staff.user.id);
   await audit(staff, "site.registration", "settings", "site.registration", { from: before, to: open });
-  revalidatePath("/", "layout");
-  revalidatePath("/admin/site");
   return { ok: open ? "Регистрация открыта: страница и кнопки снова на сайте." : "Регистрация закрыта: кнопки скрыты, новые аккаунты не создаются." };
 }
 
@@ -45,8 +40,6 @@ export async function setGiftNoteAction(_: SiteState, form: FormData): Promise<S
   const before = giftNoteEnabled();
   await saveGiftNote(enabled, staff.user.id);
   await audit(staff, "settings.update", "settings", "site.giftNote", { from: before, to: enabled });
-  revalidatePath("/", "layout");
-  revalidatePath("/admin/site");
   return { ok: enabled ? "Открытка включена: клиенты снова могут вписать её текст при оформлении." : "Открытка выключена: при оформлении заказа поля для неё больше нет." };
 }
 
@@ -68,8 +61,6 @@ export async function saveSellerAction(_: SiteState, form: FormData): Promise<Si
   const before = getSellerOverrides();
   const saved = await saveSeller(clean, staff.user.id);
   await audit(staff, "settings.update", "settings", "site.seller", { from: before, to: saved });
-  revalidatePath("/", "layout");
-  revalidatePath("/admin/site");
   const missing = SELLER_FIELDS.filter((k) => !saved[k]).length;
   return { ok: missing ? `Сохранено. Не заполнено полей: ${missing} — там на сайте пока заглушка.` : "Сохранено: на сайте, в оферте и упаковочном листе — эти реквизиты." };
 }
@@ -86,6 +77,5 @@ export async function setMaxPhotosAction(_: SiteState, form: FormData): Promise<
   const before = parsePhotoLimit((await getSettings(["books.maxPhotos"]))["books.maxPhotos"]);
   await saveSettings({ "books.maxPhotos": String(n) }, staff.user.id);
   await audit(staff, "settings.update", "settings", "books.maxPhotos", { from: before, to: n });
-  revalidatePath("/admin/site");
   return { ok: `Сохранено: в книгу можно загрузить до ${n} фото.` };
 }

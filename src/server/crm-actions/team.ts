@@ -1,6 +1,3 @@
-"use server";
-
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { uuid } from "@/server/input";
 import { assertStaff, audit } from "@/server/access";
@@ -14,10 +11,6 @@ export interface TeamState {
   ok?: string;
 }
 
-function revalidateTeam() {
-  revalidatePath("/admin/team");
-  revalidatePath("/admin/team/roles");
-}
 
 const extensionSchema = z
   .string()
@@ -53,20 +46,17 @@ export async function createStaffAction(_: TeamState, form: FormData): Promise<T
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const r = await run(() => team().add(staff.context, parsed.data));
   if (!r.ok) return { error: r.error };
-  revalidateTeam();
   return { ok: r.value };
 }
 
 export async function setStaffRoleAction(userId: string, roleId: string) {
   const staff = await assertStaff("team.manage");
   await team().changeRole(staff.context, uuid.parse(userId), uuid.parse(roleId));
-  revalidateTeam();
 }
 
 export async function setStaffExtensionAction(userId: string, extension: string) {
   const staff = await assertStaff("team.manage");
   await team().setExtension(staff.context, uuid.parse(userId), extensionSchema.parse(extension));
-  revalidateTeam();
 }
 
 /** Телефон сотрудника (WhatsApp): на него уходят личные напоминания о задачах. Пусто — убрать. */
@@ -80,21 +70,18 @@ export async function setStaffPhoneAction(userId: string, phone: string): Promis
   const account = await container().identity.accounts.account(id);
   if (!account) return { ok: false, message: "Аккаунт не найден" };
   await container().identity.accounts.updateProfile(id, account.name, digits ? `+${digits}` : null);
-  revalidateTeam();
   return { ok: true, message: digits ? "Телефон сохранён" : "Телефон убран" };
 }
 
 export async function setStaffDisabledAction(userId: string, disabled: boolean) {
   const staff = await assertStaff("team.manage");
   await team().setDisabled(staff.context, uuid.parse(userId), disabled);
-  revalidateTeam();
 }
 
 /** Забрать доступ к CRM: аккаунт становится обычным клиентским. */
 export async function revokeStaffAction(userId: string) {
   const staff = await assertStaff("team.manage");
   await team().revoke(staff.context, uuid.parse(userId));
-  revalidateTeam();
 }
 
 export async function resetStaffPasswordAction(userId: string): Promise<{ ok: boolean; message: string }> {
@@ -117,14 +104,12 @@ export async function saveRoleAction(_: TeamState, form: FormData): Promise<Team
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const r = await run(() => container().access.roles.save(staff.context, staff.user.crmRoleId, { id: parsed.data.id || undefined, name: parsed.data.name, scope: parsed.data.scope, permissions: form.getAll("permissions").map(String) }));
   if (!r.ok) return { error: r.error };
-  revalidateTeam();
   return { ok: "Роль сохранена" };
 }
 
 export async function deleteRoleAction(roleId: string) {
   const staff = await assertStaff("team.manage");
   await container().access.roles.delete(staff.context, uuid.parse(roleId));
-  revalidateTeam();
 }
 
 /** План продаж сотрудника на месяц. */
@@ -136,5 +121,4 @@ export async function savePlanAction(userId: string, month: string, amount: numb
   const d = z.number().int().min(0).max(100_000).parse(deals);
   await container().sales.plans.save(id, m, a, d);
   await audit(staff, "plan.update", "user", id, { month: m, amount: a, deals: d });
-  revalidatePath("/admin/team/plans");
 }

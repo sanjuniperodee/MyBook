@@ -1,4 +1,3 @@
-import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { api, apiStaff, HttpError } from "@/server/api";
 import { canWork } from "@/server/access";
@@ -41,6 +40,5 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
       results.push({ name: f.name, error: err.message });
     }
   }
-  revalidatePath("/admin/chats");
   return NextResponse.json({ results });
 });

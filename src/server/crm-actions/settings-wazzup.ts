@@ -1,7 +1,4 @@
-"use server";
-
 import { container } from "@/server/container";
-import { revalidatePath } from "next/cache";
 import { assertStaff, audit } from "@/server/access";
 import { ensureToken, saveSettings } from "@/modules/workspace";
 import { WazzupError } from "@/modules/messaging";
@@ -24,7 +21,6 @@ export async function saveWazzupAction(_: SettingsState, form: FormData): Promis
   await saveSettings({ ...secretValue(form, "apiKey", "wazzup.apiKey"), ...unlessEnv("wazzup.baseUrl", baseUrl), ...unlessEnv("wazzup.channelId", channelId) }, staff.user.id);
   await ensureToken("wazzup.webhookToken");
   await audit(staff, "settings.update", "settings", "wazzup", { channelId, baseUrl: baseUrl || null });
-  revalidatePath("/admin/settings");
   return { ok: "Сохранено" };
 }
 

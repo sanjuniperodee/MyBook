@@ -1,7 +1,4 @@
-"use server";
-
 import { container } from "@/server/container";
-import { revalidatePath } from "next/cache";
 import { assertStaff, audit } from "@/server/access";
 import { fromEnv, getSetting, getSettings, saveSettings } from "@/modules/workspace";
 import { parseBotConfig } from "@/modules/messaging/domain/botConfig";
@@ -52,7 +49,6 @@ export async function saveAiAction(_: SettingsState, form: FormData): Promise<Se
     staff.user.id,
   );
   await audit(staff, "settings.update", "settings", "ai", { provider: p, model: model || null, enabled: form.get("enabled") === "on", autofill: form.get("autofill") === "on", knowledge: knowledge.length });
-  revalidatePath("/admin/settings");
   // Сумма из базы знаний — разрешённая для бота: старая цена ушла бы клиенту (deals-d13). Сохраняем, но предупреждаем.
   const warning = botPriceWarning(await botPriceDrift({ knowledge, faq: false }).catch(() => [])) ?? undefined;
   return { ok: "Сохранено", ...(warning ? { warning } : {}) };
@@ -97,7 +93,6 @@ export async function saveProofreadAction(_: SettingsState, form: FormData): Pro
     staff.user.id,
   );
   await audit(staff, "settings.update", "settings", "proofread", { provider: provider || "assistant", model: model || null, enabled: form.get("enabled") === "on" });
-  revalidatePath("/admin/settings");
   return { ok: "Сохранено" };
 }
 
@@ -142,7 +137,6 @@ export async function saveWriterAction(_: SettingsState, form: FormData): Promis
     staff.user.id,
   );
   await audit(staff, "settings.update", "settings", "writer", { provider: provider || "proofread", model: model || null, enabled: form.get("enabled") === "on" });
-  revalidatePath("/admin/settings");
   return { ok: "Сохранено" };
 }
 
@@ -178,7 +172,6 @@ export async function saveSellerAction(_: SettingsState, form: FormData): Promis
   if (foreign) return foreign;
   await saveSettings({ "seller.provider": provider, "seller.model": model, ...secretValue(form, "key", providerSettingKeys[keyFor].apiKey) }, staff.user.id);
   await audit(staff, "settings.update", "settings", "seller", { provider: provider || "assistant", model: model || null });
-  revalidatePath("/admin/settings");
   return { ok: "Сохранено" };
 }
 
@@ -234,7 +227,6 @@ export async function saveRoutingAction(_: SettingsState, form: FormData): Promi
     staff.user.id,
   );
   await audit(staff, "settings.update", "settings", "seller.route", { mode: d.mode, defaultTier: d.defaultTier, fallbacks });
-  revalidatePath("/admin/settings");
   return { ok: "Сохранено" };
 }
 
@@ -256,7 +248,6 @@ export async function saveMediaAction(_: SettingsState, form: FormData): Promise
   if (foreign) return foreign;
   await saveSettings({ "media.provider": provider, "media.model": model, ...secretValue(form, "key", providerSettingKeys[keyFor].apiKey) }, staff.user.id);
   await audit(staff, "settings.update", "settings", "media", { provider: provider || "seller", model: model || null });
-  revalidatePath("/admin/settings");
   return { ok: "Сохранено" };
 }
 

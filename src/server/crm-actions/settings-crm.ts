@@ -1,7 +1,4 @@
-"use server";
-
 import { container } from "@/server/container";
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { uuid } from "@/server/input";
 import { assertStaff, audit } from "@/server/access";
@@ -63,7 +60,6 @@ export async function saveCrmSettingsAction(_: SettingsState, form: FormData): P
     staff.user.id,
   );
   await audit(staff, "settings.update", "settings", "crm", { ...d, days, off: off.dates });
-  revalidatePath("/admin/settings");
   return { ok: "Сохранено" };
 }
 
@@ -97,8 +93,6 @@ export async function saveHolidaysAction(input: z.input<typeof holidaysSchema>):
   if (error) return { ok: false, error: error === "holidaysTooMany" ? admin.holidaysTooMany(HOLIDAYS_MAX) : admin[error] };
   await saveSettings({ "automation.holidays": JSON.stringify(list) }, staff.user.id);
   await audit(staff, "settings.update", "settings", "holidays", { holidays: list.map((h) => `${h.date} ${h.ru}`) });
-  revalidatePath("/admin/settings");
-  revalidatePath("/admin/automations");
   return { ok: true };
 }
 
@@ -117,14 +111,12 @@ export async function saveTemplateAction(_: SettingsState, form: FormData): Prom
   const { id, title, text } = parsed.data;
   if (id) await container().workspace.templates.update(id, { title, text });
   else await container().workspace.templates.add({ title, text });
-  revalidatePath("/admin/settings");
   return { ok: "Сохранено" };
 }
 
 export async function deleteTemplateAction(id: string) {
   await assertStaff("settings.manage");
   await container().workspace.templates.delete(uuid.parse(id));
-  revalidatePath("/admin/settings");
 }
 
 // ─── бот-квалификатор ──────────────────────────────────────────────────────
@@ -216,7 +208,6 @@ export async function saveBotAction(input: z.input<typeof botSchema>): Promise<S
   if (problem) return { error: problem };
   await saveSettings({ "bot.mode": mode, "bot.config": JSON.stringify(config) }, staff.user.id);
   await audit(staff, "settings.update", "settings", "bot", { mode, channels: config.channels, questions: config.questions.length, faq: FAQ_INTENTS.filter((i) => config.faq[i].on), ai: config.ai, sell: config.sell.on, engine: config.sell.engine, takeover: config.sell.takeover, invoice: config.sell.on && config.sell.invoice });
-  revalidatePath("/admin/settings");
   return { ok: "Сохранено" };
 }
 
@@ -252,7 +243,6 @@ export async function previewBotAction(input: z.input<typeof previewSchema>): Pr
 export async function runBotCoachAction(): Promise<{ ok?: string; error?: string }> {
   const staff = await assertStaff("settings.manage");
   const run = await container().messaging.coach.run({ force: true });
-  revalidatePath("/admin/settings");
   if (!run) return { error: "Разбор не запустился: нужен AI-продажник (Бот → Продажи → движок AI) и подключённая модель." };
   await audit(staff, "settings.update", "settings", "bot.coach", { reviewed: run.reviewed, added: run.added.length, removed: run.removed.length });
   if (run.error) return { error: `Разбор не удался: ${run.error}` };
@@ -270,7 +260,6 @@ export async function deleteBotLessonAction(lessonId: string): Promise<void> {
     staff.user.id,
   );
   await audit(staff, "settings.update", "settings", "bot.lessons", { removed: removed.text });
-  revalidatePath("/admin/settings");
 }
 
 /** Свой урок владельца: та же проверка, что у уроков разбора (без сумм, ссылок, номеров и правил безопасности). */
@@ -285,7 +274,6 @@ export async function addBotLessonAction(text: string): Promise<{ error?: string
   if (lessons.length >= MAX_LESSONS) return { error: `Уроков уже ${MAX_LESSONS} — удалите лишний.` };
   await container().messaging.saveLessons([...lessons, { id: crypto.randomUUID().slice(0, 8), text: clean, why: "добавил владелец", at: new Date().toISOString(), source: "owner" }], staff.user.id);
   await audit(staff, "settings.update", "settings", "bot.lessons", { added: clean });
-  revalidatePath("/admin/settings");
   return {};
 }
 
@@ -316,7 +304,6 @@ export async function saveBotMaterialsAction(items: unknown): Promise<{ error?: 
   }
   await container().messaging.saveMaterials([...next, ...rest], staff.user.id);
   await audit(staff, "settings.update", "settings", "bot.materials", { count: next.length + rest.length });
-  revalidatePath("/admin/settings");
   return {};
 }
 
@@ -325,5 +312,4 @@ export async function deleteBotMaterialAction(id: string): Promise<void> {
   const clean = z.string().min(1).max(40).parse(id);
   await container().messaging.removeMaterial(clean, staff.user.id);
   await audit(staff, "settings.update", "settings", "bot.materials", { removed: clean });
-  revalidatePath("/admin/settings");
 }

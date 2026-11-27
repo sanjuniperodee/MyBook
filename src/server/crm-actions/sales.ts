@@ -1,6 +1,3 @@
-"use server";
-
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { container } from "@/server/container";
 import { assertStaff, audit, canWork } from "@/server/access";
@@ -24,7 +21,5 @@ export async function setPayFormAction(dealId: string, form: string): Promise<{ 
   if (value && !field?.options.includes(value)) return { ok: false, error: "Такой формы оплаты нет в поле сделки" };
   await c.sales.deals.setField(id, PAY_FORM_KEY, value || null);
   await audit(staff, "deal.pay_form", "deal", id, { form: value || null });
-  revalidatePath("/admin/sales");
-  revalidatePath("/admin/profit");
   return { ok: true };
 }

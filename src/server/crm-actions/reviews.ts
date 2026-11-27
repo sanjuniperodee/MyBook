@@ -1,6 +1,3 @@
-"use server";
-
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { uuid } from "@/server/input";
 import { assertStaff, audit } from "@/server/access";
@@ -14,5 +11,4 @@ export async function moderateReviewAction(id: string, action: string) {
   const d = input.parse({ id, action });
   await container().feedback.reviews.moderate(d.id, d.action);
   await audit(staff, `review.${d.action}`, "review", d.id);
-  revalidatePath("/admin/reviews");
 }

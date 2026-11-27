@@ -1,6 +1,5 @@
 import "server-only";
 import type { z } from "zod";
-import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import type { WebCrmStaff } from "@mybook/contracts";
 import { decodeWire, encodeWire } from "@/shared/wire";
@@ -63,7 +62,6 @@ export function crmAction<F extends ActionFn>(module: string, fn: string): F {
         const reply = await api.webCrmAct({ op: `${module}.${fn}`, body: { args: await encodeWire(args) } });
         // Действие, вызванное при отрисовке страницы (свежесть каталога), кэш не сбрасывает — Next это запрещает.
         try {
-          revalidatePath("/admin", "layout");
         } catch {}
         if (reply.redirect) redirect(reply.redirect);
         if (reply.notFound) notFound();

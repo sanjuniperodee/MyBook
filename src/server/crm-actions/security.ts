@@ -1,6 +1,3 @@
-"use server";
-
-import { revalidatePath } from "next/cache";
 import QRCode from "qrcode";
 import { z } from "zod";
 import { uuid } from "@/server/input";
@@ -46,7 +43,6 @@ export async function confirmTwoFactorAction(input: string): Promise<Result<{ co
   try {
     const codes = await identity().confirmTwoFactor(staff.user.id, code.parse(input));
     await audit(staff, "security.2fa_on", "user", staff.user.id);
-    revalidatePath("/admin/security");
     return { ok: true, codes };
   } catch (err) {
     return fail(err);
@@ -72,7 +68,6 @@ export async function disableTwoFactorAction(input: string): Promise<Result> {
   try {
     await identity().disableTwoFactor(staff.user.id, code.parse(input));
     await audit(staff, "security.2fa_off", "user", staff.user.id);
-    revalidatePath("/admin/security");
     return { ok: true };
   } catch (err) {
     return fail(err);
@@ -84,7 +79,6 @@ export async function resetStaffTwoFactorAction(userId: string): Promise<Result>
   const staff = await assertStaff("team.manage");
   try {
     await container().access.team.resetTwoFactor(staff.context, uuid.parse(userId));
-    revalidatePath("/admin/security");
     return { ok: true };
   } catch (err) {
     return fail(err);
@@ -107,6 +101,5 @@ export async function saveSecurityAction(_: { ok?: string; error?: string }, for
     if (error === null) throw err;
     return { error };
   }
-  revalidatePath("/admin/security");
   return { ok: "Сохранено" };
 }

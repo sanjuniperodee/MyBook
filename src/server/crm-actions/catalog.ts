@@ -1,6 +1,3 @@
-"use server";
-
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { CATALOG_DOC_KEYS, CATALOG_LIMITS, GowaError, MessageActionError, type CatalogSettings, type ProductDraft, type UploadImage } from "@/modules/messaging";
 import { assertStaff, assertVisible, assertWorkable, audit } from "@/server/access";
@@ -62,7 +59,6 @@ export async function createProductAction(form: FormData): Promise<Result<{ id: 
   try {
     const p = await container().messaging.catalog.create(input.draft, input.images);
     await audit(staff, "catalog.create", "wa_product", p.id, { name: p.name, price: p.price });
-    revalidatePath("/admin/catalog");
     return { ok: true, id: p.id };
   } catch (err) {
     return fail(err);
@@ -77,7 +73,6 @@ export async function updateProductAction(id: string, form: FormData): Promise<R
   try {
     const p = await container().messaging.catalog.update(productId.parse(id), input.draft, input.images, input.keep, input.keepVideos);
     await audit(staff, "catalog.update", "wa_product", p.id, { name: p.name, price: p.price, hidden: p.hidden });
-    revalidatePath("/admin/catalog");
     return { ok: true };
   } catch (err) {
     return fail(err);
@@ -89,7 +84,6 @@ export async function setProductHiddenAction(id: string, hidden: boolean): Promi
   try {
     await container().messaging.catalog.setHidden(productId.parse(id), hidden);
     await audit(staff, hidden ? "catalog.hide" : "catalog.show", "wa_product", id);
-    revalidatePath("/admin/catalog");
     return { ok: true };
   } catch (err) {
     return fail(err);
@@ -101,7 +95,6 @@ export async function deleteProductAction(id: string): Promise<Result> {
   try {
     await container().messaging.catalog.remove(productId.parse(id));
     await audit(staff, "catalog.delete", "wa_product", id);
-    revalidatePath("/admin/catalog");
     return { ok: true };
   } catch (err) {
     return fail(err);
@@ -113,7 +106,6 @@ export async function syncCatalogAction(): Promise<Result<{ total: number; remov
   await assertStaff("catalog.manage");
   try {
     const r = await container().messaging.catalog.sync();
-    revalidatePath("/admin/catalog");
     return { ok: true, ...r };
   } catch (err) {
     return fail(err);
@@ -132,7 +124,6 @@ export async function saveCollectionAction(id: string | null, input: { name: str
     const catalog = container().messaging.catalog;
     const saved = id ? await catalog.updateCollection(productId.parse(id), parsed.data.name, parsed.data.productIds) : await catalog.createCollection(parsed.data.name, parsed.data.productIds);
     await audit(staff, id ? "catalog.collection.update" : "catalog.collection.create", "wa_collection", saved, { name: parsed.data.name, products: parsed.data.productIds.length });
-    revalidatePath("/admin/catalog");
     return { ok: true };
   } catch (err) {
     return fail(err);
@@ -144,7 +135,6 @@ export async function deleteCollectionAction(id: string): Promise<Result> {
   try {
     await container().messaging.catalog.deleteCollection(productId.parse(id));
     await audit(staff, "catalog.collection.delete", "wa_collection", id);
-    revalidatePath("/admin/catalog");
     return { ok: true };
   } catch (err) {
     return fail(err);
@@ -229,7 +219,6 @@ export async function saveCatalogSettingsAction(input: CatalogSettings): Promise
   if (!parsed.success) return { ok: false, error: "Проверьте поля: валюта — три буквы (KZT)" };
   await container().messaging.catalog.saveSettings(parsed.data, staff.user.id);
   await audit(staff, "settings.update", "settings", "whatsapp.catalog", { enabled: parsed.data.enabled });
-  revalidatePath("/admin/settings");
   return { ok: true };
 }
 
@@ -247,7 +236,6 @@ export async function saveCatalogDocsAction(input: Record<string, string>): Prom
   }
   await saveSettings({ "whatsapp.catalogDocs": Object.keys(clean).length ? JSON.stringify(clean) : "" }, staff.user.id);
   await audit(staff, "settings.update", "settings", "whatsapp.catalogDocs", clean);
-  revalidatePath("/admin/settings");
   return { ok: true };
 }
 

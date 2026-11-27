@@ -1,9 +1,6 @@
-"use server";
-
 import { locales } from "@/i18n/config";
 import { GOWA_CHANNEL } from "@/modules/messaging/domain/gowa";
 import { container } from "@/server/container";
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { uuid } from "@/server/input";
 import { assertStaff, assertVisible, assertWorkable, audit, canAssignOthers, contactView, ForbiddenError, workRefusal } from "@/server/access";
@@ -35,8 +32,6 @@ export async function setClientManagerAction(clientId: string, managerId: string
     throw err;
   }
   await audit(staff, "client.manager", "client", client.id, { from: client.managerId, to: next });
-  revalidatePath(`/admin/clients/${client.id}`);
-  revalidatePath("/admin/clients");
   return { ok: true };
 }
 
@@ -57,10 +52,6 @@ export async function setClientChannelAction(clientId: string, channel: string):
   await c.clients.clients.setSource(client.id, next);
   await c.sales.setClientAttribution(client.id, next);
   await audit(staff, "client.channel", "client", client.id, { from: source ?? null, fromChannel: channels[before], to: channels[channel] });
-  revalidatePath(`/admin/clients/${client.id}`);
-  revalidatePath("/admin/clients");
-  revalidatePath("/admin/analytics");
-  revalidatePath("/admin/marketing");
   return { ok: true, message: `Канал: ${channels[channel]}` };
 }
 
@@ -78,7 +69,6 @@ export async function setClientLocaleAction(clientId: string, locale: string): P
   assertVisible(staff, client.managerId);
   await c.identity.accounts.setLocale(client.id, next.data);
   await audit(staff, "client.locale", "client", client.id, { to: next.data });
-  revalidatePath(`/admin/clients/${client.id}`);
   return { ok: true, message: next.data === "kk" ? "Язык: казахский" : next.data === "uz" ? "Язык: узбекский" : next.data === "en" ? "Язык: английский" : "Язык: русский" };
 }
 
@@ -130,7 +120,6 @@ export async function whatsappDialAction(target: Target & { conversationId?: str
   if (refusal) return { ok: false, message: refusal };
   try {
     const call = await container().telephony.whatsapp.dial({ staffId: staff.user.id, phone });
-    revalidatePath("/admin/calls");
     const shown = contactView(staff, { phone: formatPhone(phone) }).phone;
     return { ok: true, ...call, title: c.name || shown || "Клиент", phone: c.name ? shown : "", clientId: c.clientId, dealId: c.dealId };
   } catch (err) {
@@ -146,7 +135,6 @@ export async function whatsappAnswerAction(id: string): Promise<WhatsappCallStar
   try {
     const { callId: externalId } = await container().telephony.whatsapp.answer(callId, staff.user.id);
     const c = await resolveContact({ callId });
-    revalidatePath("/admin/calls");
     const shown = contactView(staff, { phone: formatPhone(c?.phone ?? "") }).phone;
     return { ok: true, id: callId, callId: externalId, title: shown || "Скрытый номер", phone: "", clientId: c?.clientId ?? null, dealId: c?.dealId ?? null };
   } catch (err) {
@@ -188,8 +176,6 @@ export async function sendEmailAction(target: Target, subject: string, text: str
   if (found.length) return { ok: false, message: `В письме ${sensitiveWhat(found)}. Оплата — только через счёт или ссылку из CRM, контакты клиента — через CRM.` };
   const r = await container().messaging.email.sendToContact({ to: c.email, subject: title, text: body, authorId: staff.user.id, dealId: c.dealId, clientId: c.clientId, contactName: c.name ?? "" });
   await audit(staff, "email.send", c.dealId ? "deal" : "client", c.dealId ?? c.clientId, { ok: r.ok });
-  if (c.dealId) revalidatePath(`/admin/deals/${c.dealId}`);
-  if (c.clientId) revalidatePath(`/admin/clients/${c.clientId}`);
   return r.ok ? { ok: true, message: "Письмо отправлено", id: r.conversationId } : { ok: false, message: r.error };
 }
 
@@ -200,7 +186,6 @@ export async function markCallHandledAction(callId: string): Promise<ActionResul
   if (!call) return { ok: false, message: "Звонок не найден" };
   assertVisible(staff, call.staffId);
   await container().telephony.calls.markHandled(call.id, staff.user.id);
-  revalidatePath("/admin/calls");
   return { ok: true };
 }
 
@@ -212,7 +197,6 @@ export async function setClientPhonesAction(clientId: string, raw: string): Prom
   assertVisible(staff, client.managerId);
   const phones = await container().clients.clients.setExtraPhones(client, raw);
   await audit(staff, "client.phones", "client", client.id, { count: phones.length });
-  revalidatePath(`/admin/clients/${client.id}`);
   return { ok: true, message: phones.length ? `Сохранено номеров: ${phones.length}` : "Дополнительные номера удалены" };
 }
 
@@ -242,7 +226,6 @@ export async function setClientNoMarketingAction(clientId: string, on: boolean):
   const values = await markNoMarketing(target, next, staff.user.id, "Карточка клиента");
   if (!values) return { ok: false, message: admin.noMarketingNoContacts };
   await audit(staff, "client.no_marketing", "client", client.id, { on: next, numbers: values.length });
-  revalidatePath(`/admin/clients/${client.id}`);
   if (!next && (await container().messaging.chats.spamFor(target))) return { ok: false, message: admin.noMarketingSpam };
   return { ok: true, message: noMarketingDone(next) };
 }
@@ -258,8 +241,6 @@ export async function setDealNoMarketingAction(dealId: string, on: boolean): Pro
   const values = await markNoMarketing(target, next, staff.user.id, `Сделка Д${deal.number}`);
   if (!values) return { ok: false, message: admin.noMarketingNoContacts };
   await audit(staff, "deal.no_marketing", "deal", deal.id, { on: next, numbers: values.length });
-  revalidatePath(`/admin/deals/${deal.id}`);
-  if (deal.clientId) revalidatePath(`/admin/clients/${deal.clientId}`);
   if (!next && (await container().messaging.chats.spamFor(target))) return { ok: false, message: admin.noMarketingSpam };
   return { ok: true, message: noMarketingDone(next) };
 }
@@ -282,7 +263,6 @@ export async function setClientFieldsAction(_: { ok?: string; error?: string }, 
   assertVisible(staff, client.managerId);
   const { listFields, readFieldValues } = await import("@/modules/workspace");
   await container().clients.clients.setCustomFields(client, readFieldValues(await listFields("client"), form, client.customFields));
-  revalidatePath(`/admin/clients/${client.id}`);
   return { ok: "Сохранено" };
 }
 

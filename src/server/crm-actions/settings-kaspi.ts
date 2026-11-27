@@ -1,6 +1,3 @@
-"use server";
-
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { admin } from "@/i18n/admin";
 import { KASPI_ALERT_AFTER_MAX, OrderingError } from "@/modules/ordering";
@@ -39,7 +36,6 @@ export async function confirmKaspiCodeAction(processId: string, otp: string): Pr
   try {
     const { orgName } = await container().ordering.kaspiSetup.confirmCode(input.data.processId, input.data.otp, staff.user.id);
     await audit(staff, "settings.update", "settings", "kaspi", { connected: true, orgName });
-    revalidatePath("/admin/settings");
     return { ok: true, orgName };
   } catch (err) {
     return kaspiError(err);
@@ -51,7 +47,6 @@ export async function setKaspiEnabledAction(enabled: boolean): Promise<Result> {
   try {
     await container().ordering.kaspiSetup.setEnabled(z.boolean().parse(enabled), staff.user.id);
     await audit(staff, "settings.update", "settings", "kaspi", { enabled });
-    revalidatePath("/admin/settings");
     return { ok: true };
   } catch (err) {
     return kaspiError(err);
@@ -70,7 +65,6 @@ export async function saveKaspiApiUrlAction(apiUrl: string): Promise<Result<{ re
   if (!input.success) return { ok: false, error: input.error.issues[0].message };
   const reachable = await container().ordering.kaspiSetup.setApiUrl(input.data, staff.user.id);
   await audit(staff, "settings.update", "settings", "kaspi", { apiUrl: input.data });
-  revalidatePath("/admin/settings");
   return { ok: true, reachable };
 }
 
@@ -81,7 +75,6 @@ export async function saveKaspiAlertAfterAction(minutes: number): Promise<Result
   if (!input.success) return { ok: false, error: admin.kaspiAlertAfterInvalid(KASPI_ALERT_AFTER_MAX) };
   await container().ordering.kaspiWatch.setAlertAfterMinutes(input.data, staff.user.id);
   await audit(staff, "settings.update", "settings", "kaspi", { alertAfterMinutes: input.data });
-  revalidatePath("/admin/settings");
   return { ok: true };
 }
 
@@ -96,7 +89,6 @@ export async function disconnectKaspiAction(): Promise<Result> {
   const staff = await assertStaff("settings.manage");
   await container().ordering.kaspiSetup.disconnect(staff.user.id);
   await audit(staff, "settings.update", "settings", "kaspi", { connected: false });
-  revalidatePath("/admin/settings");
   return { ok: true };
 }
 

@@ -1,6 +1,3 @@
-"use server";
-
-import { revalidatePath } from "next/cache";
 import { factoryCatalog, getCatalogOverrides, isAbroadDelivery, MAX_AI_PACK_REQUESTS, MAX_PRICE, type CatalogOverrides } from "@/config/site";
 import { MAX_FREE_MINUTES, MAX_PACK_MINUTES } from "@/lib/book/answer-files";
 import { assertStaff, audit } from "@/server/access";
@@ -100,8 +97,6 @@ export async function savePricingAction(_: PricingState, form: FormData): Promis
   await ensureCatalog();
   await audit(staff, "pricing.save", "settings", "catalog", { before, after: getCatalogOverrides() });
   // Страницы с ценами (витрина, /kniga, сертификат) пересоберутся при следующем заходе.
-  revalidatePath("/", "layout");
-  revalidatePath("/admin/pricing");
   const warning = botPriceWarning(await botPriceDrift().catch(() => [])) ?? undefined;
   return { ok: "Сохранено. Новые цены уже действуют на сайте и в счетах бота; оформленные заказы не меняются.", ...(warning ? { warning } : {}) };
 }
@@ -112,8 +107,6 @@ export async function resetPricingAction(): Promise<PricingState> {
   const before = getCatalogOverrides();
   await saveCatalog(null, staff.user.id);
   await audit(staff, "pricing.reset", "settings", "catalog", { before });
-  revalidatePath("/", "layout");
-  revalidatePath("/admin/pricing");
   await ensureCatalog();
   const warning = botPriceWarning(await botPriceDrift().catch(() => [])) ?? undefined;
   return { ok: "Возвращены заводские цены.", ...(warning ? { warning } : {}) };

@@ -1,8 +1,5 @@
-"use server";
-
 import { container } from "@/server/container";
 import { ClientsError } from "@/modules/clients";
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { uuid } from "@/server/input";
 import { assertStaff, assertVisible, audit, can } from "@/server/access";
@@ -65,7 +62,6 @@ export async function aiSummaryAction(dealId: string): Promise<Result<{ summary:
     await audit(staff, "ai.summary", "deal", deal.id, s.usage);
     return { summary: s.summary };
   });
-  if (r.ok) revalidatePath(`/admin/deals/${deal.id}`);
   return r;
 }
 
@@ -93,7 +89,6 @@ export async function aiApplyFieldsAction(dealId: string, values: Record<string,
   if (!Object.keys(clean).length) return { ok: false as const, message: "Нечего применять" };
   await container().sales.deals.setFields(deal.id, clean);
   await audit(staff, "deal.fields_ai", "deal", deal.id, clean);
-  revalidatePath(`/admin/deals/${deal.id}`);
   return { ok: true as const, count: Object.keys(clean).length };
 }
 
@@ -123,7 +118,6 @@ export async function aiNextStepTaskAction(dealId: string) {
     if (!(ClientsError.is(err) && err.code === "staffNotFound")) throw err;
     await task(staff.user.id);
   }
-  revalidatePath(`/admin/deals/${deal.id}`);
   return { ok: true as const };
 }
 
@@ -198,7 +192,6 @@ export async function aiProposalApplyAction(proposalId: string): Promise<{ ok: t
     await container().sales.deals.note({ id: deal.id, clientId: deal.clientId }, aiNoteText(aiProposalTitle(p), p.reason, p.quote), staff.user.id);
   }
   await audit(staff, "ai.proposal_apply", "deal", deal.id, { proposalId: p.id, kind: p.kind, payload: p.payload });
-  revalidatePath(`/admin/deals/${deal.id}`);
   return { ok: true };
 }
 
@@ -210,6 +203,5 @@ export async function aiProposalDismissAction(proposalId: string): Promise<{ ok:
   const deal = await loadDeal(p.dealId, staff);
   await container().sales.aiProposals.decide(p.id, "dismissed", staff.user.id);
   await audit(staff, "ai.proposal_dismiss", "deal", deal.id, { proposalId: p.id, kind: p.kind, payload: p.payload });
-  revalidatePath(`/admin/deals/${deal.id}`);
   return { ok: true };
 }

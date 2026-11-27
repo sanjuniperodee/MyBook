@@ -1,4 +1,3 @@
-import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { api, apiStaff, HttpError } from "@/server/api";
 import { audit } from "@/server/access";
@@ -25,7 +24,6 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
   if (!gift) throw new HttpError(409, "giftNotPending");
   const receipt = gift.snapshot().receipt;
   await audit(staff, "gift.paid", "gift", id, { number: gift.number, amount: gift.snapshot().amount, receipt: receipt?.fileName });
-  revalidatePath("/admin/gifts");
   return NextResponse.json({ ok: true });
 });
 

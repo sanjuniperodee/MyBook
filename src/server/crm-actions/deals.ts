@@ -1,5 +1,3 @@
-"use server";
-
 import { locales, localizePath } from "@/i18n/config";
 import { container } from "@/server/container";
 import { readGifts } from "@/shared/domain/agreementGifts";
@@ -7,7 +5,6 @@ import { giftsForPlan } from "@/config/site";
 import { getSetting, listFields, readFieldValues, saveSettings } from "@/modules/workspace";
 import { entryGroups } from "@/modules/sales/domain/meta";
 import { STAGE_ORDER_DEFAULTS, STAGE_ORDER_LIMITS } from "@/shared/domain/stageOrder";
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { aiFlagValue, isAiCrmFlag, parseStaffChatNames } from "@/shared/domain/aiCrm";
@@ -75,11 +72,6 @@ async function loadDeal(staff: Staff, id: string) {
   return deal;
 }
 
-function revalidateDeal(id?: string, clientId?: string | null) {
-  revalidatePath("/admin/deals");
-  if (id) revalidatePath(`/admin/deals/${id}`);
-  if (clientId) revalidatePath(`/admin/clients/${clientId}`);
-}
 
 const dealSchema = z.object({
   title: z.string().trim().min(2, "Назовите сделку").max(200),
@@ -135,7 +127,6 @@ export async function createDealAction(_: DealFormState, form: FormData): Promis
   await auditDiscount(staff, { entity: "deal", id: deal.id }, dealPrice(plan, d.source, d.amount), limit, "deal", { number: deal.number });
   // У клиента уже была «пустая» заявка (из чата, звонка, сайта) — она вливается в эту сделку, а не остаётся дублем.
   if (d.amount > 0 || plan) await container().sales.deals.absorbRequests(deal.id, staff.user.id).catch((err) => console.error("[deals] absorb", err));
-  revalidateDeal(deal.id, deal.clientId);
   redirect(`/admin/deals/${deal.id}`);
 }
 
@@ -179,7 +170,6 @@ export async function updateDealAction(_: DealFormState, form: FormData): Promis
     throw err;
   }
   await auditDiscount(staff, { entity: "deal", id: deal.id }, price, limit, "budget", { number: deal.number, from: deal.amount });
-  revalidateDeal(deal.id, deal.clientId);
   return { ok: "Сохранено" };
 }
 
@@ -208,7 +198,6 @@ export async function setDealAgreedPlanAction(dealId: string, plan: string | nul
   await container().sales.deals.note(deal, `Тариф договорённости: ${before ?? "не указан"} → ${value ?? "не указан"}`, staff.user.id, "system");
   await audit(staff, "deal.plan", "deal", deal.id, { from: before, to: value });
   if (before !== value) await auditDiscount(staff, { entity: "deal", id: deal.id }, changed.price, limit, "plan", { number: deal.number, from: before });
-  revalidateDeal(deal.id, deal.clientId);
   return { ok: true };
 }
 
@@ -221,7 +210,6 @@ export async function setDealAgreedGiftsAction(dealId: string, gifts: string[]):
   const value = plan ? giftsForPlan(plan, readGifts(gifts)) : readGifts(gifts);
   if (!(await container().sales.changeAgreedGifts(deal.id, value, staff.user.id))) return { ok: false, message: "Не удалось сохранить" };
   await audit(staff, "deal.gifts", "deal", deal.id, { gifts: value });
-  revalidateDeal(deal.id, deal.clientId);
   return { ok: true };
 }
 
@@ -230,7 +218,6 @@ async function acceptDeal(staff: Staff, deal: { id: string; clientId: string | n
   const accepted = await container().sales.deals.acceptByStaff(deal.id, staff.user.id);
   if (!accepted) return;
   await container().messaging.chats.assignDealConversations(deal.id, accepted.assigneeId ?? staff.user.id);
-  revalidateDeal(deal.id, deal.clientId);
 }
 
 export async function moveDealAction(dealId: string, stageId: string, lostReason?: string): Promise<DealActionResult> {
@@ -248,7 +235,6 @@ export async function moveDealAction(dealId: string, stageId: string, lostReason
     await container().sales.deals.move(deal.id, stage.id, staff.user.id, lostReason?.trim().slice(0, 200));
     // Ничью сделку двигает только руководитель — она становится его (менеджеры ничьи себе не берут).
     if (!deal.assigneeId) await container().sales.deals.assign(deal.id, staff.user.id);
-    revalidateDeal(deal.id, deal.clientId);
     return { ok: true };
   });
 }
@@ -267,7 +253,6 @@ export async function assignDealAction(dealId: string, assigneeId: string | null
     }
     await container().sales.deals.assign(deal.id, next);
     if (next !== deal.assigneeId) await audit(staff, "deal.assign", "deal", deal.id, { number: deal.number, from: deal.assigneeId, to: next });
-    revalidateDeal(deal.id, deal.clientId);
     return { ok: true };
   });
 }
@@ -286,7 +271,6 @@ export async function deleteDealAction(dealId: string): Promise<{ error: string 
     throw err;
   }
   await audit(staff, "deal.delete", "deal", deal.id, { number: deal.number, title: deal.title, amount: deal.amount });
-  revalidateDeal(undefined, deal.clientId);
   redirect("/admin/deals");
 }
 
@@ -299,7 +283,6 @@ export async function linkDealClientAction(dealId: string, clientId: string | nu
     const client = clientId ? await visibleClient(staff, uuid.parse(clientId)) : null;
     if (clientId && !client) return { ok: false, message: "Клиент не найден" };
     await container().sales.deals.linkClient(deal.id, client?.id ?? null);
-    revalidateDeal(deal.id, client?.id ?? deal.clientId);
     return { ok: true };
   });
 }
@@ -321,8 +304,6 @@ export async function saveStageAction(_: DealFormState, form: FormData): Promise
   const { id, name, color } = parsed.data;
   await container().sales.pipelines.saveStage({ id: id || null, pipelineId: parsed.data.pipelineId || null, name, color, milestone: parsed.data.milestone || null });
   await audit(staff, "settings.update", "stage", id || null, { name });
-  revalidatePath("/admin/deals");
-  revalidatePath("/admin/deals/stages");
   return { ok: "Сохранено" };
 }
 
@@ -348,15 +329,12 @@ export async function saveEntryStageAction(group: string, stageId: string): Prom
   else delete map[group];
   await saveSettings({ "crm.entryStages": JSON.stringify(map) }, staff.user.id);
   await audit(staff, "settings.update", "settings", "crm.entryStages", { group, stageId });
-  revalidatePath("/admin/deals/stages");
   return { ok: true };
 }
 
 export async function moveStageAction(id: string, dir: -1 | 1) {
   await assertStaff("settings.manage");
   await container().sales.pipelines.moveStage(uuid.parse(id), dir);
-  revalidatePath("/admin/deals");
-  revalidatePath("/admin/deals/stages");
 }
 
 export async function deleteStageAction(id: string) {
@@ -364,8 +342,6 @@ export async function deleteStageAction(id: string) {
   const stage = await container().sales.pipelines.deleteStage(uuid.parse(id));
   if (!stage) return;
   await audit(staff, "settings.update", "stage", stage.id, { deleted: stage.name });
-  revalidatePath("/admin/deals");
-  revalidatePath("/admin/deals/stages");
 }
 
 // ─── неразобранное и дубли ─────────────────────────────────────────────────
@@ -392,7 +368,6 @@ export async function rejectDealAction(dealId: string, spam: boolean, reason = "
     await container().sales.deals.requestRejection(deal.id, spam ? "spam" : "reject", staff.user.id, why);
     await audit(staff, spam ? "deal.spam_request" : "deal.reject_request", "deal", deal.id, { number: deal.number, title: deal.title, reason: why });
     await staffNotifier.notifyAllWith("deals.delete", { kind: "deal", title: `${spam ? "Спам?" : "Отклонить?"} Заявка Д${deal.number}`, body: `${staffLabel(staff.user)} предлагает ${spam ? "отметить спамом" : "отклонить"}: ${deal.title}${why ? ` — ${why}` : ""}`, link: `/admin/deals/${deal.id}` });
-    revalidateDeal(deal.id, deal.clientId);
     return { requested: true, message: "Отправлено руководителю — заявка останется у вас, пока он не решит" };
   }
   if (spam) await container().messaging.chats.blockDealContacts(deal.id, deal.contactPhone, staff.user.id);
@@ -400,7 +375,6 @@ export async function rejectDealAction(dealId: string, spam: boolean, reason = "
   const result = await container().sales.deals.reject(deal.id, { kind: spam ? "spam" : "reject", reason: why, actorId: staff.user.id });
   const kept = result?.deleted === false ? result.kept : null;
   await audit(staff, spam ? "deal.spam" : "deal.reject", "deal", deal.id, { number: deal.number, title: deal.title, phone: deal.contactPhone, reason: why, ...(kept ? { kept } : {}) });
-  revalidateDeal(kept ? deal.id : undefined, deal.clientId);
   if (kept) return { requested: false, deleted: false, message: `${spam ? "Номер в спаме. " : ""}Заявка не удалена (${kept}) — закрыта «отказом»` };
   return { requested: false, deleted: true, message: spam ? "Номер в спаме, заявка удалена" : "Заявка отклонена" };
 }
@@ -412,7 +386,6 @@ export async function declineRejectionAction(dealId: string) {
   await container().sales.deals.declineRejection(deal.id, staff.user.id);
   await audit(staff, "deal.request_declined", "deal", deal.id, { number: deal.number });
   if (deal.assigneeId) await notify([deal.assigneeId], { kind: "deal", title: `Заявка Д${deal.number} остаётся в работе`, body: "Руководитель не стал её отклонять — ответьте клиенту", link: `/admin/deals/${deal.id}` });
-  revalidateDeal(deal.id, deal.clientId);
 }
 
 /** Снимок сделки для журнала — без контактов: журнал могут видеть роли, которым номера клиентов скрыты (номер дубля и так становится доп. номером целевой). */
@@ -436,7 +409,6 @@ export async function mergeDealAction(targetId: string, sourceId: string): Promi
     return { error };
   }
   await audit(staff, "deal.merge", "deal", target.id, { merged: source.number, title: source.title, before: { target: mergeSnapshot(before.target), source: mergeSnapshot(before.source) } });
-  revalidateDeal(target.id, target.clientId);
 }
 
 /** Убрать номер из стоп-листа (ошибочно отклонили как спам или клиент снова согласен на сообщения). */
@@ -444,7 +416,6 @@ export async function unblockAction(value: string) {
   const staff = await assertStaff("settings.manage");
   await container().messaging.chats.unblock(z.string().min(1).max(100).parse(value));
   await audit(staff, "settings.update", "blocklist", value, { removed: true });
-  revalidatePath("/admin/settings");
 }
 
 const blocklistInput = z.object({ phone: z.string().max(40), reason: z.enum(["spam", "no_marketing"]), note: z.string().trim().max(300).default("") });
@@ -459,7 +430,6 @@ export async function addBlocklistAction(input: z.input<typeof blocklistInput>):
   if (phone.length < 10 || phone.length > 15) return { ok: false, message: admin.blocklistPhoneInvalid };
   await container().messaging.chats.blockPhone(phone, reason, staff.user.id, note || null);
   await audit(staff, "settings.update", "blocklist", phone, { added: reason, ...(note ? { note } : {}) });
-  revalidatePath("/admin/settings");
   return { ok: true, message: reason === "spam" ? "Номер в спаме" : "Номер в стоп-листе: первыми не пишем" };
 }
 
@@ -472,7 +442,6 @@ export async function createPipelineAction(_: DealFormState, form: FormData): Pr
   if (!name.success) return { error: name.error.issues[0].message };
   const p = await container().sales.pipelines.createPipeline(name.data);
   await audit(staff, "settings.update", "pipeline", p.id, { created: p.name });
-  revalidatePath("/admin/deals");
   redirect(`/admin/deals/stages?p=${p.id}`);
 }
 
@@ -481,8 +450,6 @@ export async function renamePipelineAction(id: string, name: string) {
   const clean = z.string().trim().min(2).max(40).parse(name);
   await container().sales.pipelines.renamePipeline(uuid.parse(id), clean);
   await audit(staff, "settings.update", "pipeline", id, { name: clean });
-  revalidatePath("/admin/deals");
-  revalidatePath("/admin/deals/stages");
 }
 
 export async function deletePipelineAction(id: string) {
@@ -490,7 +457,6 @@ export async function deletePipelineAction(id: string) {
   const pid = uuid.parse(id);
   await container().sales.pipelines.deletePipeline(pid);
   await audit(staff, "settings.update", "pipeline", pid, { deleted: true });
-  revalidatePath("/admin/deals");
   redirect("/admin/deals/stages");
 }
 
@@ -501,7 +467,6 @@ export async function movePipelineAction(dealId: string, pipelineId: string) {
   const first = await container().sales.deals.stageOfKind("open", uuid.parse(pipelineId));
   if (!first) throw new Error("В воронке нет этапов «в работе»");
   await container().sales.deals.move(deal.id, first.id, staff.user.id);
-  revalidateDeal(deal.id, deal.clientId);
 }
 
 // ─── массовые действия и сохранённые фильтры ───────────────────────────────
@@ -569,7 +534,6 @@ export async function bulkDealsAction(ids: string[], input: z.input<typeof bulkS
       body: `Д${handed.slice(0, 10).map((d) => d.number).join(", Д")}${handed.length > 10 ? " и другие" : ""} — передал(а) ${staffLabel(staff.user)}`,
       link: handed.length === 1 ? `/admin/deals/${handed[0].id}` : "/admin/deals?mine=1&view=list",
     });
-  revalidatePath("/admin/deals");
   return { done, skipped };
 }
 
@@ -581,7 +545,6 @@ export async function saveViewAction(name: string, query: string, shared: boolea
   const allowed = new URLSearchParams();
   for (const [k, v] of params) if (/^(mine|a|src|q|view|p|task|stale|cf_[a-z0-9_]+)$/.test(k) && v) allowed.set(k, v.slice(0, 100));
   await container().sales.savedViews.add({ userId: staff.user.id, name: clean, query: allowed.toString(), shared: shared && staff.scope === "all" });
-  revalidatePath("/admin/deals");
 }
 
 export async function deleteViewAction(id: string) {
@@ -590,7 +553,6 @@ export async function deleteViewAction(id: string) {
   if (!view) return;
   if (view.userId !== staff.user.id && !can(staff, "settings.manage")) throw new ForbiddenError();
   await container().sales.savedViews.delete(view.id);
-  revalidatePath("/admin/deals");
 }
 
 // ─── клиент из сделки ──────────────────────────────────────────────────────
@@ -633,7 +595,6 @@ export async function createClientFromDealAction(dealId: string, _: ClientFromDe
     throw err;
   }
   await audit(staff, "client.create", "client", account.clientId, { deal: deal.number, channel: d.channel, fromDeal: true });
-  revalidateDeal(deal.id, account.clientId);
   const loginUrl = `${env.appUrl}${localizePath("/login", d.locale)}`;
   return { done: { clientId: account.clientId, loginText: staffLogin(account.login, can(staff, "clients.contacts")), password, message: accessMessage({ name: d.name, login: account.login, password, loginUrl, locale: d.locale, hideLogin: !can(staff, "clients.contacts") }) } };
 }
@@ -668,7 +629,6 @@ export async function saveStageOrderAction(input: z.input<typeof stageOrderSchem
   const before = await getSetting("crm.stageOrder");
   await saveSettings({ "crm.stageOrder": JSON.stringify(next) }, staff.user.id);
   await audit(staff, "settings.update", "settings", "crm.stageOrder", { from: before, to: next });
-  revalidatePath("/admin/deals/stages");
   return { ok: true };
 }
 
@@ -688,7 +648,6 @@ export async function saveAiFlagAction(key: string, on: boolean): Promise<{ ok?:
   const before = await getSetting(key);
   await saveSettings({ [key]: value }, staff.user.id);
   await audit(staff, "settings.update", "settings", key, { from: before, to: value });
-  revalidatePath("/admin/deals/stages");
   return { ok: true };
 }
 
@@ -701,6 +660,5 @@ export async function saveStaffChatNamesAction(names: Record<string, string>): P
   const before = await getSetting("crm.staffChatNames");
   await saveSettings({ "crm.staffChatNames": JSON.stringify(Object.fromEntries(Object.entries(next).map(([id, list]) => [id, list.join(", ")]))) }, staff.user.id);
   await audit(staff, "settings.update", "settings", "crm.staffChatNames", { from: before, to: next });
-  revalidatePath("/admin/deals/stages");
   return { ok: true };
 }

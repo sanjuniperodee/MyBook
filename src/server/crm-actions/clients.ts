@@ -1,6 +1,3 @@
-"use server";
-
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { uuid } from "@/server/input";
 import { assertStaff, audit, canSeeAssigned } from "@/server/access";
@@ -33,8 +30,6 @@ export async function repeatSaleAction(clientIds: string[], input: z.input<typeo
   const d = parsed.data;
   const res = await repeatSale(deps, { clientIds: ids.data, title: d.title, text: d.text, textKk: d.textKk, tag: d.tag || undefined, actorId: staff.user.id });
   await audit(staff, "client.repeat_sale", "client", null, { title: d.title, tag: d.tag ?? null, selected: ids.data.length, ...res });
-  revalidatePath("/admin/clients");
-  revalidatePath("/admin/deals");
   const skipped = [res.skipped.noMarketing ? `просили не писать первым: ${res.skipped.noMarketing}` : null, res.skipped.openDeal ? `уже в работе: ${res.skipped.openDeal}` : null, res.skipped.notFound ? `не найдены: ${res.skipped.notFound}` : null].filter(Boolean);
   return { ok: true, message: `Сделок заведено: ${res.created}${skipped.length ? ` · пропущено — ${skipped.join(", ")}` : ""}` };
 }

@@ -1,6 +1,3 @@
-"use server";
-
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { uuid } from "@/server/input";
 import { assertStaff, assertVisible, audit, can, canWork, type Staff } from "@/server/access";
@@ -29,8 +26,6 @@ export async function reviewDealPaymentAction(paymentId: string): Promise<Financ
   const p = await sales.payments.review(id, staff.user.id);
   if (!p) return { error: "Платёж не найден, онлайн или уже проверен" };
   await audit(staff, "payment.review", "deal", p.dealId, { payment: p.id, amount: p.amount, kind: p.kind });
-  revalidatePath("/admin/finance");
-  revalidatePath(`/admin/deals/${p.dealId}`);
   return { ok: "Отмечено: проверено" };
 }
 
@@ -82,7 +77,6 @@ export async function resolveFinanceIssueAction(key: string, amount: number, not
   });
   if (!saved) return { error: "Случай уже отмечен решённым" };
   await audit(staff, "finance.issue_resolve", issueEntity(issue.key), issue.key.slice(3), { resolution: saved.id, key: issue.key, kind: issue.kind, amount: issue.amount, note: text.data });
-  revalidatePath("/admin/finance");
   return { ok: "Отмечено решённым" };
 }
 
@@ -98,6 +92,5 @@ export async function undoFinanceResolutionAction(resolutionId: string): Promise
   const undone = await store.undo(found.id, staff.user.id, new Date());
   if (!undone) return { error: "Решение уже отменено" };
   await audit(staff, "finance.issue_unresolve", issueEntity(found.key), found.key.slice(3), { resolution: found.id, key: found.key, amount: found.amount });
-  revalidatePath("/admin/finance");
   return { ok: "Решение отменено" };
 }

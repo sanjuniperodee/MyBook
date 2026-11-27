@@ -1,7 +1,4 @@
-"use server";
-
 import { localeMeta, type Locale, locales } from "@/i18n/config";
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { env } from "@/config/env";
 import { getPlan, getVisiblePlans } from "@/config/site";
@@ -237,8 +234,6 @@ export async function issueInvoiceAction(raw: z.input<typeof schema>): Promise<I
   await audit(staff, "invoice.issue", "deal", deal.id, { invoice: invoice.label, amount: d.amount, agreed: d.agreedTotal, count: d.count, plan: d.plan, gifts: invoice.snapshot().gifts, phone: phone ? phoneTail(phone) : null, kaspiPush: push ? push.ok : null });
   const listPrice = getPlan(d.plan)?.price ?? 0;
   if (before.plan !== d.plan || before.amount !== d.agreedTotal) await auditDiscount(staff, { entity: "deal", id: deal.id }, { plan: d.plan, listPrice, price: d.agreedTotal, percent: DiscountPolicy.percent(listPrice, d.agreedTotal) }, limit, "invoice", { number: deal.number, invoice: invoice.label });
-  revalidatePath(`/admin/deals/${deal.id}`);
-  revalidatePath("/admin/chats");
   const message = sent ? `Счёт ${invoice.label} отправлен клиенту` : conv ? `Счёт ${invoice.label} создан, но сообщение не ушло — скопируйте ссылку` : `Счёт ${invoice.label} создан — отправьте ссылку клиенту`;
   return { ok: true, message: push && !push.ok ? `${message}. ${push.message}` : message, link, text, sent };
 }
@@ -258,8 +253,6 @@ export async function cancelInvoiceAction(id: string): Promise<{ ok: boolean; me
   const done = await container().ordering.invoices.cancel(invoice.id, `отменил ${staff.user.email}`);
   if (!done) return { ok: false, message: "Счёт уже не ждёт оплаты" };
   await audit(staff, "invoice.cancel", "deal", deal.id, { invoice: invoice.label });
-  revalidatePath(`/admin/deals/${deal.id}`);
-  revalidatePath("/admin/chats");
   return { ok: true, message: `Счёт ${invoice.label} отменён` };
 }
 
@@ -275,7 +268,6 @@ export async function resendInvoiceAction(id: string): Promise<InvoiceResult> {
   if (!convId) return { ok: true, message: "У счёта нет диалога — скопируйте ссылку", link, text, sent: false };
   const msg = await container().messaging.chats.send(convId, text, staff.user.id);
   await audit(staff, "invoice.resend", "deal", deal.id, { invoice: invoice.label });
-  revalidatePath("/admin/chats");
   return { ok: true, message: msg.status === "error" ? "Сообщение не ушло — скопируйте ссылку" : "Отправлено ещё раз", link, text, sent: msg.status !== "error" };
 }
 
@@ -350,7 +342,5 @@ export async function resendInvoiceAccessAction(raw: { invoiceId: string; userId
   if (userId && !(await clientAccount(staff, userId))) return { ok: false, message: "Клиент не найден" };
   await container().ordering.invoices.setAccess(invoice.id, "due", userId ?? undefined);
   await audit(staff, "invoice.access", "deal", deal.id, { invoice: invoice.label, before: s.accessStatus, user: userId });
-  revalidatePath(`/admin/deals/${deal.id}`);
-  revalidatePath("/admin/chats");
   return { ok: true, message: userId ? "Доступ отправится выбранному клиенту в течение минуты" : "Доступ отправится ещё раз в течение минуты" };
 }

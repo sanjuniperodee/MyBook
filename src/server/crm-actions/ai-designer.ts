@@ -1,6 +1,3 @@
-"use server";
-
-import { revalidatePath } from "next/cache";
 import { DESIGN_AI_FREE_LIMIT_MAX, DESIGN_MODEL_TIERS, DESIGN_SCENARIOS, type DesignModelTier } from "@/lib/book/design-ai";
 import { saveSettings } from "@/modules/workspace";
 import { assertStaff, audit } from "@/server/access";
@@ -29,7 +26,6 @@ export async function saveFreeLimitAction(_: AiDesignerState, form: FormData): P
   const before = await designAiFreeLimit();
   await saveSettings({ "designAi.freeLimit": String(n) }, staff.user.id);
   await audit(staff, "designAi.freeLimit", "settings", "designAi.freeLimit", { before, after: n });
-  revalidatePath("/admin/ai-designer");
   return { ok: n === 0 ? "Бесплатных запросов больше нет — только купленные." : `Готово: ${n} бесплатных запросов на клиента.` };
 }
 
@@ -43,7 +39,6 @@ export async function grantCreditsAction(_: AiDesignerState, form: FormData): Pr
   if (n === null || n < 1 || n > MAX_GRANT) return { error: `От 1 до ${MAX_GRANT}` };
   await addDesignAiCredits(userId, n);
   await audit(staff, "designAi.grant", "user", userId, { requests: n });
-  revalidatePath("/admin/ai-designer");
   return { ok: `+${n}` };
 }
 
@@ -67,6 +62,5 @@ export async function saveDesignerSettingsAction(_: AiDesignerState, form: FormD
   }
   await saveSettings(values as never, staff.user.id);
   await audit(staff, "designAi.settings", "settings", "designAi", values);
-  revalidatePath("/admin/ai-designer");
   return { ok: "Сохранено — действует со следующего запроса." };
 }

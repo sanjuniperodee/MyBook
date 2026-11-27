@@ -2,6 +2,6 @@
   "$comment": "Храповик tests/legacy-ratchet.test.ts (docs/refactor/legacy-removal-plan.md, этап 0): числа только уменьшаются.",
   "serverFiles": 205,
   "serverImporters": 36,
-  "nextImporters": 91,
-  "useServer": 38
+  "nextImporters": 56,
+  "useServer": 0
 }

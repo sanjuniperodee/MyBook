@@ -1,7 +1,4 @@
-"use server";
-
 import { locales, localizePath } from "@/i18n/config";
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { uuid } from "@/server/input";
 import { env } from "@/config/env";
@@ -134,8 +131,6 @@ export async function createClientAction(_: NewClientState, form: FormData): Pro
 
   await audit(staff, "client.create", "client", account.id, { phone: normalizePhone(d.phone), deal: deal?.number ?? null, deals: parts.map((p) => p.dealNumber), count: withDeal ? d.count : 0, agreed: d.agreed, prepaid: d.prepaid, channel, plan: withDeal ? d.plan : null });
   if (withDeal && plan) await auditDiscount(staff, { entity: "client", id: account.id }, { plan: plan.id, listPrice: plan.price, price: d.agreed, percent: DiscountPolicy.percent(plan.price, d.agreed) }, limit, "client", { deals: parts.map((p) => p.dealNumber) });
-  revalidatePath("/admin/clients");
-  revalidatePath("/admin/deals");
   const loginUrl = `${env.appUrl}${localizePath("/login", d.locale)}`;
   return {
     done: {
@@ -245,7 +240,5 @@ export async function createClientDealsAction(_: ClientDealsState, form: FormDat
   const { parts, tasks } = added;
   await audit(staff, "client.deals", "client", client.id, { deals: parts.map((p) => p.dealNumber), count: d.count, agreed: d.agreed, prepaid: d.prepaid, plan: d.plan, gifts: giftsFromForm(values) });
   if (plan) await auditDiscount(staff, { entity: "client", id: client.id }, { plan: plan.id, listPrice: plan.price, price: d.agreed, percent: DiscountPolicy.percent(plan.price, d.agreed) }, limit, "client_deals", { deals: parts.map((p) => p.dealNumber) });
-  revalidatePath("/admin/deals");
-  revalidatePath(`/admin/clients/${client.id}`);
   return { done: { clientId: client.id, clientName: client.name || client.email, parts, count: d.count, agreed: d.agreed, prepaid: d.prepaid, remainder: Math.max(0, d.agreed * d.count - d.prepaid), tasks } };
 }

@@ -1,6 +1,3 @@
-"use server";
-
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { uuid } from "@/server/input";
 import { container } from "@/server/container";
@@ -92,7 +89,6 @@ export async function saveAutomationAction(input: AutomationInput): Promise<{ ok
   const d = parsed.data;
   await container().automation.rules.save({ id: d.id ?? null, name: d.name, trigger: d.trigger, conditions: d.conditions, actions: d.actions, active: d.active });
   await audit(staff, "automation.save", "automation", d.id ?? null, { name: d.name, trigger: d.trigger });
-  revalidatePath("/admin/automations");
   return { ok: true, message: "Правило сохранено" };
 }
 
@@ -100,7 +96,6 @@ export async function toggleAutomationAction(id: string, active: boolean) {
   const staff = await assertStaff("settings.manage");
   await container().automation.rules.setActive(uuid.parse(id), active);
   await audit(staff, "automation.save", "automation", id, { active });
-  revalidatePath("/admin/automations");
 }
 
 const retryRefusal: Record<Exclude<RetryResult, "ok">, string> = {
@@ -115,7 +110,6 @@ export async function retryAutomationRunAction(runId: string): Promise<{ ok: boo
   const res = await container().automation.engine.retry(uuid.parse(runId));
   if (res !== "ok") return { ok: false, message: retryRefusal[res] };
   await audit(staff, "automation.save", "automation", runId, { retry: true });
-  revalidatePath("/admin/automations");
   return { ok: true, message: "Повторено — итог в журнале" };
 }
 
@@ -123,5 +117,4 @@ export async function deleteAutomationAction(id: string) {
   const staff = await assertStaff("settings.manage");
   const a = await container().automation.rules.delete(uuid.parse(id));
   if (a) await audit(staff, "automation.delete", "automation", id, { name: a.name });
-  revalidatePath("/admin/automations");
 }

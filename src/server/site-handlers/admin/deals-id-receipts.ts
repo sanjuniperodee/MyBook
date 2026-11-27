@@ -1,4 +1,3 @@
-import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { api, apiStaff, HttpError } from "@/server/api";
 import { can, canWork } from "@/server/access";
@@ -37,7 +36,6 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
       actor: { userId: staff.user.id, name: staff.user.name || staff.user.email, seesAll: staff.scope === "all", allTasks: can(staff, "tasks.all") },
     });
     if (!row) throw new HttpError(400, "paymentNotFound");
-    revalidatePath(`/admin/deals/${deal.id}`);
     return NextResponse.json({ receipt: { id: row.id, fileName: row.fileName, amount: row.amount, mime: row.mime, size: row.size, createdAt: row.createdAt } });
   } catch (err) {
     // Тот же чек уже приложен к другому платежу — к какому, в тексте ошибки.

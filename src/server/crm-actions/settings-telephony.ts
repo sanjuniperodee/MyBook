@@ -1,6 +1,3 @@
-"use server";
-
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { assertStaff, audit } from "@/server/access";
 import { ensureToken, saveSettings } from "@/modules/workspace";
@@ -24,6 +21,5 @@ export async function saveTelephonyAction(_: SettingsState, form: FormData): Pro
   );
   if (provider.data === "pbx") await ensureToken("pbx.token");
   await audit(staff, "settings.update", "settings", "telephony", { provider: provider.data });
-  revalidatePath("/admin/settings");
   return { ok: "Сохранено" };
 }

@@ -1,6 +1,3 @@
-"use server";
-
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { assertStaff, audit } from "@/server/access";
 import { saveSettings } from "@/modules/workspace";
@@ -17,6 +14,5 @@ export async function saveTransferAction(_: SettingsState, form: FormData): Prom
   if (digits && !parsed.data.name) return { error: "Укажите имя получателя — клиент сверит его в Kaspi перед переводом" };
   await saveSettings({ "pay.transferPhone": digits, "pay.transferName": parsed.data.name }, staff.user.id);
   await audit(staff, "settings.update", "settings", "transfer", { phone: digits ? `…${digits.slice(-4)}` : "", name: parsed.data.name });
-  revalidatePath("/admin/settings");
   return { ok: digits ? "Сохранено — клиенты видят эти реквизиты" : "Перевод выключен — клиенты платят через Kaspi Pay или картой" };
 }

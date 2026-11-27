@@ -1,6 +1,3 @@
-"use server";
-
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { uuid } from "@/server/input";
 import { container } from "@/server/container";
@@ -30,7 +27,6 @@ export async function saveFieldAction(_: FieldState, form: FormData): Promise<Fi
     throw err;
   }
   await audit(staff, "settings.update", "field", d.id || null, { label: d.label, entity: d.entity });
-  revalidatePath("/admin/deals/fields");
   return { ok: "Сохранено" };
 }
 
@@ -39,5 +35,4 @@ export async function deleteFieldAction(id: string) {
   const staff = await assertStaff("settings.manage");
   const f = await container().workspace.fields.delete(uuid.parse(id));
   if (f) await audit(staff, "settings.update", "field", id, { deleted: f.label });
-  revalidatePath("/admin/deals/fields");
 }

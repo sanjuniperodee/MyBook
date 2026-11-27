@@ -1,4 +1,3 @@
-import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { api, apiStaff, HttpError } from "@/server/api";
@@ -62,8 +61,6 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
     receipt: !!receipt,
     note: result.payment.note,
   });
-  revalidatePath(`/admin/orders/${id}`);
-  revalidatePath("/admin/finance");
   return NextResponse.json({
     payment: { id: result.payment.id, amount: result.payment.amount },
     refundable: result.refundable,

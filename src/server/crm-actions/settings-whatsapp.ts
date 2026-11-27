@@ -1,6 +1,3 @@
-"use server";
-
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { GowaError, RULE_DAILY_LIMIT_MAX } from "@/modules/messaging";
 import { saveSettings } from "@/modules/workspace";
@@ -48,7 +45,6 @@ export async function saveWhatsappSettingsAction(input: z.input<typeof settingsS
     staff.user.id,
   );
   await audit(staff, "settings.update", "settings", "whatsapp", { provider, baseUrl, callbackUrl });
-  revalidatePath("/admin/settings");
   if (provider !== "gowa") return { ok: true, warning: null };
   try {
     await container().messaging.connectGowa();
@@ -82,7 +78,6 @@ export async function saveWhatsappCallsAction(enabled: boolean): Promise<Result<
       warning ??= `Включено, но шлюз не подключён: ${gowaError(err).error}`;
     }
   }
-  revalidatePath("/admin", "layout");
   return { ok: true, warning };
 }
 
@@ -101,7 +96,6 @@ export async function saveRuleSendingAction(input: z.input<typeof ruleSendingSch
   const { from, to, dailyLimit } = parsed.data;
   await saveSettings({ "whatsapp.rulesWindow": JSON.stringify({ from, to }), "whatsapp.rulesDailyLimit": String(dailyLimit) }, staff.user.id);
   await audit(staff, "settings.update", "settings", "whatsapp", { rulesWindow: `${from}–${to}`, rulesDailyLimit: dailyLimit });
-  revalidatePath("/admin/settings");
   return { ok: true };
 }
 
@@ -114,7 +108,6 @@ export async function saveLifecycleChatAction(kinds: string[]): Promise<Result> 
   const list = LIFECYCLE_CHAT_KINDS.filter((k) => z.array(z.string().max(20)).max(10).parse(kinds).includes(k));
   await saveSettings({ "notify.whatsapp": JSON.stringify(list) }, staff.user.id);
   await audit(staff, "settings.update", "settings", "whatsapp", { lifecycleChat: list });
-  revalidatePath("/admin/settings");
   return { ok: true };
 }
 
@@ -156,7 +149,6 @@ export async function gowaLogoutAction(): Promise<Result> {
     return gowaError(err);
   }
   await audit(staff, "settings.update", "settings", "whatsapp", { gowa: "logout" });
-  revalidatePath("/admin/settings");
   return { ok: true };
 }
 
@@ -166,7 +158,6 @@ export async function gowaImportHistoryAction(): Promise<Result<{ chats: number;
   try {
     const r = await container().messaging.importGowaHistory();
     await audit(staff, "settings.update", "settings", "whatsapp", { gowa: "import_history", ...r });
-    revalidatePath("/admin/chats");
     return { ok: true, ...r };
   } catch (err) {
     return gowaError(err);
@@ -181,6 +172,5 @@ export async function saveCallRecordingDaysAction(input: number): Promise<Result
   const days = parsed.data;
   await saveSettings({ "calls.recordingDays": String(days) }, staff.user.id);
   await audit(staff, "settings.update", "settings", "calls.recordingDays", { days });
-  revalidatePath("/admin/settings");
   return { ok: true };
 }

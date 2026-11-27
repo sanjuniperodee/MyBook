@@ -1,6 +1,3 @@
-"use server";
-
-import { revalidatePath } from "next/cache";
 import { assertStaff, audit } from "@/server/access";
 import { BAD_FORM, textForm } from "@/server/input";
 import {
@@ -24,7 +21,6 @@ export interface AiLimitsState {
   ok?: string;
 }
 
-const PAGE = "/admin/ai-limits";
 const isUserId = (v: string) => /^[0-9a-f-]{36}$/i.test(v);
 
 /** Целое из поля формы; "" — пусто (null), иначе число в границах или ошибка. */
@@ -75,7 +71,6 @@ export async function saveGlobalLimitsAction(
     before,
     after: next,
   });
-  revalidatePath(PAGE);
   return {
     ok: "Сохранено — действует со следующего запроса. Если изменили длину окна, счёт в нём начался заново.",
   };
@@ -114,7 +109,6 @@ export async function saveUserLimitsAction(
     after: Object.keys(tools).length ? tools : null,
     note: note || undefined,
   });
-  revalidatePath(PAGE);
   return {
     ok: Object.keys(tools).length
       ? "Сохранено — свои лимиты действуют со следующего запроса."
@@ -134,7 +128,6 @@ export async function clearUserLimitsAction(
   const before = (await userAiOverrides())[userId]?.tools ?? null;
   await saveUserAiOverride(userId, {}, "", staff.user.id);
   await audit(staff, "aiLimits.user", "user", userId, { before, after: null });
-  revalidatePath(PAGE);
   return { ok: "Убрано — у клиента общие лимиты." };
 }
 
@@ -154,6 +147,5 @@ export async function resetUsageAction(
   if (raw && !tool) return { error: BAD_FORM };
   await resetClientAiUsage(userId, tool);
   await audit(staff, "aiLimits.reset", "user", userId, { tool: tool ?? "all" });
-  revalidatePath(PAGE);
   return { ok: "Счётчики обнулены." };
 }

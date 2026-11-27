@@ -1,6 +1,3 @@
-"use server";
-
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { uuid } from "@/server/input";
 import { assertStaff, audit, canSeeAssigned } from "@/server/access";
@@ -24,8 +21,6 @@ const actorOf = (staff: Awaited<ReturnType<typeof assertStaff>>) => ({ userId: s
 async function run(number: number, fn: () => Promise<boolean | null>): Promise<Result> {
   try {
     const notified = await fn();
-    revalidatePath("/admin/support");
-    revalidatePath(`/admin/support/${number}`);
     return { ok: true, notified };
   } catch (err) {
     if (SupportError.is(err)) return { ok: false, error: err.message };

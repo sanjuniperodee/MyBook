@@ -1,6 +1,3 @@
-"use server";
-
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { container } from "@/server/container";
 import { assertStaff, audit } from "@/server/access";
@@ -41,12 +38,6 @@ const expenseSchema = z
   });
 export type ExpenseFormInput = z.input<typeof expenseSchema>;
 
-function refresh() {
-  revalidatePath("/admin/expenses");
-  revalidatePath("/admin/profit");
-  revalidatePath("/admin/leads");
-  revalidatePath("/admin/marketing");
-}
 
 /**
  * Реклама записывается в расходы по каналам маркетинга (по ним считаются стоимость заявки и ROMI), всё остальное — в
@@ -69,7 +60,6 @@ export async function addExpenseAction(input: ExpenseFormInput): Promise<Result>
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
   const saved = await save(parsed.data, staff.user.id);
   await audit(staff, "expense.add", saved.entity, saved.id, { day: parsed.data.day, category: parsed.data.category, amount: parsed.data.amount, title: parsed.data.title });
-  refresh();
   return { ok: true };
 }
 
@@ -85,7 +75,6 @@ export async function updateExpenseAction(id: string, input: ExpenseFormInput): 
   if (!before) return { ok: false, error: "Расход уже удалён — обновите страницу" };
   await expenses.update(before.id, { day: d.day, category: d.category, title: d.title, amount: d.amount, quantity: d.quantity, note: d.note });
   await audit(staff, "expense.update", "expense", before.id, { from: { day: before.day, category: before.category, amount: before.amount, title: before.title }, to: { day: d.day, category: d.category, amount: d.amount, title: d.title } });
-  refresh();
   return { ok: true };
 }
 
@@ -96,7 +85,6 @@ export async function removeExpenseAction(id: string, source: "expense" | "ads")
   const removed = source === "ads" ? await c.marketing.spend.remove(key) : await c.workspace.expenses.remove(key);
   if (!removed) return { ok: false, error: "Расход уже удалён — обновите страницу" };
   await audit(staff, "expense.delete", source === "ads" ? "marketing_spend" : "expense", key, removed);
-  refresh();
   return { ok: true };
 }
 
@@ -126,6 +114,5 @@ export async function importExpensesAction(rows: z.input<typeof importSchema>): 
   await c.workspace.expenses.addMany(rest.map((r) => ({ day: r.day, category: r.category, title: r.title, amount: r.amount, quantity: null, note: "", createdById: staff.user.id })));
   for (const r of ads) await c.marketing.spend.add({ channel: guessAdChannel(r.title), day: r.day, amount: r.amount, note: r.title, createdById: staff.user.id });
   await audit(staff, "expense.import", "expense", null, { rows: parsed.data.length, sum: parsed.data.reduce((s, r) => s + r.amount, 0) });
-  refresh();
   return { ok: true, count: parsed.data.length };
 }

@@ -1,4 +1,3 @@
-import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { api, apiStaff, HttpError } from "@/server/api";
 import { can, canWork } from "@/server/access";
@@ -108,9 +107,6 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
       actor: { userId: staff.user.id, name: staff.user.name || staff.user.email, seesAll: staff.scope === "all", allTasks: can(staff, "tasks.all") },
     });
     if (!refund && !repeated) await c.sales.deals.notePayForm(deal.id, payForm.form).catch((err) => console.error("[deal.payment] форма оплаты сделки не записана, деньги записаны", err));
-    revalidatePath(`/admin/deals/${deal.id}`);
-    revalidatePath("/admin");
-    revalidatePath("/admin/analytics");
     return NextResponse.json({ payment: { id: payment.id, amount: payment.amount, kind: payment.kind, paidAt: payment.paidAt } });
   } catch (err) {
     if (OrderingError.is(err) && err.code === "paymentRule") return NextResponse.json({ error: err.message }, { status: 409 });

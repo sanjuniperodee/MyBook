@@ -1,6 +1,3 @@
-"use server";
-
-import { revalidatePath } from "next/cache";
 import { uuid } from "@/server/input";
 import { assertStaff, audit } from "@/server/access";
 import { container } from "@/server/container";
@@ -12,7 +9,6 @@ export async function resendGiftAction(id: string) {
   const giftId = uuid.parse(id);
   await container().ordering.resendGift(giftId);
   await audit(staff, "gift.resend", "gift", giftId);
-  revalidatePath("/admin/gifts");
 }
 
 export async function cancelGiftAction(id: string) {
@@ -20,5 +16,4 @@ export async function cancelGiftAction(id: string) {
   const giftId = uuid.parse(id);
   await container().ordering.gifts.cancel(giftId);
   await audit(staff, "gift.cancel", "gift", giftId);
-  revalidatePath("/admin/gifts");
 }

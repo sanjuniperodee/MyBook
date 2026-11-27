@@ -1,6 +1,3 @@
-"use server";
-
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { assertStaff, audit } from "@/server/access";
 import { saveSettings } from "@/modules/workspace";
@@ -20,7 +17,5 @@ export async function saveGoogleAction(_: SettingsState, form: FormData): Promis
   const clientId = parsed.data;
   await saveSettings({ ...unlessEnv("google.clientId", clientId), ...secretValue(form, "clientSecret", "google.clientSecret") }, staff.user.id);
   await audit(staff, "settings.update", "settings", "google", { clientId: !!clientId });
-  revalidatePath("/admin/settings");
-  revalidatePath("/admin/tasks/calendar");
   return { ok: "Сохранено. Сотрудники подключают свой календарь в «Задачи → Календарь»." };
 }

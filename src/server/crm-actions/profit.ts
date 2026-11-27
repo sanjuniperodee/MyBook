@@ -1,6 +1,3 @@
-"use server";
-
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { assertStaff, audit } from "@/server/access";
 import { getSetting, saveSettings } from "@/modules/workspace";
@@ -24,7 +21,5 @@ export async function saveFeeRatesAction(input: z.input<typeof ratesSchema>, tax
   // Ноль — «не считать»: пустое значение удаляет ключ настройки.
   await saveSettings({ "finance.fees": JSON.stringify(next), "finance.taxRate": tax ? String(Math.round(tax * 100) / 100) : "" }, staff.user.id);
   await audit(staff, "settings.update", "settings", "finance.fees", { from: before, to: { fees: next, tax } });
-  revalidatePath("/admin/profit");
-  revalidatePath("/admin/sales");
   return { ok: true };
 }

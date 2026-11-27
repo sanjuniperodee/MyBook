@@ -1,6 +1,3 @@
-"use server";
-
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { container } from "@/server/container";
 import { assertStaff, audit } from "@/server/access";
@@ -35,7 +32,6 @@ export async function addSpendAction(input: z.input<typeof spendSchema>): Promis
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
   const id = await container().marketing.spend.add({ ...parsed.data, createdById: staff.user.id });
   await audit(staff, "marketing.spend", "marketing_spend", id, parsed.data);
-  revalidatePath("/admin/marketing");
   return { ok: true };
 }
 
@@ -43,7 +39,6 @@ export async function removeSpendAction(id: string) {
   const staff = await assertStaff("promo.manage");
   const removed = await container().marketing.spend.remove(uuid.parse(id));
   if (removed) await audit(staff, "marketing.spend_delete", "marketing_spend", id, removed);
-  revalidatePath("/admin/marketing");
 }
 
 const utmPart = z
@@ -78,7 +73,6 @@ export async function createLinkAction(_: LinkState, form: FormData): Promise<Li
   if ("error" in created) return { error: created.error };
   const { slug } = created;
   await audit(staff, "link.create", "link", slug, { name: d.name, source: d.utmSource, campaign: d.utmCampaign });
-  revalidatePath("/admin/marketing");
   return { ok: "Ссылка создана", slug };
 }
 
@@ -86,7 +80,6 @@ export async function archiveLinkAction(id: string, archived: boolean) {
   const staff = await assertStaff("promo.manage");
   await container().marketing.service.archiveLink(uuid.parse(id), archived);
   await audit(staff, archived ? "link.archive" : "link.restore", "link", id);
-  revalidatePath("/admin/marketing");
 }
 
 /**
@@ -103,7 +96,5 @@ export async function saveWhatsappNumberAction(_: LinkState, form: FormData): Pr
   const before = await getSetting("crm.whatsappNumber");
   await saveSettings({ "crm.whatsappNumber": number }, staff.user.id);
   await audit(staff, "settings.update", "settings", "crm.whatsappNumber", { from: before, to: number });
-  revalidatePath("/admin/marketing");
-  revalidatePath("/", "layout");
   return { ok: "Сохранено" };
 }

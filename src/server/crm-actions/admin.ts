@@ -1,6 +1,3 @@
-"use server";
-
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { uuid } from "@/server/input";
 import { assertOrderVisible, assertStaff, assertVisible, audit, can, canSeeOrder, ForbiddenError, type Staff } from "@/server/access";
@@ -77,7 +74,6 @@ export async function updateOrderAction(_: AdminState, form: FormData): Promise<
   await assertOrderVisible(staff, orderId);
   const failed = await orderCommand(() => container().ordering.orders.update({ orderId, status, trackingNumber, note }, staffActor(staff)));
   if (failed) return failed;
-  revalidatePath(`/admin/orders/${orderId}`);
   return { ok: "Сохранено" };
 }
 
@@ -86,7 +82,6 @@ export async function saveAdminNoteAction(_: AdminState, form: FormData): Promis
   const orderId = uuid.parse(form.get("orderId"));
   await assertOrderVisible(staff, orderId);
   await container().ordering.orders.saveAdminNote(orderId, String(form.get("adminNote") ?? ""));
-  revalidatePath(`/admin/orders/${orderId}`);
   return { ok: "Заметка сохранена" };
 }
 
@@ -94,7 +89,6 @@ export async function generateFilesAction(orderId: string) {
   const staff = await assertStaff("orders.files");
   await assertOrderVisible(staff, uuid.parse(orderId));
   await container().ordering.orders.regeneratePrintFiles(uuid.parse(orderId), staffActor(staff));
-  revalidatePath(`/admin/orders/${orderId}`);
 }
 
 /** Временно открыть книгу для правок клиентом (например, по просьбе исправить опечатку). */
@@ -102,7 +96,6 @@ export async function toggleBookLockAction(orderId: string) {
   const staff = await assertStaff("orders.edit");
   await assertOrderVisible(staff, uuid.parse(orderId));
   await container().ordering.orders.toggleBookEditing(uuid.parse(orderId), staffActor(staff));
-  revalidatePath(`/admin/orders/${orderId}`);
 }
 
 export async function createPromoAction(_: AdminState, form: FormData): Promise<AdminState> {
@@ -123,7 +116,6 @@ export async function createPromoAction(_: AdminState, form: FormData): Promise<
   const failed = await orderCommand(() => container().ordering.promos.create({ code: d.code, kind: d.kind, value: d.value, maxUses: d.maxUses ?? null, expiresOn: d.expiresAt ?? null, note: d.note ?? "" }));
   if (failed) return failed;
   await audit(staff, "promo.create", "promo", d.code, { kind: d.kind, value: d.value });
-  revalidatePath("/admin/promo");
   return { ok: `Промокод ${d.code} создан` };
 }
 
@@ -131,7 +123,6 @@ export async function togglePromoAction(id: string) {
   const staff = await assertStaff("promo.manage");
   const promo = await container().ordering.promos.toggle(uuid.parse(id));
   await audit(staff, promo.active ? "promo.enable" : "promo.disable", "promo", promo.code);
-  revalidatePath("/admin/promo");
 }
 
 // ─── CRM: заказы ────────────────────────────────────────────────────────────
@@ -143,8 +134,6 @@ export async function moveOrderAction(orderId: string, status: string): Promise<
   await assertOrderVisible(staff, uuid.parse(orderId));
   const failed = await orderCommand(() => container().ordering.orders.changeStatus({ orderId: uuid.parse(orderId), to: z.enum(orderStatuses).parse(status) }, staffActor(staff)));
   if (failed) return failed;
-  revalidatePath("/admin/board");
-  revalidatePath("/admin");
   return {};
 }
 
@@ -158,8 +147,6 @@ export async function startPostpayAction(orderId: string, reason: string): Promi
   const failed = await orderCommand(() => container().ordering.payments.startPostpay(id, why.data, staffActor(staff)));
   if (failed) return failed;
   await audit(staff, "order.postpay", "order", id, { reason: why.data });
-  revalidatePath(`/admin/orders/${id}`);
-  revalidatePath("/admin/board");
   return { ok: "Заказ в печати с постоплатой" };
 }
 
@@ -175,8 +162,6 @@ export async function reviewOrderPaymentAction(paymentId: string): Promise<Admin
   const p = await container().ordering.payments.review(found.id, staff.user.id);
   if (!p) return { error: "Оплата не найдена или уже проверена" };
   await audit(staff, "order.payment_review", "order", p.orderId, { payment: p.id, amount: p.amount });
-  revalidatePath(`/admin/orders/${p.orderId}`);
-  revalidatePath("/admin/finance");
   return { ok: "Отмечено: проверено" };
 }
 
@@ -199,9 +184,6 @@ export async function upgradeOrderToPrintedAction(orderId: string, plan: string)
     return { error };
   }
   await audit(staff, "order.upgrade_printed", "order", id, { plan: target.id, due: result.due, credited: result.credited, outstanding: result.outstanding, overpaid: result.overpaid });
-  revalidatePath(`/admin/orders/${id}`);
-  revalidatePath("/admin/finance");
-  revalidatePath("/admin/board");
   const money = (n: number) => `${n.toLocaleString("ru-RU")} ₸`;
   return {
     ok: `Заказ переведён в печатную и оплачен${result.overpaid > 0 ? `, переплата ${money(result.overpaid)} — к возврату` : ""}`,
@@ -229,8 +211,6 @@ export async function bulkStatusAction(orderIds: string[], status: string): Prom
   }
   const skipped = [...reasons.values()].reduce((a, b) => a + b, 0);
   await audit(staff, "order.bulk_status", "order", null, { count: ids.length - skipped, status: s });
-  revalidatePath("/admin/orders");
-  revalidatePath("/admin/board");
   return { count: ids.length - skipped, skipped, reasons: [...reasons].map(([reason, count]) => ({ reason, count })) };
 }
 
@@ -241,8 +221,6 @@ export async function assignOrderAction(orderId: string, assigneeId: string | nu
   if (!(await canSeeOrder(staff, id))) return { error: new ForbiddenError().message };
   const failed = await orderCommand(() => container().ordering.orders.assign(id, assigneeId ? uuid.parse(assigneeId) : null, staffActor(staff)));
   if (failed) return failed;
-  revalidatePath(`/admin/orders/${id}`);
-  revalidatePath("/admin/board");
   return { ok: "Сохранено" };
 }
 
@@ -279,7 +257,6 @@ export async function updateOrderDetailsAction(_: AdminState, form: FormData): P
     ),
   );
   if (failed) return failed;
-  revalidatePath(`/admin/orders/${orderId}`);
   return { ok: "Сохранено" };
 }
 
@@ -341,9 +318,6 @@ export async function changeOrderTermsAction(_: AdminState, form: FormData): Pro
     ...(result.overpaid ? { overpaid: result.overpaid } : {}),
     ...(result.reopened ? { reopened: true, outstanding: result.outstanding } : {}),
   });
-  revalidatePath(`/admin/orders/${orderId}`);
-  revalidatePath("/admin/orders");
-  revalidatePath("/admin/finance");
   const money = (n: number) => `${n.toLocaleString("ru-RU")} ₸`;
   const tail = result.reopened
     ? ` Денег не хватает: заказ ждёт доплату ${money(result.outstanding)}.`
@@ -378,7 +352,6 @@ export async function requestOrderRepriceAction(orderId: string, price: string, 
     link: `/admin/orders/${id}#money`,
   });
   await audit(staff, "order.reprice_request", "order", id, { price: parsed.data.price, reason: parsed.data.reason });
-  revalidatePath(`/admin/orders/${id}`);
   return { ok: "Руководитель получил уведомление со ссылкой на заказ" };
 }
 
@@ -402,21 +375,11 @@ export async function voidOrderPaymentAction(paymentId: string, reason: string):
     return { error };
   }
   await audit(staff, "order.payment_void", "order", found.orderId, { payment: found.id, kind: found.kind, amount: found.amount, reason: why.data, reviewed: !!found.reviewedAt, received: result.received, ...(result.reopened ? { reopened: true } : {}) });
-  revalidatePath(`/admin/orders/${found.orderId}`);
-  revalidatePath("/admin/finance");
-  revalidatePath("/admin/orders");
   return { ok: result.reopened ? `Платёж отменён. Денег не хватает — заказ ждёт ${result.outstanding.toLocaleString("ru-RU")} ₸` : "Платёж отменён" };
 }
 
 // ─── CRM: задачи и заметки ─────────────────────────────────────────────────
 
-function revalidateCrm(clientId?: string | null, orderId?: string | null, dealId?: string | null) {
-  revalidatePath("/admin/tasks");
-  revalidatePath("/admin");
-  if (clientId) revalidatePath(`/admin/clients/${clientId}`);
-  if (orderId) revalidatePath(`/admin/orders/${orderId}`);
-  if (dealId) revalidatePath(`/admin/deals/${dealId}`);
-}
 
 export async function createTaskAction(_: AdminState, form: FormData): Promise<AdminState> {
   const staff = await assertStaff();
@@ -454,15 +417,13 @@ export async function createTaskAction(_: AdminState, form: FormData): Promise<A
     if (ForbiddenError.is(err)) return { error: err.message };
     throw err;
   }
-  let clientId: string | null;
   try {
-    ({ clientId } = await clientsCommand(() => container().clients.tasks.create(crmActor(staff), d)));
+    await clientsCommand(() => container().clients.tasks.create(crmActor(staff), d));
   } catch (err) {
     // Исполнитель отключён или не сотрудник — текстом в форме, как другие ошибки (B12).
     if (ClientsError.is(err) && err.code === "staffNotFound") return { error: err.message };
     throw err;
   }
-  revalidateCrm(clientId, d.orderId, d.dealId);
   return { ok: "Задача добавлена" };
 }
 
@@ -470,8 +431,7 @@ export async function createTaskAction(_: AdminState, form: FormData): Promise<A
 export async function toggleTaskAction(taskId: string): Promise<{ error?: string }> {
   const staff = await assertStaff();
   try {
-    const t = await container().clients.tasks.toggle(crmActor(staff), uuid.parse(taskId));
-    revalidateCrm(t.clientId, t.orderId, t.dealId);
+    await container().clients.tasks.toggle(crmActor(staff), uuid.parse(taskId));
     return {};
   } catch (err) {
     if (ClientsError.is(err)) return { error: err.code === "forbidden" ? admin.taskForbidden : err.message };
@@ -500,7 +460,6 @@ export async function completeTaskAction(taskId: string, raw: { result?: string;
     await clientsCommand(() =>
       container().clients.tasks.create(actor, { title: d.nextTitle!, kind: t.kind, dueAt: d.nextDue || undefined, clientId: t.clientId ?? undefined, dealId: t.dealId ?? undefined, orderId: t.orderId ?? undefined }),
     );
-  revalidateCrm(t.clientId, t.orderId, t.dealId);
   return {};
 }
 
@@ -525,8 +484,7 @@ export async function updateTaskAction(taskId: string, raw: { title?: string; ki
     .safeParse(raw);
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   try {
-    const t = await container().clients.tasks.update(crmActor(staff), uuid.parse(taskId), parsed.data);
-    revalidateCrm(t.clientId, t.orderId, t.dealId);
+    await container().clients.tasks.update(crmActor(staff), uuid.parse(taskId), parsed.data);
     return {};
   } catch (err) {
     if (ClientsError.is(err)) return { error: err.code === "forbidden" ? admin.taskForbidden : err.message };
@@ -540,8 +498,7 @@ export async function snoozeTaskAction(taskId: string, by: string): Promise<{ er
   const how = z.enum(["hour", "tomorrow"]).safeParse(by);
   if (!how.success) return { error: admin.badForm };
   try {
-    const t = await container().clients.tasks.snooze(crmActor(staff), uuid.parse(taskId), how.data);
-    revalidateCrm(t.clientId, t.orderId, t.dealId);
+    await container().clients.tasks.snooze(crmActor(staff), uuid.parse(taskId), how.data);
     return {};
   } catch (err) {
     if (ClientsError.is(err)) return { error: err.code === "forbidden" ? admin.taskForbidden : err.message };
@@ -552,8 +509,7 @@ export async function snoozeTaskAction(taskId: string, by: string): Promise<{ er
 export async function deleteTaskAction(taskId: string): Promise<{ error?: string }> {
   const staff = await assertStaff();
   try {
-    const t = await container().clients.tasks.delete(crmActor(staff), uuid.parse(taskId));
-    if (t) revalidateCrm(t.clientId, t.orderId, t.dealId);
+    await container().clients.tasks.delete(crmActor(staff), uuid.parse(taskId));
     return {};
   } catch (err) {
     if (ClientsError.is(err)) return { error: err.code === "forbidden" ? admin.taskForbidden : err.message };
@@ -579,7 +535,6 @@ export async function addNoteAction(_: AdminState, form: FormData): Promise<Admi
   if (parsed.data.dealId) await guardDeal(staff, parsed.data.dealId);
   if (parsed.data.orderId) await assertOrderVisible(staff, parsed.data.orderId);
   await container().clients.notes.add(crmActor(staff), parsed.data);
-  revalidateCrm(parsed.data.clientId, parsed.data.orderId, parsed.data.dealId);
   return { ok: "Заметка сохранена" };
 }
 
@@ -593,7 +548,6 @@ export async function deleteNoteAction(noteId: string) {
   // Системные записи (звонки, смены этапов) — часть истории, их не удаляем.
   const n = await clientsCommand(() => container().clients.notes.delete(note.id));
   if (n) await audit(staff, "note.delete", "client", n.clientId, { text: n.text.slice(0, 200) });
-  if (n) revalidateCrm(n.clientId, n.orderId, n.dealId);
 }
 
 // ─── CRM: клиенты ───────────────────────────────────────────────────────────
@@ -604,8 +558,6 @@ export async function updateClientTagsAction(clientId: string, tags: string[]) {
   await guardClient(staff, id);
   const clean = await container().clients.clients.setTags(id, z.array(z.string().trim().toLowerCase().min(1).max(30)).max(20).parse(tags));
   await audit(staff, "client.tags", "client", clientId, { tags: clean });
-  revalidatePath(`/admin/clients/${clientId}`);
-  revalidatePath("/admin/clients");
 }
 
 const reminderRefusal: Record<Exclude<ReminderResult, { ok: true }>["reason"], string> = {
@@ -623,8 +575,6 @@ export async function remindClientAction(clientId: string): Promise<{ ok: boolea
   const admin = staff.user;
   await guardClient(staff, uuid.parse(clientId));
   const res = await container().notifications.reminders.send(uuid.parse(clientId), admin.id);
-  revalidatePath(`/admin/clients/${clientId}`);
-  revalidatePath("/admin/books");
   return res.ok ? { ok: true, message: "Напоминание отправлено" } : { ok: false, message: reminderRefusal[res.reason] };
 }
 
@@ -639,8 +589,6 @@ export async function remindManyAction(clientIds: string[]): Promise<{ sent: num
     if (res.ok) sent++;
     else skipped++;
   }
-  revalidatePath("/admin/books");
-  revalidatePath("/admin/clients");
   return { sent, skipped };
 }
 

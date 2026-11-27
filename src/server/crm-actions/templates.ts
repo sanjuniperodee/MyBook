@@ -1,6 +1,3 @@
-"use server";
-
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { container } from "@/server/container";
 import { assertStaff } from "@/server/access";
@@ -13,11 +10,6 @@ const templateSchema = z.object({
 /** Личных шаблонов на сотрудника — чтобы список оставался списком, а не свалкой. */
 const MAX_TEMPLATES = 100;
 
-const refresh = () => {
-  revalidatePath("/admin/templates");
-  revalidatePath("/admin/chats");
-};
-
 /** Создать личный шаблон (id пустой) или изменить свой. */
 export async function saveMyTemplateAction(id: string, title: string, text: string): Promise<{ ok?: true; id?: string; error?: string }> {
   const staff = await assertStaff("chats.view");
@@ -26,19 +18,16 @@ export async function saveMyTemplateAction(id: string, title: string, text: stri
   const repo = container().workspace.personalTemplates;
   if (id) {
     if (!(await repo.update(staff.user.id, uuid.parse(id), parsed.data))) return { error: "Шаблон не найден" };
-    refresh();
     return { ok: true, id };
   }
   if ((await repo.list(staff.user.id)).length >= MAX_TEMPLATES) return { error: `Не больше ${MAX_TEMPLATES} личных шаблонов` };
   const created = await repo.add(staff.user.id, parsed.data);
-  refresh();
   return { ok: true, id: created };
 }
 
 export async function deleteMyTemplateAction(id: string): Promise<{ ok?: true; error?: string }> {
   const staff = await assertStaff("chats.view");
   if (!(await container().workspace.personalTemplates.remove(staff.user.id, uuid.parse(id)))) return { error: "Шаблон не найден" };
-  refresh();
   return { ok: true };
 }
 
@@ -51,7 +40,6 @@ export async function duplicateTemplateAction(id: string): Promise<{ ok?: true; 
   const repo = container().workspace.personalTemplates;
   if ((await repo.list(staff.user.id)).length >= MAX_TEMPLATES) return { error: `Не больше ${MAX_TEMPLATES} личных шаблонов` };
   await repo.add(staff.user.id, { title: `${src.title} (копия)`.slice(0, 60), text: src.text });
-  refresh();
   return { ok: true };
 }
 
@@ -59,6 +47,5 @@ export async function duplicateTemplateAction(id: string): Promise<{ ok?: true; 
 export async function reorderMyTemplatesAction(ids: string[]): Promise<{ ok?: true; error?: string }> {
   const staff = await assertStaff("chats.view");
   await container().workspace.personalTemplates.reorder(staff.user.id, z.array(uuid).max(MAX_TEMPLATES).parse(ids));
-  refresh();
   return { ok: true };
 }
