@@ -165,3 +165,27 @@ describe("admin/security/actions.ts: fail", () => {
     expect(await thrown(newBackupCodesAction("123456"))).toBeInstanceOf(ForbiddenError);
   });
 });
+
+describe("POST /api/v1/auth/login: ошибки входа на языке пользователя", () => {
+  let api: Awaited<ReturnType<typeof routeWebToApi>>;
+  beforeEach(async () => {
+    api = await routeWebToApi();
+    fake.identity.auth = { login: failing(new IdentityError("credentials")) };
+  });
+  const login = async (headers: Record<string, string>) => {
+    const res = await api(new Request("http://127.0.0.1:3044/api/v1/auth/login", { method: "POST", headers: { "content-type": "application/json", "x-real-ip": "10.0.0.1", ...headers }, body: JSON.stringify({ login: "a@b.kz", password: "secret123" }) }));
+    return { status: res.status, error: ((await res.json()) as { error?: string }).error };
+  };
+
+  it("язык из x-mb-locale: неверный пароль — текст словаря auth.errors на казахском", async () => {
+    expect(await login({})).toMatchObject({ error: "Неверный логин или пароль" });
+    expect(await login({ "x-mb-locale": "kk" })).toMatchObject({ error: "Логин немесе құпиясөз қате" });
+  });
+
+  // Известная ошибка (найдена при переносе на Nest, шаг 7 ADR 0014): веб (mybook-web src/web/api.ts) просит язык ответа
+  // заголовком Accept-Language, а API берёт язык только из x-mb-locale и cookie mb_locale — ошибки входа приходят
+  // по-русски и казахскоязычным. Когда API начнёт понимать Accept-Language, it.fails упадёт — замените на it.
+  it.fails("язык из Accept-Language (как просит веб): ошибки входа на казахском", async () => {
+    expect(await login({ "accept-language": "kk" })).toMatchObject({ error: "Логин немесе құпиясөз қате" });
+  });
+});

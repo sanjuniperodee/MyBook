@@ -264,6 +264,65 @@ describe("Доступ к файлам чужого заказа", () => {
   });
 });
 
+// ─── карточка заказа клиента: GET /api/v1/web/orders/{id} ─────────────────
+// Страница /orders/[id] — в mybook-web; права на неё проверяет этот маршрут API (c96f1115: WebOrdersController.staffOf —
+// маршрут с auth: user видит и сотрудника с правом orders.view по правилам «Безопасности»).
+
+/** Заказ клиента u1, как его отдаёт orderDetails: всё, что показывает страница. */
+const orderView = {
+  id: ORDER, number: 101, userId: client.id, bookId: "b1", status: "paid", plan: "hardcover", quantity: 1, createdAt: new Date("2026-10-01T10:00:00Z"),
+  itemsAmount: 24900, discountAmount: 0, promoCode: null, deliveryAmount: 0, addons: [], addonsAmount: 0, prepaidAmount: 0, amount: 24900, currency: "KZT",
+  paymentClaimedAt: null, trackingNumber: null, contactName: "Айжан", contactPhone: "+77010000000", contactEmail: "aizhan@b.kz",
+  deliveryMethod: "courier", city: "Алматы", address: "Абая, 1", postalCode: null, giftNote: null, desiredDate: null, surprise: false, customerComment: null,
+  book: { id: "4a1b2c3d-1111-4222-8333-444444444444", title: "Наша история", subtitle: "", theme: "mom", coverTemplate: "linen", format: "a5", authorName: "Айжан", recipientName: "Марат", hideRecipientOnCover: false, namesOnCover: "both", coverLines: true, coverPhotoId: null, coverPhotoExtra: [] },
+};
+
+describe("Карточка заказа клиента GET /api/v1/web/orders/{id}", () => {
+  let api: Awaited<ReturnType<typeof routeWebToApi>>;
+  beforeEach(async () => {
+    resetRequest({ "x-real-ip": "10.1.2.5" });
+    resetContainer();
+    fake.ordering = { queries: { orderDetails: async (id: string) => (id === orderView.id ? orderView : null) } };
+    fake.feedback = { queries: { byOrder: async () => null } };
+    api = await routeWebToApi();
+  });
+
+  /** Запрос как у веба: сессия — cookie mb_session (signIn), адрес клиента — X-Real-IP своего прокси. */
+  const open = async (ip = "10.1.2.5") => {
+    const session = request.cookies.get("mb_session");
+    request.headers.set("x-real-ip", ip);
+    const res = await api(new Request(`http://127.0.0.1:3044/api/v1/web/orders/${ORDER}?locale=ru`, { headers: { "x-real-ip": ip, ...(session ? { cookie: `mb_session=${session}` } : {}) } }));
+    return { status: res.status, text: res.status === 200 ? JSON.stringify(await res.json()) : "" };
+  };
+
+  it("без входа — 401, чужой клиент — 404, владелец видит заказ и свои контакты", async () => {
+    expect((await open()).status).toBe(401);
+    signIn(person("u2"));
+    expect((await open()).status).toBe(404);
+    signIn(client);
+    const own = await open();
+    expect(own.status).toBe(200);
+    for (const shown of ["Айжан", "+77010000000"]) expect(own.text).toContain(shown);
+  });
+
+  it("чужой заказ с контактами клиента — только сотруднику с orders.view, из разрешённой сети и с обязательной 2FA (V1 закрыт)", async () => {
+    // Менеджер без «Видеть заказы» и сотрудник с правом, но не по правилам «Безопасности» — 404, как чужой клиент.
+    signIn(pavel);
+    expect((await open()).status).toBe(404);
+    security.allowlist = OFFICE;
+    security.require2fa = true;
+    signIn({ ...olga, ...withTwoFactor });
+    expect((await open("8.8.8.8")).status).toBe(404);
+    signIn(olga);
+    expect((await open()).status).toBe(404);
+    // По правилам и с правом — видит заказ клиента с контактами.
+    signIn({ ...olga, ...withTwoFactor });
+    const staff = await open();
+    expect(staff.status).toBe(200);
+    for (const shown of ["Айжан", "+77010000000", "aizhan@b.kz", "Абая, 1"]) expect(staff.text).toContain(shown);
+  });
+});
+
 describe("Фото неопубликованного отзыва /api/reviews/photo/[id]", () => {
   const PHOTO = "0f000000-0000-4000-8000-0000000000a1";
   beforeEach(() => {
