@@ -177,6 +177,11 @@ backend_apply() {
   pm2 save
 }
 
+# Воркер — процесс на Nest (backend-worker.mjs, ADR 0014, шаг 6)? 0 — да.
+worker_is_nest() {
+  node -e 'process.exit(require("./deploy/ecosystem.config.cjs").apps.some((a) => a.name === "mybook-worker" && a.script === "backend-worker.mjs") ? 0 : 1)'
+}
+
 # Воркер жив: online и не перезапускался 15 секунд. 0 — всё хорошо (или воркера в релизе нет).
 check_worker() {
   has_worker || return 0
@@ -275,7 +280,15 @@ if [ "$SITE" = 1 ]; then echo "✓ MyBooks отвечает на localhost:$PORT
 api_apply
 # Без живого воркера стоят сверка Kaspi, бот и почта: тогда возвращаем фон в процесс сайта (запасная копия ещё отвечает).
 # Сайт выключен — фону деться некуда: откат на прежний релиз.
-if ! check_worker; then
+WORKER_OK=1
+check_worker || WORKER_OK=0
+# Воркер на Nest не поднялся — тот же фон прежним worker.mjs из этого же релиза, прежде чем откатывать что-то ещё.
+if [ "$WORKER_OK" = 0 ] && worker_is_nest; then
+  echo "⚠ mybook-worker на Nest не поднялся — запускаю прежний worker.mjs (MYBOOK_WORKER_RUNTIME=legacy). Логи: pm2 logs mybook-worker --nostream --lines 100"
+  MYBOOK_WORKER_RUNTIME=legacy pm2_apply
+  check_worker && WORKER_OK=1
+fi
+if [ "$WORKER_OK" = 0 ]; then
   if [ "$SITE" = 1 ]; then
     echo "✗ mybook-worker не поднялся — фон возвращён в процесс сайта (MYBOOK_WORKER=off). Логи: pm2 logs mybook-worker --nostream --lines 100"
     MYBOOK_WORKER=off pm2_apply

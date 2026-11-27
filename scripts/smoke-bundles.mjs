@@ -24,8 +24,9 @@ function run(file) {
   });
 }
 
-// backend.mjs — бэкенд на Nest (ADR 0014); в релизах до него его нет.
-const results = await Promise.all(["api.mjs", "worker.mjs", "backend.mjs"].filter((f) => f !== "backend.mjs" || existsSync(path.join(DIR, f))).map(run));
+// backend.mjs и backend-worker.mjs — бэкенд и воркер на Nest (ADR 0014); в релизах до них их нет.
+const NEST = ["backend.mjs", "backend-worker.mjs"];
+const results = await Promise.all(["api.mjs", "worker.mjs", ...NEST].filter((f) => !NEST.includes(f) || existsSync(path.join(DIR, f))).map(run));
 for (const r of results) {
   console.log(`${r.file}: ${r.ok ? "запускается" : "НЕ ЗАПУСКАЕТСЯ"}`);
   if (!r.ok) console.log(r.out.split("\n").slice(0, 30).join("\n"));

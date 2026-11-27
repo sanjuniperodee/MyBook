@@ -53,6 +53,14 @@ const allocatorEnv =
 const workerFile = path.join(releasesDir, "current", "worker.mjs");
 const useWorker = process.env.MYBOOK_WORKER !== "off" && fs.existsSync(workerFile);
 
+/**
+ * Тот же фон — процессом на Nest (ADR 0014, шаг 6): <релиз>/backend-worker.mjs, если он есть. Работа одна
+ * (src/worker/run.ts), меняется только каркас процесса. Откат без выкатки — файл-флаг ~/mybook-flags/worker-runtime со
+ * словом legacy (или MYBOOK_WORKER_RUNTIME=legacy) и `pm2 start deploy/ecosystem.config.cjs --only mybook-worker`.
+ * Флаги читаются ниже, после flagsDir.
+ */
+const nestWorkerFile = path.join(releasesDir, "current", "backend-worker.mjs");
+
 const worker = useWorker && {
   name: "mybook-worker",
   cwd: path.join(releasesDir, "current"),
@@ -142,6 +150,9 @@ function readFlag(name) {
   }
 }
 const siteOn = process.env.MYBOOK_SITE !== "off" && readFlag("site") !== "off";
+
+const nestWorker = process.env.MYBOOK_WORKER_RUNTIME !== "legacy" && readFlag("worker-runtime") !== "legacy" && fs.existsSync(nestWorkerFile);
+if (worker && nestWorker) worker.script = "backend-worker.mjs";
 
 module.exports = {
   apps: [
