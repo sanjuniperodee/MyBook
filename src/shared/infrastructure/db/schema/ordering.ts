@@ -81,6 +81,8 @@ export const orders = pgTable(
     layoutApprovedAt: timestamp("layout_approved_at", { withTimezone: true }),
     layoutApprovedFingerprint: text("layout_approved_fingerprint"),
     layoutApprovalRevokedAt: timestamp("layout_approval_revoked_at", { withTimezone: true }),
+    /** Книга напечатана и готова к отправке (этап «Книга готова» на доске заказов); ставит сотрудник, снимается при возврате из печати. */
+    printedAt: timestamp("printed_at", { withTimezone: true }),
     ...timestamps,
   },
   (t) => [

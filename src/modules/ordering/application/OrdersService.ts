@@ -6,7 +6,7 @@ import type { DeliveryId, PlanId } from "@/config/site";
 import { formatPrice, getPlan } from "@/config/site";
 import type { Locale } from "@/i18n/config";
 import { planName } from "@/i18n/labels";
-import { checkoutTerms, Order, OrderingError, type OrderContact, type OrderDelivery, type OrderRepository, type PromoCodeRepository } from "../domain";
+import { checkoutTerms, Order, OrderingError, type OrderContact, type OrderDelivery, type OrderRepository, type ProductionFacts, type PromoCodeRepository } from "../domain";
 import type { AgreementGateway, BookGateway, LayoutSource, PaymentSettings, PeopleGateway, PrintFiles } from "./ports";
 import type { OrderPaymentsService } from "./OrderPaymentsService";
 import type { DealInvoiceLifecycle } from "./DealInvoiceLifecycle";
@@ -218,6 +218,19 @@ export class OrdersService {
       const r = order.changeStatus(cmd.to, actor.label, cmd.note ?? "", now, current);
       if (r.cancelled) await this.afterCancel(order, r.releasePromo);
     });
+  }
+
+  /** «Книга готова» (напечатана, ждёт отправки) — или снять отметку. */
+  async markPrinted(orderId: string, ready: boolean, actor: Actor): Promise<Order> {
+    return this.mutate(orderId, (order, now) => order.markPrinted(ready, actor.label, now));
+  }
+
+  /** Факты для этапа производства (productionStage): статус, согласование, книга открыта для правок, «книга готова». */
+  async productionFacts(orderId: string): Promise<ProductionFacts> {
+    const order = await this.orders.findById(orderId);
+    if (!order) throw new OrderingError("orderNotFound");
+    const a = order.layoutApproval;
+    return { status: order.status, layoutRequired: a.required, layoutApprovedAt: a.approvedAt, bookEditing: (await this.layout.current(order.bookId))?.bookOpen ?? false, printedAt: order.printedAt };
   }
 
   /** Форма заказа в CRM: трек-номер, статус и комментарий одним действием. */

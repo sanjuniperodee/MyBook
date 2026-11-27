@@ -2,6 +2,7 @@ import { z } from "zod";
 import { uuid } from "@/server/input";
 import { assertOrderVisible, assertStaff, assertVisible, audit, can, canSeeOrder, ForbiddenError, type Staff } from "@/server/access";
 import { normalizePromoCode, OrderingError } from "@/modules/ordering";
+import { PRODUCTION_STAGES, productionMove } from "@/modules/ordering/domain/productionStage";
 import { ORDER_STATUSES as orderStatuses } from "@/shared/domain/orders";
 import { ClientsError, type Actor as CrmActor } from "@/modules/clients";
 import type { Actor } from "@/shared/application";
@@ -134,6 +135,31 @@ export async function moveOrderAction(orderId: string, status: string): Promise<
   await assertOrderVisible(staff, uuid.parse(orderId));
   const failed = await orderCommand(() => container().ordering.orders.changeStatus({ orderId: uuid.parse(orderId), to: z.enum(orderStatuses).parse(status) }, staffActor(staff)));
   if (failed) return failed;
+  return {};
+}
+
+/**
+ * Перенос заказа по этапам производства на доске (productionStage): этап выводится из статуса, согласования, правок и
+ * отметки «книга готова», поэтому перенос делает настоящие действия — открыть или закрыть книгу для правок, сменить
+ * статус, отметить «книга готова». Нельзя (клиент не согласовал макет, заказ не оплачен) — текст ошибки.
+ */
+export async function moveOrderStageAction(orderId: string, stage: string): Promise<AdminState> {
+  const staff = await assertStaff("orders.edit");
+  const id = uuid.parse(orderId);
+  await assertOrderVisible(staff, id);
+  const to = z.enum(PRODUCTION_STAGES).parse(stage);
+  const orders = container().ordering.orders;
+  const plan = productionMove(await orders.productionFacts(id), to);
+  if ("refusal" in plan) return { error: plan.refusal };
+  const actor = staffActor(staff);
+  for (const step of plan.steps) {
+    const failed = await orderCommand(async () => {
+      if (step.kind === "status") await orders.changeStatus({ orderId: id, to: step.to }, actor);
+      else if (step.kind === "printed") await orders.markPrinted(id, step.ready, actor);
+      else if ((await orders.productionFacts(id)).bookEditing !== step.open) await orders.toggleBookEditing(id, actor);
+    });
+    if (failed) return failed;
+  }
   return {};
 }
 

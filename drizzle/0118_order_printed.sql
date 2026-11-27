@@ -1,0 +1,1 @@
+ALTER TABLE "orders" ADD COLUMN "printed_at" timestamp with time zone;

@@ -61,6 +61,8 @@ export interface OrderProps {
   receivedAmount: number;
   /** Согласование итогового макета клиентом (layoutApproval.ts). */
   layoutApproval: LayoutApproval;
+  /** Книга напечатана, ждёт отправки (этап «Книга готова»). */
+  printedAt: Date | null;
   createdAt: Date;
 }
 
@@ -154,6 +156,7 @@ export class Order extends AggregateRoot<OrderProps> {
       postpay: false,
       receivedAmount: 0,
       layoutApproval: { required: plan.printed, approvedAt: null, fingerprint: null, revokedAt: null },
+      printedAt: null,
       createdAt: now,
     });
     const promoNote = input.promo ? `, промокод ${input.promo.code} (${input.promo.describe(input.formatMoney)})` : "";
@@ -226,6 +229,22 @@ export class Order extends AggregateRoot<OrderProps> {
   get postpay() {
     return this.props.postpay;
   }
+  get printedAt() {
+    return this.props.printedAt;
+  }
+
+  /**
+   * Книга напечатана (этап «Книга готова»): только заказ в печати; ready = false — снять отметку (ещё печатается).
+   * Возвращает, изменилось ли что-то.
+   */
+  markPrinted(ready: boolean, actor: string, now: Date): boolean {
+    if (this.props.status !== "in_production") throw new OrderingError("invalidTransition", "printed mark is only for an order in production");
+    if (ready === !!this.props.printedAt) return false;
+    this.props.printedAt = ready ? now : null;
+    this.log(null, ready ? "Книга напечатана — готова к отправке" : "Отметка «книга готова» снята — ещё в печати", actor, now);
+    return true;
+  }
+
   get layoutApproval(): LayoutApproval {
     return this.props.layoutApproval;
   }
@@ -346,6 +365,8 @@ export class Order extends AggregateRoot<OrderProps> {
     // В печать — только согласованный клиентом макет (та же проверка, что у печатных файлов).
     if (to === "in_production") this.assertLayoutForPrint(current);
     this.props.status = to;
+    // Вернули из печати назад (оплачен) — книга снова не напечатана.
+    if (to === "paid" || to === "pending_payment") this.props.printedAt = null;
     if (to === "paid" && !this.props.paidAt) this.props.paidAt = now;
     this.log(to, note, actor, now);
     this.record(OrderingEvents.statusChanged({ ...this.ref(), from, to, trackingNumber: this.props.trackingNumber, actor }));

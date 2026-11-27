@@ -1,6 +1,6 @@
 import "server-only";
 import { and, desc, eq, getTableColumns, gte, ilike, inArray, isNull, lt, ne, or, sql, type SQL } from "drizzle-orm";
-import { ordersId } from "@/shared/infrastructure/db/refs";
+import { ordersBookId, ordersId } from "@/shared/infrastructure/db/refs";
 import { ORDER_STATUSES, orderRuleSubject } from "@/shared/domain/orders";
 import { books, crmAutomationRuns, crmAutomations, crmConversations, crmDeals, crmNotes, crmTasks, orders, users } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
@@ -58,7 +58,12 @@ export function orderExport(f: OrderFilters, viewer: Viewer) {
 export function productionBoard(deliveredSince: Date, viewer: Viewer) {
   return executor()
     // Номер сделки заказа на карточке (deals-14): первая по времени сделка с этим заказом — по crm_deals_order_idx.
-    .select({ ...getTableColumns(orders), dealNumber: sql<number | null>`(select d.number from crm_deals d where d.order_id = ${ordersId} order by d.created_at limit 1)` })
+    .select({
+      ...getTableColumns(orders),
+      dealNumber: sql<number | null>`(select d.number from crm_deals d where d.order_id = ${ordersId} order by d.created_at limit 1)`,
+      // Книга открыта для правок — этап «Правки» (productionStage).
+      bookEditing: sql<boolean>`exists (select 1 from books b where b.id = ${ordersBookId} and b.status = 'draft')`,
+    })
     .from(orders)
     .where(and(ne(orders.status, "cancelled"), ne(orders.plan, "digital"), or(ne(orders.status, "delivered"), gte(orders.updatedAt, deliveredSince)), ownClientOrders(viewer)))
     .orderBy(sql`${orders.desiredDate} asc nulls last`, desc(orders.createdAt))

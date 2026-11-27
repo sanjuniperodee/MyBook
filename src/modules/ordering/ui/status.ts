@@ -2,6 +2,7 @@ import type { Locale } from "@/i18n/config";
 import { getPlan } from "@/config/site";
 import { orderStatusFor } from "@/i18n/messages/partial";
 import type { OrderStatus } from "@/shared/domain/orders";
+import type { ProductionStage } from "../domain/productionStage";
 
 /** Подписи статусов по-русски — для CRM. Для клиента — orderStatusLabel(s, locale). */
 export const orderStatusLabels: Record<OrderStatus, string> = orderStatusFor("ru").all;
@@ -62,3 +63,15 @@ export const orderStatusDot: Record<OrderStatus, string> = {
   cancelled: "bg-danger",
 };
 
+
+/** Этапы производства (доска заказов): подпись, подсказка под колонкой и точка — те же статусные токены. */
+export const productionStageLabels: Record<ProductionStage, { label: string; hint: string; dot: string }> = {
+  awaiting_payment: { label: "Ждёт оплаты", hint: "Заказ оформлен, оплаты ещё нет", dot: "bg-warning" },
+  approval: { label: "На согласовании", hint: "Клиент проверяет макет в кабинете", dot: "bg-warning" },
+  revisions: { label: "Правки", hint: "Книга открыта для правок — после них клиент согласует заново", dot: "bg-danger" },
+  queued: { label: "В очереди на печать", hint: "Макет согласован — передайте в типографию", dot: "bg-success" },
+  printing: { label: "В печати", hint: "Книга в типографии", dot: "bg-info" },
+  printed: { label: "Книга готова", hint: "Напечатана — упаковать и отправить", dot: "bg-success" },
+  shipped: { label: "Отправлен", hint: "В пути к клиенту", dot: "bg-info" },
+  delivered: { label: "Получен", hint: "За последний месяц", dot: "bg-muted" },
+};
