@@ -26,11 +26,11 @@ import { naturalLineHeight } from "@/lib/book/fonts";
 import { flowMinLead } from "@/lib/book/typesetting";
 import { ANSWER, CHAPTER_TAIL, DIVIDER, dropCapPlan, HTML_LINE_HEIGHT, QUOTE_MARK, quoteFace, quoteStyle, HEADING, INLINE_ROW, KEEP_WITH_NEXT, MEDIA_CARD, paraAfter, splitInitial, splitLeadIn, VIGNETTE_RULE } from "@/lib/book/typesetting";
 import { chapterHeadSizes } from "@/lib/book/chapter-head";
-import type { PageKit } from "@/components/interior/kit";
-import { metricsOf } from "@/components/interior/kit";
-import { bodySpec, faceSpec, headingSpec, italicSpec, leadSpec, measureWidthPt, textWidthPt } from "@/components/interior/text-specs";
-import { dropCapLayout } from "@/components/interior/drop-cap";
-import type { BreakRequest } from "@/components/interior/line-breaker";
+import type { PageKit } from "@/book-view/interior/kit";
+import { metricsOf } from "@/book-view/interior/kit";
+import { bodySpec, faceSpec, headingSpec, italicSpec, leadSpec, measureWidthPt, textWidthPt } from "@/book-view/interior/text-specs";
+import { dropCapLayout } from "@/book-view/interior/drop-cap";
+import type { BreakRequest } from "@/book-view/interior/line-breaker";
 
 type Item = { p: { width: number; height: number; caption?: string }; style: InlinePhotoStyle };
 

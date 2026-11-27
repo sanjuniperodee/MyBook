@@ -4,8 +4,8 @@ import { MoveVertical } from "lucide-react";
 import type { Messages } from "@/i18n/messages";
 import type { PreviewPhoto } from "@/lib/book/editor-model";
 import type { InlinePhotoStyle } from "@/lib/book/inline-photo";
-import type { PageKit } from "@/components/interior/kit";
-import type { RowItem, RowPhotoBox, RowPhotoLayer } from "@/components/interior/entry";
+import type { PageKit } from "@/book-view/interior/kit";
+import type { RowItem, RowPhotoBox, RowPhotoLayer } from "@/book-view/interior/entry";
 import { MAX_WIDTH, MIN_WIDTH } from "./drag";
 import type { usePhotoDrag } from "./usePhotoDrag";
 

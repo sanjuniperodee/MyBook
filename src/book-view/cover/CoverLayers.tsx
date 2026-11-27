@@ -23,7 +23,7 @@ import {
   type ShapeLayer,
   type TextLayer,
 } from "@/lib/book/cover-design";
-import { ShapeElement } from "@/components/interior/graphics";
+import { ShapeElement } from "@/book-view/interior/graphics";
 
 export interface CoverLayersProps {
   /** Слои лица или оборота. */

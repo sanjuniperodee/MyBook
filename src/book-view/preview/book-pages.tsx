@@ -4,8 +4,8 @@ import type { CSSProperties, RefObject } from "react";
 import type { Messages } from "@/i18n/messages";
 import type { PreviewPagePhoto } from "@/lib/book/editor-model";
 import { openerPhotoPlan } from "@/lib/book/photo-pages";
-import type { PageKit } from "@/components/interior/kit";
-import { OpenerPage, PhotoPage } from "@/components/interior/pages";
+import type { PageKit } from "@/book-view/interior/kit";
+import { OpenerPage, PhotoPage } from "@/book-view/interior/pages";
 import { LazyPage } from "./LazyPage";
 import type { OnPreviewTarget, PreviewTarget } from "./targets";
 
