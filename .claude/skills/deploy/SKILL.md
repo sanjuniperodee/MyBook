@@ -1,132 +1,128 @@
 ---
 name: deploy
-description: Выкатить MyBooks (mybooks.kz) на прод-сервер по SSH — проверки перед пушем, deploy/deploy.sh в фоне с логом, ожидание итога, проверка сайта, откат. Использовать, когда просят «задеплой», «выкати на прод», «обнови сайт», «откати прод», или спрашивают, что сейчас на проде.
+description: Выкатить бэкенд MyBooks (api.mybooks.kz) на прод — пуш в master запускает GitHub Actions, проверка релиза и живого трафика на сервере 185.102.75.191, откат. Использовать, когда просят «задеплой», «выкати на прод», «обнови прод», «откати прод», или спрашивают, что сейчас на проде.
 ---
 
-# Деплой MyBooks на прод
+# Выкатка бэкенда MyBooks на прод
 
-## Доступ
+Навык — про репозиторий **mybook-backend** (API на Nest, воркер, PDF, mybook-files). Сайт и CRM (mybook-web) выкатывает
+Vercel по пушу в `main`, приложения (mybook-mobile) — своим CI; здесь их нет.
+
+## Как устроено (с 19.10, сервер с 20.11)
+
+Пуш в `master` → `.github/workflows/deploy.yml`: на GitHub идут типы, линтер, тесты (5 частей), Go, Dart-клиент, сборка
+(`npm run build` → `build/`), пакет `mybook-shared` для веба; job «Выкатка» ждёт все и запускает `deploy/ci-run.sh`:
+релиз rsync-ом против текущего → код на сервере `git merge --ff-only` → `deploy/deploy.sh --artifact` (smoke на временном
+порту → переключение `current` → перезапуск PM2; не ответил — сам откатывается). Вся выкатка ~4 минуты.
+Выкатки идут по одной (`concurrency: deploy-prod`). Коммит только с `docs/**`, `**/*.md`, `.claude/**` выкатку не запускает.
+
+**Пуш в `master` — только по явному «да» владельца в этом разговоре** (AGENTS.md).
+
+## Доступ к серверу
 
 ```bash
-ssh -i ~/.ssh/bilimland-prod/ssh-key-1778196525864 -o BatchMode=yes -o ConnectTimeout=15 sanjuniperodee@94.131.93.92 '<команда>'
+prod() { ssh -i ~/.ssh/id_ed25519 -o BatchMode=yes -o ConnectTimeout=15 srv@185.102.75.191 "$@"; }
 ```
 
-Дальше `prod '<команда>'` — это эта строка. Состояние оболочки между вызовами Bash не сохраняется, поэтому в начале каждого вызова объявлять функцию (переменная `$PROD` в zsh не разбивается на аргументы — не работает):
-
-```bash
-prod() { ssh -i ~/.ssh/bilimland-prod/ssh-key-1778196525864 -o BatchMode=yes -o ConnectTimeout=15 sanjuniperodee@94.131.93.92 "$@"; }
-```
-
- Пароль не нужен (BatchMode); если ssh просит пароль или отказывает — остановиться и сказать пользователю, ключи не искать и не генерировать.
+Функцию объявлять в каждом вызове Bash (состояние оболочки не сохраняется). Пароль не нужен; если ssh просит пароль или
+отказывает — остановиться и сказать пользователю, ключи не искать и не генерировать. `srv` без sudo; читать журналы
+nginx (`/var/log/nginx/access.log`) — через `ssh -i ~/.ssh/ilmhub/server-key.pem ubuntu@185.102.75.191 'sudo …'`, только чтение.
 
 | Что | Где |
 |---|---|
-| Репозиторий | `~/mybook` (ветка `master`, неглубокий клон — последние коммиты; `.env` и `deploy/*` для выкатки). В `node_modules` нет сборочного (компилятор Next, typescript, vite, eslint) — только для разовых скриптов |
-| Разовые скрипты | из `~/mybook`: `SCHEDULER=off PDF_WORKER=off node_modules/.bin/tsx --env-file-if-exists=.env --import ./scripts/preload.mjs scripts/<скрипт>.ts`; проверка, что запуск работает, — `scripts/ops/check.ts` (06-operations §2.8) |
-| Релизы | `~/mybook-releases/releases/<время>-<sha>`, работает симлинк `~/mybook-releases/current` |
-| Процессы PM2 | `mybook` (порт 3040), `mybook-gowa` (шлюз WhatsApp), `kaspi-pos` |
-| Сайт | https://mybooks.kz, здоровье — `/api/health` |
-| Логи выкаток | `~/mybook-deploy-<sha>.log` |
+| Код | `~/mybook` (ветка `master`, `.env`, `deploy/*`); сборки на сервере нет |
+| Релизы | `~/mybook-releases/releases/<время>-<sha7>` (3 последних), рабочий — симлинк `~/mybook-releases/current` |
+| Лог выкатки | `~/mybook-deploy-<sha7>.log`, код выхода — `~/mybook-deploy-<sha7>.log.exit` |
+| PM2 MyBooks | `mybook-backend` (:3046, весь API), `mybook-worker` (фон), `mybook-files` (Go, :3050), `mybook-gowa` (WhatsApp) |
+| Журналы | `~/.pm2/logs/mybook-<процесс>-{out,error}*.log`, время в строках — UTC |
+| Здоровье | `curl -s localhost:3046/api/v1/health`, снаружи `https://api.mybooks.kz/api/v1/health` → `{"ok":true}` |
+| Флаги | `~/mybook-flags/site` (старый сайт выключен, сайт на Vercel), `~/mybook-flags/files-service` |
+| Бэкапы БД | cron 00:00 и 12:00 (Алматы), `~/bin/daily-backup.sh` → Telegram, копии за 7 суток в `~/db-backups` |
+| Уведомление о выкатке | `~/bin/deploy-watch.sh` (cron раз в минуту) → Telegram; `deploy/notify.mjs` → WhatsApp-группа «MyBooks» (если группа есть у номера шлюза) |
 
-Сервер общий: на нём ещё bilimland, balapan, ilmhub и др. Трогать только `mybook*`. Не перезапускать чужие процессы PM2, не менять nginx, `.env` и базы данных без прямой просьбы. `kaspi-pos` общий с my-test.kz — не перезапускать.
-
-Ручная выкатка со сборкой на сервере (запасной путь ниже) сначала сама поставит зависимости заново (`npm ci`, ~1 ГБ на диске) — сборочных пакетов в `~/mybook/node_modules` нет.
-
-Машина небольшая (4 ядра, 8 ГБ, рядом чужие проекты): вся выкатка идёт 20–25 минут, почти всё время — сборка на одном ядре. Две выкатки одновременно не запускать.
-
-Если сборка висит на «Creating an optimized production build» дольше 15 минут, а процесс `next-build` почти не тратит процессорного времени (`ps -o time=`), он упёрся в потолок памяти cgroup и перечитывает диск по кругу (`/proc/pressure/io` — десятки процентов), а сайт тормозит. Остановить группу процессов `deploy.sh` (`kill -TERM -- -<pgid>`), проверить размер `.next/cache/turbopack` (deploy.sh сам чистит его, если больше 1200 МБ) и потолок `MYBOOK_BUILD_MEM`.
-
-## С 19.10.2026 выкатка идёт через GitHub Actions
-
-Пуш в `master` сам запускает `.github/workflows/deploy.yml`: на GitHub проходят типы, линтер, тесты и сборка, релиз уезжает на сервер rsync-ом против текущего (по сети — только изменённое, ~1 МБ вместо архива 160 МБ), и `deploy/deploy.sh --artifact` выкатывает его. Коммит только с документами (`docs/`, `*.md`, `.claude/`) проверки и выкатку не запускает (smoke-тест, переключение, откат). Сервер больше не собирает. Ход и итог: `gh run list -R sanjuniperodee/MyBook -L 3`, `gh run watch <id> -R sanjuniperodee/MyBook`; лог на сервере — `~/mybook-deploy-<sha7>.log`. Повторить выкатку: `gh workflow run deploy.yml -R sanjuniperodee/MyBook`. Так же устроены DoseWear (`main`) и my-test (`sanjuniperodee/mytest.kz`, `main`). Ручной порядок ниже — запасной, если GitHub недоступен.
+Сервер общий (4 ядра, 14 ГБ): рядом `bilimland-api`, `mytest-v2`, `kaspi-pos` (общий с my-test — не перезапускать),
+`dosewear*`, ILM HUB в Docker. Трогать только `mybook-*`. Не менять nginx, `.env`, базы без прямой просьбы.
 
 ## Порядок
 
-### 1. Что уезжает
+### 1. Что уедет
 
 ```bash
-git fetch -q origin
-prod 'basename "$(readlink -f ~/mybook-releases/current)"'   # <время>-<sha> на проде
-git log --oneline <sha-прода>..origin/master
+git -C mybook-backend fetch -q origin
+prod 'basename "$(readlink -f ~/mybook-releases/current)"'      # <время>-<sha7> на проде
+git -C mybook-backend log --oneline <sha7-прода>..master
 ```
 
-Показать пользователю список коммитов, которые уедут. Если нужное ещё не в `origin/master`, его надо закоммитить и запушить (или смёржить PR). Пуш в `master` делать только по явному «да» пользователя в этом разговоре.
+Показать пользователю список коммитов. Проверить, что рабочая папка не затрёт чужие правки (`git status`) и `master`
+совпадает с `origin/master`; ветку вливать `git merge --ff-only`.
 
 ### 2. Проверки до пуша
 
-`deploy.sh` при сборке типы не проверяет (на сервере не хватает памяти), поэтому локально, на том коде, который уезжает:
+CI проверит всё сам, но падение там — это 4 минуты впустую. Локально на уезжающем коде:
 
 ```bash
-npx tsc --noEmit && npm run lint && npm test
+npx tsc --noEmit && npx tsc --noEmit -p apps/backend && npx eslint . && npx vitest run && npm run build
 ```
 
-Если что-то упало — не выкатывать, показать ошибку.
+`npm run build` в конце запускает `smoke-bundles.mjs` (все четыре бандла стартуют). Что-то упало — не пушить, показать ошибку.
 
-### 3. Выкатка
-
-Сначала убедиться, что другой выкатки нет:
+### 3. Пуш и ожидание
 
 ```bash
-prod 'pgrep -af "^bash deploy/deploy.sh" || echo free'
+gh run list -R sanjuniperodee/MyBook -L 3                 # нет ли идущей выкатки
+git -C mybook-backend push origin master
+gh run list -R sanjuniperodee/MyBook -L 1                 # id нового запуска
+gh run watch <id> -R sanjuniperodee/MyBook --exit-status --interval 30   # в фоне (run_in_background)
 ```
 
-Идёт — не запускать вторую, сказать пользователю и дождаться её итога (её лог — самый свежий `~/mybook-deploy-*.log`, или вывод в той сессии, что её запустила).
+Упало на проверках — прод не тронут, показать шаг и ошибку (`gh run view <id> --log-failed`). Упало на «Выкатке» —
+смотреть лог на сервере: `prod 'tail -60 ~/mybook-deploy-<sha7>.log'`. Повторить выкатку без нового коммита:
+`gh workflow run deploy.yml -R sanjuniperodee/MyBook`.
 
-Бэкап базы перед выкаткой (миграции применяются автоматически):
+### 4. Проверка после выкатки
 
 ```bash
-prod 'cd ~/mybook && URL=$(grep "^DATABASE_URL=" .env | cut -d= -f2-) && pg_dump "$URL" | gzip > ~/mybook-predeploy-$(date +%Y%m%d-%H%M).sql.gz && ls -lh ~/mybook-predeploy-*.sql.gz | tail -1'
+prod 'basename "$(readlink -f ~/mybook-releases/current)"; tail -4 ~/mybook-deploy-<sha7>.log'   # ✓ mybook-backend отвечает
+prod 'pm2 jlist' | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{for(const p of JSON.parse(d))if(/^mybook/.test(p.name))console.log(p.name,p.pm2_env.status,"restarts="+p.pm2_env.restart_time,Math.round(p.monit.memory/1048576)+"MB")})'
+# mybook-*: online, restarts=0, память: backend ~210–245 МБ, воркер ~185 МБ
+curl -s https://api.mybooks.kz/api/v1/health
 ```
 
-Запуск в фоне. Здесь нужен `ssh -n` (stdin из /dev/null) и подоболочка, а не функция `prod`: иначе ssh висит до конца выкатки. Если всё же повис, а в списке `pgrep` выкатка есть — она идёт, дальше проверять по логу. Bash-вызов с запуском делать в фоне (`run_in_background`). В macOS нет `timeout`.
+Журналы — **только строки после переключения** (в файлах ошибок лежат и старые записи). Время выкатки — в имени релиза
+(`20261127-132329-…` → 13:23 UTC); `<с>` — регулярка на это время и позже, например `^2026-11-27T(13:(2[3-9]|[3-5][0-9])|1[4-9]:)`:
 
 ```bash
-SHA=$(git rev-parse --short origin/master)
-ssh -n -i ~/.ssh/bilimland-prod/ssh-key-1778196525864 -o BatchMode=yes sanjuniperodee@94.131.93.92 "cd ~/mybook && (setsid nohup bash deploy/deploy.sh master > ~/mybook-deploy-$SHA.log 2>&1 < /dev/null &); echo started"
+prod 'cat ~/.pm2/logs/mybook-backend-error*.log ~/.pm2/logs/mybook-worker-error*.log | grep -E "<с>" | tail -20'
 ```
 
-### 4. Ждать итога
+Живой трафик — по тому, что менялось:
+- **WhatsApp (GOWA)**: новые строки в `crm_messages` после времени выкатки
+  (`psql "$(grep ^DATABASE_URL= ~/mybook/.env | cut -d= -f2-)" -c "select direction, count(*), max(created_at) from crm_messages where created_at > '<UTC-время выкатки>' group by 1"`).
+  Паузы по 5–10 минут бывают, особенно вечером, — подождать, прежде чем бить тревогу.
+- **Вебхуки без побочных эффектов**: `POST localhost:3046/api/integrations/gowa` с `{}` → 403 (подпись),
+  `POST /api/payments/kaspi/webhook` с `{}` → 200 `ignored`.
+- **nginx**: коды ответов после выкатки (через ubuntu, см. выше) — 5xx быть не должно.
 
-Опрашивать лог раз в 60–90 с (Bash в фоне или `sleep 75` в команде), не чаще:
-
-```bash
-prod "tail -5 ~/mybook-deploy-$SHA.log; pgrep -f "^bash deploy/deploy.sh" >/dev/null && echo RUNNING || echo DONE"
-```
-
-- `✓ MyBooks отвечает на localhost:3040 (<релиз>)` — выкатилось.
-- `✗ Новая версия не прошла проверку` — прод не тронут, старая версия работает. Показать хвост лога (`tail -60`) с причиной.
-- `✗ После переключения приложение не ответило` — скрипт сам откатывает на предыдущий релиз. Проверить здоровье и логи: `prod 'pm2 logs mybook --nostream --lines 100'`.
-
-Скрипт сам шлёт итог в WhatsApp-группу «MyBooks» (deploy/notify.mjs) — дублировать не нужно.
-
-### 5. Проверка снаружи
-
-```bash
-curl -s https://mybooks.kz/api/health          # "ok":true, "db":true
-curl -s -o /dev/null -w "%{http_code}\n" https://mybooks.kz/
-```
-
-Плюс открыть страницы, которые менялись в этом деплое (например `curl -s -o /dev/null -w "%{http_code}" https://mybooks.kz/love`), и сверить, что релиз в `current` имеет нужный sha.
-
-Пользователю коротко: какой релиз на проде, что уехало (коммиты), что проверено, что не проверено.
+Пользователю коротко: какой релиз на проде, что уехало, что проверено, что не проверено (например, PDF или живой платёж).
 
 ## Откат
 
 Только по просьбе пользователя или когда прод лежит после выкатки:
 
 ```bash
-prod 'ls -1t ~/mybook-releases/releases'                    # хранятся 3 последних
+prod 'ls -1t ~/mybook-releases/releases'
 prod 'cd ~/mybook && bash deploy/rollback.sh'               # на предыдущий
 prod 'cd ~/mybook && bash deploy/rollback.sh <релиз>'       # на конкретный
 ```
 
-Миграции БД не откатываются: они только добавляют таблицы и колонки, старый код с ними работает.
+Миграции БД не откатываются: они только добавляют таблицы и колонки, старый код с ними работает. Следующий пуш в `master`
+снова выкатит новый код — после отката починить причину, а не пушить сверху.
 
 ## Диагностика без выкатки
 
 ```bash
-prod 'pm2 ls | grep -E "mybook|kaspi"'                   # статусы процессов
-prod 'curl -s localhost:3040/api/health'
-prod 'pm2 logs mybook --nostream --lines 200'
+prod 'pm2 ls'                                     # статусы (чужие процессы не трогать)
+prod 'curl -s localhost:3046/api/v1/health'
+prod 'pm2 logs mybook-backend --nostream --lines 200'
 prod 'free -m; df -h ~'
 ```
