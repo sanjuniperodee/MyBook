@@ -1,6 +1,7 @@
 import { Controller, Inject, Req, UseGuards } from "@nestjs/common";
 import type { Output, Parsed } from "@mybook/contracts";
 import type { FastifyRequest } from "fastify";
+import { SESSION_USERS, sessionToken, type SessionUsers } from "../../core/auth/session";
 import { APP_CONFIG, type AppConfig } from "../../core/config/app-config";
 import { Input } from "../../core/http/decorators";
 import { Endpoint } from "../../core/http/endpoint";
@@ -17,6 +18,7 @@ export class WebOrdersController {
   constructor(
     @Inject(ORDERS_API_PORTS) private readonly ports: OrdersApiPorts,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
+    @Inject(SESSION_USERS) private readonly sessions: SessionUsers,
   ) {}
 
   @Endpoint("webCheckoutPage")
@@ -50,9 +52,15 @@ export class WebOrdersController {
     return this.ports.run(ordersCallMeta(req, this.config), "webPayPage", input);
   }
 
+  /**
+   * Ссылку оплаты открывают без входа (auth: none — SessionGuard пользователя не ищет), но сотрудник, открывший её из
+   * CRM, — не «клиент посмотрел»: вошедшего определяем по сессии сами, как getCurrentUser() в mybook-api.
+   */
   @Endpoint("webPayViewed")
-  webPayViewed(@Req() req: FastifyRequest, @Input() input: Parsed<"webPayViewed">): Promise<Output<"webPayViewed"> | Response> {
-    return this.ports.run(ordersCallMeta(req, this.config), "webPayViewed", input);
+  async webPayViewed(@Req() req: FastifyRequest, @Input() input: Parsed<"webPayViewed">): Promise<Output<"webPayViewed"> | Response> {
+    const token = sessionToken(req);
+    const user = token ? await this.sessions.user(token) : null;
+    return this.ports.run({ ...ordersCallMeta(req, this.config), user }, "webPayViewed", input);
   }
 
   @Endpoint("webPayClaim")

@@ -49,7 +49,7 @@ const staffAccess: StaffAccessPort = {
   },
 };
 
-const shared = vi.hoisted(() => ({ refuse: null as string | null, allowRate: true }));
+const shared = vi.hoisted(() => ({ refuse: null as string | null, allowRate: true, viewed: 0 }));
 
 /** Ответ-заглушка по схеме контракта маршрута: проходит проверку ответа у обоих процессов. */
 const sample = async (route: string) => {
@@ -166,7 +166,10 @@ vi.mock("@/server/v1-local-bridge-orders", () => ({
   localOrdersListDto: () => sample("webOrdersList"),
   localPayClaim: async () => ({ claimed: true, token: "pay-token" }),
   localPayPageDto: async (token: string) => (token === "pay-token" ? sample("webPayPage") : null),
-  localPayViewed: async () => ({ ok: true }),
+  localPayViewed: async () => {
+    shared.viewed += 1;
+    return { ok: true };
+  },
   localPlaceOrder: async () => (shared.refuse ? { ok: false, error: shared.refuse, code: "refused" } : { ok: true, orderId: ORDER_ID, amount: 29000 }),
 }));
 vi.mock("@/server/discount", () => ({ discountLimit: async () => 15 }));
@@ -388,6 +391,11 @@ describe("побайтовый паритет NestJS ↔ mybook-api: Конте�
     await assertRouteParity({ nest: app, legacy, method: "POST", url: "/api/v1/crm/expenses", headers: asOwner, body: { amount: "много" } });
     await assertRouteParity({ nest: app, legacy, method: "DELETE", url: "/api/v1/crm/finance", headers: asOwner });
     await assertRouteParity({ nest: app, legacy, method: "GET", url: "/api/v1/web/pay/unknown", headers: {} });
+    // Сотрудник, открывший ссылку оплаты из CRM, — не «клиент посмотрел»: ни один процесс просмотр не отмечает.
+    shared.viewed = 0;
     await assertRouteParity({ nest: app, legacy, method: "POST", url: "/api/v1/web/pay/pay-token/viewed", headers: asOwner });
+    expect(shared.viewed).toBe(0);
+    await assertRouteParity({ nest: app, legacy, method: "POST", url: "/api/v1/web/pay/pay-token/viewed", headers: asClient });
+    expect(shared.viewed).toBe(2);
   });
 });
