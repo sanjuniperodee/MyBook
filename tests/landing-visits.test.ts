@@ -3,6 +3,7 @@ import { LandingService, type LandingVisitInput, type LandingVisitRepository } f
 import { linkCodeFromText, nearestFreeClick, visitAttribution, visitNote, whatsappLink, type LandingVisit } from "@/modules/marketing/domain";
 import { channelOf, toAttribution } from "@/shared/domain/channels";
 import { isLandingCode, landingDevice, landingUrlFields, newLandingCode } from "@/shared/domain/landing";
+import { AD_CREATIVES, AD_DEFAULT_TEXT, adCreativeText } from "@/lib/content/ad-skidka";
 import { inbound, setup, start } from "./doubles/botHarness";
 
 const IG_IPHONE = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Instagram 357.0.0.25.101 (iPhone15,2; iOS 18_1; ru_RU)";
@@ -63,9 +64,9 @@ describe("код перехода и разбор адреса лендинга"
     for (let i = 0; i < 200; i++) expect(isLandingCode(newLandingCode())).toBe(true);
     expect(newLandingCode(() => new Uint8Array([0, 1, 2, 3, 4, 30]))).toBe("lpabcde9");
     const code = newLandingCode();
-    const url = new URL(whatsappLink("77775932124", "Здравствуйте, хочу скидку!", code));
+    const url = new URL(whatsappLink("77775932124", "Здравствуйте! Хочу книгу", code));
     expect(url.origin + url.pathname).toBe("https://wa.me/77775932124");
-    expect(url.searchParams.get("text")).toBe(`Здравствуйте, хочу скидку! (код: ${code})`);
+    expect(url.searchParams.get("text")).toBe(`Здравствуйте! Хочу книгу (код: ${code})`);
     expect(linkCodeFromText(url.searchParams.get("text")!)).toBe(code);
     expect(isLandingCode("insta-bio")).toBe(false);
     expect(isLandingCode("lpk7x2m0")).toBe(false);
@@ -74,6 +75,27 @@ describe("код перехода и разбор адреса лендинга"
   it("из адреса — UTM, fbclid и id объявления; незаполненные шаблоны Meta и пустые — мимо", () => {
     const f = landingUrlFields(new URLSearchParams("utm_source=instagram&utm_medium=paid&utm_campaign=skidka&utm_content=%7B%7Bad.name%7D%7D&fbclid=IwAR0&ad_id=120200&adset_id=&x=1"));
     expect(f).toEqual({ utmSource: "instagram", utmMedium: "paid", utmCampaign: "skidka", fbclid: "IwAR0", adId: "120200" });
+  });
+
+  it("креатив из адреса (?c=) — кампания перехода, если utm_campaign нет", () => {
+    expect(landingUrlFields(new URLSearchParams("c=NurTik"))).toEqual({ utmCampaign: "nurtik" });
+    expect(landingUrlFields(new URLSearchParams("c=nurtik&utm_campaign=dec"))).toEqual({ utmCampaign: "dec" });
+  });
+
+  it("текст сообщения по креативу: регистр не важен, неизвестный или пустой — «Здравствуйте! Хочу книгу»", () => {
+    expect(adCreativeText("nurtik")).toBe("Здравствуйте! Хочу книгу в подарок. Подскажите, как заказать?");
+    expect(adCreativeText(" NurTik ")).toBe(AD_CREATIVES.nurtik);
+    expect(adCreativeText("predmetnaya")).toBe("Здравствуйте! Интересует книга в подарок. Хочу узнать подробности.");
+    expect(adCreativeText("NOVYIGOD")).toBe("Здравствуйте! Хочу книгу в подарок на Новый год.");
+    expect(adCreativeText("smmsidya")).toBe("Здравствуйте! Хочу заказать книгу в подарок. Расскажите, как это работает.");
+    for (const c of [null, undefined, "", "abc", "constructor", "__proto__", "toString"]) expect(adCreativeText(c)).toBe(AD_DEFAULT_TEXT);
+    expect(AD_DEFAULT_TEXT).toBe("Здравствуйте! Хочу книгу");
+    // Слова — латиница в нижнем регистре (их сверяют с адресом без учёта регистра); код перехода разбирается после каждой фразы.
+    for (const [c, text] of Object.entries(AD_CREATIVES)) {
+      expect(c).toMatch(/^[a-z0-9-]+$/);
+      const code = newLandingCode();
+      expect(linkCodeFromText(new URL(whatsappLink("77775932124", text, code)).searchParams.get("text")!)).toBe(code);
+    }
   });
 
   it("устройство и встроенный браузер — по User-Agent", () => {
@@ -108,7 +130,7 @@ describe("привязка диалога к переходу", () => {
     await t.service.record(input(), "click");
     expect(t.rows).toHaveLength(1);
     expect(t.rows[0].clickedAt).toEqual(t.now.value);
-    const r = await t.service.attribute({ text: "Здравствуйте, хочу скидку! (код: lpk7x2m9)", at: new Date("2026-11-27T09:01:00Z"), conversationId: "c1", byTime: true });
+    const r = await t.service.attribute({ text: "Здравствуйте! Хочу книгу (код: lpk7x2m9)", at: new Date("2026-11-27T09:01:00Z"), conversationId: "c1", byTime: true });
     expect(r).toMatchObject({ match: "code", utm: { source: "instagram", campaign: "skidka-nov", landing: "/skidka" } });
     expect(r!.note).toContain("код lpk7x2m9");
     expect(r!.note).toContain("instagram / paid / skidka-nov");
@@ -145,7 +167,7 @@ describe("привязка диалога к переходу", () => {
     const t = memoryVisits();
     await t.service.record(input(), "click");
     expect(await t.service.attribute({ text: "Здравствуйте", at: t.now.value, conversationId: "c1", byTime: true })).toMatchObject({ match: "time" });
-    expect(await t.service.attribute({ text: "Хочу скидку! (код: lpk7x2m9)", at: t.now.value, conversationId: "c2", byTime: true })).toMatchObject({ match: "code" });
+    expect(await t.service.attribute({ text: "Хочу книгу (код: lpk7x2m9)", at: t.now.value, conversationId: "c2", byTime: true })).toMatchObject({ match: "code" });
     expect(t.rows[0]).toMatchObject({ conversationId: "c2", match: "code" });
   });
 

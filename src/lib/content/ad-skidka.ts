@@ -1,14 +1,33 @@
 import { toPublic, type Locale, type PublicLocale } from "@/i18n/config";
 
+/*
+ * ─── КРЕАТИВЫ РЕКЛАМЫ ────────────────────────────────────────────────────────────────────────────────────────────
+ * Слово из адреса лендинга (mybooks.kz/skidka?c=<слово>) → первое сообщение в WhatsApp. Новый креатив — одна строка
+ * здесь (слово — латиницей в нижнем регистре); больше на странице ничего менять не нужно. Нет слова или оно
+ * неизвестное — AD_DEFAULT_TEXT. Регистр в адресе не важен.
+ */
+export const AD_CREATIVES: Readonly<Record<string, string>> = {
+  nurtik: "Здравствуйте! Хочу книгу в подарок. Подскажите, как заказать?",
+  predmetnaya: "Здравствуйте! Интересует книга в подарок. Хочу узнать подробности.",
+  novyigod: "Здравствуйте! Хочу книгу в подарок на Новый год.",
+  smmsidya: "Здравствуйте! Хочу заказать книгу в подарок. Расскажите, как это работает.",
+};
+export const AD_DEFAULT_TEXT = "Здравствуйте! Хочу книгу";
+/* ──────────────────────────────────────────────────────────────────────────────────────────────────────────────── */
+
+/** Первое сообщение в WhatsApp по слову креатива (?c=). К нему страница дописывает код перехода для CRM. */
+export function adCreativeText(c: string | null | undefined): string {
+  const key = (c ?? "").trim().toLowerCase();
+  return key && Object.prototype.hasOwnProperty.call(AD_CREATIVES, key) ? AD_CREATIVES[key] : AD_DEFAULT_TEXT;
+}
+
 /**
- * Лендинг под рекламу в Instagram (/skidka): одно действие — написать в WhatsApp за скидкой. Код перехода дописывается
- * к первому сообщению и показан на странице как «код скидки»: так клиент реже его стирает, а CRM видит источник заявки.
+ * Лендинг под рекламу в Instagram (/skidka): одно действие — написать в WhatsApp. Текст первого сообщения — по
+ * креативу (AD_CREATIVES), к нему дописывается код перехода: по нему CRM видит, с какой рекламы заявка.
  */
 export interface AdSkidkaCopy {
   metaTitle: string;
   metaDescription: string;
-  /** Первое сообщение в WhatsApp; к нему дописывается «(код: lp…)». */
-  waText: string;
   eyebrow: string;
   titleStart: string;
   titleAccent: string;
@@ -16,9 +35,6 @@ export interface AdSkidkaCopy {
   cta: string;
   /** Под кнопкой: что будет после нажатия. */
   ctaNote: string;
-  /** Подпись к коду перехода — «талон» скидки. */
-  codeLabel: string;
-  codeHint: string;
   facts: (days: string) => string[];
   stepsTitle: string;
   steps: { title: string; text: string }[];
@@ -29,103 +45,91 @@ export interface AdSkidkaCopy {
 }
 
 const ru: AdSkidkaCopy = {
-  metaTitle: "Скидка на книгу о близком человеке",
-  metaDescription: "Книга, которую пишете вы: ответы на вопросы и фото — в твёрдой обложке. Напишите в WhatsApp — менеджер назовёт скидку.",
-  waText: "Здравствуйте, хочу скидку!",
-  eyebrow: "Скидка из Instagram · Алматы",
-  titleStart: "Книга о тех, кого любите, —",
-  titleAccent: "со скидкой",
+  metaTitle: "Книга в подарок, которую пишете вы",
+  metaDescription: "Ответы на вопросы о близком человеке и ваши фото — в настоящей книге в твёрдой обложке. Напишите нам в WhatsApp.",
+  eyebrow: "Подарок, который пишете вы · Алматы",
+  titleStart: "Книга, где главный герой —",
+  titleAccent: "тот, кого вы любите",
   lead: "Вы отвечаете на вопросы о близком человеке и добавляете фото. Мы печатаем настоящую книгу в твёрдой обложке.",
-  cta: "Получить скидку в WhatsApp",
+  cta: "Написать в WhatsApp",
   ctaNote: "Откроется WhatsApp с готовым сообщением — его остаётся только отправить",
-  codeLabel: "Код скидки",
-  codeHint: "уже в сообщении",
   facts: (days) => ["Печатаем в Алматы", `${days} рабочих дней`, "Доставка по Казахстану"],
-  stepsTitle: "Как получить скидку",
+  stepsTitle: "Как это работает",
   steps: [
-    { title: "Нажмите кнопку", text: "Откроется WhatsApp MyBooks с сообщением и кодом скидки." },
-    { title: "Отправьте сообщение", text: "Менеджер ответит и назовёт вашу скидку." },
-    { title: "Расскажите, кому книга", text: "Маме, любимому, другу — подскажем тему и обложку." },
+    { title: "Напишите нам", text: "Ответим в WhatsApp, подскажем тему и обложку — маме, любимому, другу." },
+    { title: "Заполните книгу", text: "Отвечаете на вопросы и добавляете фото с телефона, в своём темпе." },
+    { title: "Получите подарок", text: "Проверяете макет — печатаем и доставляем по Казахстану." },
   ],
   bookNote: "здесь будет ваша история",
-  finalTitle: "Скидка ждёт в WhatsApp",
+  finalTitle: "Расскажите, кому подарок",
   finalText: "Писать книгу можно бесплатно — платите, когда она готова к печати.",
-  sticky: "Скидка в WhatsApp",
+  sticky: "Книга в подарок",
 };
 
 const kk: AdSkidkaCopy = {
-  metaTitle: "Жақын адам туралы кітапқа жеңілдік",
-  metaDescription: "Өзіңіз жазатын кітап: сұрақтарға жауаптар мен фото — қатты мұқабада. WhatsApp-қа жазыңыз — менеджер жеңілдікті айтады.",
-  waText: "Сәлеметсіз бе, жеңілдік алғым келеді!",
-  eyebrow: "Instagram-нан жеңілдік · Алматы",
-  titleStart: "Жақсы көретін адамыңыз туралы кітап —",
-  titleAccent: "жеңілдікпен",
+  metaTitle: "Өзіңіз жазатын сыйлық кітап",
+  metaDescription: "Жақын адам туралы сұрақтарға жауаптар мен фотоларыңыз — қатты мұқабалы нағыз кітапта. WhatsApp-қа жазыңыз.",
+  eyebrow: "Өзіңіз жазатын сыйлық · Алматы",
+  titleStart: "Бас кейіпкері —",
+  titleAccent: "сіз жақсы көретін адам",
   lead: "Жақын адамыңыз туралы сұрақтарға жауап бересіз, фото қосасыз. Біз қатты мұқабалы нағыз кітап басып шығарамыз.",
-  cta: "WhatsApp-та жеңілдік алу",
+  cta: "WhatsApp-қа жазу",
   ctaNote: "WhatsApp дайын хабарламамен ашылады — тек жіберу қалады",
-  codeLabel: "Жеңілдік коды",
-  codeHint: "хабарламада бар",
   facts: (days) => ["Алматыда басамыз", `${days} жұмыс күні`, "Қазақстан бойынша жеткізу"],
-  stepsTitle: "Жеңілдікті қалай алуға болады",
+  stepsTitle: "Бұл қалай жұмыс істейді",
   steps: [
-    { title: "Батырманы басыңыз", text: "MyBooks WhatsApp-ы хабарлама мен жеңілдік кодымен ашылады." },
-    { title: "Хабарламаны жіберіңіз", text: "Менеджер жауап беріп, жеңілдігіңізді айтады." },
-    { title: "Кітап кімге екенін айтыңыз", text: "Анаңызға, сүйіктіңізге, досыңызға — тақырып пен мұқабаны ұсынамыз." },
+    { title: "Бізге жазыңыз", text: "WhatsApp-та жауап береміз, тақырып пен мұқабаны ұсынамыз — анаңызға, сүйіктіңізге, досыңызға." },
+    { title: "Кітапты толтырыңыз", text: "Сұрақтарға жауап беріп, телефоннан фото қосасыз — өз қарқыныңызбен." },
+    { title: "Сыйлықты алыңыз", text: "Макетті тексересіз — басып шығарып, Қазақстан бойынша жеткіземіз." },
   ],
   bookNote: "мұнда сіздің тарихыңыз болады",
-  finalTitle: "Жеңілдік WhatsApp-та күтіп тұр",
+  finalTitle: "Сыйлық кімге екенін айтыңыз",
   finalText: "Кітапты жазу тегін — ол басуға дайын болғанда төлейсіз.",
-  sticky: "WhatsApp-та жеңілдік",
+  sticky: "Сыйлық кітап",
 };
 
 const uz: AdSkidkaCopy = {
-  metaTitle: "Yaqin inson haqidagi kitobga chegirma",
-  metaDescription: "O‘zingiz yozadigan kitob: savollarga javoblar va suratlar — qattiq muqovada. WhatsApp’ga yozing — menejer chegirmani aytadi.",
-  waText: "Assalomu alaykum, chegirma olmoqchiman!",
-  eyebrow: "Instagram’dan chegirma · Olmaota",
-  titleStart: "Siz sevgan inson haqida kitob —",
-  titleAccent: "chegirma bilan",
+  metaTitle: "O‘zingiz yozadigan sovg‘a kitob",
+  metaDescription: "Yaqin inson haqidagi savollarga javoblar va suratlaringiz — qattiq muqovali haqiqiy kitobda. WhatsApp’ga yozing.",
+  eyebrow: "O‘zingiz yozadigan sovg‘a · Olmaota",
+  titleStart: "Bosh qahramoni —",
+  titleAccent: "siz sevgan inson",
   lead: "Yaqin insoningiz haqidagi savollarga javob berasiz va surat qo‘shasiz. Biz qattiq muqovali haqiqiy kitob chop etamiz.",
-  cta: "WhatsApp’da chegirma olish",
+  cta: "WhatsApp’ga yozish",
   ctaNote: "WhatsApp tayyor xabar bilan ochiladi — faqat yuborish qoladi",
-  codeLabel: "Chegirma kodi",
-  codeHint: "xabarda bor",
   facts: (days) => ["Olmaotada chop etamiz", `${days} ish kuni`, "Qozog‘iston bo‘ylab yetkazish"],
-  stepsTitle: "Chegirmani qanday olish mumkin",
+  stepsTitle: "Bu qanday ishlaydi",
   steps: [
-    { title: "Tugmani bosing", text: "MyBooks WhatsApp’i xabar va chegirma kodi bilan ochiladi." },
-    { title: "Xabarni yuboring", text: "Menejer javob beradi va chegirmangizni aytadi." },
-    { title: "Kitob kimga ekanini ayting", text: "Onangizga, sevgan insoningizga, do‘stingizga — mavzu va muqovani taklif qilamiz." },
+    { title: "Bizga yozing", text: "WhatsApp’da javob beramiz, mavzu va muqovani taklif qilamiz — onangizga, sevgan insoningizga, do‘stingizga." },
+    { title: "Kitobni to‘ldiring", text: "Savollarga javob berasiz va telefondan surat qo‘shasiz — o‘z sur’atingizda." },
+    { title: "Sovg‘ani oling", text: "Maketni tekshirasiz — chop etamiz va Qozog‘iston bo‘ylab yetkazamiz." },
   ],
   bookNote: "bu yerda sizning tarixingiz bo‘ladi",
-  finalTitle: "Chegirma WhatsApp’da kutmoqda",
+  finalTitle: "Sovg‘a kimga ekanini ayting",
   finalText: "Kitobni yozish bepul — u chop etishga tayyor bo‘lganda to‘laysiz.",
-  sticky: "WhatsApp’da chegirma",
+  sticky: "Sovg‘a kitob",
 };
 
 const en: AdSkidkaCopy = {
-  metaTitle: "A discount on a book about someone you love",
-  metaDescription: "A book you write yourself: answers to questions and photos, in a hardcover. Message us on WhatsApp and a manager will tell you your discount.",
-  waText: "Hello, I’d like the discount!",
-  eyebrow: "Instagram discount · Almaty",
-  titleStart: "A book about the people you love —",
-  titleAccent: "at a discount",
+  metaTitle: "A gift book you write yourself",
+  metaDescription: "Answers to questions about someone close to you and your photos — in a real hardcover book. Message us on WhatsApp.",
+  eyebrow: "A gift you write yourself · Almaty",
+  titleStart: "A book where the main character is",
+  titleAccent: "the one you love",
   lead: "You answer questions about someone close to you and add photos. We print a real hardcover book.",
-  cta: "Get the discount on WhatsApp",
+  cta: "Message us on WhatsApp",
   ctaNote: "WhatsApp opens with a ready message — all that’s left is to send it",
-  codeLabel: "Discount code",
-  codeHint: "already in the message",
   facts: (days) => ["Printed in Almaty", `${days} working days`, "Delivery across Kazakhstan"],
-  stepsTitle: "How to get the discount",
+  stepsTitle: "How it works",
   steps: [
-    { title: "Tap the button", text: "MyBooks WhatsApp opens with a message and your discount code." },
-    { title: "Send the message", text: "A manager replies and tells you your discount." },
-    { title: "Tell us who it’s for", text: "Mum, your partner, a friend — we’ll suggest a theme and a cover." },
+    { title: "Message us", text: "We reply on WhatsApp and suggest a theme and a cover — for mum, your partner, a friend." },
+    { title: "Fill in the book", text: "Answer the questions and add photos from your phone, at your own pace." },
+    { title: "Get the gift", text: "Check the layout — we print it and deliver across Kazakhstan." },
   ],
   bookNote: "your story goes here",
-  finalTitle: "Your discount is waiting on WhatsApp",
+  finalTitle: "Tell us who the gift is for",
   finalText: "Writing the book is free — you pay when it’s ready to print.",
-  sticky: "Discount on WhatsApp",
+  sticky: "A gift book",
 };
 
 const copy: Record<PublicLocale, AdSkidkaCopy> = { ru, kk, uz, en };

@@ -42,15 +42,26 @@ export type LandingUrlFields = Partial<Record<(typeof LANDING_URL_PARAMS)[keyof 
 /** Предел длины любого поля перехода (fbclid бывает ~200 знаков). */
 export const LANDING_FIELD_MAX = 300;
 
-/** Поля перехода из адреса страницы; пустые и незаполненные шаблоны Meta («{{ad.id}}») отбрасываются. */
+/** Параметр адреса с креативом рекламы (?c=nurtik): от него зависит первое сообщение в WhatsApp. */
+export const LANDING_CREATIVE_PARAM = "c";
+
+/**
+ * Поля перехода из адреса страницы; пустые и незаполненные шаблоны Meta («{{ad.id}}») отбрасываются. Креатив (?c=)
+ * без utm_campaign становится кампанией: так CRM видит, с какого креатива заявка.
+ */
 export function landingUrlFields(search: URLSearchParams): LandingUrlFields {
   const out: LandingUrlFields = {};
   for (const [param, field] of Object.entries(LANDING_URL_PARAMS)) {
     const v = search.get(param)?.trim();
     if (v && !/^\{\{.*\}\}$/.test(v)) out[field] = v.slice(0, LANDING_FIELD_MAX);
   }
+  const creative = search.get(LANDING_CREATIVE_PARAM)?.trim().toLowerCase();
+  if (creative && !out.utmCampaign) out.utmCampaign = creative.slice(0, LANDING_FIELD_MAX);
   return out;
 }
+
+/** Meta Pixel рекламного лендинга (публичный ID, виден в коде любой страницы с пикселем). */
+export const LANDING_META_PIXEL_ID = "1667800464519418";
 
 export type LandingDevice = "iphone" | "ipad" | "android" | "desktop" | "other";
 export type LandingApp = "instagram" | "facebook" | "tiktok" | "";
