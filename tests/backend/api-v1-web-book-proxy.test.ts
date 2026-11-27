@@ -9,7 +9,7 @@ vi.mock("@/server/auth", () => ({
   sessionToken: async () => null,
   isStaff: () => false,
 }));
-vi.mock("@/i18n/server", async (orig) => ({
+vi.mock("@/shared/infrastructure/http/locale", async (orig) => ({
   ...(await orig<object>()),
   getMessages: async () => ({ api: (await import("@/i18n/messages/ru/api")).api }),
   getLocale: async () => "ru",

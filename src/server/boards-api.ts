@@ -1,5 +1,4 @@
 import "server-only";
-import { NextResponse } from "next/server";
 import { z, ZodError } from "zod";
 import { BoardsError, boardsErrorStatus, type BoardViewer } from "@/modules/boards";
 import { can, type Staff } from "@/server/access";
@@ -75,7 +74,7 @@ const bulk = z.object({
   ]),
 });
 
-const json = (data: unknown, status = 200) => NextResponse.json(data, { status, headers: { "cache-control": "no-store" } });
+const json = (data: unknown, status = 200) => Response.json(data, { status, headers: { "cache-control": "no-store" } });
 const body = async <T extends z.ZodType>(req: Request, schema: T): Promise<z.output<T>> => schema.parse(await req.json().catch(() => ({})));
 
 /** Обработчик /api/admin/boards/[...path]: путь без префикса, метод — из запроса. */

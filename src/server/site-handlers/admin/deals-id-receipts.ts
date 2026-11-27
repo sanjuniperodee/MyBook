@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { api, apiStaff, HttpError } from "@/server/api";
 import { can, canWork } from "@/server/access";
 import { container } from "@/server/container";
@@ -36,10 +35,10 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
       actor: { userId: staff.user.id, name: staff.user.name || staff.user.email, seesAll: staff.scope === "all", allTasks: can(staff, "tasks.all") },
     });
     if (!row) throw new HttpError(400, "paymentNotFound");
-    return NextResponse.json({ receipt: { id: row.id, fileName: row.fileName, amount: row.amount, mime: row.mime, size: row.size, createdAt: row.createdAt } });
+    return Response.json({ receipt: { id: row.id, fileName: row.fileName, amount: row.amount, mime: row.mime, size: row.size, createdAt: row.createdAt } });
   } catch (err) {
     // Тот же чек уже приложен к другому платежу — к какому, в тексте ошибки.
-    if (ReceiptUsedError.is(err)) return NextResponse.json({ error: err.message }, { status: 409 });
+    if (ReceiptUsedError.is(err)) return Response.json({ error: err.message }, { status: 409 });
     if (ReceiptError.is(err)) throw receiptProblemError(err.code);
     throw err;
   }

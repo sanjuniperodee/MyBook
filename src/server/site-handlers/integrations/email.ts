@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { getSetting } from "@/modules/workspace";
 import { safeEqual } from "@/shared/crypto";
 import { parseInboundWebhook } from "@/modules/messaging/domain/email";
@@ -12,21 +11,21 @@ export async function POST(req: Request) {
   const url = new URL(req.url);
   const token = req.headers.get("x-token") ?? url.searchParams.get("token") ?? "";
   const expected = await getSetting("email.webhookToken");
-  if (!expected || !safeEqual(token, expected)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  if (!expected || !safeEqual(token, expected)) return Response.json({ error: "forbidden" }, { status: 403 });
   let body: Record<string, unknown>;
   try {
     const type = req.headers.get("content-type") ?? "";
     body = type.includes("json") ? ((await req.json()) as Record<string, unknown>) : Object.fromEntries([...(await req.formData()).entries()].filter(([, v]) => typeof v === "string"));
   } catch {
-    return NextResponse.json({ error: "bad body" }, { status: 400 });
+    return Response.json({ error: "bad body" }, { status: 400 });
   }
   const mail = parseInboundWebhook(body);
-  if (!mail) return NextResponse.json({ error: "Нужны поля from (адрес отправителя) и text или html" }, { status: 400 });
+  if (!mail) return Response.json({ error: "Нужны поля from (адрес отправителя) и text или html" }, { status: 400 });
   try {
     await container().messaging.email.ingest(mail);
-    return NextResponse.json({ ok: true });
+    return Response.json({ ok: true });
   } catch (err) {
     console.error("[email-hook]", err);
-    return NextResponse.json({ error: "failed" }, { status: 500 });
+    return Response.json({ error: "failed" }, { status: 500 });
   }
 }

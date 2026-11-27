@@ -2,7 +2,7 @@ import type { ApiFetch } from "./api";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Тесты API v1 для «Почему так?» бота, коммерческого предложения (КП), ролей и 2FA.
-vi.mock("@/i18n/server", async (orig) => ({
+vi.mock("@/shared/infrastructure/http/locale", async (orig) => ({
   ...(await orig<object>()),
   getMessages: async () => ({ api: (await import("@/i18n/messages/ru/api")).api }),
   getLocale: async () => "ru",

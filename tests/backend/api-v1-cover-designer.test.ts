@@ -15,7 +15,7 @@ let bookState: Record<string, unknown>;
 let bookPhotos: { id: string; width: number; height: number }[];
 const updateSettingsMock = vi.fn();
 
-vi.mock("@/i18n/server", async (orig) => {
+vi.mock("@/shared/infrastructure/http/locale", async (orig) => {
   const { messagesFor } = await import("@/i18n/messages");
   return {
     ...(await orig<object>()),

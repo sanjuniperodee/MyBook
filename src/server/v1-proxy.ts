@@ -1,5 +1,5 @@
 import "server-only";
-import { cookies, headers as nextHeaders } from "next/headers";
+import { cookies, headers as nextHeaders } from "@/shared/infrastructure/http/request";
 import { env } from "@/config/env";
 import { apiInternalUrl, isInsideApiServer, webUseApiV1 } from "./v1-web-client";
 

@@ -242,15 +242,11 @@ const state = vi.hoisted(() => ({
 
 // В изолированном worktree `node_modules` может быть симлинком на другой worktree, поэтому берём локальный `@mybook/contracts`.
 vi.mock("@mybook/contracts", () => import("../../../packages/contracts/src/index"));
-vi.mock("next/headers", () => import("@/server/http/next-shim"));
-vi.mock("next/server", () => import("@/server/http/next-shim"));
-vi.mock("next/navigation", () => import("@/server/http/next-shim"));
-vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/server/rateLimit", () => ({ trustedClientIp: async () => "203.0.113.10" }));
 
 vi.mock("@/server/auth", async () => {
   const { legacyRequestContext } = await import("@/server/request-context");
-  const shim = await import("@/server/http/next-shim");
+  const shim = await import("@/shared/infrastructure/http/request");
   return {
     getCurrentUser: async () => {
       const ctx = legacyRequestContext();

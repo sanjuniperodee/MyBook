@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getLocale } from "@/i18n/server";
+import { getLocale } from "@/shared/infrastructure/http/locale";
 import { StaffContext } from "@/modules/access/domain/StaffContext";
 import { isPhoneEmail } from "@/modules/identity";
 import { assertStaff, assertStaffShell, ForbiddenError, getStaff } from "@/server/access";

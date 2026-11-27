@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { api, apiStaff, HttpError } from "@/server/api";
 import { TelephonyError } from "@/modules/telephony";
 import { container } from "@/server/container";
@@ -23,8 +22,8 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
   try {
     await container().telephony.whatsapp.record(id, staff.user.id, { seq, mime, data });
   } catch (err) {
-    if (TelephonyError.is(err)) return NextResponse.json({ error: err.message }, { status: 409 });
+    if (TelephonyError.is(err)) return Response.json({ error: err.message }, { status: 409 });
     throw err;
   }
-  return NextResponse.json({ ok: true });
+  return Response.json({ ok: true });
 });

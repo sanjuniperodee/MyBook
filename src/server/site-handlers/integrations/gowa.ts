@@ -1,4 +1,4 @@
-import { NextResponse, after } from "next/server";
+import { after } from "@/shared/infrastructure/http/request";
 import { parseGowaCall, parseGowaChange, parseGowaWebhook } from "@/modules/messaging/domain/gowa";
 import { container } from "@/server/container";
 
@@ -13,12 +13,12 @@ const isCallEvent = (body: unknown) => typeof body === "object" && body !== null
 export async function POST(req: Request) {
   const raw = await req.text();
   const messaging = container().messaging;
-  if (!(await messaging.verifyGowaWebhook(raw, req.headers.get("x-hub-signature-256")))) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  if (!(await messaging.verifyGowaWebhook(raw, req.headers.get("x-hub-signature-256")))) return Response.json({ error: "forbidden" }, { status: 403 });
   let body: unknown;
   try {
     body = JSON.parse(raw);
   } catch {
-    return NextResponse.json({ error: "bad json" }, { status: 400 });
+    return Response.json({ error: "bad json" }, { status: 400 });
   }
   const { messages, statuses } = parseGowaWebhook(body);
   const { edit, revoke } = parseGowaChange(body);
@@ -39,7 +39,7 @@ export async function POST(req: Request) {
     if (revoke) await messaging.chats.applyExternalRevoke(revoke);
   } catch (err) {
     console.error("[gowa] webhook", err);
-    return NextResponse.json({ error: "failed" }, { status: 500 });
+    return Response.json({ error: "failed" }, { status: 500 });
   }
-  return NextResponse.json({ ok: true });
+  return Response.json({ ok: true });
 }

@@ -238,8 +238,6 @@ const shared = vi.hoisted(() => ({
   freshUser: vi.fn<(tokenHash: string) => Promise<CurrentUser | null>>(),
 }));
 
-vi.mock("next/headers", () => import("@/server/http/next-shim"));
-vi.mock("next/server", () => import("@/server/http/next-shim"));
 vi.mock("@/server/rateLimit", () => ({ rateLimit: () => shared.allowRate(), trustedClientIp: async () => "203.0.113.10" }));
 vi.mock("@/server/catalog", () => ({ ensureCatalog: async () => {}, syncCatalogFromSettings: async () => {} }));
 vi.mock("@/server/account-deletion", () => ({

@@ -1,6 +1,5 @@
 import "server-only";
 import { createHash } from "node:crypto";
-import { NextResponse } from "next/server";
 import { api } from "@/server/api";
 
 /**
@@ -13,7 +12,7 @@ export function mobile<C>(handler: (req: Request, ctx: C) => Promise<Response>) 
     try {
       return await handler(req, ctx);
     } catch (err) {
-      if (err instanceof Error && err.constructor === Error && /[\u0400-\u04FF]/.test(err.message)) return NextResponse.json({ error: err.message }, { status: 400 });
+      if (err instanceof Error && err.constructor === Error && /[\u0400-\u04FF]/.test(err.message)) return Response.json({ error: err.message }, { status: 400 });
       throw err;
     }
   });

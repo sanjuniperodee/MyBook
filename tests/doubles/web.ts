@@ -3,11 +3,11 @@ import { Role, type RoleRepository } from "@/modules/access/domain";
 import { StaffResolver } from "@/modules/access/application/services";
 import { isPhoneEmail } from "@/modules/identity/domain";
 
-// ─── двойники веб-слоя: next/headers, next/navigation, next/cache, container() ─
+// ─── двойники запроса бэкенда (@/shared/infrastructure/http/request) и container() ─
 // Подключаются в тесте так:
-//   vi.mock("next/headers", async () => (await import("./doubles/web")).nextHeaders);
+//   vi.mock("@/shared/infrastructure/http/request", async (real) => ({ ...(await real<object>()), ...(await import("./doubles/web")).nextHeaders }));
 
-/** Текущий запрос глазами next/headers: тест задаёт заголовки и cookie перед вызовом. */
+/** Текущий запрос: тест задаёт заголовки и cookie перед вызовом. */
 export const request = { headers: new Headers(), cookies: new Map<string, string>() };
 
 export function resetRequest(headers: Record<string, string> = {}) {
@@ -26,9 +26,9 @@ export const nextHeaders = {
   }),
 };
 
-/** redirect() и notFound() в Next прерывают рендер исключением; двойники бросают узнаваемые. */
+/** redirect() и notFound() прерывают обработку исключением; двойники бросают узнаваемые. */
 export class Redirect extends Error {
-  /** Как у Next и shim бэкенда (src/server/http/next-shim.ts): по digest обработчик API узнаёт redirect() server action. */
+  /** Как у redirect() бэкенда (src/shared/infrastructure/http/request.ts): по digest обработчик API узнаёт переход. */
   readonly digest: string;
   constructor(readonly url: string) {
     super(`redirect ${url}`);
@@ -46,8 +46,6 @@ export const nextNavigation = {
     throw new NotFound("notFound");
   },
 };
-
-export const nextCache = { revalidatePath: () => {} };
 
 // ─── люди и роли ─────────────────────────────────────────────────────────────
 

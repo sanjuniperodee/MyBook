@@ -38,7 +38,7 @@ const mocks = vi.hoisted(() => ({
   invoiceView: vi.fn(),
 }));
 
-vi.mock("@/i18n/server", async (orig) => ({
+vi.mock("@/shared/infrastructure/http/locale", async (orig) => ({
   ...(await orig<object>()),
   getMessages: async () => messagesFor("ru"),
   getLocale: async () => "ru",

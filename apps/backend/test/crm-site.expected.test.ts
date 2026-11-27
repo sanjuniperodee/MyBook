@@ -95,35 +95,27 @@ const shared = vi.hoisted(() => ({
   liveListeners: [] as Array<(e: LiveEvent) => void>,
 }));
 
-vi.mock("next/headers", async () => {
-  const shim = await import("@/server/http/next-shim");
+vi.mock("@/shared/infrastructure/http/request", async (importOriginal) => {
+  const real = await importOriginal<typeof import("@/shared/infrastructure/http/request")>();
   return {
-    ...shim,
+    ...real,
     headers: async () => {
       shared.nextHeadersHits++;
-      return shim.headers();
+      return real.headers();
     },
     cookies: async () => {
       shared.nextHeadersHits++;
-      return shim.cookies();
+      return real.cookies();
     },
-  };
-});
-vi.mock("next/server", async () => {
-  const shim = await import("@/server/http/next-shim");
-  return {
-    ...shim,
     after: (fn: () => unknown) => {
       shared.afterHits++;
-      return shim.after(fn);
+      return real.after(fn);
     },
   };
 });
-vi.mock("next/navigation", () => import("@/server/http/next-shim"));
-vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
 
 vi.mock("@/server/auth", async () => {
-  const shim = await import("@/server/http/next-shim");
+  const shim = await import("@/shared/infrastructure/http/request");
   const { legacyRequestContext } = await import("@/server/request-context");
   return {
     getCurrentUser: async () => {

@@ -2,8 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GET as exportVcard } from "@/server/site-handlers/admin/export-vcard";
 import { fake, nadia, owner, resetContainer, resetRequest, signIn } from "./doubles/web";
 
-vi.mock("next/headers", async () => (await import("./doubles/web")).nextHeaders);
-vi.mock("next/navigation", async () => (await import("./doubles/web")).nextNavigation);
+vi.mock("@/shared/infrastructure/http/request", async (real) => ({ ...(await real<object>()), ...(await import("./doubles/web")).nextHeaders, ...(await import("./doubles/web")).nextNavigation }));
 vi.mock("@/server/container", async () => (await import("./doubles/web")).containerModule);
 vi.mock("@/shared/infrastructure/database", () => ({ rootDb: {}, executor: () => ({}) }));
 

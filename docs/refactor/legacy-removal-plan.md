@@ -3,7 +3,28 @@
 Составлен 27.11.2026 по состоянию `master` c3e6450d. Это продолжение шага 7 ADR 0014: из него удалён `apps/api`,
 остались `src/server/container.ts`, `next-shim` и `apps/backend/src/legacy`.
 
-## Что сейчас
+## Статус
+
+| Этап | Состояние |
+|---|---|
+| 0. Охрана | готово 27.11: `tests/legacy-ratchet.test.ts` + `tests/legacy-ratchet.json` |
+| 1. Без Next в `src/server` | готово 27.11 (ветка `refactor/no-next`, не выкачено): `next/*` в бэкенде — 0 файлов, прокладок нет, сборка падает на любом `next/*` (плагин `no-next` в `scripts/node-bundle.mjs`) |
+| 2–4 | не начаты |
+
+Итог этапа 1 (как сделано, чтобы не искать по коммитам):
+- `revalidatePath`/`revalidateTag` и `"use server"` удалены кодмодом `scripts/refactor/drop-next-cache.mjs`.
+- Данные запроса — `src/shared/infrastructure/http/`: `request.ts` (`headers`, `cookies`, `after`, `redirect`, `notFound`,
+  `isRedirectError`, `redirectResponse`), `request-scope.ts` (перенесён из `src/server/http`), `locale.ts` (язык запроса
+  бэкенда; `src/i18n/server.ts` остаётся вебу). `NextResponse.json` → `Response.json`. Лежит не в `src/server`, чтобы
+  код этапа 2 в `src/modules/*/infrastructure` мог им пользоваться.
+- Поведение то же, с одним намеренным отличием: ошибка «данные запроса вне HTTP-запроса» теперь английская, как у Next.
+  Русская превращалась в обработчиках приложения (`mobile()`) в ответ 400 с текстом разработчика, английская даёт 500.
+- Тесты подменяют `@/shared/infrastructure/http/request` и `…/locale` вместо `next/*` и `@/i18n/server`
+  (двойники — `tests/doubles/web.ts`). `scripts/refactor/actions.mjs` ищет действия по папке `src/server/crm-actions`.
+- `next` в `package.json` пока остаётся: им типизирован общий код веба (`src/i18n/client.tsx`, `src/i18n/server.ts`)
+  и тест `tests/stale-version.test.ts`.
+
+## Что сейчас (на 27.11, до этапа 1)
 
 | Где | Объём | Роль |
 |---|---|---|

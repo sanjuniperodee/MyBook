@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { redirectResponse } from "@/shared/infrastructure/http/request";
 import { BoardsError } from "@/modules/boards";
 import { getStaff } from "@/server/access";
 import { boardViewer } from "@/server/boards-api";
@@ -10,11 +10,11 @@ export async function GET() {
   const staff = await getStaff();
   // За nginx адрес запроса — внутренний (localhost): обратно ведём на адрес сайта.
   const back = new URL("/admin/tasks/calendar", env.appUrl);
-  if (!staff) return NextResponse.redirect(new URL("/login?next=/admin/tasks/calendar", env.appUrl));
+  if (!staff) return redirectResponse(new URL("/login?next=/admin/tasks/calendar", env.appUrl));
   try {
-    return NextResponse.redirect(await container().boards.google.connectUrl(boardViewer(staff)));
+    return redirectResponse(await container().boards.google.connectUrl(boardViewer(staff)));
   } catch (e) {
     back.searchParams.set("google", BoardsError.is(e) ? e.message : "Не получилось начать вход в Google");
-    return NextResponse.redirect(back);
+    return redirectResponse(back);
   }
 }

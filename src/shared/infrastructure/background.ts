@@ -1,5 +1,5 @@
 import "server-only";
-import { after } from "next/server";
+import { after } from "./http/request";
 import type { Logger } from "../application/Logger";
 
 /**

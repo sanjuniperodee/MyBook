@@ -5,7 +5,7 @@ import { giftsForPlan } from "@/config/site";
 import { getSetting, listFields, readFieldValues, saveSettings } from "@/modules/workspace";
 import { entryGroups } from "@/modules/sales/domain/meta";
 import { STAGE_ORDER_DEFAULTS, STAGE_ORDER_LIMITS } from "@/shared/domain/stageOrder";
-import { redirect } from "next/navigation";
+import { redirect } from "@/shared/infrastructure/http/request";
 import { z } from "zod";
 import { aiFlagValue, isAiCrmFlag, parseStaffChatNames } from "@/shared/domain/aiCrm";
 import { uuid } from "@/server/input";

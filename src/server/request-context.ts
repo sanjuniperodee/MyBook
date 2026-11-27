@@ -1,6 +1,6 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { Locale } from "@/i18n/config";
-import { runWithLocale } from "@/i18n/server";
+import { runWithLocale } from "@/shared/infrastructure/http/locale";
 import type { StaffGate } from "@/modules/access";
 import type { CurrentUser } from "@/modules/identity";
 import type { Staff } from "./access";

@@ -20,9 +20,7 @@ import {
 } from "@/server/v1-local-bridge-book";
 import { NotFound, client, egor, fake, resetContainer, resetRequest, signIn, vera } from "../doubles/web";
 
-vi.mock("next/headers", async () => (await import("../doubles/web")).nextHeaders);
-vi.mock("next/navigation", async () => (await import("../doubles/web")).nextNavigation);
-vi.mock("next/cache", async () => (await import("../doubles/web")).nextCache);
+vi.mock("@/shared/infrastructure/http/request", async (real) => ({ ...(await real<object>()), ...(await import("../doubles/web")).nextHeaders, ...(await import("../doubles/web")).nextNavigation }));
 vi.mock("@/server/container", async () => (await import("../doubles/web")).containerModule);
 vi.mock("@/server/photoLimit", () => ({ maxPhotos: vi.fn(async () => 120) }));
 

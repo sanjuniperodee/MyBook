@@ -256,8 +256,6 @@ const sharedAuthoringFacade = {
   photoFile: shared.photoFile,
 };
 
-vi.mock("next/headers", () => import("@/server/http/next-shim"));
-vi.mock("next/server", () => import("@/server/http/next-shim"));
 vi.mock("@/server/rateLimit", () => ({ rateLimit: async () => shared.allowRate, trustedClientIp: async () => "203.0.113.10" }));
 vi.mock("@/server/photoLimit", () => ({ maxPhotos: async () => shared.photoLimit }));
 vi.mock("@/server/photo-edit-render", () => ({
@@ -265,7 +263,7 @@ vi.mock("@/server/photo-edit-render", () => ({
   renderPhotoEdit: (b: Buffer, d: unknown) => shared.renderEdit(b, d),
 }));
 vi.mock("@/server/auth", async () => {
-  const { cookies, headers } = await import("@/server/http/next-shim");
+  const { cookies, headers } = await import("@/shared/infrastructure/http/request");
   return {
     getCurrentUser: async () => {
       const all = [OWNER, STRANGER];

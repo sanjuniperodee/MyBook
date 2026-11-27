@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { api, apiUser, checkOrigin, HttpError } from "@/server/api";
 import { container } from "@/server/container";
 import { isPayToken, type InvoiceOwner } from "@/modules/ordering";
@@ -26,7 +25,7 @@ async function ownerOf(req: Request): Promise<InvoiceOwner> {
 export const GET = api(async (req, { params }: Ctx) => {
   const { id } = idParams(await params, "id");
   const invoice = await container().ordering.kaspi.status(id, await ownerOf(req));
-  return NextResponse.json({ invoice: await invoiceView(invoice) });
+  return Response.json({ invoice: await invoiceView(invoice) });
 });
 
 /** Отменить счёт (клиент выбрал другой способ оплаты). */
@@ -34,5 +33,5 @@ export const DELETE = api(async (req, { params }: Ctx) => {
   checkOrigin(req);
   const { id } = idParams(await params, "id");
   await container().ordering.kaspi.cancel(id, await ownerOf(req));
-  return NextResponse.json({ ok: true });
+  return Response.json({ ok: true });
 });

@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { z } from "zod";
 import { uuid } from "@/server/input";
 import { api, apiUser, checkOrigin, HttpError } from "@/server/api";
@@ -31,15 +30,15 @@ export const POST = api(async (req) => {
     // Ссылку на счёт могли переслать: номер клиента не засыпать счетами и с разных адресов.
     if (!(await rateLimit(`kaspi-invoice-pay:${body.token}`, 10, 60 * 60_000))) throw new HttpError(429, "kaspiRate");
     try {
-      return NextResponse.json({ invoice: await invoiceView(await kaspi.payDealInvoice(body.token, body)) });
+      return Response.json({ invoice: await invoiceView(await kaspi.payDealInvoice(body.token, body)) });
     } catch (err) {
       // Счёт уже оплачен, отменён или истёк — текст про счёт, а не про заказ.
       if (OrderingError.is(err) && err.code === "notPayable") throw new HttpError(409, "invoiceClosed");
       throw err;
     }
   }
-  if (body.target === "media_pack") return NextResponse.json({ invoice: await invoiceView(await kaspi.payMediaPack(body.purchaseId, (await apiUser(req)).id, body)) });
-  if (body.target === "ai_pack") return NextResponse.json({ invoice: await invoiceView(await kaspi.payAiPack(body.purchaseId, (await apiUser(req)).id, body)) });
+  if (body.target === "media_pack") return Response.json({ invoice: await invoiceView(await kaspi.payMediaPack(body.purchaseId, (await apiUser(req)).id, body)) });
+  if (body.target === "ai_pack") return Response.json({ invoice: await invoiceView(await kaspi.payAiPack(body.purchaseId, (await apiUser(req)).id, body)) });
   const invoice = body.target === "order" ? await kaspi.payOrder(body.orderId, (await apiUser(req)).id, body) : await kaspi.payGift(body.token, body);
-  return NextResponse.json({ invoice: await invoiceView(invoice) });
+  return Response.json({ invoice: await invoiceView(invoice) });
 });

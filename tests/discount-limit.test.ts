@@ -11,9 +11,7 @@ import { botInvoices } from "@/server/deal-invoices";
 import { Redirect, fake, kira, lena, owner, resetContainer, resetRequest, rita, signIn } from "./doubles/web";
 import { setup as clientsSetup } from "./doubles/clients";
 
-vi.mock("next/headers", async () => (await import("./doubles/web")).nextHeaders);
-vi.mock("next/navigation", async () => (await import("./doubles/web")).nextNavigation);
-vi.mock("next/cache", async () => (await import("./doubles/web")).nextCache);
+vi.mock("@/shared/infrastructure/http/request", async (real) => ({ ...(await real<object>()), ...(await import("./doubles/web")).nextHeaders, ...(await import("./doubles/web")).nextNavigation }));
 vi.mock("@/server/container", async () => (await import("./doubles/web")).containerModule);
 /** Настройки CRM без базы: лимит скидки; своих полей сделки нет. */
 const settings: Record<string, string> = {};

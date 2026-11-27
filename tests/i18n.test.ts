@@ -151,8 +151,8 @@ describe("нет русских строк вне словарей", () => {
     "server/invoice-access.ts", // после оплаты счёта: заметки, задачи и уведомления команде (клиенту — словарь access)
     "server/deal-invoices.ts", // счёт из чата и от бота: ошибки для менеджера (клиенту — словарь pay)
     "server/api-v1/crm-money.ts", // маршруты CRM API v1 (деньги заказа, финансы, счета): тексты — сотрудникам CRM
-    "server/http/next-shim.ts", // прокладка next/* бэкенда: ошибки «вызов вне запроса» — разработчику, клиенту не уходят
-    "server/http/request-scope.ts", // то же: контекст запроса прокладки next/*
+    "shared/infrastructure/http/request-scope.ts", // контекст запроса бэкенда: ошибка «вызов вне запроса» — разработчику
+    "shared/infrastructure/http/request.ts", // заголовки и cookie запроса бэкенда: то же
     "server/whatsapp-calls.ts", // звонки WhatsApp из CRM: ошибки шлюза — сотруднику
     "server/repeat-sale.ts", // ручная добивка из CRM: названия задач и текст-черновик, который менеджер правит сам
     "server/ai-autofill.ts", // автозаполнение полей сделки: запись в ленту сделки — сотрудникам CRM

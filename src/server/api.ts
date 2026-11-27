@@ -1,5 +1,4 @@
 import "server-only";
-import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { getCurrentUser } from "@/server/auth";
 import type { User } from "@/shared/infrastructure/db/schema";
@@ -12,7 +11,7 @@ import { container } from "@/server/container";
 import { env } from "@/config/env";
 import { can, ForbiddenError, getStaff, type Staff } from "@/server/access";
 import type { Permission } from "@/shared/domain/permissions";
-import { getMessages } from "@/i18n/server";
+import { getMessages } from "@/shared/infrastructure/http/locale";
 
 const HTTP_ERROR = Symbol.for("mybook.http-error");
 
@@ -35,7 +34,7 @@ export class HttpError<K extends ErrorKey = ErrorKey> extends Error {
 }
 
 function fail(t: ApiMessages, status: number, code: string, params?: unknown[]) {
-  return NextResponse.json({ error: errorText(t, code, params), code: isErrorKey(t, code) ? code : undefined }, { status });
+  return Response.json({ error: errorText(t, code, params), code: isErrorKey(t, code) ? code : undefined }, { status });
 }
 
 type Handler<C> = (req: Request, ctx: C) => Promise<Response>;

@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { z } from "zod";
 import { api, apiStaff, HttpError } from "@/server/api";
 import { auditAfterMoney, canSeeOrder } from "@/server/access";
@@ -51,7 +50,7 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
     });
   } catch (err) {
     // Правило денег (больше переплаты, нет причины) — текст для сотрудника в самой ошибке.
-    if (OrderingError.is(err) && err.code === "paymentRule") return NextResponse.json({ error: err.message }, { status: 409 });
+    if (OrderingError.is(err) && err.code === "paymentRule") return Response.json({ error: err.message }, { status: 409 });
     if (OrderingError.is(err) && err.code === "orderNotFound") throw new HttpError(404, "orderNotFound");
     throw err;
   }
@@ -61,7 +60,7 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
     receipt: !!receipt,
     note: result.payment.note,
   });
-  return NextResponse.json({
+  return Response.json({
     payment: { id: result.payment.id, amount: result.payment.amount },
     refundable: result.refundable,
   });

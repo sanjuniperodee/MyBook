@@ -4,9 +4,7 @@ import { anna, fake, kira, lena, owner, Redirect, resetContainer, resetRequest, 
 
 const notified = vi.hoisted(() => ({ calls: [] as { to: string[]; title: string; link: string }[] }));
 
-vi.mock("next/headers", async () => (await import("./doubles/web")).nextHeaders);
-vi.mock("next/navigation", async () => (await import("./doubles/web")).nextNavigation);
-vi.mock("next/cache", async () => (await import("./doubles/web")).nextCache);
+vi.mock("@/shared/infrastructure/http/request", async (real) => ({ ...(await real<object>()), ...(await import("./doubles/web")).nextHeaders, ...(await import("./doubles/web")).nextNavigation }));
 vi.mock("@/server/container", async () => (await import("./doubles/web")).containerModule);
 vi.mock("@/shared/infrastructure/database", () => ({ rootDb: {}, executor: () => ({}) }));
 vi.mock("@/modules/workspace", () => ({

@@ -7,7 +7,8 @@ const db = vi.hoisted(() => ({ rows: [] as Record<string, unknown>[], fail: fals
 /** Текущий запрос: null — вне запроса (планировщик, скрипт), next/headers там бросает. */
 const req = vi.hoisted(() => ({ headers: null as Headers | null }));
 
-vi.mock("next/headers", () => ({
+vi.mock("@/shared/infrastructure/http/request", async (real) => ({
+  ...(await real<object>()),
   headers: async () => {
     if (!req.headers) throw new Error("headers() вызван вне запроса");
     return req.headers;

@@ -73,9 +73,6 @@ const shared = vi.hoisted(() => ({
   summaryCount: 12,
 }));
 
-vi.mock("next/headers", () => import("@/server/http/next-shim"));
-vi.mock("next/server", () => import("@/server/http/next-shim"));
-vi.mock("next/navigation", () => import("@/server/http/next-shim"));
 vi.mock("@/shared/crypto", async (orig) => {
   const actual = await orig<typeof import("@/shared/crypto")>();
   return { ...actual, randomToken: () => GENERATED_VISITOR };
@@ -85,7 +82,7 @@ vi.mock("@/server/rateLimit", () => ({
   trustedClientIp: async () => "203.0.113.10",
 }));
 vi.mock("@/server/auth", async () => {
-  const shim = await import("@/server/http/next-shim");
+  const shim = await import("@/shared/infrastructure/http/request");
   return {
     getCurrentUser: async () => {
       const jar = await shim.cookies();

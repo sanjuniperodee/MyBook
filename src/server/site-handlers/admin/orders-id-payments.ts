@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { z } from "zod";
 import { api, apiStaff, HttpError } from "@/server/api";
 import { auditAfterMoney, canSeeOrder } from "@/server/access";
@@ -36,7 +35,7 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
   const paidAt = day ? new Date(Math.min(fromZonedTime(`${day}T12:00:00`).getTime(), Date.now())) : new Date();
   // Форма оплаты (Gold, рассрочка, Red…): комиссия банка считается с этой оплаты по ней.
   const payForm = await parsePayForm(form.get("payForm"));
-  if (!payForm.ok) return NextResponse.json({ error: payForm.error }, { status: 400 });
+  if (!payForm.ok) return Response.json({ error: payForm.error }, { status: 400 });
   let result;
   try {
     result = await container().ordering.payments.acceptManual({
@@ -51,7 +50,7 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
     });
   } catch (err) {
     // Правило денег (заказ отменён) — текст для сотрудника в самой ошибке.
-    if (OrderingError.is(err) && err.code === "paymentRule") return NextResponse.json({ error: err.message }, { status: 409 });
+    if (OrderingError.is(err) && err.code === "paymentRule") return Response.json({ error: err.message }, { status: 409 });
     throw err;
   }
   // Повтор той же отправки (первая записала деньги, но ответ не дошёл) — тот же платёж: журнал и форма оплаты уже записаны.
@@ -63,5 +62,5 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
       console.error("[order.payment] форма оплаты сделки не записана, деньги записаны", err);
     }
   }
-  return NextResponse.json({ payment: { id: result.payment.id, amount: result.payment.amount }, settled: result.settled, overpaid: result.overpaid });
+  return Response.json({ payment: { id: result.payment.id, amount: result.payment.amount }, settled: result.settled, overpaid: result.overpaid });
 });

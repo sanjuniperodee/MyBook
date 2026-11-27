@@ -1,5 +1,5 @@
 import "server-only";
-import { notFound, redirect } from "next/navigation";
+import { notFound, redirect } from "@/shared/infrastructure/http/request";
 import { cache } from "react";
 import { admin } from "@/i18n/admin";
 import { trustedClientIp } from "@/server/rateLimit";

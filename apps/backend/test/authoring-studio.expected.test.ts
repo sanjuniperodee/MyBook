@@ -183,8 +183,6 @@ vi.mock("node:crypto", async (importOriginal) => {
   const actual = await importOriginal<typeof import("node:crypto")>();
   return { ...actual, randomUUID: () => FIXED_MEDIA_ID };
 });
-vi.mock("next/headers", () => import("@/server/http/next-shim"));
-vi.mock("next/server", () => import("@/server/http/next-shim"));
 vi.mock("@/server/books", () => ({
   viewerOf: async (user: { id: string }): Promise<BookViewer> => ({ userId: user.id, isStaff: false, staffEdits: false }),
 }));

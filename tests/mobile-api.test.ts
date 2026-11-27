@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/server/container", () => ({ container: () => ({}) }));
 vi.mock("@/server/access", () => ({ getStaff: async () => null, can: () => false, ForbiddenError: class extends Error { static is = () => false } }));
-vi.mock("@/i18n/server", () => ({ getMessages: async () => ({ api: {} }), getLocale: async () => "ru" }));
+vi.mock("@/shared/infrastructure/http/locale", () => ({ getMessages: async () => ({ api: {} }), getLocale: async () => "ru" }));
 
 const { issueTicket, readTicket } = await import("@/server/mobile-auth");
 const { mobile } = await import("@/server/mobile-api");

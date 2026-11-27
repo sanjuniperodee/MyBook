@@ -92,8 +92,7 @@ describe("Доступ к чужой книге", () => {
 
 // Двойники веб-слоя (S6): вход, роли через настоящий StaffResolver, белый список IP и 2FA; подменены только
 // заказы и сборка файлов. Проверки доступа настоящие — из роута, api(), getStaff() и can().
-vi.mock("next/headers", async () => (await import("../doubles/web")).nextHeaders);
-vi.mock("next/navigation", async () => (await import("../doubles/web")).nextNavigation);
+vi.mock("@/shared/infrastructure/http/request", async (real) => ({ ...(await real<object>()), ...(await import("../doubles/web")).nextHeaders, ...(await import("../doubles/web")).nextNavigation }));
 vi.mock("@/server/container", async () => (await import("../doubles/web")).containerModule);
 
 // ADR 0013: веб ходит только в API v1 — в тестах его запросы обслуживает бэкенд на Nest в этом же процессе.

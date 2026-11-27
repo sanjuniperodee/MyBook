@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { z } from "zod";
 import { saveMyTemplateAction } from "@/server/crm-actions/templates";
 import { apiStaff } from "@/server/api";
@@ -10,7 +9,7 @@ export const GET = mobile(async (req) => {
   const staff = await apiStaff(req, "chats.view");
   const all = await container().messaging.view.templates(staff.user.id);
   const pick = ({ id, title, text }: { id: string; title: string; text: string }) => ({ id, title, text });
-  return NextResponse.json({ mine: all.filter((t) => t.own).map(pick), shared: all.filter((t) => !t.own).map(pick) });
+  return Response.json({ mine: all.filter((t) => t.own).map(pick), shared: all.filter((t) => !t.own).map(pick) });
 });
 
 /** Создать личный шаблон (без id) или изменить свой. */
@@ -18,5 +17,5 @@ export const POST = mobile(async (req) => {
   await apiStaff(req, "chats.view");
   const b = z.object({ id: z.string().optional(), title: z.string().max(200), text: z.string().max(5000) }).parse(await req.json());
   const r = await saveMyTemplateAction(b.id ?? "", b.title, b.text);
-  return NextResponse.json(r, { status: r.error ? 400 : 200 });
+  return Response.json(r, { status: r.error ? 400 : 200 });
 });

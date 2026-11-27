@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { api, apiStaff, HttpError } from "@/server/api";
 import { canSeeAssigned } from "@/server/access";
 import { container } from "@/server/container";
@@ -21,5 +20,5 @@ export const GET = api(async (req, { params }: { params: Promise<{ id: string }>
   const raw = url.searchParams.get("before");
   const before = raw && !Number.isNaN(Date.parse(raw)) ? new Date(raw) : undefined;
   const messages = await c.messaging.view.messages(conv.id, limit, before);
-  return NextResponse.json({ messages, more: messages.length === limit }, { headers: { "Cache-Control": "no-store" } });
+  return Response.json({ messages, more: messages.length === limit }, { headers: { "Cache-Control": "no-store" } });
 });

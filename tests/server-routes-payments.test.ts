@@ -8,9 +8,7 @@ import { PaymentIntakeService } from "@/modules/sales/application";
 import { DealInvoice, OrderingError } from "@/modules/ordering/domain";
 import { anna, client, fake, owner, request, resetContainer, resetRequest, signIn } from "./doubles/web";
 
-vi.mock("next/headers", async () => (await import("./doubles/web")).nextHeaders);
-vi.mock("next/navigation", async () => (await import("./doubles/web")).nextNavigation);
-vi.mock("next/cache", async () => (await import("./doubles/web")).nextCache);
+vi.mock("@/shared/infrastructure/http/request", async (real) => ({ ...(await real<object>()), ...(await import("./doubles/web")).nextHeaders, ...(await import("./doubles/web")).nextNavigation }));
 vi.mock("@/server/container", async () => (await import("./doubles/web")).containerModule);
 vi.mock("@/shared/infrastructure/database", () => ({ rootDb: {}, executor: () => ({}) }));
 

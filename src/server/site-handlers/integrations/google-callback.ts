@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { redirectResponse } from "@/shared/infrastructure/http/request";
 import { BoardsError } from "@/modules/boards";
 import { getStaff } from "@/server/access";
 import { container } from "@/server/container";
@@ -15,7 +15,7 @@ export async function GET(req: Request) {
   const state = url.searchParams.get("state") ?? "";
   if (!code) {
     back.searchParams.set("google", url.searchParams.get("error") === "access_denied" ? "Вы отменили вход в Google" : "Google не вернул код входа");
-    return NextResponse.redirect(back);
+    return redirectResponse(back);
   }
   try {
     const userId = await container().boards.google.finish(code, state);
@@ -27,5 +27,5 @@ export async function GET(req: Request) {
     console.error("[google] callback", e);
     back.searchParams.set("google", BoardsError.is(e) ? e.message : "Не получилось подключить Google Календарь — попробуйте ещё раз");
   }
-  return NextResponse.redirect(back);
+  return redirectResponse(back);
 }

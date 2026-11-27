@@ -3,9 +3,7 @@ import { callAction, openChatAction, sendEmailAction } from "@/server/crm-action
 import { admin } from "@/i18n/admin";
 import { fake, owner, resetContainer, resetRequest, signIn, timur } from "./doubles/web";
 
-vi.mock("next/headers", async () => (await import("./doubles/web")).nextHeaders);
-vi.mock("next/navigation", async () => (await import("./doubles/web")).nextNavigation);
-vi.mock("next/cache", async () => (await import("./doubles/web")).nextCache);
+vi.mock("@/shared/infrastructure/http/request", async (real) => ({ ...(await real<object>()), ...(await import("./doubles/web")).nextHeaders, ...(await import("./doubles/web")).nextNavigation }));
 vi.mock("@/server/container", async () => (await import("./doubles/web")).containerModule);
 
 // «Позвонить», «Открыть чат» и «Письмо» (crm-actions) у роли «только свои»: неразобранная или чужая сделка — отказ

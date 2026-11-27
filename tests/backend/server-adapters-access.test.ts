@@ -16,8 +16,7 @@ import { anna, client, egor, fake, kira, NotFound, owner, person, Redirect, requ
 /** База с одной книгой клиента u1 и одним её фото: запросы DrizzleAuthoringQueries настоящие, условия where не разбираются. */
 const db = vi.hoisted(() => ({ book: undefined as BookRow | undefined, photo: undefined as { photo: PhotoRow; ownerId: string } | undefined }));
 
-vi.mock("next/headers", async () => (await import("../doubles/web")).nextHeaders);
-vi.mock("next/navigation", async () => (await import("../doubles/web")).nextNavigation);
+vi.mock("@/shared/infrastructure/http/request", async (real) => ({ ...(await real<object>()), ...(await import("../doubles/web")).nextHeaders, ...(await import("../doubles/web")).nextNavigation }));
 vi.mock("@/server/container", async () => (await import("../doubles/web")).containerModule);
 vi.mock("@/shared/infrastructure/database", () => ({
   rootDb: {

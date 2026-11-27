@@ -179,9 +179,6 @@ const mockContainer = {
   },
 };
 
-vi.mock("next/headers", () => import("@/server/http/next-shim"));
-vi.mock("next/server", () => import("@/server/http/next-shim"));
-vi.mock("next/navigation", () => import("@/server/http/next-shim"));
 vi.mock("@/server/container", () => ({ container: () => mockContainer }));
 vi.mock("@/server/shift", () => ({ autoShiftOnVisit: async () => true }));
 vi.mock("@/server/audio-convert", () => ({
@@ -213,7 +210,7 @@ vi.mock("@/server/crm-lists/work", () => ({
   }),
 }));
 vi.mock("@/server/auth", async () => {
-  const shim = await import("@/server/http/next-shim");
+  const shim = await import("@/shared/infrastructure/http/request");
   return {
     sessionToken: async () => {
       const jar = await shim.cookies();

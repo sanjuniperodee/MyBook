@@ -1,6 +1,6 @@
 import "server-only";
 import { cache } from "react";
-import { notFound } from "next/navigation";
+import { notFound } from "@/shared/infrastructure/http/request";
 import { ApiClientError } from "@mybook/contracts";
 import { pageId } from "./input";
 import type { BookRow, BookViewer } from "@/modules/authoring";

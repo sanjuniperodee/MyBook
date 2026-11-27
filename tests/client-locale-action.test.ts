@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 /** Смена языка кабинета и писем клиента из карточки CRM (setClientLocaleAction). */
 const w = vi.hoisted(() => ({ locale: [] as [string, string][], audits: [] as unknown[], visible: true, client: { id: "0b0b0b0b-0000-4000-8000-000000000001", managerId: "m1" } as { id: string; managerId: string | null } | null }));
 
-vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
 vi.mock("@/server/access", () => ({
   assertStaff: async () => ({ user: { id: "boss" } }),
   assertVisible: () => {

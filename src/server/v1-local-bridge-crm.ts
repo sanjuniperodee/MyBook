@@ -1,6 +1,6 @@
 import "server-only";
 import type { z } from "zod";
-import { notFound, redirect } from "next/navigation";
+import { notFound, redirect } from "@/shared/infrastructure/http/request";
 import type { WebCrmStaff } from "@mybook/contracts";
 import { decodeWire, encodeWire } from "@/shared/wire";
 import type { CrmReads, OpInput, OpOutput } from "./crm-ops/registry";

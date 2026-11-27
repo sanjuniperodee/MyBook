@@ -2,11 +2,11 @@ import { describe, expect, it, vi } from "vitest";
 import { crmInvoiceRoutes, crmMobileRestRoutes, v1 } from "@mybook/contracts";
 import { HttpError } from "@/server/api";
 
-vi.mock("@/i18n/server", async (orig) => ({ ...(await orig<object>()), getMessages: async () => ({ api: (await import("@/i18n/messages/ru/api")).api }), getLocale: async () => "ru" }));
+vi.mock("@/shared/infrastructure/http/locale", async (orig) => ({ ...(await orig<object>()), getMessages: async () => ({ api: (await import("@/i18n/messages/ru/api")).api }), getLocale: async () => "ru" }));
 
 const { nestApi, legacyAuth } = await import("./api");
 const { createRouter } = await import("@mybook/contracts");
-const { redirect } = await import("@/server/http/next-shim");
+const { redirect } = await import("@/shared/infrastructure/http/request");
 const { ROUTE_REGISTRY } = await import("../../apps/backend/src/core/routes/route-registry");
 
 const ID1 = "11111111-2222-4333-8444-555555555555";
@@ -92,7 +92,7 @@ describe("API v1 A4: cherry-pick счетов/push и хвосты /api/mobile/*
   // apps/backend/test/crm-mobile-api.e2e.test.ts — «профиль, смена и обзор», «личные шаблоны», «звонки и статус заказа»,
   // «чаты, сообщения, пересылка и голосовые».
 
-  it("next-shim redirect() бросает Next-совместимый NEXT_REDIRECT digest (для createDealAction / deleteDealAction в бэкенде)", () => {
+  it("redirect() бэкенда бросает Next-совместимый NEXT_REDIRECT digest (для createDealAction / deleteDealAction в бэкенде)", () => {
     let caught: unknown;
     try {
       redirect(`/admin/deals/${ID1}`);

@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { issueInvoiceAction } from "@/server/crm-actions/invoices";
 import { apiStaff } from "@/server/api";
 import { mobile } from "@/server/mobile-api";
@@ -7,5 +6,5 @@ import { mobile } from "@/server/mobile-api";
 export const POST = mobile(async (req) => {
   await apiStaff(req, "chats.send", "deals.edit");
   const r = await issueInvoiceAction(await req.json());
-  return NextResponse.json(r, { status: r.ok ? 200 : 400 });
+  return Response.json(r, { status: r.ok ? 200 : 400 });
 });

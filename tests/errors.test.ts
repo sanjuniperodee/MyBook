@@ -11,7 +11,7 @@ import { domainStatus } from "@/server/errors";
 import { actionError, staffActionError } from "@/server/errors";
 import { request, resetRequest } from "./doubles/web";
 
-vi.mock("next/headers", async () => (await import("./doubles/web")).nextHeaders);
+vi.mock("@/shared/infrastructure/http/request", async (real) => ({ ...(await real<object>()), ...(await import("./doubles/web")).nextHeaders }));
 
 beforeEach(() => resetRequest());
 

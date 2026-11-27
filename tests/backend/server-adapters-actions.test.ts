@@ -9,9 +9,7 @@ import { createStaffAction, setStaffRoleAction } from "@/server/crm-actions/team
 import { confirmTwoFactorAction, newBackupCodesAction, startTwoFactorAction } from "@/server/crm-actions/security";
 import { anna, client, fake, owner, request, resetContainer, resetRequest, security, signIn } from "../doubles/web";
 
-vi.mock("next/headers", async () => (await import("../doubles/web")).nextHeaders);
-vi.mock("next/navigation", async () => (await import("../doubles/web")).nextNavigation);
-vi.mock("next/cache", async () => (await import("../doubles/web")).nextCache);
+vi.mock("@/shared/infrastructure/http/request", async (real) => ({ ...(await real<object>()), ...(await import("../doubles/web")).nextHeaders, ...(await import("../doubles/web")).nextNavigation }));
 vi.mock("@/server/container", async () => (await import("../doubles/web")).containerModule);
 
 // ADR 0013: веб ходит только в API v1 — в тестах его запросы обслуживает бэкенд на Nest в этом же процессе.

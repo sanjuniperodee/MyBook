@@ -280,10 +280,6 @@ vi.mock("node:crypto", async (importOriginal) => {
   const actual = await importOriginal<typeof import("node:crypto")>();
   return { ...actual, randomUUID: () => FIXED_UPLOAD_TOKEN };
 });
-vi.mock("next/headers", () => import("@/server/http/next-shim"));
-vi.mock("next/server", () => import("@/server/http/next-shim"));
-vi.mock("next/navigation", () => import("@/server/http/next-shim"));
-vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
 vi.mock("@/server/container", () => ({ container: () => mockContainer }));
 vi.mock("@/server/catalog", () => ({
   ensureCatalog: async () => {},
@@ -313,7 +309,7 @@ vi.mock("@/server/designAiStats", () => ({
   }),
 }));
 vi.mock("@/server/auth", async () => {
-  const shim = await import("@/server/http/next-shim");
+  const shim = await import("@/shared/infrastructure/http/request");
   return {
     getCurrentUser: async () => {
       const jar = await shim.cookies();

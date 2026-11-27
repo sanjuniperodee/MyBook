@@ -6,7 +6,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  */
 const w = vi.hoisted(() => ({ saved: [] as unknown[] }));
 
-vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
 vi.mock("@/server/access", () => ({ assertStaff: async () => ({ user: { id: "boss" } }), audit: async () => {} }));
 vi.mock("@/server/container", () => ({ container: () => ({ automation: { rules: { save: async (r: unknown) => void w.saved.push(r) } } }) }));
 

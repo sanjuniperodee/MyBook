@@ -1,5 +1,4 @@
 import "server-only";
-import { NextResponse } from "next/server";
 import { idParams } from "@/server/input";
 import { api, apiViewer } from "@/server/api";
 import { container } from "@/server/container";
@@ -14,5 +13,5 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
   const { viewer } = await apiViewer(req, id);
   const authoring = container().authoring;
   const layoutRev = await authoring.photos.upgradeLayout(id, viewer);
-  return NextResponse.json({ layoutRev, photos: await authoring.queries.photos(id) });
+  return Response.json({ layoutRev, photos: await authoring.queries.photos(id) });
 });

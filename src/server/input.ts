@@ -1,5 +1,5 @@
 import "server-only";
-import { notFound } from "next/navigation";
+import { notFound } from "@/shared/infrastructure/http/request";
 import { z } from "zod";
 import { admin } from "@/i18n/admin";
 import { HttpError } from "./api";

@@ -29,7 +29,7 @@ import * as h_admin_calls_whatsapp_id_recording from "@/server/site-handlers/adm
 import * as h_admin_calls_id_recording from "@/server/site-handlers/admin/calls-id-recording";
 import * as h_admin_webphone from "@/server/site-handlers/admin/webphone";
 import { SITE_OPS_PORTS, type SiteOpsPorts, type SiteOpsRoute } from "../modules/site-ops/site-ops.tokens";
-import { requestContext } from "@/server/http/request-scope";
+import { requestContext } from "@/shared/infrastructure/http/request-scope";
 import { runInLegacyRequest } from "./legacy-request";
 
 /** Обработчик маршрута сайта; объявлен методом, чтобы принять обработчики с узким типом параметров пути ({ id }, { event }). */
@@ -84,8 +84,8 @@ export const legacySiteOpsPorts: Provider<SiteOpsPorts> = {
 };
 
 /**
- * `after()` из next/server (вебхук GOWA: фото профиля нового клиента) — задача после ответа. Вне области запроса прокладка
- * бросала «вызов вне HTTP-запроса»: вебхук падал посреди обработки (статусы, правки, удаления пачки терялись, шлюзу —
+ * `after()` (src/shared/infrastructure/http; вебхук GOWA: фото профиля нового клиента) — задача после ответа. Вне области
+ * запроса он бросает «вызов вне HTTP-запроса»: вебхук падал посреди обработки (статусы, правки, удаления пачки терялись, шлюзу —
  * 500). Задачи копятся в области запроса и запускаются фоном, когда обработчик вернул ответ; сбой задачи — только в лог.
  */
 async function runWithAfter(req: Request, fn: () => Response | Promise<Response>): Promise<Response> {

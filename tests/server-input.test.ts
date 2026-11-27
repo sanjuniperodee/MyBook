@@ -2,8 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { api } from "@/server/api";
 import { idParams, textForm } from "@/server/input";
 
-vi.mock("next/headers", async () => (await import("./doubles/web")).nextHeaders);
-vi.mock("next/navigation", async () => (await import("./doubles/web")).nextNavigation);
+vi.mock("@/shared/infrastructure/http/request", async (real) => ({ ...(await real<object>()), ...(await import("./doubles/web")).nextHeaders, ...(await import("./doubles/web")).nextNavigation }));
 vi.mock("@/server/container", async () => (await import("./doubles/web")).containerModule);
 
 const get = () => new Request("http://localhost/api/x");

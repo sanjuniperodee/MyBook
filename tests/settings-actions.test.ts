@@ -14,7 +14,6 @@ const w = vi.hoisted(() => ({
   smtpEnv: false,
 }));
 
-vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
 vi.mock("@/server/access", () => ({
   assertStaff: async () => ({ user: { id: "boss", email: "boss@b.kz" } }),
   audit: async (_s: unknown, ...rest: unknown[]) => void w.audits.push(rest),

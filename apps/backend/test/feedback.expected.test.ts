@@ -42,8 +42,6 @@ const sharedMocks = vi.hoisted(() => ({
   allowRate: vi.fn<() => Promise<boolean>>(),
 }));
 
-vi.mock("next/headers", () => import("@/server/http/next-shim"));
-vi.mock("next/server", () => import("@/server/http/next-shim"));
 vi.mock("@/server/reviews", () => ({ reviewAccess: (orderId: string) => sharedMocks.allowAccess(orderId) }));
 vi.mock("@/server/rateLimit", () => ({ rateLimit: () => sharedMocks.allowRate(), trustedClientIp: async () => "203.0.113.10" }));
 vi.mock("@/server/container", () => ({

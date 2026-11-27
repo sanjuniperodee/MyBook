@@ -17,9 +17,7 @@ const messaging = {
   },
 };
 vi.mock("@/server/container", () => ({ container: () => ({ messaging }) }));
-// В сборке бэкенда next/* заменены прокладкой (src/server/http/next-shim.ts) — как на проде.
-vi.mock("next/server", () => import("@/server/http/next-shim"));
-vi.mock("next/headers", () => import("@/server/http/next-shim"));
+
 
 const { nestApi } = await import("./api");
 const api = await nestApi();

@@ -1,5 +1,4 @@
 import "server-only";
-import { NextResponse } from "next/server";
 import { z } from "zod";
 import { CHAPTER_EPIGRAPH_MAX, CHAPTER_TITLE_MAX } from "@/lib/content/kinds";
 import { idParams } from "@/server/input";
@@ -23,7 +22,7 @@ export const PATCH = api(async (req, { params }: Ctx) => {
   const { id, key } = idParams(await params, "id", "key");
   const { viewer } = await apiViewer(req, id);
   const outline = await container().authoring.outline.renameChapter(id, viewer, key, schema.parse(await req.json()));
-  return NextResponse.json({ outline });
+  return Response.json({ outline });
 });
 
 /** Глава удаляется вместе с разделами; фото разделов остаются в книге среди общих. Ответ — актуальное оглавление. */
@@ -31,5 +30,5 @@ export const DELETE = api(async (req, { params }: Ctx) => {
   const { id, key } = idParams(await params, "id", "key");
   const { viewer } = await apiViewer(req, id);
   const outline = await container().authoring.outline.deleteChapter(id, viewer, key);
-  return NextResponse.json({ outline });
+  return Response.json({ outline });
 });

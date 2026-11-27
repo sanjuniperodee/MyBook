@@ -6,9 +6,7 @@ import { cancelInvoiceAction, invoiceAccountsAction, invoiceFormInfoAction, issu
 import { DiscountError } from "@/shared/domain/discount";
 import { anna, dina, fake, kira, lena, owner, resetContainer, resetRequest, rita, signIn } from "./doubles/web";
 
-vi.mock("next/headers", async () => (await import("./doubles/web")).nextHeaders);
-vi.mock("next/navigation", async () => (await import("./doubles/web")).nextNavigation);
-vi.mock("next/cache", async () => (await import("./doubles/web")).nextCache);
+vi.mock("@/shared/infrastructure/http/request", async (real) => ({ ...(await real<object>()), ...(await import("./doubles/web")).nextHeaders, ...(await import("./doubles/web")).nextNavigation }));
 vi.mock("@/server/container", async () => (await import("./doubles/web")).containerModule);
 /** Настройки CRM без базы: лимит скидки, реквизиты перевода. */
 const settings: Record<string, string> = {};

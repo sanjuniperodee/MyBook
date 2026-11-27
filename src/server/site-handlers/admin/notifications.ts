@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { z } from "zod";
 import { uuid } from "@/server/input";
 import { api, apiStaff } from "@/server/api";
@@ -12,5 +11,5 @@ export const POST = api(async (req) => {
   await container().workspace.inbox.markRead(staff.user.id, id);
   // Число на значке iPhone — по новым непрочитанным (тихий push), не дожидаясь следующего уведомления.
   void syncMobileBadge(staff.user.id).catch((err: unknown) => console.error("[push:badge]", err));
-  return NextResponse.json({ ok: true });
+  return Response.json({ ok: true });
 });

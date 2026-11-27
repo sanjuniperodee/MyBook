@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { z } from "zod";
 import { api, apiStaff } from "@/server/api";
 import { TelephonyError } from "@/modules/telephony";
@@ -19,7 +18,7 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
   try {
     switch (op) {
       case "heartbeat":
-        return NextResponse.json({ live: await calls.heartbeat(id, staff.user.id, !!talking) });
+        return Response.json({ live: await calls.heartbeat(id, staff.user.id, !!talking) });
       case "connected":
         await calls.connected(id, staff.user.id);
         break;
@@ -30,8 +29,8 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
         break;
     }
   } catch (err) {
-    if (TelephonyError.is(err)) return NextResponse.json({ error: err.message }, { status: 409 });
+    if (TelephonyError.is(err)) return Response.json({ error: err.message }, { status: 409 });
     throw err;
   }
-  return NextResponse.json({ live: op === "connected" });
+  return Response.json({ live: op === "connected" });
 });

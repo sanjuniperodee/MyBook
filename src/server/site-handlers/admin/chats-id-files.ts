@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { api, apiStaff, HttpError } from "@/server/api";
 import { canWork } from "@/server/access";
 import { container } from "@/server/container";
@@ -22,8 +21,8 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
   if (!canWork(staff, conv.assigneeId)) throw new HttpError(403, "forbidden");
   const form = await req.formData();
   const files = form.getAll("files").filter((f): f is File => f instanceof File && f.size > 0);
-  if (!files.length) return NextResponse.json({ error: "Выберите файл" }, { status: 400 });
-  if (files.length > MAX_FILES) return NextResponse.json({ error: `Не больше ${MAX_FILES} файлов за раз` }, { status: 400 });
+  if (!files.length) return Response.json({ error: "Выберите файл" }, { status: 400 });
+  if (files.length > MAX_FILES) return Response.json({ error: `Не больше ${MAX_FILES} файлов за раз` }, { status: 400 });
   const caption = String(form.get("caption") ?? "").slice(0, 1000);
   // Подпись — тот же текст клиенту, что и сообщение: чужой номер, карта или реквизиты не уходят ни с одним файлом.
   const findings = await sensitiveFor(conv, caption);
@@ -40,5 +39,5 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
       results.push({ name: f.name, error: err.message });
     }
   }
-  return NextResponse.json({ results });
+  return Response.json({ results });
 });

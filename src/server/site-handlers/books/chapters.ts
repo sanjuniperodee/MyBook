@@ -1,5 +1,4 @@
 import "server-only";
-import { NextResponse } from "next/server";
 import { z } from "zod";
 import { CHAPTER_TITLE_MAX } from "@/lib/content/kinds";
 import { idParams, uuid } from "@/server/input";
@@ -18,5 +17,5 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
   const { id } = idParams(await params, "id");
   const { viewer } = await apiViewer(req, id);
   const input = schema.parse(await req.json());
-  return NextResponse.json(await container().authoring.outline.addChapter(id, viewer, input));
+  return Response.json(await container().authoring.outline.addChapter(id, viewer, input));
 });

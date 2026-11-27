@@ -6,7 +6,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  */
 const w = vi.hoisted(() => ({ stored: {} as Record<string, string>, audits: [] as unknown[][], perms: [] as string[] }));
 
-vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
 vi.mock("@/server/access", () => ({
   assertStaff: async (perm: string) => (w.perms.push(perm), { user: { id: "boss", email: "boss@b.kz" } }),
   audit: async (_s: unknown, ...rest: unknown[]) => void w.audits.push(rest),

@@ -3,9 +3,7 @@ import { fake, lena, owner, resetContainer, resetRequest, signIn } from "./doubl
 
 const { notesRead } = vi.hoisted(() => ({ notesRead: [] as string[] }));
 
-vi.mock("next/headers", async () => (await import("./doubles/web")).nextHeaders);
-vi.mock("next/navigation", async () => (await import("./doubles/web")).nextNavigation);
-vi.mock("next/cache", async () => (await import("./doubles/web")).nextCache);
+vi.mock("@/shared/infrastructure/http/request", async (real) => ({ ...(await real<object>()), ...(await import("./doubles/web")).nextHeaders, ...(await import("./doubles/web")).nextNavigation }));
 vi.mock("@/server/container", async () => (await import("./doubles/web")).containerModule);
 vi.mock("@/shared/infrastructure/database", () => ({ rootDb: {}, executor: () => ({}) }));
 vi.mock("@/modules/workspace", () => ({ notify: async () => {}, notifyMentions: async () => {}, readChatNotifications: async (userId: string, convId: string) => (notesRead.push(`${userId}:${convId}`), true), staffNotifier: { notifyAllWith: async () => {} }, listFields: async () => [], readFieldValues: () => ({}) }));

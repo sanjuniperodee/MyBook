@@ -5,9 +5,7 @@ import { sendEmailAction } from "@/server/crm-actions/crm";
 import { MessageActionError } from "@/modules/messaging";
 import { fake, lena, resetContainer, resetRequest, signIn } from "./doubles/web";
 
-vi.mock("next/headers", async () => (await import("./doubles/web")).nextHeaders);
-vi.mock("next/navigation", async () => (await import("./doubles/web")).nextNavigation);
-vi.mock("next/cache", async () => (await import("./doubles/web")).nextCache);
+vi.mock("@/shared/infrastructure/http/request", async (real) => ({ ...(await real<object>()), ...(await import("./doubles/web")).nextHeaders, ...(await import("./doubles/web")).nextNavigation }));
 vi.mock("@/server/container", async () => (await import("./doubles/web")).containerModule);
 
 // Реквизиты во всех путях отправки сотрудника (chats-d4): подпись к файлу, правка, пересылка, письмо из карточки. Чужой

@@ -1,7 +1,7 @@
 import "server-only";
 import { cache } from "react";
-import { cookies, headers } from "next/headers";
-import { lredirect } from "@/i18n/server";
+import { cookies, headers } from "@/shared/infrastructure/http/request";
+import { lredirect } from "@/shared/infrastructure/http/locale";
 import { isSecureCookie } from "@/config/env";
 import { signValue, verifySigned } from "@/shared/crypto";
 import type { CurrentUser } from "@/modules/identity";

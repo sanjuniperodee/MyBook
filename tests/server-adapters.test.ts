@@ -10,8 +10,7 @@ import { api, apiStaff, apiUser, checkOrigin, HttpError } from "@/server/api";
 import { ForbiddenError } from "@/server/access";
 import { anna, client, owner, request, resetContainer, resetRequest, security, signIn } from "./doubles/web";
 
-vi.mock("next/headers", async () => (await import("./doubles/web")).nextHeaders);
-vi.mock("next/navigation", async () => (await import("./doubles/web")).nextNavigation);
+vi.mock("@/shared/infrastructure/http/request", async (real) => ({ ...(await real<object>()), ...(await import("./doubles/web")).nextHeaders, ...(await import("./doubles/web")).nextNavigation }));
 vi.mock("@/server/container", async () => (await import("./doubles/web")).containerModule);
 
 // Характеристические тесты (фаза 3, S6): фиксируют ТЕКУЩЕЕ поведение веб-адаптера src/server/api.ts.

@@ -41,9 +41,6 @@ const shared = vi.hoisted(() => ({ users: [] as { id: string }[], tokenOf: null 
 const RECEIPT_ID = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
 const DEAL_ID = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
 
-vi.mock("next/headers", () => import("@/server/http/next-shim"));
-vi.mock("next/server", () => import("@/server/http/next-shim"));
-vi.mock("next/navigation", () => import("@/server/http/next-shim"));
 vi.mock("@/server/container", () => ({
   container: () => ({
     sales: {

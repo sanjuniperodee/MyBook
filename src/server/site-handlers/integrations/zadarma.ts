@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { getSetting } from "@/modules/workspace";
 import { safeEqual } from "@/shared/crypto";
 import { parseZadarmaEvent, zadarmaSign, zadarmaSignedString } from "@/modules/telephony/domain/protocol";
@@ -14,13 +13,13 @@ export async function GET(req: Request) {
 /** События АТС Zadarma (NOTIFY_START, NOTIFY_INTERNAL, NOTIFY_ANSWER, NOTIFY_END, NOTIFY_OUT_*, NOTIFY_RECORD). */
 export async function POST(req: Request) {
   const secret = await getSetting("zadarma.secret");
-  if (!secret) return NextResponse.json({ error: "not configured" }, { status: 503 });
+  if (!secret) return Response.json({ error: "not configured" }, { status: 503 });
   const form = new URLSearchParams(await req.text());
   const params = Object.fromEntries(form.entries());
   const signed = zadarmaSignedString(params);
-  if (signed === null) return NextResponse.json({ ok: true, ignored: true });
+  if (signed === null) return Response.json({ ok: true, ignored: true });
   const signature = req.headers.get("signature") ?? "";
-  if (!safeEqual(signature, zadarmaSign(signed, secret))) return NextResponse.json({ error: "bad signature" }, { status: 403 });
+  if (!safeEqual(signature, zadarmaSign(signed, secret))) return Response.json({ error: "bad signature" }, { status: 403 });
 
   const event = parseZadarmaEvent(params);
   if (event) {
@@ -28,8 +27,8 @@ export async function POST(req: Request) {
       await container().telephony.calls.handle(event);
     } catch (err) {
       console.error("[zadarma]", params.event, err);
-      return NextResponse.json({ error: "failed" }, { status: 500 });
+      return Response.json({ error: "failed" }, { status: 500 });
     }
   }
-  return NextResponse.json({ ok: true });
+  return Response.json({ ok: true });
 }

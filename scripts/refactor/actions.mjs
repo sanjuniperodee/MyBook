@@ -1,5 +1,5 @@
-// Server actions: какие проверки прав (guards), лимиты и zod вызывает каждая экспортируемая функция файлов "use server"
-// (напрямую или через локальные помощники). Запуск: node scripts/refactor/actions.mjs
+// Действия CRM (бывшие server actions): какие проверки прав (guards), лимиты и zod вызывает каждая экспортируемая функция
+// файлов src/server/crm-actions (напрямую или через локальные помощники). Запуск: node scripts/refactor/actions.mjs
 import { createRequire } from "node:module";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
@@ -11,9 +11,9 @@ const files = [];
   for (const name of readdirSync(dir)) {
     const p = path.join(dir, name);
     if (statSync(p).isDirectory()) walk(p);
-    else if (/\.(ts|tsx)$/.test(name) && /^["']use server["']/m.test(readFileSync(p, "utf8"))) files.push(p);
+    else if (/\.(ts|tsx)$/.test(name) && name !== "index.ts") files.push(p);
   }
-})(path.join(root, "src"));
+})(path.join(root, "src/server/crm-actions"));
 
 const GUARD = /\b(requireStaff|assertStaff|assertStaffShell|requireStaffShell|requireUser|getCurrentUser|getStaff|getAccessibleBook|assertVisible|rateLimit|require[A-Z]\w*|assert[A-Z]\w*)\s*\(/g;
 // zod напрямую или вызовы общих схем из server/input (uuid.parse, textForm(), idParam()) и parseForm() форм настроек; formText стоит внутри z.object().

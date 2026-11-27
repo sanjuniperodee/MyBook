@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { api, apiStaff, HttpError } from "@/server/api";
 import { audit } from "@/server/access";
 import { container } from "@/server/container";
@@ -24,7 +23,7 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
   if (!gift) throw new HttpError(409, "giftNotPending");
   const receipt = gift.snapshot().receipt;
   await audit(staff, "gift.paid", "gift", id, { number: gift.number, amount: gift.snapshot().amount, receipt: receipt?.fileName });
-  return NextResponse.json({ ok: true });
+  return Response.json({ ok: true });
 });
 
 /** Чек ручного подтверждения сертификата — тем, кто ведёт сертификаты; просмотр — в журнал. */

@@ -3,4 +3,4 @@
 // next/* — заглушка: фон не работает в HTTP-запросе, а код Next вне своего сервера не загружается.
 import { bundleNodeProcess } from "./node-bundle.mjs";
 
-await bundleNodeProcess({ name: "worker", entry: "src/worker/main.ts", nextShim: "./scripts/worker-next-shim.mjs" });
+await bundleNodeProcess({ name: "worker", entry: "src/worker/main.ts" });

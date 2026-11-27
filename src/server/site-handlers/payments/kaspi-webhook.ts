@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { parseKaspiWebhook } from "@/modules/ordering";
 import { container } from "@/server/container";
 
@@ -15,14 +14,14 @@ export async function POST(req: Request) {
   try {
     body = JSON.parse(raw);
   } catch {
-    return NextResponse.json({ ok: false, reason: "json" }, { status: 400 });
+    return Response.json({ ok: false, reason: "json" }, { status: 400 });
   }
   const hook = parseKaspiWebhook(body);
-  if (!hook) return NextResponse.json({ ok: true, ignored: true });
+  if (!hook) return Response.json({ ok: true, ignored: true });
   try {
-    return NextResponse.json({ ok: true, result: await ordering.kaspi.onWebhook(hook, signed) });
+    return Response.json({ ok: true, result: await ordering.kaspi.onWebhook(hook, signed) });
   } catch (err) {
     console.error("[kaspi] webhook", err);
-    return NextResponse.json({ ok: false }, { status: 500 });
+    return Response.json({ ok: false }, { status: 500 });
   }
 }

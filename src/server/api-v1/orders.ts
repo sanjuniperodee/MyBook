@@ -8,7 +8,7 @@
  */
 import { isLocale, type Locale } from "@/i18n/config";
 import { messagesFor } from "@/i18n/messages";
-import { getLocale } from "@/i18n/server";
+import { getLocale } from "@/shared/infrastructure/http/locale";
 import { OrderingError } from "@/modules/ordering";
 import { HttpError } from "@/server/api";
 import { checkoutModel, checkoutQuote, checkoutSchema, placeOrder } from "@/server/checkout";

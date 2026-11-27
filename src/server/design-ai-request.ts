@@ -40,7 +40,7 @@ import {
 } from "@/lib/book/interiors";
 import { getCoverTemplate, isKnownCover } from "@/lib/book/covers";
 import { bookKind } from "@/lib/content/kinds";
-import { getLocale } from "@/i18n/server";
+import { getLocale } from "@/shared/infrastructure/http/locale";
 import type { Locale } from "@/i18n/config";
 import { messagesFor } from "@/i18n/messages";
 import type { BookRow } from "@/modules/authoring";

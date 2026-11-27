@@ -9,17 +9,27 @@ import path from "node:path";
 import { asciiBundle } from "./ascii-bundle.mjs";
 import { coverArtVersion } from "./cover-art-version.mjs";
 
+/** Next в процессах бэкенда не участвует: импорт next/* (в том числе через общий код веба) роняет сборку. */
+const noNext = {
+  name: "no-next",
+  setup(b) {
+    b.onResolve({ filter: /^next(\/|$)/ }, (args) => ({
+      errors: [{ text: `next в бэкенде не нужен: ${args.path} из ${path.relative(process.cwd(), args.importer)} — берите src/shared/infrastructure/http` }],
+    }));
+  },
+};
+
 /** Папка релиза: бандлы, node_modules внешних пакетов, bin/mybook-files (deploy/pack-release.sh добавляет assets и drizzle). */
 export const BUILD_DIR = process.env.MYBOOK_BUILD_DIR || "build";
 
 export const EXTERNAL = ["@react-pdf/renderer", "@react-pdf/layout", "sharp", "pdf-lib", "hyphen", "pg", "archiver", "hunspell-asm", "heic-decode", "libheif-js", "react", "react-dom"];
 
 /**
- * Собрать entry в <BUILD_DIR>/<name>.mjs; nextShim — чем заменить next/server, next/headers, next/navigation;
- * tsconfig — свой у процесса (бэкенду на Nest нужны experimentalDecorators); optional — пакеты, которые процесс грузит
+ * Собрать entry в <BUILD_DIR>/<name>.mjs. Импорт next/* — ошибка сборки: данные запроса бэкенда — в
+ * src/shared/infrastructure/http (docs/refactor/legacy-removal-plan.md, этап 1). tsconfig — свой у процесса (бэкенду на Nest нужны experimentalDecorators); optional — пакеты, которые процесс грузит
  * только при наличии (необязательные зависимости Nest), — не в бандл и не в релиз.
  */
-export async function bundleNodeProcess({ name, entry, nextShim, tsconfig = "tsconfig.json", optional = [] }) {
+export async function bundleNodeProcess({ name, entry, tsconfig = "tsconfig.json", optional = [] }) {
   const out = path.join(BUILD_DIR, `${name}.mjs`);
   mkdirSync(BUILD_DIR, { recursive: true });
   await build({
@@ -32,15 +42,12 @@ export async function bundleNodeProcess({ name, entry, nextShim, tsconfig = "tsc
     jsx: "automatic",
     tsconfig,
     external: [...EXTERNAL, ...optional],
+    plugins: [noNext],
     // Версия рисунков обложек — в бандл, как раньше её вшивал next.config сайта (без неё кэши обложек не сбрасывались бы).
     define: { "process.env.COVER_ART_VERSION": JSON.stringify(coverArtVersion()) },
     alias: {
       "server-only": "./scripts/empty-module.mjs",
       "react/jsx-runtime": "./scripts/pdf-worker-jsx.mjs",
-      "next/server": nextShim,
-      "next/headers": nextShim,
-      "next/navigation": nextShim,
-      "next/cache": "./scripts/next-cache-shim.mjs",
     },
     // require, __filename и __dirname — для CommonJS-пакетов, вшитых в ESM-файл.
     banner: {

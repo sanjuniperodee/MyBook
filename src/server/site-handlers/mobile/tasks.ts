@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { z } from "zod";
 import { apiStaff } from "@/server/api";
 import { mobile } from "@/server/mobile-api";
@@ -9,7 +8,7 @@ import { mobileTasks } from "@/server/crm-lists/work";
 export const GET = mobile(async (req) => {
   const staff = await apiStaff(req);
   const u = new URL(req.url).searchParams;
-  return NextResponse.json({ tasks: await mobileTasks(staff, { done: u.get("done") === "1", who: u.get("who") ?? undefined, kind: u.get("kind") ?? undefined, q: u.get("q")?.slice(0, 100) }) });
+  return Response.json({ tasks: await mobileTasks(staff, { done: u.get("done") === "1", who: u.get("who") ?? undefined, kind: u.get("kind") ?? undefined, q: u.get("q")?.slice(0, 100) }) });
 });
 
 const body = z.object({
@@ -31,5 +30,5 @@ export const POST = mobile(async (req) => {
   const form = new FormData();
   for (const [k, v] of Object.entries(b)) if (v !== undefined) form.set(k, String(v));
   const r = await createTaskAction({}, form);
-  return NextResponse.json(r, { status: r.error ? 400 : 200 });
+  return Response.json(r, { status: r.error ? 400 : 200 });
 });

@@ -1,5 +1,4 @@
 import "server-only";
-import { NextResponse } from "next/server";
 import { z } from "zod";
 import { api, apiViewer } from "@/server/api";
 import { container } from "@/server/container";
@@ -14,5 +13,5 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string; 
   const { viewer } = await apiViewer(req, id);
   const input = schema.parse(await req.json());
   await container().authoring.questions.moveStory(id, viewer, { id: qid, ...input });
-  return NextResponse.json({ ok: true });
+  return Response.json({ ok: true });
 });

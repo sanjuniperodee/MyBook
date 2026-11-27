@@ -1,5 +1,4 @@
 import "server-only";
-import { NextResponse } from "next/server";
 import { z } from "zod";
 import { CoverFields } from "@mybook/contracts";
 import { PAGES_TEXT_MAX } from "@mybook/contracts/limits";
@@ -67,12 +66,12 @@ export const PATCH = api(async (req, { params }: { params: Promise<{ id: string 
   const { language, ...rest } = patchSchema.parse(await req.json());
   const authoring = container().authoring;
   await authoring.books.updateSettings(id, viewer, { ...rest, language: language && isLocale(language) ? language : undefined }, authoring.photoRepository);
-  return NextResponse.json({ book: await authoring.queries.book(id) });
+  return Response.json({ book: await authoring.queries.book(id) });
 });
 
 export const DELETE = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = idParams(await params, "id");
   const { viewer } = await apiViewer(req, id);
   await container().authoring.books.delete(id, viewer);
-  return NextResponse.json({ ok: true });
+  return Response.json({ ok: true });
 });

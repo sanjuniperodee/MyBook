@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { api, apiStaff, HttpError } from "@/server/api";
 import { can, canWork } from "@/server/access";
 import { container } from "@/server/container";
@@ -53,7 +52,7 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
   // Повтор той же отправки (первая записала деньги, но ответ не дошёл: сбой письма, журнала, сети) — тот же платёж, без
   // проверок ниже: счёт уже оплачен ею же, «недавняя оплата» — она сама, возврат уже вычтен из «можно вернуть».
   const sent = fields.requestKey ? await c.sales.payments.findByRequestKey(fields.requestKey) : null;
-  if (sent && sent.dealId === deal.id) return NextResponse.json({ payment: { id: sent.id, amount: sent.amount, kind: sent.kind, paidAt: sent.paidAt }, repeated: true });
+  if (sent && sent.dealId === deal.id) return Response.json({ payment: { id: sent.id, amount: sent.amount, kind: sent.kind, paidAt: sent.paidAt }, repeated: true });
   // По сделке оформлен заказ — дальше деньги идут через заказ (его оплату подтверждают в заказе), иначе их посчитают дважды.
   // Исключение — возврат лишнего: внесённого по сделке сверх учтённого в заказе (у отменённого заказа — всего внесённого),
   // иначе такие деньги навсегда висят в «Финансах» как «нужен возврат».
@@ -61,20 +60,20 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
     if (fields.kind !== "refund" || fields.invoiceId) throw new HttpError(409, "dealHasOrder");
     const refundable = (await c.sales.refundAfterOrder(deal.id)) ?? 0;
     if (Number(fields.amount || 0) > refundable)
-      return NextResponse.json({ error: refundable > 0 ? `По сделке можно вернуть не больше ${formatPrice(refundable)}: остальное учтено в заказе` : "Лишних денег по сделке нет: всё учтено в заказе" }, { status: 409 });
+      return Response.json({ error: refundable > 0 ? `По сделке можно вернуть не больше ${formatPrice(refundable)}: остальное учтено в заказе` : "Лишних денег по сделке нет: всё учтено в заказе" }, { status: 409 });
   }
   // «Оплата пришла» по счёту из чата: счёт этой сделки, ждёт оплаты; сумма — ровно сумма счёта.
   const invoice = fields.invoiceId ? await c.ordering.invoices.byId(fields.invoiceId) : null;
   if (fields.invoiceId && (!invoice || invoice.dealId !== deal.id)) throw new HttpError(404, "notFound");
-  if (invoice && invoice.status === "paid") return NextResponse.json({ error: `Счёт ${invoice.label} уже оплачен` }, { status: 409 });
+  if (invoice && invoice.status === "paid") return Response.json({ error: `Счёт ${invoice.label} уже оплачен` }, { status: 409 });
   const refund = fields.kind === "refund";
-  if (invoice && refund) return NextResponse.json({ error: "Возврат оформляется без счёта" }, { status: 400 });
+  if (invoice && refund) return Response.json({ error: "Возврат оформляется без счёта" }, { status: 400 });
   if (invoice && Number(fields.amount) !== invoice.amount)
-    return NextResponse.json({ error: `Сумма по счёту ${invoice.label} — ${formatPrice(invoice.amount)}. Если клиент заплатил часть, примите оплату как «другую»` }, { status: 400 });
+    return Response.json({ error: `Сумма по счёту ${invoice.label} — ${formatPrice(invoice.amount)}. Если клиент заплатил часть, примите оплату как «другую»` }, { status: 400 });
   const note = fields.note;
   // Форма оплаты этого платежа (Gold, рассрочка, Red…): комиссия банка считается с него по ней.
   const payForm = await parsePayForm(form.get("payForm"));
-  if (!payForm.ok) return NextResponse.json({ error: payForm.error }, { status: 400 });
+  if (!payForm.ok) return Response.json({ error: payForm.error }, { status: 400 });
   if (refund && note.trim().length < 3) throw new HttpError(400, "refundNoReason");
   const file = form.get("file");
   if (!(file instanceof File) || !file.size) throw new HttpError(400, "receiptRequired");
@@ -90,7 +89,7 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
   const paidAt = day ? fromZonedTime(`${day}T12:00:00`) : new Date();
   if (!refund && !invoice) {
     const unseen = await unseenMoney(deal.id, fields.seen);
-    if (unseen) return NextResponse.json({ error: unseen, code: "invoiceChoice" }, { status: 409 });
+    if (unseen) return Response.json({ error: unseen, code: "invoiceChoice" }, { status: 409 });
   }
 
   try {
@@ -107,12 +106,12 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
       actor: { userId: staff.user.id, name: staff.user.name || staff.user.email, seesAll: staff.scope === "all", allTasks: can(staff, "tasks.all") },
     });
     if (!refund && !repeated) await c.sales.deals.notePayForm(deal.id, payForm.form).catch((err) => console.error("[deal.payment] форма оплаты сделки не записана, деньги записаны", err));
-    return NextResponse.json({ payment: { id: payment.id, amount: payment.amount, kind: payment.kind, paidAt: payment.paidAt } });
+    return Response.json({ payment: { id: payment.id, amount: payment.amount, kind: payment.kind, paidAt: payment.paidAt } });
   } catch (err) {
-    if (OrderingError.is(err) && err.code === "paymentRule") return NextResponse.json({ error: err.message }, { status: 409 });
+    if (OrderingError.is(err) && err.code === "paymentRule") return Response.json({ error: err.message }, { status: 409 });
     if (PaymentError.is(err)) throw paymentProblemError(err.code);
     // Тот же чек уже приложен к другому платежу — к какому, в тексте ошибки.
-    if (ReceiptUsedError.is(err)) return NextResponse.json({ error: err.message }, { status: 409 });
+    if (ReceiptUsedError.is(err)) return Response.json({ error: err.message }, { status: 409 });
     if (ReceiptError.is(err)) throw new HttpError(400, "receiptNotSaved");
     throw err;
   }

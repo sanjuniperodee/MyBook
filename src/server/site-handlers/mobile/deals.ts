@@ -1,8 +1,7 @@
-import { NextResponse } from "next/server";
 import { apiStaff } from "@/server/api";
 import { mobile } from "@/server/mobile-api";
 import { z } from "zod";
-import { isRedirectError } from "next/dist/client/components/redirect-error";
+import { isRedirectError } from "@/shared/infrastructure/http/request";
 import { createDealAction } from "@/server/crm-actions/deals";
 import { mobileDeals } from "@/server/crm-lists/data";
 
@@ -12,7 +11,7 @@ export const GET = mobile(async (req) => {
   const url = new URL(req.url);
   const sp: Record<string, string | undefined> = {};
   for (const k of ["p", "mine", "a", "q", "task", "stale", "src"]) sp[k] = url.searchParams.get(k) ?? undefined;
-  return NextResponse.json(await mobileDeals(staff, sp));
+  return Response.json(await mobileDeals(staff, sp));
 });
 
 const create = z.object({
@@ -34,12 +33,12 @@ export const POST = mobile(async (req) => {
   for (const [k, v] of Object.entries(b)) if (v !== undefined) form.set(k, String(v));
   try {
     const r = await createDealAction({}, form);
-    return NextResponse.json(r, { status: 400 });
+    return Response.json(r, { status: 400 });
   } catch (err) {
     // Действие CRM заканчивается переходом на карточку сделки — оттуда берём id новой сделки.
     if (isRedirectError(err)) {
       const id = (err as { digest?: string }).digest?.split(";")[2]?.split("/").pop();
-      if (id) return NextResponse.json({ ok: true, id });
+      if (id) return Response.json({ ok: true, id });
     }
     throw err;
   }

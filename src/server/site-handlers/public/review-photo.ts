@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound } from "@/shared/infrastructure/http/request";
 import { getCurrentUser } from "@/server/auth";
 import { can, getStaff } from "@/server/access";
 import { container } from "@/server/container";

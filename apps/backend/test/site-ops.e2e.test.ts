@@ -41,7 +41,7 @@ async function echo(req: Request, ctx?: { params?: Promise<Record<string, string
     import("@/server/auth"),
     import("@/server/access"),
     import("@/server/rateLimit"),
-    import("@/i18n/server"),
+    import("@/shared/infrastructure/http/locale"),
   ]);
   const url = new URL(req.url);
   const type = req.headers.get("content-type")?.split(";")[0] ?? null;
@@ -109,9 +109,6 @@ vi.mock("@/server/site-handlers/payments/kaspi-invoice-item", async (orig) => ec
 vi.mock("@/server/site-handlers/payments/kaspi-invoices", async (orig) => echoModule(await orig()));
 vi.mock("@/server/site-handlers/payments/kaspi-webhook", async (orig) => echoModule(await orig()));
 
-vi.mock("next/headers", () => import("@/server/http/next-shim"));
-vi.mock("next/server", () => import("@/server/http/next-shim"));
-vi.mock("next/navigation", () => import("@/server/http/next-shim"));
 vi.mock("@/server/auth", async (orig) => {
   const actual = await orig<typeof import("@/server/auth")>();
   const { legacyRequestContext } = await import("@/server/request-context");

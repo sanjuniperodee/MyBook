@@ -76,16 +76,13 @@ describe("deploy/ecosystem.config.cjs", () => {
   });
 });
 
-describe("заглушка next/* в воркере", () => {
-  it("after() бросает, как Next вне запроса, — runInBackground выполняет задачу сразу", async () => {
-    // @ts-expect-error -- .mjs без типов
-    const shim = await import("../scripts/worker-next-shim.mjs");
-    expect(() => shim.after(() => {})).toThrow(/mybook-worker/);
-    vi.doMock("next/server", () => shim);
+describe("задача после ответа вне запроса", () => {
+  it("after() вне HTTP-запроса бросает — runInBackground выполняет задачу сразу (воркер, планировщик)", async () => {
+    const { after } = await import("@/shared/infrastructure/http/request");
+    expect(() => after(() => {})).toThrow(/outside an HTTP request/);
     const { runInBackground } = await import("@/shared/infrastructure/background");
     const task = vi.fn(async () => {});
     runInBackground(task);
     expect(task).toHaveBeenCalledTimes(1);
-    vi.doUnmock("next/server");
   });
 });

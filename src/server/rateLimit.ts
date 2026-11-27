@@ -1,4 +1,4 @@
-import { headers } from "next/headers";
+import { headers } from "@/shared/infrastructure/http/request";
 import type { RequestOrigin } from "@/modules/access";
 import { clientIpFrom } from "@/shared/clientIp";
 import { legacyRequestContext } from "./request-context";

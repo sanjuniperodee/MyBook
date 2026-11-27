@@ -1,4 +1,4 @@
-import { after, NextResponse } from "next/server";
+import { after } from "@/shared/infrastructure/http/request";
 import { api, apiStaff, HttpError } from "@/server/api";
 import { can, canSeeAssigned } from "@/server/access";
 import { uuid } from "@/server/input";
@@ -22,7 +22,7 @@ export const POST = api(async (req: Request) => {
   try {
     form = await req.formData();
   } catch {
-    return NextResponse.json({ error: "Не удалось прочитать форму — возможно, файлы слишком большие" }, { status: 400 });
+    return Response.json({ error: "Не удалось прочитать форму — возможно, файлы слишком большие" }, { status: 400 });
   }
   const uploads: UploadedFile[] = [];
   for (const [key, recorded] of [["voice", true], ["files", false]] as const) {
@@ -37,7 +37,7 @@ export const POST = api(async (req: Request) => {
   if (conversationId) {
     if (!can(staff, "chats.view")) throw new HttpError(403, "forbidden");
     const conv = await container().messaging.queries.conversation(uuid.parse(conversationId));
-    if (!conv || !canSeeAssigned(staff, conv.assigneeId)) return NextResponse.json({ error: "Этот чат вам недоступен" }, { status: 403 });
+    if (!conv || !canSeeAssigned(staff, conv.assigneeId)) return Response.json({ error: "Этот чат вам недоступен" }, { status: 403 });
     messageIds = z.array(uuid).max(200).parse(JSON.parse(text(form, "messageIds") || "[]"));
   }
   try {
@@ -61,9 +61,9 @@ export const POST = api(async (req: Request) => {
     );
     if (conversationId && messageIds.length) await support.tickets.linkChat(ticket.id, conversationId, messageIds, { userId: staff.user.id, name });
     after(() => support.tickets.process(ticket.id).catch((err) => console.error("[support] process", err)));
-    return NextResponse.json({ number: ticket.number, phone: ticket.notifyPhone });
+    return Response.json({ number: ticket.number, phone: ticket.notifyPhone });
   } catch (err) {
-    if (SupportError.is(err)) return NextResponse.json({ error: err.message }, { status: 400 });
+    if (SupportError.is(err)) return Response.json({ error: err.message }, { status: 400 });
     throw err;
   }
 });

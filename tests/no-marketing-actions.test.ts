@@ -16,8 +16,7 @@ const w = vi.hoisted(() => ({
 const DEAL = "0d0d0d0d-0000-4000-8000-000000000001";
 const CLIENT = "0c0c0c0c-0000-4000-8000-000000000001";
 
-vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
-vi.mock("next/navigation", () => ({ redirect: () => {} }));
+vi.mock("@/shared/infrastructure/http/request", async (real) => ({ ...(await real<object>()), redirect: () => {} }));
 vi.mock("@/server/access", () => ({
   assertStaff: async () => ({ user: { id: "boss", email: "boss@b.kz", name: "Руководитель" } }),
   assertVisible: () => {},

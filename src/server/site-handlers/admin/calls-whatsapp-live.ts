@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { api, apiStaff } from "@/server/api";
 import { canSeeAssigned, contactView } from "@/server/access";
 import { WHATSAPP_SILENT_MS } from "@/modules/telephony";
@@ -24,5 +23,5 @@ export const GET = api(async (req) => {
       dealId: r.dealId,
       since: r.answeredAt!.toISOString(),
     }));
-  return NextResponse.json({ calls }, { headers: { "cache-control": "no-store" } });
+  return Response.json({ calls }, { headers: { "cache-control": "no-store" } });
 });

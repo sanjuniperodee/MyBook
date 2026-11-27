@@ -1,6 +1,6 @@
 import "server-only";
 import { AsyncLocalStorage } from "node:async_hooks";
-import { cookies, headers as nextHeaders } from "next/headers";
+import { cookies, headers as nextHeaders } from "@/shared/infrastructure/http/request";
 import { createApiClient, type ApiClient } from "@mybook/contracts";
 import { describeDiff, diffValues, normalize } from "@/shared/parity/normalize";
 import { ParityError, parityMode, type ParityLogger } from "./parity";
@@ -116,7 +116,7 @@ export function createWebApiClient(opts: WebApiClientOptions = {}): ApiClient {
   return createApiClient({ baseUrl, headers, fetch: timedFetch });
 }
 
-/** Клиент для текущего SSR/RSC-запроса или Server Action: забирает токен сессии и IP клиента из next/headers. */
+/** Клиент для текущего запроса: забирает токен сессии и IP клиента из заголовков запроса (src/shared/infrastructure/http). */
 export async function webApiClient(opts: { locale?: string; baseUrl?: string; fetch?: typeof fetch; timeoutMs?: number; sessionCookie?: string | null; clientIp?: string | null } = {}): Promise<ApiClient> {
   const [sessionCookie, clientIp] = await Promise.all([
     opts.sessionCookie !== undefined ? Promise.resolve(opts.sessionCookie) : cookies().then((c) => c.get(SESSION_COOKIE)?.value ?? null),

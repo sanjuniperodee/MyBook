@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 // Деньги в API v1 (packages/contracts/src/v1/crm-finance.ts, apps/backend/src/modules/orders, crm-admin): действия — те же server
 // actions сайта, отказ — текстом (400 refused), разбор входа — до действия.
-vi.mock("@/i18n/server", async (orig) => ({ ...(await orig<object>()), getMessages: async () => ({ api: (await import("@/i18n/messages/ru/api")).api }), getLocale: async () => "ru" }));
+vi.mock("@/shared/infrastructure/http/locale", async (orig) => ({ ...(await orig<object>()), getMessages: async () => ({ api: (await import("@/i18n/messages/ru/api")).api }), getLocale: async () => "ru" }));
 
 const staff = { user: { id: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee" }, scope: "all", context: { isOwner: false, canSee: () => true, canWork: () => true }, permissions: new Set(["analytics.view", "finance.view", "finance.manage", "team.manage", "orders.edit"]) };
 vi.mock("@/server/api", async (orig) => ({ ...(await orig<typeof import("@/server/api")>()), apiStaff: vi.fn(async () => staff) }));

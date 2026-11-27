@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { getSetting } from "@/modules/workspace";
 import { safeEqual } from "@/shared/crypto";
 import { parseWazzupWebhook } from "@/modules/messaging/domain/wazzup";
@@ -11,16 +10,16 @@ import { container } from "@/server/container";
 export async function POST(req: Request) {
   const token = new URL(req.url).searchParams.get("token") ?? "";
   const expected = await getSetting("wazzup.webhookToken");
-  if (!expected || !safeEqual(token, expected)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  if (!expected || !safeEqual(token, expected)) return Response.json({ error: "forbidden" }, { status: 403 });
 
   let body: unknown;
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ error: "bad json" }, { status: 400 });
+    return Response.json({ error: "bad json" }, { status: 400 });
   }
   const { test, messages, statuses } = parseWazzupWebhook(body);
-  if (test) return NextResponse.json({ ok: true });
+  if (test) return Response.json({ ok: true });
 
   let failed = 0;
   // Сообщения одного чата — по порядку, чтобы не создать две сделки на одно обращение.
@@ -34,5 +33,5 @@ export async function POST(req: Request) {
   }
   for (const s of statuses) await container().messaging.chats.applyStatus(s).catch((err) => console.error("[wazzup] status", err));
   // 500 — Wazzup доставит пакет повторно; уже сохранённые сообщения отсеются по messageId.
-  return failed ? NextResponse.json({ error: "partial" }, { status: 500 }) : NextResponse.json({ ok: true });
+  return failed ? Response.json({ error: "partial" }, { status: 500 }) : Response.json({ ok: true });
 }

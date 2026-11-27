@@ -10,7 +10,7 @@ import { NAMES_ON_COVER_MAX } from "@/lib/book/cover-names";
 import { MAX_EXTRA_PHOTOS } from "@/modules/authoring/domain/Book";
 
 // API v1 (ADR 0012): контракт первым (packages/contracts), сервер — бэкенд на Nest (apps/backend, ADR 0014).
-vi.mock("@/i18n/server", async (orig) => ({ ...(await orig<object>()), getMessages: async () => ({ api: (await import("@/i18n/messages/ru/api")).api }), getLocale: async () => "ru" }));
+vi.mock("@/shared/infrastructure/http/locale", async (orig) => ({ ...(await orig<object>()), getMessages: async () => ({ api: (await import("@/i18n/messages/ru/api")).api }), getLocale: async () => "ru" }));
 
 const { v1, QuestionPatch, PhotoPatch, LettersOrder, LetterInviteText, ReviewBody, CoverPatch, openapi } = await import("@mybook/contracts");
 const { createRouter } = await import("@mybook/contracts");

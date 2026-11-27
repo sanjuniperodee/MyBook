@@ -1,5 +1,5 @@
 import "server-only";
-import { notFound } from "next/navigation";
+import { notFound } from "@/shared/infrastructure/http/request";
 import { getCoverArt } from "@/server/cover-art";
 import { fileRoute } from "@/server/file-route";
 

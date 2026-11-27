@@ -339,10 +339,8 @@ const staffObjectOf = (user: CurrentUser) => {
   };
 };
 
-vi.mock("next/headers", () => import("@/server/http/next-shim"));
-vi.mock("next/server", () => import("@/server/http/next-shim"));
 vi.mock("@/server/auth", async () => {
-  const { currentContext } = await import("@/server/http/request-scope");
+  const { currentContext } = await import("@/shared/infrastructure/http/request-scope");
   const extract = (req: Request): CurrentUser | null => {
     const cookieHeader = req.headers.get("cookie") ?? "";
     let token: string | null = null;
@@ -361,7 +359,7 @@ vi.mock("@/server/auth", async () => {
   };
 });
 vi.mock("@/server/rateLimit", async () => {
-  const { currentContext } = await import("@/server/http/request-scope");
+  const { currentContext } = await import("@/shared/infrastructure/http/request-scope");
   return {
     trustedClientIp: async () => clientIpFrom((name) => currentContext().request.headers.get(name), EDGE_SECRET),
     rateLimit: async () => true,

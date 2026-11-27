@@ -1,5 +1,5 @@
 import "server-only";
-import { getMessages } from "@/i18n/server";
+import { getMessages } from "@/shared/infrastructure/http/locale";
 import { errorMessageFor, staffErrorMessageFor, type ErrorKind } from "@/i18n/domain-errors";
 
 /**
