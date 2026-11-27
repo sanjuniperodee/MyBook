@@ -265,6 +265,30 @@ describe("цвет оборота: превью = печать", () => {
   });
 });
 
+describe("марка MYBOOKS на обороте", () => {
+  // 27.11.2026: под маркой рисовалась «контрастная» к её цвету плашка — у шаблонов с цветными чернилами вышел чёрный
+  // прямоугольник под розовыми буквами. Плашка нужна только своей однотонной заливке (слои конструктора поверх).
+  it("у оборота шаблона — без подложки, цветом чернил шаблона; у своей заливки — подложка цвета заливки", () => {
+    const W = backRect.w;
+    const H = backRect.h;
+    const content = { ...backContent(book(), [], now), photos: [] };
+    for (const template of allCoverTemplates) {
+      for (const layout of ["quote", "letter", "polaroids"] as const) {
+        const { brand } = designBack(template, W, H, { ...content, layout });
+        expect(brand.paper, `${template.id} ${layout}`).toBeNull();
+      }
+      const minimal = designBack(template, W, H, { ...content, text: "" }).brand;
+      expect(minimal, template.id).toMatchObject({ paper: null, color: template.back.mirror ? template.names.color : template.back.color });
+    }
+    const filled = templateForCover(getCoverTemplate("linen"), null, parseCoverBack({ background: { kind: "color", color: "#1F1A17" } }));
+    expect(designBack(filled, W, H, content).brand).toMatchObject({ paper: "#1F1A17", color: "#ffffff" });
+    const b = book({ coverTemplate: "linen" });
+    const html = renderToStaticMarkup(createElement(CoverBackPreview, { template: b.coverTemplate, format: b.format, content: backContent(b, [], now), design: null, back: null }));
+    expect(html).toContain('aria-label="MyBooks"');
+    expect(html).not.toContain('<rect width="100%" height="100%"');
+  });
+});
+
 describe("оборот из слоёв", () => {
   it("разбор: как спереди без слоёв — null; свой фон и слои — как у лица", () => {
     expect(parseCoverBack(null)).toBeNull();

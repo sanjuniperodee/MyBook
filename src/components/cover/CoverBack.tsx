@@ -87,7 +87,7 @@ export function CoverBackLayer({ design, widthMm, heightMm, photos = [], brand }
         viewBox={coverWordmark.viewBox}
         style={{ position: "absolute", left: x((widthMm - coverWordmark.width) / 2), top: y(design.brand.y), width: x(coverWordmark.width), height: y(coverWordmark.height) }}
       >
-        <rect width="100%" height="100%" fill={design.brand.paper} />
+        {design.brand.paper ? <rect width="100%" height="100%" fill={design.brand.paper} /> : null}
         <path d={coverWordmark.path} fill={design.brand.color} />
       </svg>
     </>

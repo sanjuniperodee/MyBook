@@ -239,7 +239,7 @@ function BackSide({ rect, design, photos }: { rect: { x: number; y: number; w: n
         viewBox={coverWordmark.viewBox}
         style={{ position: "absolute", left: mm(rect.x + (rect.w - coverWordmark.width) / 2), top: mm(rect.y + design.brand.y), width: mm(coverWordmark.width), height: mm(coverWordmark.height) }}
       >
-        <Rect width="100%" height="100%" fill={design.brand.paper} />
+        {design.brand.paper ? <Rect width="100%" height="100%" fill={design.brand.paper} /> : null}
         <Path d={coverWordmark.path} fill={design.brand.color} />
       </Svg>
     </>
