@@ -6,7 +6,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { estimatePages } from "@/lib/book/estimate";
 import { getFormat, print, printablePageCount } from "@/lib/book/formats";
 import { getInteriorDesign } from "@/lib/book/interiors";
-import { InteriorSpread, type SpreadSample } from "@/components/interior/InteriorSpread";
+import { InteriorSpread, type SpreadSample } from "@/book-view/interior/InteriorSpread";
 import { contentFor, renderInterior } from "@/modules/production/infrastructure/pdf/render";
 import { editorBook } from "@/lib/book/editor-data";
 import { Book as BookAggregate } from "@/modules/authoring/domain";

@@ -12,8 +12,6 @@ vi.mock("@/server/container", async () => (await import("../doubles/web")).conta
 
 const { nestApi, registeredPaths, siteRouteMissing } = await import("./api");
 const { localStaffAccess } = await import("@/server/access");
-const { crmStaffAccess } = await import("@/web/crm");
-const { Redirect } = await import("../doubles/web");
 const { runCrmOp } = await import("@/server/crm-ops/registry");
 
 // Бэкенд на Nest: вход и права — по сессиям и ролям двойника container() (как у сайта).
@@ -70,16 +68,6 @@ describe("архитектура Раздела 5 (crm)", () => {
   it("мост и реестры не тянут модули с БД статически", () => {
     for (const f of ["src/server/v1-local-bridge-crm.ts", "src/server/crm-actions/index.ts"]) {
       expect(statics(f).filter((s) => /container|@\/modules\/|^pg$|drizzle/.test(s))).toEqual([]);
-    }
-  });
-
-  it("server actions в src/app/admin — только обёртки crmAction (код — в src/server/crm-actions)", () => {
-    const walk = (dir: string): string[] =>
-      readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : /\.tsx?$/.test(e.name) ? [path.join(dir, e.name)] : []));
-    for (const f of walk("src/app/admin")) {
-      const src = readFileSync(f, "utf8");
-      if (!/^["']use server["']/m.test(src) || !src.includes("crmAction")) continue;
-      expect(src, f).not.toMatch(/container\(\)|@\/modules\//);
     }
   });
 
@@ -149,50 +137,6 @@ describe("API v1 Раздел 5 (crm): права сотрудника и server
     expect((await strictStaff(vera)).staff?.permissions).toEqual(["clients.view"]);
   });
 
-  it("crmStaffAccess веба берёт права из API", async () => {
-    signIn(anna);
-    vi.stubGlobal("fetch", fetchViaApp);
-    vi.stubEnv("WEB_USE_API_V1", "crm");
-    const dto = await crmStaffAccess();
-    expect(dto.staff?.roleName).toBe("Менеджер");
-  });
-
-  it("server action через API v1: те же права, zod и журнал, что локально", async () => {
-    const local = await import("@/server/crm-actions/reviews");
-    const { moderateReviewAction } = await import("@/app/admin/reviews/actions");
-    const id = "4a1b2c3d-1111-4222-8333-444444444444";
-    signIn(owner);
-    await local.moderateReviewAction(id, "publish");
-    vi.stubGlobal("fetch", fetchViaApp);
-    vi.stubEnv("WEB_USE_API_V1", "crm");
-    await moderateReviewAction(id, "hide");
-    expect(moderated).toEqual([
-      [id, "publish"],
-      [id, "hide"],
-    ]);
-    expect(audited).toEqual(["review.publish", "review.hide"]);
-    await expect(moderateReviewAction("мусор", "hide")).rejects.toMatchObject({ status: 400 });
-    signIn(anna);
-    await expect(moderateReviewAction(id, "hide")).rejects.toMatchObject({ status: 403 });
-    expect(moderated).toHaveLength(2);
-  });
-
-  it("redirect() действия в API повторяется на сайте", async () => {
-    fake.sales = {
-      deals: {
-        findById: async (dealId: string) => ({ id: dealId, number: 7, title: "Книга", amount: 1000, assigneeId: null, clientId: null }),
-        delete: async () => {},
-      },
-    };
-    const { deleteDealAction } = await import("@/app/admin/deals/actions");
-    signIn(owner);
-    vi.stubGlobal("fetch", fetchViaApp);
-    vi.stubEnv("WEB_USE_API_V1", "crm");
-    const err = await deleteDealAction("4a1b2c3d-1111-4222-8333-444444444444").catch((e: unknown) => e);
-    expect(err).toBeInstanceOf(Redirect);
-    expect((err as InstanceType<typeof Redirect>).url).toBe("/admin/deals");
-    expect(audited).toEqual(["deal.delete"]);
-  });
 });
 
 describe("API v1 Раздел 5.2 (crm): сборщики страниц — strict parity и права", () => {

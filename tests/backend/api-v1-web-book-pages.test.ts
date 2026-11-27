@@ -35,8 +35,6 @@ const { nestApi, legacyAuth } = await import("./api");
 const { HttpError } = await import("@/server/api");
 const { getAccessibleBook } = await import("@/server/books");
 const { bookHub } = await import("@/server/book-hub");
-const { loadBookNav, loadBookShellNav } = await import("@/app/(app)/books/[id]/nav-data");
-const { loadPhotosPageData, photosTabData } = await import("@/app/(app)/books/[id]/photos/photos-data");
 
 const USER_ID = "11111111-2222-4333-8444-555555555555";
 const OTHER_USER_ID = "22222222-3333-4444-8555-666666666666";
@@ -569,7 +567,7 @@ describe("PARITY_MODE=strict, fallback и webApiOnly для section='book'", () 
     }
   });
 
-  it("bookHub, loadBookNav, loadBookShellNav, photosTabData, loadPhotosPageData работают через API v1 (ADR 0013: отката на local() у веба нет)", async () => {
+  it("bookHub работает через API v1 (ADR 0013: отката на local() у веба нет; страницы веба — в mybook-web)", async () => {
     const book = setupBookFixture();
     signIn(ownerUser);
     const app = (await nestApi({ auth: legacyAuth(fakeAuth(ownerUser)) }));
@@ -585,18 +583,6 @@ describe("PARITY_MODE=strict, fallback и webApiOnly для section='book'", () 
       expect(hub.printedPages).toBe(64);
       expect(hub.sectionHref(Q1_ID)).toBe(`/books/${BOOK_ID}/questions?s=${Q1_ID}`);
 
-      const nav = await loadBookNav(book, "ru");
-      expect(nav.answered).toBe(1);
-
-      const shell = await loadBookShellNav(book, "ru");
-      expect(shell.orderState).toBeNull();
-
-      const photos = await loadPhotosPageData(book, ownerUser, "ru", m);
-      expect(photos.places).toHaveLength(1);
-      expect(Array.isArray(photos.places[0])).toBe(true);
-
-      const tab = await photosTabData(book, true, m, "ru");
-      expect(tab.maxPhotos).toBe(120);
 
     } finally {
       fetchSpy.mockRestore();

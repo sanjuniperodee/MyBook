@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { flipbookData } from "@/components/book3d/flipbook-data";
+import { flipbookData } from "@/book-view/book3d/flipbook-data";
 import { bookMessagesFor } from "@/i18n/messages/partial";
 import { messagesFor } from "@/i18n/messages";
 import { buildBookContent } from "@/lib/book/book-content";

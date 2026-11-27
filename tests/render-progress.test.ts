@@ -1,8 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 import { RenderProgress, type RenderReport } from "@/modules/production";
-import { formatEta, progressSummary } from "@/components/ui/RenderProgress";
-import { orders as ru } from "@/i18n/messages/ru/orders";
-import { orders as kk } from "@/i18n/messages/kk/orders";
 import { job, setup } from "./doubles/production";
 
 /** Сборка пакета: этапы и сколько мс каждый «длится» по часам теста. */
@@ -210,32 +207,5 @@ describe("ход сборки в PrintFilesService и BookPreviewService", () =>
     t.renderer.resume();
     await vi.waitFor(async () => expect(await t.previews.build("b1")).toMatchObject({ status: "ready" }));
     expect(t.previews.progressOf("b1")).toBeNull();
-  });
-});
-
-describe("текст хода сборки", () => {
-  const labels = ru.order.progress;
-
-  it("срок без дрожания: до минуты шагом 5 с, дальше шагом 10; меньше 5 с — «почти готово»", () => {
-    expect(formatEta(2_000, labels)).toBeNull();
-    expect(formatEta(7_400, labels)).toBe("5 с");
-    expect(formatEta(23_000, labels)).toBe("25 с");
-    expect(formatEta(65_000, labels)).toBe("1 мин 10 с");
-    expect(formatEta(120_000, labels)).toBe("2 мин");
-  });
-
-  it("сводка одной строкой: проценты и остаток; в очереди и без сборки — пусто", () => {
-    const running = { state: "running", stage: "flow", percent: 45, etaMs: 21_000, overrun: false, ahead: 0 } as const;
-    expect(progressSummary(running, labels)).toBe("45% · осталось ≈ 20 с");
-    expect(progressSummary({ ...running, etaMs: 1000 }, labels)).toBe("45% · почти готово");
-    expect(progressSummary({ ...running, overrun: true }, labels)).toBe("45% · дольше обычного — ещё немного");
-    expect(progressSummary({ ...running, state: "queued" }, labels)).toBe("");
-    expect(progressSummary(null, labels)).toBe("");
-  });
-
-  it("на казахском те же этапы и тот же набор текстов", () => {
-    expect(Object.keys(kk.order.progress)).toEqual(Object.keys(ru.order.progress));
-    expect(Object.keys(kk.order.progress.stages)).toEqual(Object.keys(ru.order.progress.stages));
-    expect(progressSummary({ state: "running", stage: "flow", percent: 45, etaMs: 21_000, overrun: false, ahead: 0 }, kk.order.progress)).toBe("45% · шамамен 20 сек қалды");
   });
 });

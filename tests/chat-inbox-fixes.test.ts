@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { inbound, setup } from "./doubles/botHarness";
 import { extOf } from "@/modules/messaging/infrastructure/chatFiles";
-import { readableOn } from "@/components/admin/chat/Inbox";
 
 describe("повтор вебхука после сбоя на середине обработки", () => {
   it("сообщение принято, а заявка упала — повтор заводит заявку, «непрочитано» не удваивается", async () => {
@@ -63,15 +62,5 @@ describe("пересылка вложения", () => {
     expect(extOf("", "audio/ogg; codecs=opus")).toBe("ogg");
     expect(extOf("", "application/x-unknown")).toBe("bin");
     expect(extOf("Договор.PDF", "")).toBe("pdf");
-  });
-});
-
-describe("плашка этапа сделки", () => {
-  it("текст тёмный на светлом цвете этапа и белый на тёмном", () => {
-    expect(readableOn("#fde68a")).toBe("#17130f");
-    expect(readableOn("#fff")).toBe("#17130f");
-    expect(readableOn("#7a1f2b")).toBe("#fff");
-    expect(readableOn("#1d4ed8")).toBe("#fff");
-    expect(readableOn("var(--stage)")).toBe("#fff");
   });
 });

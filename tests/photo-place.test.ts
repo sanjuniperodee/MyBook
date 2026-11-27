@@ -200,9 +200,9 @@ describe("подпись вёрстки", () => {
 });
 
 describe("служебные ключи мест знает только сборка", () => {
-  it("в src/components и src/app нет строк «__gallery» и «__off»: места фото читаются через photoPlaceOf", () => {
+  it("в виде книги (src/book-view) нет строк «__gallery» и «__off»: места фото читаются через photoPlaceOf (экраны — тест в mybook-web)", () => {
     const root = path.join(__dirname, "..", "src");
-    const found = ["components", "app"].flatMap((dir) =>
+    const found = ["book-view"].flatMap((dir) =>
       readdirSync(path.join(root, dir), { recursive: true, encoding: "utf8" })
         .filter((f) => /\.tsx?$/.test(f))
         .filter((f) => /["'`]__(gallery|off)["'`]/.test(readFileSync(path.join(root, dir, f), "utf8")))

@@ -1,4 +1,7 @@
-# Визуальные эталоны PDF и HTML
+# Визуальные эталоны PDF
+
+> С 27.11 здесь только PDF: HTML-стенд превью и снимки страниц сайта (Playwright, `pages.spec.ts`) — в mybook-web
+> (`tests/visual`, `scripts/visual`). Ниже про HTML — история; сид стенда (`npm run seed:visual`) остаётся здесь.
 
 Страховочная сетка рефакторинга (`docs/refactor/plan.md`, фаза 3, шаги S2–S4): снимки того, как сейчас выглядят
 PDF и HTML-страницы книги, и попиксельная сверка двух снимков. Данные — набор книг `tests/fixtures/books.ts`

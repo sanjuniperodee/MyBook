@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
 
 /**
- * Каждое экспортированное server action с аргументами проверяет вход zod — напрямую, через общие схемы
+ * Каждое экспортированное server action бэкенда (src/server/crm-actions и др.; обёртки страниц — в mybook-web) с аргументами проверяет вход zod — напрямую, через общие схемы
  * server/input (uuid, formText, textForm) или в локальном помощнике (решение 7, E5). Проверка — тем же
  * разбором TypeScript, что scripts/refactor/actions.mjs.
  */
@@ -13,14 +13,7 @@ describe("server actions: вход через zod", () => {
     expect(report.split("\n").filter((l) => l.startsWith("  без zod:"))).toEqual([]);
   });
 
-  it("обёртки CRM (crmAction) ведут на существующее действие src/server/crm-actions", () => {
-    expect(report.split("\n").filter((l) => l.startsWith("  без цели:"))).toEqual([]);
-    expect(report).toContain("через API v1:");
-  });
-
-  it("без проверок прав и лимитов — только выход (вход, регистрация, сброс и оплата по ссылке проверяет mybook-api: действие лишь передаёт вызов в API v1)", () => {
-    expect(report.split("\n").filter((l) => l.startsWith("  без проверок:"))).toEqual([
-      "  без проверок: src/app/(auth)/actions.ts::logoutAction",
-    ]);
+  it("без проверок прав и лимитов действий нет (обёртки сайта — в mybook-web, здесь — сами действия src/server)", () => {
+    expect(report.split("\n").filter((l) => l.startsWith("  без проверок:"))).toEqual([]);
   });
 });

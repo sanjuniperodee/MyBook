@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { draggedSpace, dropLabel } from "@/components/editor/preview/drag";
+import { draggedSpace, dropLabel } from "@/book-view/preview/drag";
 import { applyDecision, emptyFlow, nextDecisions, type FlowBlock, type FlowLayout, type FlowPage, type FlowPiece } from "@/lib/book/flow-decisions";
 import { estimateChapterPages, textMetrics } from "@/lib/book/estimate";
 import { getFormat } from "@/lib/book/formats";

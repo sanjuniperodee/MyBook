@@ -1,6 +1,5 @@
+// Перенесено обратно из mybook-web (27.11): здесь — проверки общего кода и домена; экраны — в тестах веба.
 import { describe, expect, it } from "vitest";
-import robots from "@/app/robots";
-import sitemap from "@/app/sitemap";
 import { articles, getArticle } from "@/lib/content/articles";
 import { landings } from "@/lib/content/landings";
 import { bookKind, hasQuestionBank } from "@/lib/content/kinds";
@@ -8,7 +7,6 @@ import { bankThemes, isThemeId } from "@/lib/content/themes";
 import { absoluteUrl, articleLd, breadcrumbLd, faqLd, ogImage, organizationLd, productLd, reviewsLd, websiteLd } from "@/lib/seo";
 import { messagesFor } from "@/i18n/messages";
 import { publicLocales as locales } from "@/i18n/config";
-
 const dup = (xs: string[]) => xs.filter((x, i) => xs.indexOf(x) !== i);
 
 describe("посадочные страницы", () => {
@@ -131,64 +129,6 @@ describe("статьи блога", () => {
   it("getArticle находит статью по адресу", () => {
     expect(getArticle(articles[0].slug)).toBe(articles[0]);
     expect(getArticle("net-takoj")).toBeUndefined();
-  });
-});
-
-describe("sitemap", () => {
-  const entries = sitemap();
-  const urls = entries.map((e) => e.url);
-
-  it("в карте нет повторов, а каждая страница есть на обоих языках", () => {
-    expect(dup(urls)).toEqual([]);
-    for (const l of landings) {
-      expect(urls).toContain(absoluteUrl(`/kniga/${l.slug}`, "ru"));
-      expect(urls).toContain(absoluteUrl(`/kniga/${l.slug}`, "kk"));
-    }
-    for (const a of articles) {
-      expect(urls).toContain(absoluteUrl(`/blog/${a.slug}`, "ru"));
-      expect(urls).toContain(absoluteUrl(`/blog/${a.slug}`, "kk"));
-    }
-    for (const p of ["/", "/kniga", "/blog", "/gift"]) for (const lc of locales) expect(urls).toContain(absoluteUrl(p, lc));
-  });
-
-  it("служебные страницы не попадают в карту", () => {
-    expect(urls.filter((u) => /\/(login|register|books|orders|account|admin|api)(\/|$)/.test(u))).toEqual([]);
-  });
-
-  it("у каждой записи — картинка для поиска по картинкам (та же, что для соцсетей), у статей — дата", () => {
-    for (const e of entries) expect(e.images).toEqual([expect.stringMatching(/\/api\/og\?l=(ru|kk|uz|en)/)]);
-    const landing = entries.find((e) => e.url === absoluteUrl(`/kniga/${landings[0].slug}`, "kk"));
-    expect(landing?.images?.[0]).toContain(`s=${landings[0].slug}`);
-    expect(landing?.images?.[0]).toContain("l=kk");
-    expect(entries.find((e) => e.url === absoluteUrl(`/blog/${articles[0].slug}`, "ru"))?.lastModified).toBe(articles[0].updated ?? articles[0].published);
-  });
-
-  it("каждая запись ссылается на все версии и x-default", () => {
-    for (const e of entries) expect(Object.keys(e.alternates?.languages ?? {}).sort()).toEqual(["en", "kk", "ru", "uz", "x-default"]);
-  });
-});
-
-describe("robots", () => {
-  const r = robots();
-  const rule = Array.isArray(r.rules) ? r.rules[0] : r.rules;
-  const disallow = ([] as string[]).concat(rule.disallow ?? []);
-  const allow = ([] as string[]).concat(rule.allow ?? []);
-
-  it("закрывает кабинет на обоих языках и API, но оставляет картинки для соцсетей и обложки", () => {
-    for (const p of ["/books", "/kk/books", "/orders", "/account", "/admin", "/api", "/gift/", "/kk/gift/"]) expect(disallow).toContain(p);
-    expect(allow).toEqual(expect.arrayContaining(["/", "/api/og", "/api/covers/"]));
-  });
-
-  it("не закрывает публичные страницы и указывает карту сайта", () => {
-    for (const p of ["/", "/kniga", "/blog", "/gift", "/kk", "/blog/rss.xml"]) expect(disallow.some((d) => p.startsWith(d) && d !== "/")).toBe(false);
-    expect(r.sitemap).toBe(absoluteUrl("/", "ru") + "/sitemap.xml");
-  });
-
-  it("Clean-param для Яндекса — в той же группе «*»: метки рекламы и коротких ссылок не плодят адресов", () => {
-    const clean = String((rule as { other?: Record<string, unknown> }).other?.["Clean-param"] ?? "");
-    for (const p of ["utm_source", "utm_campaign", "lnk", "ref", "theme", "gclid"]) expect(clean).toContain(p);
-    expect(clean.endsWith(" /")).toBe(true);
-    expect(Array.isArray(r.rules) ? r.rules.length : 1).toBe(1);
   });
 });
 

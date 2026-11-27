@@ -1,14 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { GOWA_CATCHUP, gowaCatchUpRange, isGowaPersonalJid, parseGowaHistory } from "@/modules/messaging/domain/gowa";
-import { coalesce, conversationOfLink, soundFor } from "@/components/admin/liveRules";
 import { inbound, setup, start } from "./doubles/botHarness";
 
 /**
  * Скорость и надёжность WhatsApp через свой шлюз (GOWA): сообщение видно в CRM сразу, потерянный вебхук догоняет
  * сверка со шлюзом, на сообщение клиента — звук.
  */
-const CONV = "5789f1cf-8c68-40b2-8cf4-d95ef804c251";
-
 describe("сверка со шлюзом: окно и что считается сообщением", () => {
   it("последние 45 секунд не трогаем — их доставляет вебхук; первый проход смотрит на 2 часа, дальше — на 10 минут", () => {
     const now = new Date("2026-10-18T12:00:00Z");
@@ -71,77 +68,5 @@ describe("сообщение видно в CRM сразу", () => {
     const before = t.changed.length;
     await t.service.ingest(inbound({ text: "Ответ с телефона", isEcho: true, contactName: "" }));
     expect(t.changed.slice(before)).toContain(id);
-  });
-});
-
-describe("звук в CRM", () => {
-  const msg = (c = CONV) => ({ kind: "message", link: `/admin/chats?c=${c}` });
-  const away = { muted: false, focused: false, openConversation: null };
-
-  it("ссылка уведомления → диалог", () => {
-    expect(conversationOfLink(`/admin/chats?c=${CONV}`)).toBe(CONV);
-    expect(conversationOfLink(`/admin/chats?f=open&c=${CONV}`)).toBe(CONV);
-    expect(conversationOfLink("/admin/deals/1")).toBeNull();
-    expect(conversationOfLink(null)).toBeNull();
-  });
-
-  it("сообщение, упоминание, норматив, новая заявка и пропущенный — короткий сигнал, напоминание — тройной, остальное — без звука", () => {
-    expect(soundFor([msg()], away)).toBe("message");
-    expect(soundFor([{ kind: "mention", link: null }], away)).toBe("message");
-    expect(soundFor([msg(), { kind: "reminder", link: null }], away)).toBe("reminder");
-    for (const kind of ["sla", "deal", "call"]) expect(soundFor([{ kind, link: null }], away)).toBe("message");
-    expect(soundFor([{ kind: "task", link: null }, { kind: "system", link: null }], away)).toBeNull();
-    expect(soundFor([], away)).toBeNull();
-  });
-
-  it("выключенный звук молчит; сообщение в диалоге, открытом перед глазами, — тоже; в другом диалоге или в фоне — звучит", () => {
-    expect(soundFor([msg()], { ...away, muted: true })).toBeNull();
-    expect(soundFor([msg()], { muted: false, focused: true, openConversation: CONV })).toBeNull();
-    expect(soundFor([msg()], { muted: false, focused: false, openConversation: CONV })).toBe("message");
-    expect(soundFor([msg("11111111-2222-3333-4444-555555555555")], { muted: false, focused: true, openConversation: CONV })).toBe("message");
-  });
-});
-
-describe("склейка частых событий", () => {
-  function harness(gap: number) {
-    let now = 0;
-    const timers: { at: number; fn: () => void }[] = [];
-    let runs = 0;
-    let release: (() => void) | null = null;
-    const go = coalesce(
-      () => (runs++, new Promise<void>((r) => (release = r))),
-      gap,
-      () => now,
-      (fn, ms) => timers.push({ at: now + ms, fn }),
-    );
-    const finish = async () => {
-      release?.();
-      release = null;
-      await new Promise((r) => setTimeout(r, 0));
-    };
-    const tick = async (ms: number) => {
-      now += ms;
-      for (const t of timers.splice(0).filter((x) => (x.at <= now ? true : (timers.push(x), false)))) t.fn();
-      await new Promise((r) => setTimeout(r, 0));
-    };
-    return { go, finish, tick, runs: () => runs };
-  }
-
-  it("первое — сразу; пришедшее во время работы и паузы — одним вызовом после; ничего не теряется", async () => {
-    const h = harness(1000);
-    void h.go();
-    expect(h.runs()).toBe(1);
-    void h.go();
-    void h.go();
-    expect(h.runs()).toBe(1);
-    await h.finish();
-    expect(h.runs()).toBe(1);
-    await h.tick(1000);
-    expect(h.runs()).toBe(2);
-    await h.finish();
-    await h.tick(5000);
-    expect(h.runs()).toBe(2);
-    void h.go();
-    expect(h.runs()).toBe(3);
   });
 });

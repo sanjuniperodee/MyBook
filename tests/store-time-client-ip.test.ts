@@ -1,22 +1,7 @@
+// Перенесено обратно из mybook-web (27.11): здесь — проверки общего кода и домена; экраны — в тестах веба.
 import { afterEach, describe, expect, it, vi } from "vitest";
-
 const migrate = vi.fn(async () => {});
 vi.mock("@/shared/infrastructure/db/migrate", () => ({ runMigrations: migrate }));
-
-describe("запуск сайта без БД (Vercel, ADR 0012 A5)", () => {
-  afterEach(() => vi.unstubAllEnvs());
-
-  it("без DATABASE_URL — ни миграций, ни фона: сайт только показывает страницы через API v1", async () => {
-    vi.stubEnv("DATABASE_URL", "");
-    vi.stubEnv("WEB_API_ONLY", "");
-    const { registerNode } = await import("@/instrumentation-node");
-    await registerNode();
-    vi.stubEnv("DATABASE_URL", "postgres://db/mybook");
-    vi.stubEnv("WEB_API_ONLY", "1");
-    await registerNode();
-    expect(migrate).not.toHaveBeenCalled();
-  });
-});
 
 describe("пояс магазина на Vercel", () => {
   afterEach(() => vi.unstubAllEnvs());

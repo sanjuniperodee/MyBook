@@ -236,9 +236,6 @@ describe("API v1 Раздел 4 (public): страницы без входа и 
     fake.rateLimiter = { hit: async () => false };
     const limited = await app(new Request("http://127.0.0.1:3044/api/v1/web/gifts/claim", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token: GIFT_TOKEN }) }));
     expect(limited.status).toBe(429);
-    // Без API v1 лимит считает само действие сайта — до похода в базу.
-    const { claimGiftPaymentAction } = await import("@/app/gift/actions");
-    expect(await claimGiftPaymentAction(GIFT_TOKEN)).toEqual({ error: messagesFor("ru").common.errors.tooMany });
     expect(claims).toEqual([GIFT_TOKEN]);
   });
 

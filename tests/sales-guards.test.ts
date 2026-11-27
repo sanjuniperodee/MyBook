@@ -20,9 +20,6 @@ vi.mock("@/modules/workspace", () => ({
 
 const { bulkDealsAction, createDealAction, linkDealClientAction, moveDealAction } = await import("@/server/crm-actions/deals");
 const { assignOrderAction, bulkStatusAction, createTaskAction, reviewOrderPaymentAction } = await import("@/server/crm-actions/admin");
-const { restoreCard } = await import("@/app/admin/deals/DealsBoard");
-const { bulkStatusText } = await import("@/app/admin/orders/OrdersTable");
-const { keepVisible } = await import("@/components/admin/useRowSelection");
 const { textOn } = await import("@/lib/readable-text");
 
 const id = (n: number) => `0d0d0d0d-0000-4000-8000-${String(n).padStart(12, "0")}`;
@@ -151,7 +148,6 @@ describe("Заказы и задачи: видимость и проверка �
     signIn(anna);
     const res = await bulkStatusAction([id(1), id(2), id(3)], "in_production");
     expect(res).toEqual({ count: 1, skipped: 2, reasons: [{ reason: "нет доступа", count: 1 }, { reason: "не оплачен — в печать только с постоплатой", count: 1 }] });
-    expect(bulkStatusText(res)).toBe("Обновлено заказов: 1; пропущено 2 (1 — нет доступа; 1 — не оплачен — в печать только с постоплатой)");
   });
 
   it("задача на чужую сделку или клиента у роли «только свои» — отказ, задача не создаётся", async () => {
@@ -183,22 +179,6 @@ describe("Заказы и задачи: видимость и проверка �
 });
 
 describe("Клиентские помощники", () => {
-  const card = (n: number, stageId = "s1") => ({ id: `c${n}`, number: n, title: "", contactName: "", stageId, amount: 0, source: "", assigneeId: null, assigneeLabel: null, daysInStage: 0, task: null, unread: 0, tags: [], unsorted: false, book: null, eventDate: null });
-
-  it("restoreCard: откат возвращает только эту карточку, остальные — как пришли с сервера", () => {
-    const before = card(1, "s1");
-    const fresh = [card(1, "s2"), card(2, "s9")];
-    expect(restoreCard(fresh, before)).toEqual([before, card(2, "s9")]);
-    // Карточку убрали (отклонили) — возвращается в доску.
-    expect(restoreCard([card(2)], before)).toEqual([card(2), before]);
-  });
-
-  it("keepVisible: выбор остаётся только на строках, которые на экране", () => {
-    const sel = new Set(["a", "b", "c"]);
-    expect([...keepVisible(sel, [{ id: "b" }, { id: "x" }])]).toEqual(["b"]);
-    expect(keepVisible(sel, [{ id: "a" }, { id: "b" }, { id: "c" }])).toBe(sel);
-  });
-
   it("textOn: на светлой плашке — чёрный текст, на тёмной — белый; контраст не ниже 4,5:1", () => {
     expect(textOn("#ffffff")).toBe("#000000");
     expect(textOn("#999")).toBe("#000000");

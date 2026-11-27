@@ -7,7 +7,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import sharp from "sharp";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GET } from "@/server/site-handlers/media/cover";
-import { CoverBackPreview, PREVIEW_PAGES } from "@/components/cover/CoverBackPreview";
+import { CoverBackPreview, PREVIEW_PAGES } from "@/book-view/cover/CoverBackPreview";
 import { backContent } from "@/lib/book/cover-back";
 import { allCoverTemplates, getCoverTemplate } from "@/lib/book/covers";
 import {

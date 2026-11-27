@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { OrderingError, PaymentInvoice } from "@/modules/ordering/domain";
 import { GET, DELETE } from "@/server/site-handlers/payments/kaspi-invoice-item";
 import { POST } from "@/server/site-handlers/payments/kaspi-invoices";
-import robots from "@/app/robots";
 import { fake, resetContainer, resetRequest, signIn, client } from "./doubles/web";
 
 vi.mock("next/headers", async () => (await import("./doubles/web")).nextHeaders);
@@ -81,13 +80,5 @@ describe("POST /api/payments/kaspi/invoices: счёт из чата", () => {
     fake.rateLimiter = { hit: async (key: string) => !key.startsWith("kaspi-invoice-pay:") || ++hits <= 1 };
     expect((await post({ target: "deal_invoice", token: TOKEN, method: "qr" })).status).toBe(200);
     expect((await post({ target: "deal_invoice", token: TOKEN, method: "qr" })).status).toBe(429);
-  });
-});
-
-describe("robots", () => {
-  it("страница оплаты по ссылке закрыта на обоих языках", () => {
-    const r = robots();
-    const rule = Array.isArray(r.rules) ? r.rules[0] : r.rules;
-    expect(([] as string[]).concat(rule.disallow ?? [])).toEqual(expect.arrayContaining(["/pay/", "/kk/pay/"]));
   });
 });

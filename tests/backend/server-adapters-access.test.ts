@@ -5,14 +5,12 @@ import type { User } from "@/server/auth";
 import { DrizzleAuthoringQueries } from "@/modules/authoring/infrastructure/queries";
 import { AuthoringError, Book, type BookViewer } from "@/modules/authoring/domain";
 import { allPermissions } from "@/shared/domain/permissions";
-import { IdentityError } from "@/modules/identity/domain";
 import { assertStaff, assertStaffShell, ForbiddenError, requireStaff, requireStaffShell } from "@/server/access";
 import { api, apiBook, apiViewer } from "@/server/api";
 import { getAccessibleBook, viewerOf } from "@/server/books";
 import { trustedClientIp } from "@/server/rateLimit";
 import { PATCH as patchQuestion } from "@/server/site-handlers/books/question-item";
 import { GET as getPhoto } from "@/server/site-handlers/media/photo";
-import { loginAction } from "@/app/(auth)/actions";
 import { anna, client, egor, fake, kira, NotFound, owner, person, Redirect, request, resetContainer, resetRequest, security, signIn, vera, withTwoFactor } from "../doubles/web";
 
 /** База с одной книгой клиента u1 и одним её фото: запросы DrizzleAuthoringQueries настоящие, условия where не разбираются. */
@@ -282,28 +280,10 @@ describe("IP для лимитов частоты: trustedClientIp() (src/server
     expect(await trustedClientIp()).toBe("10.0.0.1");
     resetRequest({ "x-forwarded-for": "1.1.1.1, 10.0.0.2" });
     expect(await trustedClientIp()).toBe("10.0.0.2");
-    resetRequest({ "x-real-ip": "10.0.0.1", "x-forwarded-for": "1.1.1.1, 10.0.0.1" });
-
-    const keys: string[] = [];
-    fake.rateLimiter = {
-      hit: async (key: string) => {
-        keys.push(key);
-        return true;
-      },
-    };
-    fake.identity.auth = {
-      login: async () => {
-        throw new IdentityError("credentials");
-      },
-    };
-    const form = new FormData();
-    form.set("email", "a@b.kz");
-    form.set("password", "secret123");
+    // Подменённый первый адрес X-Forwarded-For не меняет ключ лимита входа по IP (сам вход — в веб-тестах и e2e API).
     for (const first of ["1.1.1.1", "2.2.2.2"]) {
-      request.headers.set("x-forwarded-for", `${first}, 10.0.0.1`);
-      expect(await loginAction({}, form)).toEqual({ error: "Неверный логин или пароль" });
+      resetRequest({ "x-real-ip": "10.0.0.1", "x-forwarded-for": `${first}, 10.0.0.1` });
+      expect(await trustedClientIp()).toBe("10.0.0.1");
     }
-    // Ключ лимита по IP один и тот же, сколько ни меняй первый адрес.
-    expect(keys).toEqual(["login:10.0.0.1", "login:a@b.kz", "login:10.0.0.1", "login:a@b.kz"]);
   });
 });

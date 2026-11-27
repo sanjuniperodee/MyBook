@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fake, lena, owner, resetContainer, resetRequest, signIn } from "./doubles/web";
-import { withoutRead, type ChatListItem } from "@/components/admin/chat/inbox-model";
 
 const { notesRead } = vi.hoisted(() => ({ notesRead: [] as string[] }));
 
@@ -75,17 +74,5 @@ describe("открытие диалога снимает «непрочитан�
     assigneeId = "margo";
     await expect(markReadAction(CONV)).rejects.toThrow();
     expect(read).toEqual([]);
-  });
-});
-
-describe("строки списка после «прочитано»", () => {
-  const row = (id: string, unread: number): ChatListItem => ({ id, title: id, avatarUrl: null, channel: "whatsapp", time: "10:00", preview: "", unread, assignee: null, waitMinutes: null, overdue: false, bot: false, pinned: false });
-
-  it("прочитанные в этой вкладке — без счётчика, даже когда страница пришла из кэша роутера", () => {
-    const items = [row("a", 2), row("b", 1), row("c", 0)];
-    expect(withoutRead(items, new Set(["a", "c"])).map((c) => c.unread)).toEqual([0, 1, 0]);
-    // Нечего прятать — те же строки (без лишней перерисовки).
-    expect(withoutRead(items, new Set())).toBe(items);
-    expect(withoutRead(items, new Set(["c"]))[2]).toBe(items[2]);
   });
 });

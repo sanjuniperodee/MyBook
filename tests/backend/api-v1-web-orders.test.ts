@@ -618,7 +618,6 @@ describe("API v1 Раздел 3 (web-orders): оформление, заказы
   it("webPayPage, webPayViewed, webPayClaim: оплата по токену без входа, маска номера, лимит и parity", async () => {
     resetRequest();
     const { client: anonApi, app: anonApp } = await makeApiClientFor(null);
-    const m = messagesFor("ru");
 
     const pay = await v1WebRead({
       name: "orders.payPage",
@@ -675,9 +674,6 @@ describe("API v1 Раздел 3 (web-orders): оформление, заказы
       }),
     );
     expect(limitedRes.status).toBe(429);
-    // Без API v1 лимит считает само действие сайта (тот же ключ pay-claim:<ip>), до похода в базу.
-    const { claimDealInvoicePaymentAction } = await import("@/app/pay/actions");
-    expect(await claimDealInvoicePaymentAction(PAY_TOKEN_VALID)).toEqual({ error: m.common.errors.tooMany });
   });
 });
 

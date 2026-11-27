@@ -7,7 +7,6 @@ import { ForbiddenError } from "@/server/access";
 import { updateOrderAction } from "@/server/crm-actions/admin";
 import { createStaffAction, setStaffRoleAction } from "@/server/crm-actions/team";
 import { confirmTwoFactorAction, newBackupCodesAction, startTwoFactorAction } from "@/server/crm-actions/security";
-import { loginAction } from "@/app/(auth)/actions";
 import { anna, client, fake, owner, request, resetContainer, resetRequest, security, signIn } from "../doubles/web";
 
 vi.mock("next/headers", async () => (await import("../doubles/web")).nextHeaders);
@@ -164,38 +163,5 @@ describe("admin/security/actions.ts: fail", () => {
     expect(await startTwoFactorAction()).toEqual({ ok: false, message: "2FA уже включена" });
     expect(await confirmTwoFactorAction("123456")).toEqual({ ok: false, message: AUTH_2FA_CODE });
     expect(await thrown(newBackupCodesAction("123456"))).toBeInstanceOf(ForbiddenError);
-  });
-});
-
-describe("(auth)/actions.ts: ошибки входа на языке пользователя", () => {
-  const login = (err: unknown, fields = { email: "a@b.kz", password: "secret123" }) => {
-    fake.identity.auth = { login: failing(err) };
-    return loginAction({}, form(fields));
-  };
-
-  it("код домена → текст словаря auth.errors; код не из таблицы → «неверный логин или пароль»; пустой логин — у поля (kk)", async () => {
-    expect(await login(new IdentityError("credentials"))).toEqual({ error: "Неверный логин или пароль" });
-    expect(await login(new IdentityError("twoFactorExpired"))).toEqual({ error: "Время на ввод кода истекло. Войдите заново." });
-    expect(await login(new IdentityError("nope" as never))).toEqual({ error: "Неверный логин или пароль" });
-    fake.rateLimiter = { hit: async () => false };
-    expect(await login(new IdentityError("credentials"))).toEqual({ error: "Слишком много попыток входа. Подождите 15 минут." });
-    request.headers.set("x-mb-locale", "kk");
-    // Пустой логин — сообщение у поля логина (форма ставит его под поле); проверяет сам сайт, на его языке.
-    expect(await login(new IdentityError("credentials"), { email: "", password: "" })).toEqual({ error: "E-mail немесе телефон мен құпиясөзді енгізіңіз", field: "email" });
-  });
-
-  // Известная ошибка (найдена при переносе на Nest, шаг 7 ADR 0014): веб просит язык ответа заголовком Accept-Language
-  // (src/server/v1-web-client.ts, mybook-web src/web/api.ts), а API берёт язык только из x-mb-locale и cookie mb_locale —
-  // ошибки входа приходят по-русски и казахскоязычным. Прежний mybook-api делал так же; тест прошёл бы лишь потому, что
-  // жил в одном процессе с сайтом. Когда API начнёт понимать Accept-Language, it.fails упадёт — заменить на it.
-  it.fails("ошибки входа из API — на языке сайта (kk): текст словаря и лимит", async () => {
-    request.headers.set("x-mb-locale", "kk");
-    expect(await login(new IdentityError("credentials"))).toEqual({ error: "Логин немесе құпиясөз қате" });
-    fake.rateLimiter = { hit: async () => false };
-    expect(await login(new IdentityError("credentials"))).toEqual({ error: "Тым көп кіру әрекеті жасалды. 15 минут күтіңіз." });
-  });
-
-  it("не IdentityError пробрасывается", async () => {
-    expect(await thrown(login(new OrderingError("notFound")))).toMatchObject({ code: "notFound" });
   });
 });

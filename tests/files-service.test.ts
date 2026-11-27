@@ -5,7 +5,6 @@ import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { fileTokenExpiry, filesMode, filesSigningKey, resetFilesServiceState, signFileToken, viaFilesService } from "@/server/files-service";
-import nextConfig from "../next.config";
 
 // Пилот G3: сайт выдаёт подписанные ссылки Go-сервису mybook-files (services/files) и переключается флагом без выкатки.
 
@@ -141,16 +140,3 @@ describe("режим и откат без выкатки", () => {
   });
 });
 
-describe("маршрутизация", () => {
-  it("/files/* переписывается на mybook-files, видео не обрывается через 30 с", async () => {
-    const rewrites = await nextConfig.rewrites!();
-    expect((rewrites as { beforeFiles: { source: string; destination: string }[] }).beforeFiles).toContainEqual({ source: "/files/:token", destination: expect.stringMatching(/^http:\/\/127\.0\.0\.1:\d+\/files\/:token$/) });
-    expect(nextConfig.experimental?.proxyTimeout).toBeGreaterThanOrEqual(60 * 60 * 1000);
-  });
-
-  it("общие заголовки сайта (next.config headers) сервис ставит сам — для отдачи мимо Next", async () => {
-    const site = (await nextConfig.headers!())[0].headers;
-    const go = readFileSync("services/files/serve.go", "utf8");
-    for (const { key, value } of site) expect(go).toContain(`{"${key}", "${value}"}`);
-  });
-});

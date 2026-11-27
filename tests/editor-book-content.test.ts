@@ -1,20 +1,16 @@
-import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+// Перенесено обратно из mybook-web (27.11): здесь — проверки общего кода и домена; экраны — в тестах веба.
 import { describe, expect, it } from "vitest";
 import { buildBookContent } from "@/lib/book/book-content";
 import { withCoverPhotos } from "@/lib/book/cover-photos";
 import { editorBook, editorCoverPhotos, editorModel } from "@/lib/book/editor-data";
 import { contentPages, editorContent, editorEstimate } from "@/lib/book/editor-estimate";
-import { mergePhotoRows, patchEditorPhotos, photoUndo, serverUpdates, toEditorPhoto, undoUpdates, type EditorBook, type EditorChapter, type EditorPhoto, type EditorPhotoPatch, type EditorQuestion } from "@/lib/book/editor-model";
-import { LETTERS_CHAPTER, PHOTO_OFF_KEY, toPhotoItem, type BookContent, type LetterLike, type PhotoItem } from "@/lib/book/layout";
+import { mergePhotoRows, patchEditorPhotos, photoUndo, serverUpdates, toEditorPhoto, undoUpdates, type EditorPhoto, type EditorPhotoPatch } from "@/lib/book/editor-model";
+import { LETTERS_CHAPTER, PHOTO_OFF_KEY, toPhotoItem, type BookContent, type PhotoItem } from "@/lib/book/layout";
 import { photoPlaceOf } from "@/lib/book/photo-place";
 import { GALLERY_KEY } from "@/lib/book/toc";
 import { Photo } from "@/modules/authoring/domain";
 import type { Photo as PhotoRow } from "@/shared/infrastructure/db/schema";
-import { useBookContent } from "@/components/editor/questions/useBookContent";
-import { useBookPages } from "@/components/editor/questions/usePageEstimate";
 import { fixtureSample, fixtureVariants, type FixtureBook } from "./fixtures/books";
-
 /**
  * Одна сборка везде (R9): редактор собирает книгу с теми же входами, что PDF и кабинет, — правила раскладки фото книги,
  * снимки обложки (видные на ней), оглавление по-своему, фото с кадром, главой и отметкой фото главы. Счётчик полос,
@@ -221,23 +217,5 @@ describe("строки фото с сервера", () => {
   it("ответ сервера не затирает неправленые поля (подпись, которую автор успел ввести)", () => {
     const updates = [{ id: "a", patch: { crop: { x: 0.4, y: 0.4, zoom: 1.2 } } }];
     expect(serverUpdates([row("a", { caption: "старая", crop: { x: 0.4, y: 0.4, zoom: 1.2 } })], updates)).toEqual([{ id: "a", patch: { questionId: null, chapter: null, opener: false, crop: { x: 0.4, y: 0.4, zoom: 1.2 } } }]);
-  });
-});
-
-describe("useBookContent: одна сборка для превью, счётчика и мест", () => {
-  type Props = { book: EditorBook; questions: EditorQuestion[]; photos: EditorPhoto[]; letters: LetterLike[]; chapters: EditorChapter[] };
-  function Probe(p: Props) {
-    const view = useBookContent(p.book, p.questions, p.photos, p.letters, p.chapters);
-    const pages = useBookPages(p.book, p.questions, p.photos, p.letters, p.chapters);
-    return createElement("p", null, JSON.stringify({ pages: view.pages, oldName: pages, places: Object.fromEntries(view.places), chapters: view.content.chapters.length }));
-  }
-
-  it("полосы, места и главы — те же, что у editorContent; useBookPages (прежнее имя) берёт ту же сборку", () => {
-    const fb = rev2(fixtureSample().find((b) => b.bundle.book.interior === "luna")!);
-    const input = editorInput(fb);
-    const markup = renderToStaticMarkup(createElement(Probe, input));
-    const out = JSON.parse(markup.replace(/^<p>|<\/p>$/g, "").replace(/&quot;/g, '"'));
-    const content = editorContent(input.book, input.questions, input.photos, input.letters, input.chapters);
-    expect(out).toEqual({ pages: contentPages(content), oldName: contentPages(content), places: JSON.parse(JSON.stringify(Object.fromEntries(photoPlaceOf(content, input.photos, input.book)))), chapters: content.chapters.length });
   });
 });
