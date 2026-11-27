@@ -5,7 +5,7 @@ import { fileRoute } from "@/server/file-route";
 
 /**
  * Фон обложки (без текста) отдельным файлом: браузер кэширует его навсегда — версия в адресе
- * меняется вместе с кодом рисунков (COVER_ART_VERSION в next.config) и с правками шаблона в CRM.
+ * меняется вместе с кодом рисунков (COVER_ART_VERSION, scripts/cover-art-version.mjs) и с правками шаблона в CRM.
  */
 export const GET = fileRoute("cover-art", async (req: Request, { params }: { params: Promise<{ file: string }> }) => {
   const entry = await getCoverArt((await params).file);
