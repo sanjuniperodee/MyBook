@@ -31,6 +31,7 @@ import { AUTHORING_SITE_PORTS, type AuthoringSitePorts } from "../src/modules/au
 import { CRM_ADMIN_PORTS, type CrmAdminPorts } from "../src/modules/crm-admin/crm-admin.tokens";
 import { CRM_MOBILE_API_PORTS, type CrmMobileApiPorts } from "../src/modules/crm-mobile-api/crm-mobile-api.tokens";
 import { CRM_SITE_PORTS, type CrmSitePorts } from "../src/modules/crm-site/crm-site.tokens";
+import { CRM_MOBILE_SITE_PORTS, type CrmMobileSitePorts } from "../src/modules/crm-mobile-site/crm-mobile-site.tokens";
 import {
   CRM_CHATS_PORTS,
   CRM_CLIENTS_PORTS,
@@ -609,6 +610,30 @@ const defaultCrmSitePorts: CrmSitePorts = {
   exportVcard: async () => [],
 };
 
+/** Порты Контекста 6 (сайт мобильного CRM): по умолчанию — «ничего нет», тесты подменяют нужное. */
+const defaultCrmMobileSitePorts: CrmMobileSitePorts = {
+  hasMobileApk: async () => false,
+  readMobileApk: async () => Buffer.alloc(0),
+  saveMobileApk: async () => {},
+  iosEnrollProfile: () => "",
+  iosStatus: async () => ({ build: null, devices: [] }),
+  readIosToken: () => null,
+  iosBuild: async () => null,
+  readIosIpa: async () => Buffer.alloc(0),
+  installManifest: () => "",
+  parseIosDevice: () => null,
+  saveIosDevice: async () => {},
+  scheduleIosResign: () => {},
+  invoiceFormInfo: async () => ({ ok: false, message: "Нет данных" }),
+  issueInvoice: async () => ({ ok: false, message: "Не подменено в тесте" }),
+  cancelInvoice: async () => ({ ok: false, message: "Не подменено в тесте" }),
+  resendInvoice: async () => ({ ok: false, message: "Не подменено в тесте" }),
+  findMediaAttachment: async () => null,
+  findDealAssignee: async () => null,
+  chatAudioFile: async () => null,
+  serveAudioFile: async () => new Response(null, { status: 404 }),
+};
+
 /** Лимитер в памяти: сколько раз звали с каким ключом; `deny` — следующий вызов вернёт «лимит исчерпан». */
 export class FakeLimiter implements RateLimiter {
   readonly hits: string[] = [];
@@ -699,6 +724,7 @@ export async function bootTestApp(opts: { users: CurrentUser[]; overrides?: [tok
     .overrideProvider(CRM_ADMIN_PORTS).useValue(defaultCrmAdminPorts)
     .overrideProvider(CRM_MOBILE_API_PORTS).useValue(defaultCrmMobileApiPorts)
     .overrideProvider(CRM_SITE_PORTS).useValue(defaultCrmSitePorts)
+    .overrideProvider(CRM_MOBILE_SITE_PORTS).useValue(defaultCrmMobileSitePorts)
     .overrideProvider(CRM_LISTS_PORTS).useValue(defaultCrmListsPorts)
     .overrideProvider(CRM_DEALS_PORTS).useValue(defaultCrmDealsPorts)
     .overrideProvider(CRM_CLIENTS_PORTS).useValue(defaultCrmClientsPorts)

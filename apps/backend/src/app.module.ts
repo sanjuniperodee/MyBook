@@ -7,6 +7,7 @@ import { AuthoringStudioApiModule } from "./modules/authoring-studio/authoring-s
 import { CrmAdminApiModule } from "./modules/crm-admin/crm-admin.module";
 import { CrmCoreApiModule } from "./modules/crm-core/crm-core.module";
 import { CrmMobileApiModule } from "./modules/crm-mobile-api/crm-mobile-api.module";
+import { CrmMobileSiteModule } from "./modules/crm-mobile-site/crm-mobile-site.module";
 import { CrmOpsApiModule } from "./modules/crm-ops/crm-ops.module";
 import { CrmSiteModule } from "./modules/crm-site/crm-site.module";
 import { FeedbackApiModule } from "./modules/feedback/feedback.module";
@@ -27,6 +28,7 @@ import { PublicApiModule } from "./modules/public/public.module";
     CrmCoreApiModule,
     CrmMobileApiModule,
     CrmAdminApiModule,
+    CrmMobileSiteModule,
     CrmOpsApiModule,
     CrmSiteModule,
   ],

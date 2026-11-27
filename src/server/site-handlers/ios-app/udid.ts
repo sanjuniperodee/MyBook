@@ -6,8 +6,12 @@ import { parseDeviceAttributes, readIosToken, saveIosDevice } from "@/server/ios
 /**
  * Ответ телефона после установки профиля регистрации: подписанный plist с UDID (без cookie — сотрудника определяет ссылка
  * из профиля). iOS ждёт перенаправление 301 — открывает страницу в Safari.
+ * Планировщик переподписи передаётся параметром, чтобы NestJS мог запускать фоновую задачу без `next/server` `after()`.
  */
-export async function POST(req: Request) {
+export async function handleIosUdidEnroll(
+  req: Request,
+  schedule: (fn: () => unknown) => void = (fn) => void Promise.resolve().then(fn),
+): Promise<Response> {
   const back = `${env.appUrl.replace(/\/+$/, "")}/admin/app`;
   const userId = readIosToken(new URL(req.url).searchParams.get("t"), "enroll");
   if (!userId) return Response.redirect(`${back}?ios=expired`, 301);
@@ -16,6 +20,10 @@ export async function POST(req: Request) {
   if (!device) return Response.redirect(`${back}?ios=failed`, 301);
   await saveIosDevice(userId, device);
   // Сразу после ответа: телефон — в Apple, профиль — заново, приложение — переподписать (секунды), сотруднику — уведомление.
-  after(resignAfterEnroll);
+  schedule(resignAfterEnroll);
   return Response.redirect(`${back}?ios=registered`, 301);
+}
+
+export async function POST(req: Request) {
+  return handleIosUdidEnroll(req, after);
 }

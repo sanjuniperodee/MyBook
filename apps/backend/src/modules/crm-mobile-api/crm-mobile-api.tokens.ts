@@ -159,5 +159,6 @@ export interface CrmMobileApiPorts {
   toggleTask(ctx: CrmRequestContext, taskId: string): Promise<{ error?: string }>;
 
   // Заказы (канбан)
-  moveOrder(ctx: CrmRequestContext, orderId: string, status: Parsed<"crmOrderStatus">["body"]["status"]): Promise<{ error?: string }>;
+  /** status — из контракта API v1 или старого мобильного API (ORDER_STATUSES); проверяет moveOrderAction. */
+  moveOrder(ctx: CrmRequestContext, orderId: string, status: string): Promise<{ error?: string }>;
 }
