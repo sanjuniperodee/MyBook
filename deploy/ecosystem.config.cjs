@@ -100,11 +100,12 @@ const files = process.env.MYBOOK_FILES !== "off" &&
   };
 
 /**
- * API v1 (ADR 0012, apps/api): <релиз>/api.mjs на 127.0.0.1:3044 — для мобильного приложения и, по разделам, для веба.
- * nginx отдаёт ему /api/v1/ (и next.config переписывает туда же). MYBOOK_API=off — не запускать.
+ * Прежний API v1 (ADR 0012, apps/api): <релиз>/api.mjs на 127.0.0.1:3044. С 27.11 весь бэкенд — mybook-backend на Nest
+ * (ADR 0014; nginx /api/v1/ и /api/ → 3046, 3044 — запасной), поэтому по умолчанию не запускается. Вернуть на время —
+ * MYBOOK_API=on pm2 start deploy/ecosystem.config.cjs --only mybook-api (только для релизов, где он ещё есть).
  */
 const apiFile = path.join(releasesDir, "current", "api.mjs");
-const api = process.env.MYBOOK_API !== "off" &&
+const api = process.env.MYBOOK_API === "on" &&
   fs.existsSync(apiFile) && {
     name: "mybook-api",
     cwd: path.join(releasesDir, "current"),

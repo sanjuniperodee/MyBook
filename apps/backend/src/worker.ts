@@ -6,7 +6,11 @@
 import "reflect-metadata";
 import { ConsoleLogger } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
+import { becomeApiProcess } from "./legacy/api-process";
 import { WorkerModule } from "./worker/worker.module";
+
+// Чтения старого кода — прямо в базу, а не HTTP-запросом в mybook-api (его больше нет).
+becomeApiProcess();
 
 // Журнал PM2 — без цветовых кодов; в терминале разработчика — с ними.
 const logger = new ConsoleLogger({ colors: !!process.stdout.isTTY, logLevels: ["error", "warn", "log"] });

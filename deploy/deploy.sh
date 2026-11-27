@@ -228,8 +228,8 @@ fi
 
 SITE=1
 has_site || SITE=0
-if [ "$SITE" = 0 ] && { [ ! -f "$REL/api.mjs" ] || [ ! -f "$REL/worker.mjs" ]; }; then
-  echo "✗ Сайт выключен (~/mybook-flags/site), а в релизе нет api.mjs или worker.mjs — API и фону негде работать. Ничего не переключено."
+if [ "$SITE" = 0 ] && { [ ! -f "$REL/backend.mjs" ] || [ ! -f "$REL/worker.mjs" ]; }; then
+  echo "✗ Сайт выключен (~/mybook-flags/site), а в релизе нет backend.mjs или worker.mjs — API и фону негде работать. Ничего не переключено."
   rm -rf "$REL"
   exit 1
 fi
@@ -334,11 +334,19 @@ backend_apply
 if has_backend; then
   ok=""; for _ in $(seq 1 30); do curl -fsS -m 3 "http://127.0.0.1:${MYBOOK_BACKEND_PORT:-3046}/api/v1/health" 2>/dev/null | grep -q "\"ok\":true" && { ok=1; break; }; sleep 1; done
   if [ -n "$ok" ]; then
-    echo "✓ mybook-backend отвечает (без трафика)"
+    echo "✓ mybook-backend отвечает"
   else
-    echo "⚠ mybook-backend не отвечает — процесс снят, трафика у него нет. Логи: pm2 logs mybook-backend --nostream --lines 50"
-    pm2 delete mybook-backend >/dev/null 2>&1 || true
-    pm2 save
+    # С 27.11 это весь API (nginx /api/v1/ и /api/ → 3046): не ответил новый — откат всех процессов на прежний релиз.
+    echo "✗ mybook-backend не отвечает. Логи: pm2 logs mybook-backend --nostream --lines 50"
+    if [ -n "$PREV" ] && [ -d "$PREV" ]; then
+      echo "→ Откат на $(basename "$PREV")"
+      ln -sfn "$PREV" "$CURRENT"
+      purge_previews
+      pm2_apply
+      api_apply
+      backend_apply
+    fi
+    exit 1
   fi
 fi
 # Основная версия отвечает — запасная больше не нужна.
@@ -388,5 +396,8 @@ notify ok "$SHA" "$PREV_SHA" "$(basename "$REL")"
 # Обращения: коммиты с «Обращение №N» закрывают обращения и пишут человеку в WhatsApp (deploy/support-release.mjs).
 # Маршрут /api/support/release есть и у сайта, и у mybook-api: без сайта — к api.
 SUPPORT_PORT="$PORT"
-[ "$SITE" = 1 ] || SUPPORT_PORT="${MYBOOK_API_PORT:-3044}"
+# Без сайта обращения закрывает API: mybook-backend на Nest (с 27.11), прежний mybook-api — если его включили.
+if [ "$SITE" = 0 ]; then
+  if has_api; then SUPPORT_PORT="${MYBOOK_API_PORT:-3044}"; else SUPPORT_PORT="${MYBOOK_BACKEND_PORT:-3046}"; fi
+fi
 node --env-file="$ROOT/.env" "$ROOT/deploy/support-release.mjs" "$SHA" "$PREV_SHA" "$(basename "$REL")" "$SUPPORT_PORT" 2>&1 | sed "s/^/  /" || true

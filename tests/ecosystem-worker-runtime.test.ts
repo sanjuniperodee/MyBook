@@ -49,4 +49,17 @@ describe("процесс фона mybook-worker в PM2-конфиге", () => {
   it("MYBOOK_WORKER=off — фона в отдельном процессе нет вовсе", () => {
     expect(workerScript({ MYBOOK_WORKER: "off" })).toBe(null);
   });
+
+  it("прежний mybook-api по умолчанию не запускается (весь API — mybook-backend на Nest), MYBOOK_API=on — запускается", () => {
+    writeFileSync(path.join(current, "api.mjs"), "");
+    const names = (env: Record<string, string> = {}) =>
+      JSON.parse(
+        execFileSync(process.execPath, ["-e", 'console.log(JSON.stringify(require("./deploy/ecosystem.config.cjs").apps.map((a) => a.name)))'], {
+          env: { NODE_ENV: "test", PATH: process.env.PATH ?? "", MYBOOK_RELEASES_DIR: releases, MYBOOK_FLAGS_DIR: flags, ...env },
+          encoding: "utf8",
+        }),
+      ) as string[];
+    expect(names()).not.toContain("mybook-api");
+    expect(names({ MYBOOK_API: "on" })).toContain("mybook-api");
+  });
 });
