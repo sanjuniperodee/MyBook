@@ -1,5 +1,12 @@
 # MyBooks — персональные книги-подарки
 
+> **Этот репозиторий — бэкенд** (API на NestJS `apps/backend`, фон, вёрстка PDF, модули, миграции, выкатка). Сайт, кабинет,
+> редактор и CRM — в [mybook-web](https://github.com/sanjuniperodee/mybook-web) (Next.js, Vercel), приложения — в
+> [mybook-mobile](https://github.com/sanjuniperodee/mybook-mobile) (ADR 0013). Общий чистый код (`src/lib`, `src/i18n`,
+> `src/config`, `src/shared` без `infrastructure`, `domain`/`ui` модулей) и контракт API v1 (`packages/contracts`) веб
+> получает пакетом `@sanjuniperodee/mybook-shared` (`scripts/packages/build-shared.mjs`). Описание возможностей ниже —
+> про продукт целиком; пути `src/app`, `src/components` в нём — в mybook-web.
+
 Сервис, в котором человек пишет книгу для близкого: отвечает на продуманные вопросы, добавляет фотографии, выбирает обложку — и получает книгу, свёрстанную как настоящее издание. Готовые PDF (блок и развёртка обложки) сразу подходят для типографии.
 
 ## Возможности
@@ -81,7 +88,7 @@
 
 ## Стек
 
-Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4, PostgreSQL + Drizzle ORM, `@react-pdf/renderer` + `pdf-lib` (вёрстка PDF), `sharp` (фото и растрирование обложек), русские переносы `hyphen`. Шрифты с полной поддержкой кириллицы и казахских букв лежат в `assets/fonts` и используются и на сайте, и в PDF.
+Бэкенд: NestJS 12 на Fastify (`apps/backend`), TypeScript, PostgreSQL + Drizzle ORM, сборка процессов esbuild-ом (`npm run build` → `build/`), `@react-pdf/renderer` + `pdf-lib` (вёрстка PDF), `sharp` (фото и растрирование обложек), русские переносы `hyphen`. Шрифты с полной поддержкой кириллицы и казахских букв лежат в `assets/fonts` и используются и на сайте, и в PDF.
 
 ## Быстрый старт (разработка)
 
@@ -90,10 +97,10 @@ Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4, PostgreSQL + Driz
 ```bash
 npm install
 cp .env.example .env            # заполните DATABASE_URL и ADMIN_EMAILS
-npm run dev                     # миграции БД применяются автоматически при старте
+npm run build && node --env-file=.env build/backend.mjs   # API на :3046, миграции БД — при старте
 ```
 
-Откройте http://localhost:3000. Создайте администратора командой:
+Сайт и CRM запускаются из mybook-web (`npm run dev`, `API_INTERNAL_URL=http://127.0.0.1:3046`). Создайте администратора командой:
 
 ```bash
 npm run create-admin -- admin@example.com 'надёжный-пароль'
@@ -163,7 +170,7 @@ bash deploy/rollback.sh <релиз>      # на конкретный, спис�
 | Форматы и параметры печати | `src/lib/book/formats.ts` |
 | Оформление страниц (дизайны блока) | `src/lib/book/interiors.ts`, графика — `src/lib/book/interior-art.ts` |
 | Шрифты | `src/lib/book/fonts.ts` |
-| Тексты оферты и политики | `src/app/offer`, `src/app/privacy` |
+| Тексты оферты и политики | mybook-web: `src/app/(site)/offer`, `src/app/(site)/privacy` |
 
 Вопросы копируются в книгу при её создании, поэтому банк вопросов можно свободно менять — уже начатые книги не пострадают.
 
@@ -223,7 +230,6 @@ bash deploy/rollback.sh <релиз>      # на конкретный, спис�
 
 | Команда | Что делает |
 |---|---|
-| `npm run dev` | Режим разработки |
 | `npm run build` | Сборка релиза в `build/` (backend.mjs, backend-worker.mjs, worker.mjs, pdf-worker.mjs) |
 | `npm run typecheck` / `npm run lint` | Проверка типов и линтер |
 | `npm test` | Unit-тесты и смоук-тест генерации PDF |
@@ -232,23 +238,28 @@ bash deploy/rollback.sh <релиз>      # на конкретный, спис�
 | `npm run create-admin -- email пароль` | Создать администратора |
 | `npm run scheduler:once -- --any-hour` | Один проход фоновых задач вручную (сертификаты + автописьма) |
 | `bash scripts/web-fonts.sh` | Пересобрать веб-шрифты (WOFF2-подмножества в `assets/fonts/web`) после замены TTF в `assets/fonts`; нужен `pip install fonttools brotli` |
-| `node scripts/e2e-*.mjs` | Сквозные проверки в браузере (Playwright) против запущенного сервера: smoke, order, back (задняя сторона обложки), review (отзыв от доставки до главной), invite (приглашение друга от ссылки до награды), letters, crm, crm-pro (роли, сделки, чаты Wazzup и телефония Zadarma на мок-сервере), crm-sales, crm-v3 и crm-v4 (после crm-pro: воронка по действиям клиента, «Неразобранное», дубли, скидки, график; UTM-ссылки и каналы, воронки, поля, массовые действия, планы, бот, push; виджет, AI на мок-сервере Claude и OpenAI-совместимого API (DeepSeek), SMTP на мок-сервере, почта, 2FA, IP, веб-телефон), dictation, inline-photo, gift, kk |
+| `node scripts/e2e/*.mjs` в mybook-web | Сквозные проверки в браузере (Playwright) против запущенного сайта: smoke, order, back (задняя сторона обложки), review (отзыв от доставки до главной), invite (приглашение друга от ссылки до награды), letters, crm, crm-pro (роли, сделки, чаты Wazzup и телефония Zadarma на мок-сервере), crm-sales, crm-v3 и crm-v4 (после crm-pro: воронка по действиям клиента, «Неразобранное», дубли, скидки, график; UTM-ссылки и каналы, воронки, поля, массовые действия, планы, бот, push; виджет, AI на мок-сервере Claude и OpenAI-совместимого API (DeepSeek), SMTP на мок-сервере, почта, 2FA, IP, веб-телефон), dictation, inline-photo, gift, kk |
 
 ## Структура
 
 ```
+apps/backend/     API на NestJS (весь API: /api/v1 и маршруты сайта), воркер на Nest
 src/
-  app/            страницы: лендинг, (auth), (app) — кабинет и редактор, admin, api
-  components/     UI: обложки, редактор, лендинг
-  config/site.ts  коммерческие настройки
-  lib/
-    content/      банк вопросов и темы
-    book/         форматы, шрифты, обложки, оформление страниц, вёрстка и оценка объёма
-    pdf/          генерация блока, обложки, пакета для типографии
-    db/           схема Drizzle и подключение
-    orders.ts     заказы, статусы, письма, файлы
-assets/fonts      шрифты для сайта и PDF
+  modules/        бизнес-модули (domain, application, infrastructure, ui)
+  server/         корень композиции (container), действия CRM, сборщики, мосты старых маршрутов
+  worker/         фоновая работа (планировщик, outbox, бот, почта)
+  shared/         общее ядро; infrastructure — БД, хранилище, очереди
+  lib/, i18n/,    общий чистый код — он же пакет mybook-shared для веба
+  config/
+  book-view/      вид книги из веба (обложка, развороты, превью) — только для сверки превью с PDF в тестах
+  types/          объявления типов пакетов без своих
+packages/contracts контракт API v1 (OpenAPI, Dart-клиент для mybook-mobile)
+services/files    отдача файлов на Go (mybook-files)
+assets/           шрифты, словари, снимки обложек — для PDF и API
 drizzle/          миграции
+deploy/           выкатка, PM2, nginx
+scripts/          сборка (build-*.mjs → build/), пакет shared, служебные скрипты
+tests/            vitest; tests/backend и apps/backend/test — API на Nest
 ```
 
 ## Перед запуском

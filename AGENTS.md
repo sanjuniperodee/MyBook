@@ -1,12 +1,16 @@
-<!-- BEGIN:nextjs-agent-rules -->
+## Раскладка (ADR 0013, чистка 27.11)
 
-# This is NOT the Next.js you know
+Это репозиторий бэкенда: API на NestJS (`apps/backend`), фон (`src/worker`), вёрстка PDF
+(`src/modules/production/infrastructure/pdf`), модули, миграции, выкатка. Next.js здесь нет — сборка `npm run build`
+собирает процессы esbuild-ом в `build/`. Страницы, компоненты, кабинет, редактор и CRM — только в `mybook-web`
+(там Next.js нестандартной версии: правила — в `mybook-web/AGENTS.md`), приложения — в `mybook-mobile`.
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
-
-This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
-
-<!-- END:nextjs-agent-rules -->
+- Общий чистый код для веба — `src/lib`, `src/i18n`, `src/config`, `src/shared` без `infrastructure`, `domain`/`ui`
+  модулей; пакет `mybook-shared` собирает `scripts/packages/build-shared.mjs` (состав — `shared-sources.mjs`), его
+  чистоту проверяет `tests/web-boundary.test.ts`. Новый общий модуль для веба кладётся сюда, не в веб.
+- `src/book-view` — копия вида книги из веба (обложка, развороты, превью) только для тестов сверки превью с PDF;
+  правите вид книги в вебе — повторите правку здесь, иначе сверка проверяет старый вид.
+- Тесты экранов — в `mybook-web` (`src/test`, vitest), здесь — домен, общий код, API и PDF.
 
 ## Микросервисный рефакторинг (ветка `refactor/microservices`)
 
