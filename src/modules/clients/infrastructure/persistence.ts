@@ -29,10 +29,10 @@ export const drizzleTasks: TaskRepository = {
     const [t] = await executor().select({ id: crmTasks.id }).from(crmTasks).where(and(eq(crmTasks.dealId, dealId), eq(crmTasks.title, title), isNull(crmTasks.doneAt))).limit(1);
     return !!t;
   },
-  async closeOpenByPrefix({ dealId, prefix, keepTitle, at }) {
+  async closeOpenByPrefix({ dealId, prefix, keepTitle, at, result }) {
     const rows = await executor()
       .update(crmTasks)
-      .set({ doneAt: at })
+      .set({ doneAt: at, ...(result ? { result: result.slice(0, 500) } : {}) })
       .where(and(eq(crmTasks.dealId, dealId), isNull(crmTasks.doneAt), sql`starts_with(${crmTasks.title}, ${prefix})`, keepTitle ? ne(crmTasks.title, keepTitle) : undefined))
       .returning({ id: crmTasks.id });
     return rows.length;

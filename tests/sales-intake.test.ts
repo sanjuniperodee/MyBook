@@ -67,6 +67,7 @@ function harness() {
       log.push(`audit ${a.action} ${JSON.stringify(a.details)}`);
     },
     mailClient: async (m: { kind: string; amount: number; left: number }) => void log.push(`mail ${m.kind} ${m.amount} left ${m.left}`),
+    paidUp: async (p: { dealId: string }) => void log.push(`paid up ${p.dealId}`),
   };
   const errors: string[] = [];
   const logger = { info: () => {}, warn: () => {}, error: (m: string) => void errors.push(m) };
@@ -90,6 +91,14 @@ describe("PaymentIntakeService.acceptWithReceipt (E2)", () => {
       'audit payment.add {"payment":"pay-1","amount":10000,"receipt":"rec-1"}',
       "mail payment 10000 left 20000",
     ]);
+  });
+
+  it("остаток получен (оплачено полностью) — задачи «Получить остаток» закрываются; пока остаток есть — нет", async () => {
+    const { log, service } = harness();
+    await service.acceptWithReceipt({ deal, kind: "payment", amount: 10_000, paidAt: new Date(), note: "", receipt, actor });
+    expect(log).not.toContain("paid up deal-1");
+    await service.acceptWithReceipt({ deal, kind: "payment", amount: 20_000, paidAt: new Date(), note: "", receipt, actor });
+    expect(log.at(-1)).toBe("paid up deal-1");
   });
 
   it("возврат — с причиной в заметке и письмом о возврате", async () => {

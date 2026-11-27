@@ -54,6 +54,8 @@ export interface PaymentEffects {
   audit(input: { actorId: string; action: string; entity: string; entityId: string; details: Record<string, unknown> }): Promise<void>;
   /** Перевод по счёту из чата: счёт закрывается оплаченным в той же транзакции (ошибка — деньги не записываются). */
   markInvoicePaid?(input: { invoiceId: string; dealId: string; paymentId: string | null }): Promise<void>;
+  /** Сделка оплачена полностью (остатка нет): задачи «Получить остаток …» больше не нужны. */
+  paidUp?(input: { dealId: string }): Promise<void>;
 }
 
 export interface AcceptInput {
@@ -154,7 +156,9 @@ export class PaymentIntakeService<S = unknown> {
       clientId: deal.clientId,
     }));
     await this.after("журнал", deal.id, () => this.effects.audit({ actorId: actor.userId, action: "payment.add", entity: "deal", entityId: deal.id, details: { payment: payment.id, amount: payment.amount, receipt: saved.id } }));
-    await this.after("письмо клиенту", deal.id, async () => this.effects.mailClient({ clientId: deal.clientId, dealNumber: deal.number, kind: refund ? "refund" : "payment", amount: payment.amount, left: Math.max(0, deal.amount - (await this.payments.paidTotal(deal.id))) }));
+    const left = Math.max(0, deal.amount - (await this.payments.paidTotal(deal.id)));
+    await this.after("письмо клиенту", deal.id, async () => this.effects.mailClient({ clientId: deal.clientId, dealNumber: deal.number, kind: refund ? "refund" : "payment", amount: payment.amount, left }));
+    if (!refund && left === 0 && deal.amount > 0 && this.effects.paidUp) await this.after("задача остатка", deal.id, () => this.effects.paidUp!({ dealId: deal.id }));
     return { payment, receipt, repeated: false };
   }
 

@@ -1,6 +1,7 @@
 import { type Locale } from "@/i18n/config";
 import { formatPrice, getPlan, giftsForPlan } from "@/config/site";
 import { PAY_FORM_KEY } from "@/shared/domain/expenses";
+import { REMAINDER_TASK_PREFIX } from "@/shared/domain/orders";
 import { DiscountPolicy } from "@/shared/domain/discount";
 import type { AgreementGift } from "@/shared/domain/agreementGifts";
 import { channels, isManualChannel, manualAttribution, type ManualChannel } from "@/shared/domain/channels";
@@ -240,7 +241,7 @@ export class ClientOnboardingService {
     }
     // Остаток к оплате — одной задачей на весь пакет.
     if (total > d.prepaid) {
-      await this.tasks.create(actor, { title: `Получить остаток ${formatPrice(total - d.prepaid)} от ${input.name}${count > 1 ? ` (пакет ${count} кн.)` : ""}`, kind: "task", dueAt: d.deadline || undefined, dealId: parts[0].dealId, clientId, assigneeId: input.assigneeId });
+      await this.tasks.create(actor, { title: `${REMAINDER_TASK_PREFIX}${formatPrice(total - d.prepaid)} от ${input.name}${count > 1 ? ` (пакет ${count} кн.)` : ""}`, kind: "task", dueAt: d.deadline || undefined, dealId: parts[0].dealId, clientId, assigneeId: input.assigneeId });
       tasks++;
     }
     return { parts, tasks };

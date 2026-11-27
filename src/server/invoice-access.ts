@@ -1,4 +1,5 @@
 import type { Locale } from "@/i18n/config";
+import { REMAINDER_TASK_PREFIX } from "@/shared/domain/orders";
 import "server-only";
 import { randomBytes } from "node:crypto";
 import { env } from "@/config/env";
@@ -489,7 +490,7 @@ export class InvoiceAccess {
 // ─── сборка из контейнера ───────────────────────────────────────────────────
 
 /** Начало заголовка задачи «получить остаток» — по нему прежние такие задачи закрываются. */
-const REMAINDER_TASK = "Получить остаток ";
+const REMAINDER_TASK = REMAINDER_TASK_PREFIX;
 
 const localePrefix = (locale: Locale) => ({ ru: "", kk: "/kk", uz: "/uz", en: "/en" })[locale];
 

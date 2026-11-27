@@ -218,7 +218,7 @@ export class TasksService {
   }
 
   /** Служебные задачи CRM устарели (остаток оплачен или изменился): прежние открытые закрываются. */
-  closeOpenByPrefix(input: { dealId: string; prefix: string; keepTitle?: string | null }) {
+  closeOpenByPrefix(input: { dealId: string; prefix: string; keepTitle?: string | null; result?: string | null }) {
     return this.tasks.closeOpenByPrefix({ ...input, at: new Date() });
   }
 

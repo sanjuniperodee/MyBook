@@ -22,7 +22,7 @@ import type { BookProgressed, BookStarted } from "@/modules/authoring";
 import type { DealAssigned, DealClosed, DealCreated, DealStageChanged } from "@/modules/sales";
 import { messagesFor } from "@/i18n/messages";
 import { recipientPolicy } from "@/lib/content/kinds";
-import { orderRuleSubject } from "@/shared/domain/orders";
+import { REMAINDER_TASK_PREFIX, orderRuleSubject } from "@/shared/domain/orders";
 import { isOrderRuleStatus } from "@/modules/automation/domain/meta";
 import { runInBackground } from "@/shared/infrastructure/background";
 import { getSetting } from "@/modules/workspace";
@@ -86,6 +86,18 @@ export function registerSubscriptions(c: Container) {
       await rules().run("order.paid", { subject: e.payload.orderId, orderId: e.payload.orderId, clientId: e.payload.userId, dealId });
     },
     "crm.deal.order_paid",
+  );
+  // Заказ оплачен — остаток по договорённости получен: задача «Получить остаток …» сделки больше не нужна (обращение
+  // владельца 27.11, Д1913: оплачено полностью, а задача висела). Закрывается с итогом и записью в ленту.
+  c.bus.subscribe<OrderPaid>(
+    "ordering.order_paid",
+    async (e) => {
+      for (const d of await c.sales.deals.byOrder(e.payload.orderId)) {
+        const closed = await c.clients.tasks.closeOpenByPrefix({ dealId: d.id, prefix: REMAINDER_TASK_PREFIX, result: `Остаток получен: заказ №${e.payload.number} оплачен` });
+        if (closed) await c.sales.deals.note({ id: d.id, clientId: d.clientId }, `Задача «${REMAINDER_TASK_PREFIX.trim()} …» закрыта: заказ №${e.payload.number} оплачен`, null);
+      }
+    },
+    "crm.tasks.remainder_paid",
   );
   // Сумма заказа изменилась — сумма его сделки тоже (итог заказа с предоплатой по сделке, как при оформлении).
   c.bus.subscribe<OrderRepriced>(

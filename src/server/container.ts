@@ -1,4 +1,5 @@
 import "server-only";
+import { REMAINDER_TASK_PREFIX } from "@/shared/domain/orders";
 import { bookKind } from "@/lib/content/kinds";
 import { consoleLogger, systemClock, type Clock, type EventBus, type Mailer, type UnitOfWork } from "@/shared/application";
 import { DrizzleUnitOfWork, InProcessEventBus, OutboxDispatcher } from "@/shared/infrastructure";
@@ -413,6 +414,7 @@ export class Container {
         audit: (input) => this.access.audit.record(input),
         mailClient: async (input) => (await import("./client-mail")).mailPaymentToClient(this, input),
         markInvoicePaid: async (input) => void (await this.ordering.invoices.markPaidManually(input)),
+        paidUp: async ({ dealId }) => void (await this.clients.tasks.closeOpenByPrefix({ dealId, prefix: REMAINDER_TASK_PREFIX, result: "Остаток получен: сделка оплачена полностью" })),
       },
       notifier: {
         notify: (userIds, n) => this.workspace.notifier.notify(userIds, n),
