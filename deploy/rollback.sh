@@ -25,10 +25,9 @@ case "$STORAGE_DIR" in /*) rm -rf "$STORAGE_DIR/cache/preview" "$STORAGE_DIR/cac
 if node -e 'process.exit(require(process.argv[1]).apps.some((a) => a.name === "mybook") ? 0 : 1)' "$ROOT/deploy/ecosystem.config.cjs"; then
   pm2 start "$ROOT/deploy/ecosystem.config.cjs" --only mybook
 fi
-# Бэкенд того же релиза: сайт ходит в БД только через mybook-api (ADR 0013), фон — в mybook-worker.
-for app in mybook-api mybook-worker; do
-  if pm2 describe "$app" >/dev/null 2>&1; then pm2 delete "$app" >/dev/null 2>&1 || true; pm2 start "$ROOT/deploy/ecosystem.config.cjs" --only "$app"; fi
-done
+# Фон того же релиза — mybook-worker; прежний mybook-api удалён (27.11) — если он ещё запущен, снимаем.
+pm2 delete mybook-api >/dev/null 2>&1 || true
+if pm2 describe mybook-worker >/dev/null 2>&1; then pm2 delete mybook-worker >/dev/null 2>&1 || true; pm2 start "$ROOT/deploy/ecosystem.config.cjs" --only mybook-worker; fi
 # Бэкенд на Nest (ADR 0014) — из того же релиза; в релизе до него backend.mjs нет — процесс просто снимается.
 pm2 delete mybook-backend >/dev/null 2>&1 || true
 if node -e 'process.exit(require(process.argv[1]).apps.some((a) => a.name === "mybook-backend") ? 0 : 1)' "$ROOT/deploy/ecosystem.config.cjs"; then
@@ -36,9 +35,14 @@ if node -e 'process.exit(require(process.argv[1]).apps.some((a) => a.name === "m
 fi
 pm2 save
 
+# Без сайта (~/mybook-flags/site) отвечает весь API — mybook-backend; с сайтом — сам сайт.
+HEALTH="http://localhost:$PORT/api/health"; LOGS="mybook"
+if ! node -e 'process.exit(require(process.argv[1]).apps.some((a) => a.name === "mybook") ? 0 : 1)' "$ROOT/deploy/ecosystem.config.cjs"; then
+  HEALTH="http://127.0.0.1:${MYBOOK_BACKEND_PORT:-3046}/api/v1/health"; LOGS="mybook-backend"
+fi
 for i in $(seq 1 30); do
-  if curl -fsS -m 5 "http://localhost:$PORT/api/health" 2>/dev/null | grep -q '"ok":true'; then echo "✓ MyBooks отвечает ($TARGET)"; exit 0; fi
+  if curl -fsS -m 5 "$HEALTH" 2>/dev/null | grep -q '"ok":true'; then echo "✓ MyBooks отвечает ($TARGET)"; exit 0; fi
   sleep 1
 done
-echo "✗ Приложение не ответило. Логи: pm2 logs mybook --nostream --lines 100"
+echo "✗ Приложение не ответило. Логи: pm2 logs $LOGS --nostream --lines 100"
 exit 1

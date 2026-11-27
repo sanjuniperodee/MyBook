@@ -99,29 +99,11 @@ const files = process.env.MYBOOK_FILES !== "off" &&
     time: true,
   };
 
-/**
- * Прежний API v1 (ADR 0012, apps/api): <релиз>/api.mjs на 127.0.0.1:3044. С 27.11 весь бэкенд — mybook-backend на Nest
- * (ADR 0014; nginx /api/v1/ и /api/ → 3046, 3044 — запасной), поэтому по умолчанию не запускается. Вернуть на время —
- * MYBOOK_API=on pm2 start deploy/ecosystem.config.cjs --only mybook-api (только для релизов, где он ещё есть).
- */
-const apiFile = path.join(releasesDir, "current", "api.mjs");
-const api = process.env.MYBOOK_API === "on" &&
-  fs.existsSync(apiFile) && {
-    name: "mybook-api",
-    cwd: path.join(releasesDir, "current"),
-    script: "api.mjs",
-    node_args: `--env-file=${path.join(root, ".env")}`,
-    env: { NODE_ENV: "production", TZ: "Asia/Almaty", API_PORT: process.env.MYBOOK_API_PORT || "3044", ...allocatorEnv },
-    // Код модулей как у mybook-worker (~150 МБ); лимит — страховка от утечки.
-    max_memory_restart: "600M",
-    kill_timeout: 3000,
-    time: true,
-  };
 
 /**
- * Бэкенд на NestJS (ADR 0014, apps/backend): <релиз>/backend.mjs на 127.0.0.1:3046. Переезжает с mybook-api по
- * контекстам; трафик на него nginx направляет только по префиксам перенесённых контекстов (до этого — без трафика,
- * для сверки ответов). MYBOOK_BACKEND=off — не запускать.
+ * Бэкенд на NestJS (ADR 0014, apps/backend): <релиз>/backend.mjs на 127.0.0.1:3046 — с 27.11 весь API MyBooks (API v1 и
+ * маршруты сайта; nginx /api/v1/ и /api/ → 3046), применяет миграции БД при старте. Прежний mybook-api удалён.
+ * MYBOOK_BACKEND=off — не запускать (тогда API нет).
  */
 const backendFile = path.join(releasesDir, "current", "backend.mjs");
 const backend = process.env.MYBOOK_BACKEND !== "off" &&
@@ -131,8 +113,8 @@ const backend = process.env.MYBOOK_BACKEND !== "off" &&
     script: "backend.mjs",
     node_args: `--env-file=${path.join(root, ".env")}`,
     env: { NODE_ENV: "production", TZ: "Asia/Almaty", BACKEND_PORT: process.env.MYBOOK_BACKEND_PORT || "3046", ...allocatorEnv },
-    // Тот же код модулей, что у mybook-api (~150–250 МБ); лимит — страховка от утечки.
-    max_memory_restart: "600M",
+    // Код модулей всего бэкенда (~200–400 МБ под нагрузкой CRM); лимит — страховка от утечки.
+    max_memory_restart: "1000M",
     kill_timeout: 3000,
     time: true,
   };
@@ -140,7 +122,7 @@ const backend = process.env.MYBOOK_BACKEND !== "off" &&
 /**
  * Сайт (Next, server.js на 3040). С 26.11 сайт и CRM работают на Vercel (ADR 0013), а здесь остаётся только бэкенд.
  * Файл-флаг ~/mybook-flags/site со словом off (или MYBOOK_SITE=off) — процесс сайта не запускать. deploy/deploy.sh тогда
- * проверяет mybook-api и mybook-worker вместо сайта и без них выкатку не проводит: фону и API больше негде работать.
+ * проверяет mybook-backend и mybook-worker вместо сайта и без них выкатку не проводит: фону и API больше негде работать.
  */
 const flagsDir = process.env.MYBOOK_FLAGS_DIR || path.join(path.dirname(root), "mybook-flags");
 function readFlag(name) {
@@ -184,7 +166,6 @@ module.exports = {
       time: true,
     },
     ...(worker ? [worker] : []),
-    ...(api ? [api] : []),
     ...(backend ? [backend] : []),
     ...(files ? [files] : []),
     ...sidecars,

@@ -32,7 +32,7 @@ function installVisualClock() {
 
 /**
  * Веб (ADR 0013): только страницы через API v1 — миграции БД, фон, синхронизация каталога и замеры памяти живут в
- * mybook-api и mybook-worker (apps/api/src/main.ts, src/worker).
+ * mybook-backend и mybook-worker (apps/backend/src/main.ts, src/worker).
  */
 export async function registerNode() {
   installVisualClock();

@@ -1,4 +1,4 @@
-// Проверка релиза до выкатки: процессы mybook-api, mybook-worker и mybook-backend из .next/standalone запускаются и находят все свои
+// Проверка релиза до выкатки: процессы mybook-worker и mybook-backend (и воркер на Nest) из .next/standalone запускаются и находят все свои
 // пакеты (26.11 mybook-api дважды не стартовал на проде: «Cannot find package 'pg'», затем «remove-trailing-separator»).
 // БД не нужна: миграции выключены, база — заведомо недоступный адрес; ждём до 15 с и ищем ошибки загрузки модулей
 // (другие ошибки запуска без БД и без папки drizzle — не повод).
@@ -26,7 +26,7 @@ function run(file) {
 
 // backend.mjs и backend-worker.mjs — бэкенд и воркер на Nest (ADR 0014); в релизах до них их нет.
 const NEST = ["backend.mjs", "backend-worker.mjs"];
-const results = await Promise.all(["api.mjs", "worker.mjs", ...NEST].filter((f) => !NEST.includes(f) || existsSync(path.join(DIR, f))).map(run));
+const results = await Promise.all(["worker.mjs", ...NEST].filter((f) => !NEST.includes(f) || existsSync(path.join(DIR, f))).map(run));
 for (const r of results) {
   console.log(`${r.file}: ${r.ok ? "запускается" : "НЕ ЗАПУСКАЕТСЯ"}`);
   if (!r.ok) console.log(r.out.split("\n").slice(0, 30).join("\n"));

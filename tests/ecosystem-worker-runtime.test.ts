@@ -50,7 +50,7 @@ describe("процесс фона mybook-worker в PM2-конфиге", () => {
     expect(workerScript({ MYBOOK_WORKER: "off" })).toBe(null);
   });
 
-  it("прежний mybook-api по умолчанию не запускается (весь API — mybook-backend на Nest), MYBOOK_API=on — запускается", () => {
+  it("прежнего mybook-api нет ни при каких флагах (удалён 27.11: весь API — mybook-backend на Nest)", () => {
     writeFileSync(path.join(current, "api.mjs"), "");
     const names = (env: Record<string, string> = {}) =>
       JSON.parse(
@@ -60,6 +60,6 @@ describe("процесс фона mybook-worker в PM2-конфиге", () => {
         }),
       ) as string[];
     expect(names()).not.toContain("mybook-api");
-    expect(names({ MYBOOK_API: "on" })).toContain("mybook-api");
+    expect(names({ MYBOOK_API: "on" })).not.toContain("mybook-api");
   });
 });

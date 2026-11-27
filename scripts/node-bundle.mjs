@@ -1,5 +1,5 @@
 // Общая сборка серверных процессов в один ESM-файл рядом с server.js релиза (.next/standalone): mybook-worker
-// (build-worker.mjs) и mybook-api (build-api.mjs). Тяжёлые и нативные пакеты (serverExternalPackages из next.config) не
+// (build-worker.mjs), mybook-backend и воркер на Nest (build-backend*.mjs). Тяжёлые и нативные пакеты (serverExternalPackages из next.config) не
 // вшиваются — берутся из node_modules релиза; остальное — в бандле, потому что standalone-сборка кладёт в node_modules
 // только то, что Next оставил внешним.
 import { build } from "esbuild";

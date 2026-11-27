@@ -137,12 +137,8 @@ has_worker() {
 has_files() {
   node -e 'process.exit(require("./deploy/ecosystem.config.cjs").apps.some((a) => a.name === "mybook-files") ? 0 : 1)'
 }
-# mybook-api (API v1, ADR 0012) — из релиза, если там есть api.mjs и он не выключен MYBOOK_API=off.
-has_api() {
-  node -e 'process.exit(require("./deploy/ecosystem.config.cjs").apps.some((a) => a.name === "mybook-api") ? 0 : 1)'
-}
 # Сайт (Next) — если не выключен файлом-флагом ~/mybook-flags/site (ecosystem.config.cjs). С 26.11 сайт на Vercel, а
-# здесь — только бэкенд: без сайта выкатку проверяют mybook-api и mybook-worker.
+# здесь — только бэкенд: без сайта выкатку проверяют mybook-backend и mybook-worker.
 has_site() {
   node -e 'process.exit(require("./deploy/ecosystem.config.cjs").apps.some((a) => a.name === "mybook") ? 0 : 1)'
 }
@@ -156,12 +152,9 @@ pm2_apply() {
   pm2 save
 }
 
-# mybook-api — отдельно и после сайта: пока перезапускается сайт, маршруты «сначала api» (nginx upstream
-# mybook_api_first) обслуживает прежний api; пока перезапускается api — уже отвечающий новый сайт. Одновременный
-# перезапуск обоих давал 502 на автосохранении (25.11).
+# Прежний mybook-api удалён (27.11, весь API — mybook-backend на Nest): если он ещё запущен (сервер до этого релиза), снять.
 api_apply() {
   pm2 delete mybook-api >/dev/null 2>&1 || true
-  if has_api; then pm2 start deploy/ecosystem.config.cjs --only mybook-api; fi
   pm2 save
 }
 
@@ -217,10 +210,10 @@ check_app() {
   return 1
 }
 
-# Процессы бэкенда из нового релиза находят все свои пакеты (26.11 mybook-api дважды не стартовал: нет pg, нет
+# Процессы бэкенда из нового релиза находят все свои пакеты (26.11 прежний mybook-api дважды не стартовал: нет pg, нет
 # зависимости hunspell-asm). Не находят — ничего не переключаем и PM2 не трогаем.
-echo "→ Проверка бэкенда нового релиза: mybook-api и mybook-worker запускаются (без БД)"
-if [ -f "$REL/api.mjs" ] && ! node "$ROOT/scripts/smoke-bundles.mjs" "$REL"; then
+echo "→ Проверка бэкенда нового релиза: mybook-backend и mybook-worker запускаются (без БД)"
+if [ -f "$REL/backend.mjs" ] && ! node "$ROOT/scripts/smoke-bundles.mjs" "$REL"; then
   echo "✗ Бэкенд нового релиза не запускается — текущая версия продолжает работать, ничего не переключено."
   rm -rf "$REL"
   exit 1
@@ -235,7 +228,7 @@ if [ "$SITE" = 0 ] && { [ ! -f "$REL/backend.mjs" ] || [ ! -f "$REL/worker.mjs" 
 fi
 
 if [ "$SITE" = 1 ]; then
-  echo "→ Проверка новой версии на порту $SMOKE_PORT (фоновые задачи выключены; миграции БД применяет mybook-api при старте)"
+  echo "→ Проверка новой версии на порту $SMOKE_PORT (фоновые задачи выключены; миграции БД применяет mybook-backend при старте)"
   (
     cd "$REL"
     SCHEDULER=off NODE_ENV=production PORT="$SMOKE_PORT" HOSTNAME=localhost TZ=Asia/Almaty \
@@ -254,7 +247,7 @@ if [ "$SITE" = 1 ]; then
   # Проверенная копия на $SMOKE_PORT остаётся работать, пока PM2 перезапускает основную: в nginx она — запасной сервер
   # (backup в upstream mybook_app), и запросы в эти секунды идут к ней, а не в 502.
 else
-  echo "→ Сайт выключен (~/mybook-flags/site): проверка сайта пропущена, после переключения проверяются mybook-api и mybook-worker"
+  echo "→ Сайт выключен (~/mybook-flags/site): проверка сайта пропущена, после переключения проверяются mybook-backend и mybook-worker"
 fi
 
 echo "→ Переключение на $(basename "$REL")"
@@ -311,24 +304,6 @@ fi
 # mybook-files не ответил — выкатку не ломает: сайт сам отдаёт файлы, пока сервис не жив (src/server/files-service.ts).
 if has_files; then
   if curl -fsS -m 3 "http://127.0.0.1:${FILES_PORT:-3050}/healthz" >/dev/null 2>&1; then echo "✓ mybook-files отвечает"; else echo "⚠ mybook-files не отвечает — файлы отдаёт сайт. Логи: pm2 logs mybook-files --nostream --lines 50"; fi
-fi
-# Сайт ходит в БД только через mybook-api (ADR 0013): не ответил новый api — откат сайта и api на прежний релиз.
-if has_api; then
-  ok=""; for _ in $(seq 1 40); do curl -fsS -m 3 "http://127.0.0.1:${MYBOOK_API_PORT:-3044}/api/v1/health" 2>/dev/null | grep -q "\"ok\":true" && { ok=1; break; }; sleep 1; done
-  if [ -n "$ok" ]; then
-    echo "✓ mybook-api отвечает"
-  else
-    echo "✗ mybook-api не отвечает. Логи: pm2 logs mybook-api --nostream --lines 50"
-    if [ -n "$PREV" ] && [ -d "$PREV" ]; then
-      echo "→ Откат на $(basename "$PREV")"
-      ln -sfn "$PREV" "$CURRENT"
-      purge_previews
-      pm2_apply
-      api_apply
-      backend_apply
-    fi
-    exit 1
-  fi
 fi
 backend_apply
 if has_backend; then
@@ -394,10 +369,7 @@ DEPLOY_OK=1
 PREV_SHA="$(basename "${PREV:-}" | sed -n 's/^[0-9]*-[0-9]*-//p')"
 notify ok "$SHA" "$PREV_SHA" "$(basename "$REL")"
 # Обращения: коммиты с «Обращение №N» закрывают обращения и пишут человеку в WhatsApp (deploy/support-release.mjs).
-# Маршрут /api/support/release есть и у сайта, и у mybook-api: без сайта — к api.
+# Маршрут /api/support/release есть и у сайта, и у mybook-backend: без сайта — к бэкенду на Nest.
 SUPPORT_PORT="$PORT"
-# Без сайта обращения закрывает API: mybook-backend на Nest (с 27.11), прежний mybook-api — если его включили.
-if [ "$SITE" = 0 ]; then
-  if has_api; then SUPPORT_PORT="${MYBOOK_API_PORT:-3044}"; else SUPPORT_PORT="${MYBOOK_BACKEND_PORT:-3046}"; fi
-fi
+[ "$SITE" = 1 ] || SUPPORT_PORT="${MYBOOK_BACKEND_PORT:-3046}"
 node --env-file="$ROOT/.env" "$ROOT/deploy/support-release.mjs" "$SHA" "$PREV_SHA" "$(basename "$REL")" "$SUPPORT_PORT" 2>&1 | sed "s/^/  /" || true
