@@ -22,7 +22,8 @@ import type { BookProgressed, BookStarted } from "@/modules/authoring";
 import type { DealAssigned, DealClosed, DealCreated, DealStageChanged } from "@/modules/sales";
 import { messagesFor } from "@/i18n/messages";
 import { recipientPolicy } from "@/lib/content/kinds";
-import { REMAINDER_TASK_PREFIX, orderRuleSubject } from "@/shared/domain/orders";
+import { orderRuleSubject } from "@/shared/domain/orders";
+import { REMAINDER_TASK_PREFIX, remainderClosedNote, remainderPaidResult } from "@/shared/domain/dealTasks";
 import { isOrderRuleStatus } from "@/modules/automation/domain/meta";
 import { runInBackground } from "@/shared/infrastructure/background";
 import { getSetting } from "@/modules/workspace";
@@ -93,8 +94,8 @@ export function registerSubscriptions(c: Container) {
     "ordering.order_paid",
     async (e) => {
       for (const d of await c.sales.deals.byOrder(e.payload.orderId)) {
-        const closed = await c.clients.tasks.closeOpenByPrefix({ dealId: d.id, prefix: REMAINDER_TASK_PREFIX, result: `Остаток получен: заказ №${e.payload.number} оплачен` });
-        if (closed) await c.sales.deals.note({ id: d.id, clientId: d.clientId }, `Задача «${REMAINDER_TASK_PREFIX.trim()} …» закрыта: заказ №${e.payload.number} оплачен`, null);
+        const closed = await c.clients.tasks.closeOpenByPrefix({ dealId: d.id, prefix: REMAINDER_TASK_PREFIX, result: remainderPaidResult(e.payload.number) });
+        if (closed) await c.sales.deals.note({ id: d.id, clientId: d.clientId }, remainderClosedNote(e.payload.number), null);
       }
     },
     "crm.tasks.remainder_paid",

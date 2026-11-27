@@ -1,7 +1,7 @@
 import { type Locale } from "@/i18n/config";
 import { formatPrice, getPlan, giftsForPlan } from "@/config/site";
 import { PAY_FORM_KEY } from "@/shared/domain/expenses";
-import { REMAINDER_TASK_PREFIX } from "@/shared/domain/orders";
+import { REMAINDER_TASK_PREFIX } from "@/shared/domain/dealTasks";
 import { DiscountPolicy } from "@/shared/domain/discount";
 import type { AgreementGift } from "@/shared/domain/agreementGifts";
 import { channels, isManualChannel, manualAttribution, type ManualChannel } from "@/shared/domain/channels";

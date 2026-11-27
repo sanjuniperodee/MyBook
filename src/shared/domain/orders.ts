@@ -8,9 +8,6 @@
 export const ORDER_STATUSES = ["pending_payment", "paid", "in_production", "shipped", "delivered", "cancelled"] as const;
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
 
-/** Начало заголовка задачи «Получить остаток …» (заведение клиента с предоплатой, оплата счёта) — по нему её закрывают. */
-export const REMAINDER_TASK_PREFIX = "Получить остаток ";
-
 /** Параметры печатных файлов заказа на момент последней сборки (колонка orders.print_spec). */
 export interface OrderPrintSpec {
   format: string;

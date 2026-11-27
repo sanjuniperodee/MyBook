@@ -1,5 +1,5 @@
 import type { Locale } from "@/i18n/config";
-import { REMAINDER_TASK_PREFIX } from "@/shared/domain/orders";
+import { REMAINDER_TASK_PREFIX } from "@/shared/domain/dealTasks";
 import "server-only";
 import { randomBytes } from "node:crypto";
 import { env } from "@/config/env";
