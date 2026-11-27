@@ -5,6 +5,7 @@ import { build } from "esbuild";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { asciiBundle } from "./ascii-bundle.mjs";
+import { coverArtVersion } from "./cover-art-version.mjs";
 import { BUILD_DIR, traceExternals } from "./node-bundle.mjs";
 
 const out = path.join(BUILD_DIR, "pdf-worker.mjs");
@@ -20,6 +21,7 @@ await build({
   jsx: "automatic",
   tsconfig: "tsconfig.json",
   // Как serverExternalPackages + react: react-pdf рендерит той же копией react, что лежит в node_modules.
+  define: { "process.env.COVER_ART_VERSION": JSON.stringify(coverArtVersion()) },
   external: ["@react-pdf/renderer", "@react-pdf/layout", "sharp", "pdf-lib", "hyphen", "pg", "archiver", "hunspell-asm", "react", "react-dom"],
   // «server-only» в воркере не нужен: он и так выполняется только на сервере.
   // react/jsx-runtime — CommonJS-модуль, и в ESM из него виден только default: берём его через require (pdf-worker-jsx.mjs).

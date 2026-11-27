@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { coverArtSources } from "../next.config";
+import { coverArtSources } from "../scripts/cover-art-version.mjs";
 import { importGraph, type ImportEdge } from "../scripts/refactor/import-graph.mjs";
 
 /** Файлы, которые рисунок обложек импортирует во время выполнения (без import type), от covers/index.ts — по графу src. */

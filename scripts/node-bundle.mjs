@@ -7,6 +7,7 @@ import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync } from "node:f
 import { createRequire } from "node:module";
 import path from "node:path";
 import { asciiBundle } from "./ascii-bundle.mjs";
+import { coverArtVersion } from "./cover-art-version.mjs";
 
 /** Папка релиза: бандлы, node_modules внешних пакетов, bin/mybook-files (deploy/pack-release.sh добавляет assets и drizzle). */
 export const BUILD_DIR = process.env.MYBOOK_BUILD_DIR || "build";
@@ -31,6 +32,8 @@ export async function bundleNodeProcess({ name, entry, nextShim, tsconfig = "tsc
     jsx: "automatic",
     tsconfig,
     external: [...EXTERNAL, ...optional],
+    // Версия рисунков обложек — в бандл, как раньше её вшивал next.config сайта (без неё кэши обложек не сбрасывались бы).
+    define: { "process.env.COVER_ART_VERSION": JSON.stringify(coverArtVersion()) },
     alias: {
       "server-only": "./scripts/empty-module.mjs",
       "react/jsx-runtime": "./scripts/pdf-worker-jsx.mjs",
