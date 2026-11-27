@@ -1,7 +1,7 @@
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import sharp from "sharp";
@@ -193,6 +193,44 @@ describe("цвет оборота: превью = печать", () => {
     const front = await at({ ...geometry.front, y: geometry.front.y + geometry.front.h * 0.75, h: geometry.front.h * 0.2 });
     expect(dist(back, front)).toBeLessThan(6);
     expect(dist(back, rgb("#FBF7F1"))).toBeGreaterThan(20);
+  });
+
+  it.skipIf(!hasTool("pdftoppm"))("MYBOOKS: все семь букв в печати видны целиком, даже на границе чёрного слоя", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "cover-wordmark-"));
+    // Граница слоя проходит между K и S. Наивный выбор цвета по базовой заливке теряет первые шесть букв.
+    const stripe = { id: "stripe", kind: "shape", shape: "rect", x: 0, y: 0, w: 0.54, h: 1, fill: "#000000" };
+    async function mark(background: string, frontLayers: unknown[], backLayers?: unknown[]) {
+      const b = book({
+        coverDesign: asRow({ background: { kind: "color", color: background }, layers: frontLayers }),
+        coverBack: backLayers ? asRow({ background: { kind: "template" }, layers: backLayers }) : null,
+      });
+      const { pdf, geometry } = await renderCover({ book: b, questions: [], chapters: [], photos: [] }, 120, "print");
+      const file = path.join(dir, "cover.pdf");
+      writeFileSync(file, pdf);
+      const rect = geometry.back!;
+      const px = (mm: number) => Math.round(mm * 300 / 25.4);
+      const crop = execFileSync("pdftoppm", ["-r", "300", "-x", String(px(rect.x + rect.w / 2 - 8.5)), "-y", String(px(rect.y + rect.h - 16)), "-W", String(px(17)), "-H", String(px(2.3)), "-png", "-singlefile", file]);
+      const { data, info } = await sharp(crop).greyscale().raw().toBuffer({ resolveWithObject: true });
+      const lightInk = background === "#000000";
+      const mask = data.map((v) => Number(lightInk ? v > 128 : v < 128));
+      const columns = new Array<boolean>(info.width).fill(false);
+      mask.forEach((v, i) => { if (v) columns[i % info.width] = true; });
+      expect(columns.filter((v, x) => v && !columns[x - 1])).toHaveLength(7);
+      return mask;
+    }
+    try {
+      const plain = await mark("#FFFFFF", []);
+      expect(await mark("#FFFFFF", [stripe])).toEqual(plain);
+      expect(await mark("#FFFFFF", [], [stripe])).toEqual(plain);
+      const photo = { id: "photo", kind: "image", stock: "clouds", x: 0, y: 0, w: 1, h: 1 };
+      expect(await mark("#FFFFFF", [photo])).toEqual(plain);
+      const dark = await mark("#000000", []);
+      expect(await mark("#000000", [{ ...stripe, fill: "#FFFFFF" }])).toEqual(dark);
+      // При инверсии сглаживание границ может округлиться на один уровень.
+      expect(dark.filter((v, i) => v !== plain[i]).length).toBeLessThan(plain.length * 0.01);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it("свой цвет оборота: оборот и корешок в этот цвет, надписи — контрастные", async () => {

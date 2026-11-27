@@ -1,10 +1,11 @@
 import "server-only";
-import { Document, Image, Page, Path, Svg, Text, View } from "@react-pdf/renderer";
+import { Document, Image, Page, Path, Rect, Svg, Text, View } from "@react-pdf/renderer";
 import type { CoverGeometry } from "@/lib/book/formats";
 import { mm, print } from "@/lib/book/formats";
 import { fitWordSize } from "@/lib/book/word-fit";
 import { spineFontMm, spineParts } from "@/lib/book/book-model";
 import type { CoverTemplate, CoverTextContent, CoverTextStyle } from "@/lib/book/covers";
+import { coverWordmark } from "@/lib/book/cover-wordmark";
 import type { BackDesign } from "@/lib/book/cover-back";
 import { face } from "@/modules/production/infrastructure/pdf/fonts";
 import { site } from "@/config/site";
@@ -234,22 +235,13 @@ function BackSide({ rect, design, photos }: { rect: { x: number; y: number; w: n
           </View>
         );
       })}
-      <Text hyphenationCallback={noHyphens}
-        style={{
-          position: "absolute",
-          left: mm(rect.x),
-          width: mm(rect.w),
-          top: mm(rect.y + design.brand.y),
-          textAlign: "center",
-          ...face("montserrat", 500),
-          fontSize: mm(design.brand.size),
-          letterSpacing: 2,
-          color: design.brand.color,
-          opacity: 0.75,
-        }}
+      <Svg
+        viewBox={coverWordmark.viewBox}
+        style={{ position: "absolute", left: mm(rect.x + (rect.w - coverWordmark.width) / 2), top: mm(rect.y + design.brand.y), width: mm(coverWordmark.width), height: mm(coverWordmark.height) }}
       >
-        {site.name.toUpperCase()}
-      </Text>
+        <Rect width="100%" height="100%" fill={design.brand.paper} />
+        <Path d={coverWordmark.path} fill={design.brand.color} />
+      </Svg>
     </>
   );
 }

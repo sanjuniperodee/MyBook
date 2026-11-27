@@ -67,7 +67,7 @@ export interface CoverTemplate {
    * Задняя сторона. mirror — повторить композицию лица (плашку, рамку, марку): текст ложится туда же,
    * где на лице название. Иначе — свой спокойный фон из art, а текст — в области area (доли задней крышки).
    */
-  back: { color: string; font: FontKey; mirror?: boolean; area?: Rect };
+  back: { color: string; brandPaper?: string; font: FontKey; mirror?: boolean; area?: Rect };
 }
 
 export interface CoverTextContent {

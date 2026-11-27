@@ -3,6 +3,7 @@
  * Одна функция на все отрисовки — PDF для типографии, 3D-книгу и превью в редакторе, —
  * поэтому то, что клиент видит на экране, совпадает с напечатанным.
  */
+import { textOn } from "../readable-text";
 import type { CoverTemplate } from "./covers";
 import { coverNames } from "./cover-names";
 import { printableText } from "./printable";
@@ -88,7 +89,7 @@ export interface BackDesign {
   /** Рисунок оборота без повтора композиции лица: карточки лежат на чистом узоре, а не на плашке. */
   plainArt: boolean;
   blocks: BackBlock[];
-  brand: { y: number; size: number; color: string };
+  brand: { y: number; color: string; paper: string };
 }
 
 /** Средняя ширина знака в долях кегля — для оценки переноса строк без измерения шрифта. С запасом. */
@@ -147,6 +148,11 @@ export function resolveBackLayout(layout: BackLayout, text: string, photos: numb
   if ((layout === "photo" || layout === "fullPhoto") && !photos) layout = "quote";
   if ((layout === "quote" || layout === "letter") && !text) layout = "minimal";
   return layout;
+}
+
+/** Непрозрачная подложка закрывает фото и слои только под маркой. На своей однотонной заливке она сливается с фоном. */
+function backBrand(height: number, ink: string, paper?: string): BackDesign["brand"] {
+  return { y: height - 16.4, color: paper ? textOn(paper) : ink, paper: paper ?? textOn(ink) };
 }
 
 /** Раскладка задней стороны крышки размером W×H мм. */
@@ -276,7 +282,7 @@ export function designBack(template: CoverTemplate, W: number, H: number, raw: B
     stack(namesItems(0.4));
   }
 
-  return { layout, plainArt: layout === "polaroids", blocks, brand: { y: H - 16, size: 6.5 * PT_TO_MM, color: brandColor } };
+  return { layout, plainArt: layout === "polaroids", blocks, brand: backBrand(H, brandColor, layout === "fullPhoto" ? undefined : template.back.brandPaper) };
 }
 
 /**
@@ -284,7 +290,7 @@ export function designBack(template: CoverTemplate, W: number, H: number, raw: B
  * фоне (на повторе композиции лица — как имена).
  */
 export function layeredBack(template: CoverTemplate, H: number): BackDesign {
-  return { layout: "minimal", plainArt: false, blocks: [], brand: { y: H - 16, size: 6.5 * PT_TO_MM, color: template.back.mirror ? template.names.color : template.back.color } };
+  return { layout: "minimal", plainArt: false, blocks: [], brand: backBrand(H, template.back.mirror ? template.names.color : template.back.color, template.back.brandPaper) };
 }
 
 /**

@@ -47,7 +47,10 @@ export function templateForCover(template: CoverTemplate, front: CoverDesign | n
   const frontOwn = own(front?.background);
   if (!fill && !spine) return template;
   const out: CoverTemplate = { ...template };
-  if (fill) out.back = { ...template.back, color: inkOn(backgroundMid(fill.bg)), mirror: false };
+  if (fill) {
+    const paper = backgroundMid(fill.bg);
+    out.back = { ...template.back, color: inkOn(paper), brandPaper: paper, mirror: false };
+  }
   if (spine) out.spine = { ...template.spine, color: inkOn(backgroundMid(spine)) };
   // Свой фон лица: рисунка шаблона нет вовсе — ни фактуры, ни образца шаблона.
   if (frontOwn) {

@@ -1,3 +1,4 @@
+import { coverWordmark } from "@/lib/book/cover-wordmark";
 import type { BackDesign } from "@/lib/book/cover-back";
 import { photoHref, type PhotoRef } from "@/lib/book/covers/svg-kit";
 import { cssFrame } from "@/lib/book/photo-frame";
@@ -5,9 +6,6 @@ import { cssFont, pdfLineOffset } from "@/lib/book/fonts";
 import { hexAlpha } from "@/lib/color";
 import { MM_TO_PT } from "@/lib/book/formats";
 import { Ornament, ORNAMENT_LINE_PT } from "./CoverFace";
-
-/** Разрядка марки на обороте, pt — как у PDF (pdf/cover.tsx: BackSide). */
-const BRAND_TRACKING_PT = 2;
 
 /**
  * Задняя сторона поверх фона — по той же раскладке, что и PDF (src/lib/book/cover-back.ts).
@@ -83,11 +81,15 @@ export function CoverBackLayer({ design, widthMm, heightMm, photos = [], brand }
           </div>
         );
       })}
-      <div
-        style={{ position: "absolute", left: 0, right: 0, top: y(design.brand.y), textAlign: "center", textTransform: "uppercase", fontFamily: cssFont("montserrat"), fontWeight: 500, fontSize: cq(design.brand.size), letterSpacing: cq(BRAND_TRACKING_PT / MM_TO_PT), color: design.brand.color, opacity: 0.75 }}
+      <svg
+        role="img"
+        aria-label={brand}
+        viewBox={coverWordmark.viewBox}
+        style={{ position: "absolute", left: x((widthMm - coverWordmark.width) / 2), top: y(design.brand.y), width: x(coverWordmark.width), height: y(coverWordmark.height) }}
       >
-        {brand}
-      </div>
+        <rect width="100%" height="100%" fill={design.brand.paper} />
+        <path d={coverWordmark.path} fill={design.brand.color} />
+      </svg>
     </>
   );
 }
