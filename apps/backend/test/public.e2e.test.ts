@@ -86,6 +86,7 @@ function createPortsMock() {
     requestCallback: vi.fn<PublicPorts["requestCallback"]>(),
     calendarFeed: vi.fn<PublicPorts["calendarFeed"]>(),
     chatAvatarFile: vi.fn<PublicPorts["chatAvatarFile"]>(),
+    recordLandingVisit: vi.fn<PublicPorts["recordLandingVisit"]>(),
   };
 }
 
@@ -223,6 +224,7 @@ beforeEach(() => {
   ports.requestCallback.mockResolvedValue(undefined);
   ports.calendarFeed.mockImplementation(async (token) => (token === "cal_token_1234567890abcdef" ? "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nEND:VCALENDAR\r\n" : null));
   ports.chatAvatarFile.mockImplementation(async (file) => (file === "ok.webp" ? new Uint8Array([0x52, 0x49, 0x46, 0x46]) : null));
+  ports.recordLandingVisit.mockResolvedValue(undefined);
 });
 
 describe("Контекст 3: 13 контрактных маршрутов (/api/v1/web/*)", () => {
@@ -417,6 +419,33 @@ describe("Контекст 3: 13 контрактных маршрутов (/api
     expect(unsubPost.json()).toEqual({ ok: true });
     expect(ports.unsubscribe).toHaveBeenCalledWith(OWNER.id, "valid-sig");
     expect((await call({ method: "DELETE", url: "/api/v1/web/unsubscribe" })).statusCode).toBe(405);
+  });
+});
+
+describe("webLandingVisit: переход на рекламный лендинг", () => {
+  const IG_UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Instagram 357.0.0.25.101";
+
+  it("пишет заход и нажатие с метками, устройством по User-Agent и обрезанными полями", async () => {
+    const res = await call({
+      method: "POST",
+      url: "/api/v1/web/landing-visits",
+      headers: { "user-agent": IG_UA },
+      payload: { code: "lpk7x2m9", landing: "skidka", event: "click", utmSource: " instagram ", utmCampaign: "skidka-nov", fbclid: "IwAR0abc", fbp: "fb.1.1.2", adId: "120200" },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ ok: true });
+    expect(ports.recordLandingVisit).toHaveBeenCalledWith(
+      expect.objectContaining({ code: "lpk7x2m9", landing: "skidka", utmSource: "instagram", utmCampaign: "skidka-nov", utmMedium: "", fbclid: "IwAR0abc", fbp: "fb.1.1.2", adId: "120200", device: "iphone", inApp: "instagram", userAgent: IG_UA }),
+      "click",
+    );
+  });
+
+  it("чужой код или лендинг — 400 без записи; неверное событие — 400; GET — 405", async () => {
+    expect((await call({ method: "POST", url: "/api/v1/web/landing-visits", payload: { code: "insta-bio", landing: "skidka", event: "view" } })).statusCode).toBe(400);
+    expect((await call({ method: "POST", url: "/api/v1/web/landing-visits", payload: { code: "lpk7x2m9", landing: "love", event: "view" } })).statusCode).toBe(400);
+    expect((await call({ method: "POST", url: "/api/v1/web/landing-visits", payload: { code: "lpk7x2m9", landing: "skidka", event: "open" } })).statusCode).toBe(400);
+    expect(ports.recordLandingVisit).not.toHaveBeenCalled();
+    expect((await call({ method: "GET", url: "/api/v1/web/landing-visits" })).statusCode).toBe(405);
   });
 });
 

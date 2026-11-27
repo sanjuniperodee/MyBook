@@ -1,6 +1,6 @@
 import { DEFAULT_RULE_SENDING, defaultBotConfig, type RuleSendingPolicy, type BotConfig, type BotEvent, type BotMode, type BotState, type Conversation, type DealField, type InboundMessage, type PaymentFacts, type BotMaterial, type BookFact } from "@/modules/messaging/domain";
 import { isWorkTime, nextWorkStart, type WorkHours } from "@/shared/domain/schedule";
-import { MessagingService, QualifierBot, type BotCrm, type BotInvoices, type BotSellerModel, type BotStore, type ConversationRepository, type MessageRepository, type SalesGateway, type StaffLine, type AnsweredTasks } from "@/modules/messaging/application";
+import { MessagingService, QualifierBot, type BotCrm, type BotInvoices, type BotSellerModel, type BotStore, type ConversationRepository, type MessageRepository, type SalesGateway, type StaffLine, type AnsweredTasks, type LinkAttribution } from "@/modules/messaging/application";
 
 export const start = new Date("2026-10-01T06:00:00Z"); // 11:00 по Алматы, рабочее время
 
@@ -89,12 +89,14 @@ export function setup(
     answeredTasks?: AnsweredTasks;
     /** Настоящий график (по Алматы) вместо «всегда рабочее время» / «всегда нерабочее» (workTime). */
     hours?: WorkHours;
+    /** Источник заявки по коду ссылки и по переходу с лендинга (по умолчанию — не найден). */
+    links?: LinkAttribution;
   } = {},
 ) {
   let now = start;
   const convs = new Map<string, Conv>();
   const msgs: Msg[] = [];
-  const deals: { id: string; title: string; unsorted: boolean; fields: Record<string, unknown>; tags: string[] }[] = [];
+  const deals: { id: string; title: string; unsorted: boolean; fields: Record<string, unknown>; tags: string[]; utm?: Record<string, string> | null }[] = [];
   const sent: string[] = [];
   const sendOpts: { replyTo?: string | null; forwarded?: boolean }[] = [];
   /** Ошибка шлюза для отправки; null — шлюз работает. */
@@ -239,7 +241,7 @@ export function setup(
     findClientByPhone: async (phone) => opts.clients?.[phone] ?? null,
     findOpenDeal: async () => (opts.openDeal ? { ...opts.openDeal, clientId: null, utm: null } : null),
     createDeal: async (i) => {
-      const d = { id: `d${++seq}`, title: i.title, unsorted: i.unsorted, fields: {}, tags: [] };
+      const d = { id: `d${++seq}`, title: i.title, unsorted: i.unsorted, fields: {}, tags: [], utm: i.utm };
       deals.push(d);
       return { id: d.id, assigneeId: null, clientId: i.clientId };
     },
@@ -332,7 +334,7 @@ export function setup(
       revoke: async (_c, externalId) => (revokes.push(externalId), { ok: true }),
     },
     sales,
-    { fromText: async () => null },
+    opts.links ?? { fromText: async () => null },
     notifier,
     { chatChanged: (id) => void changed.push(id), notificationsChanged: () => {} },
     { messageIncoming: async () => {} },

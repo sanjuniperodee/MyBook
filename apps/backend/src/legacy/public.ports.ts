@@ -72,6 +72,7 @@ export const legacyPublicPorts: Provider<PublicPorts> = {
     },
     calendarFeed: (token) => c.boards.calendar.feed(token),
     chatAvatarFile: (file) => c.messaging.avatarFile(file),
+    recordLandingVisit: (input, event) => c.marketing.landing.record(input, event),
   }),
   inject: [LEGACY_CONTAINER],
 };

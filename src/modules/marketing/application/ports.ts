@@ -1,5 +1,5 @@
 import type { Locale } from "@/i18n/config";
-import type { ClickRow, ClientRow, DealRow, SpendRow, TrackedLink } from "../domain";
+import type { ClickRow, ClientRow, DealRow, LandingMatch, LandingVisit, SpendRow, TrackedLink } from "../domain";
 
 export interface ReportSource {
   /** since — null за всё время. */
@@ -46,4 +46,40 @@ export interface AppLinks {
   readonly appUrl: string;
   link(path: string, locale: Locale): string;
   formatDate(d: Date, locale: Locale): string;
+}
+
+/** Переход на лендинг, как его прислал браузер (поля уже обрезаны и проверены). */
+export interface LandingVisitInput {
+  code: string;
+  landing: string;
+  utmSource: string;
+  utmMedium: string;
+  utmCampaign: string;
+  utmContent: string;
+  utmTerm: string;
+  fbclid: string;
+  fbp: string;
+  fbc: string;
+  campaignId: string;
+  adsetId: string;
+  adId: string;
+  placement: string;
+  referrer: string;
+  userAgent: string;
+  device: string;
+  inApp: string;
+}
+
+/** Переходы на рекламные лендинги (landing_visits). */
+export interface LandingVisitRepository {
+  /** Заход (повтор с тем же кодом — без изменений); clickedAt — нажал WhatsApp (ставится один раз, первым нажатием). */
+  record(visit: LandingVisitInput, clickedAt: Date | null): Promise<void>;
+  byCode(code: string): Promise<LandingVisit | null>;
+  /** Свободные (не привязанные) нажатия WhatsApp в промежутке. */
+  freeClicks(from: Date, to: Date): Promise<LandingVisit[]>;
+  /**
+   * Привязать переход к диалогу. onlyFree — только если он ещё ни к кому не привязан (по времени); по коду — всегда:
+   * код в сообщении надёжнее прежней догадки по времени. false — не привязали.
+   */
+  claim(id: string, conversationId: string, match: LandingMatch, at: Date, onlyFree: boolean): Promise<boolean>;
 }

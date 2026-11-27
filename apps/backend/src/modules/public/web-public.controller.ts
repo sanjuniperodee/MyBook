@@ -8,6 +8,7 @@ import { APP_CONFIG, type AppConfig } from "../../core/config/app-config";
 import { ApiError } from "../../core/errors/api-error";
 import { clientIp } from "../../core/http/client-ip";
 import { Input, RequestLocale, SessionToken } from "../../core/http/decorators";
+import { header } from "../../core/http/request";
 import { Endpoint } from "../../core/http/endpoint";
 import { RATE_LIMITER } from "../../core/kernel/tokens";
 import { PublicService } from "./public.service";
@@ -113,5 +114,16 @@ export class WebPublicController {
   @Endpoint("webUnsubscribe")
   unsubscribe(@Input() input: Parsed<"webUnsubscribe">): Promise<Output<"webUnsubscribe">> {
     return this.service.unsubscribe(input.body.u, input.body.t);
+  }
+
+  @Endpoint("webLandingVisit")
+  async landingVisit(@Input() input: Parsed<"webLandingVisit">, @Req() req: FastifyRequest): Promise<Output<"webLandingVisit">> {
+    const ip = clientIp(req, this.config.edgeIpSecret);
+    // Заход и нажатие — два запроса на человека; лимит не даёт засыпать таблицу. Сверх лимита молча не пишем:
+    // страница из-за этого не ломается, а кнопка WhatsApp работает и без записи.
+    if (!(await this.limiter.hit(`landing:${ip}`, 60, 600_000))) return { ok: true };
+    const r = await this.service.landingVisit(input.body, header(req, "user-agent") ?? "");
+    if (!r) throw new ApiError(400, "badRequest");
+    return r;
   }
 }

@@ -205,6 +205,11 @@ export interface SalesGateway {
 /** Код рекламной ссылки в первом сообщении → UTM-метки. */
 export interface LinkAttribution {
   fromText(text: string): Promise<Record<string, string> | null>;
+  /**
+   * Переход с рекламного лендинга (контекст Marketing): по коду перехода в первом сообщении, а в новом диалоге
+   * WhatsApp без кода (byTime) — по ближайшему нажатию кнопки. note — примечание в ленту сделки («… по времени»).
+   */
+  fromVisit?(input: { text: string; at: Date; conversationId: string; byTime: boolean }): Promise<{ utm: Record<string, string>; note: string } | null>;
 }
 
 export interface StaffNotifier {

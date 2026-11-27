@@ -15258,6 +15258,49 @@
         "x-auth": "none"
       }
     },
+    "/api/v1/web/landing-visits": {
+      "post": {
+        "operationId": "webLandingVisit",
+        "tags": [
+          "web-public"
+        ],
+        "summary": "Переход на рекламный лендинг: заход или нажатие WhatsApp (метки, fbclid, устройство) — для источника заявки в CRM",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebLandingVisitBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "none"
+      }
+    },
     "/api/v1/web/crm/staff": {
       "get": {
         "operationId": "webCrmStaff",
@@ -49210,6 +49253,86 @@
         },
         "required": [
           "found"
+        ],
+        "additionalProperties": false
+      },
+      "WebLandingVisitBody": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20
+          },
+          "landing": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "event": {
+            "type": "string",
+            "enum": [
+              "view",
+              "click"
+            ]
+          },
+          "utmSource": {
+            "type": "string",
+            "maxLength": 300
+          },
+          "utmMedium": {
+            "type": "string",
+            "maxLength": 300
+          },
+          "utmCampaign": {
+            "type": "string",
+            "maxLength": 300
+          },
+          "utmContent": {
+            "type": "string",
+            "maxLength": 300
+          },
+          "utmTerm": {
+            "type": "string",
+            "maxLength": 300
+          },
+          "fbclid": {
+            "type": "string",
+            "maxLength": 300
+          },
+          "fbp": {
+            "type": "string",
+            "maxLength": 300
+          },
+          "fbc": {
+            "type": "string",
+            "maxLength": 300
+          },
+          "campaignId": {
+            "type": "string",
+            "maxLength": 300
+          },
+          "adsetId": {
+            "type": "string",
+            "maxLength": 300
+          },
+          "adId": {
+            "type": "string",
+            "maxLength": 300
+          },
+          "placement": {
+            "type": "string",
+            "maxLength": 300
+          },
+          "referrer": {
+            "type": "string",
+            "maxLength": 300
+          }
+        },
+        "required": [
+          "code",
+          "landing",
+          "event"
         ],
         "additionalProperties": false
       },

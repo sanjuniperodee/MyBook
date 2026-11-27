@@ -2,6 +2,7 @@ import type { Output, Parsed } from "@mybook/contracts";
 import type { Locale } from "@/i18n/config";
 import type { Messages } from "@/i18n/messages";
 import type { PhotoChange } from "@/modules/feedback";
+import type { LandingVisitInput } from "@/modules/marketing/application";
 import type {
   GiftPaymentView,
   GiftPdfData,
@@ -102,4 +103,6 @@ export interface PublicPorts {
   requestCallback(input: PublicCallbackInput): Promise<void>;
   calendarFeed(token: string): Promise<string | null>;
   chatAvatarFile(file: string): Promise<Uint8Array | null>;
+  /** Переход на рекламный лендинг (контекст Marketing). */
+  recordLandingVisit(input: LandingVisitInput, event: "view" | "click"): Promise<void>;
 }

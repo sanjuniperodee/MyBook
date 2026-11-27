@@ -153,7 +153,7 @@ export class Container {
           await this.invoiceAccess.onIncoming(ctx).catch((err) => console.error("[invoice-access] incoming", err));
         },
       },
-      links: { fromText: (text) => this.marketing.service.attributionFromText(text) },
+      links: { fromText: (text) => this.marketing.service.attributionFromText(text), fromVisit: (input) => this.marketing.landing.attribute(input) },
       whatsapp: () => this.marketing.service.shopWhatsapp(),
       whatsappSettings,
       botInvoices,

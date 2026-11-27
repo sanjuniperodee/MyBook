@@ -9,6 +9,7 @@ import { AGGREGATE_MIN_COUNT, FeedbackError } from "@/modules/feedback/domain";
 import type { CurrentUser } from "@/modules/identity";
 import { OrderingError } from "@/modules/ordering/domain";
 import { consoleLogger } from "@/shared/application";
+import { isAdLanding, isLandingCode, LANDING_FIELD_MAX, landingDevice } from "@/shared/domain/landing";
 import {
   GIFT_CLAIM_TOKEN_RE,
   INVITE_CODE_RE,
@@ -145,6 +146,36 @@ export class PublicService {
 
   async unsubscribe(userId: string, token: string): Promise<Output<"webUnsubscribe">> {
     await this.ports.unsubscribe(userId, token);
+    return { ok: true };
+  }
+
+  /** Переход на рекламный лендинг: код и лендинг — только наши (иначе 400), поля обрезаны, устройство — по User-Agent. */
+  async landingVisit(body: Parsed<"webLandingVisit">["body"], userAgent: string): Promise<Output<"webLandingVisit"> | null> {
+    if (!isLandingCode(body.code) || !isAdLanding(body.landing)) return null;
+    const f = (v: string | undefined) => (v ?? "").trim().slice(0, LANDING_FIELD_MAX);
+    const ua = userAgent.slice(0, 500);
+    await this.ports.recordLandingVisit(
+      {
+        code: body.code,
+        landing: body.landing,
+        utmSource: f(body.utmSource),
+        utmMedium: f(body.utmMedium),
+        utmCampaign: f(body.utmCampaign),
+        utmContent: f(body.utmContent),
+        utmTerm: f(body.utmTerm),
+        fbclid: f(body.fbclid),
+        fbp: f(body.fbp),
+        fbc: f(body.fbc),
+        campaignId: f(body.campaignId),
+        adsetId: f(body.adsetId),
+        adId: f(body.adId),
+        placement: f(body.placement),
+        referrer: f(body.referrer),
+        userAgent: ua,
+        ...landingDevice(ua),
+      },
+      body.event,
+    );
     return { ok: true };
   }
 }

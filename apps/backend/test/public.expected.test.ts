@@ -244,6 +244,7 @@ const staffAccess: StaffAccessPort = {
 };
 
 const nestPorts: PublicPorts = {
+  recordLandingVisit: async () => {},
   readCatalogSettings: async () => ({
     overrides: { hardcover: { price: 31000 } },
     registration: true,

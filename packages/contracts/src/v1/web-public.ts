@@ -189,6 +189,30 @@ export const WebAnswerFilePage = z
   })
   .register(schemas, { id: "WebAnswerFilePage" });
 
+/** Переход на рекламный лендинг (/skidka): заход или нажатие WhatsApp. Код и лендинг проверяет API (shared/domain/landing). */
+const landingField = z.string().max(300).optional();
+export const WebLandingVisitBody = z
+  .object({
+    code: z.string().min(1).max(20),
+    landing: z.string().min(1).max(40),
+    event: z.enum(["view", "click"]),
+    utmSource: landingField,
+    utmMedium: landingField,
+    utmCampaign: landingField,
+    utmContent: landingField,
+    utmTerm: landingField,
+    fbclid: landingField,
+    /** Cookie Meta Pixel _fbp и _fbc — для будущей отправки событий через Conversions API. */
+    fbp: landingField,
+    fbc: landingField,
+    campaignId: landingField,
+    adsetId: landingField,
+    adId: landingField,
+    placement: landingField,
+    referrer: landingField,
+  })
+  .register(schemas, { id: "WebLandingVisitBody" });
+
 export const webPublicRoutes = {
   webAnswerFilePage: route({
     method: "GET",
@@ -305,6 +329,15 @@ export const webPublicRoutes = {
     tag: "web-public",
     summary: "Отписаться от писем по подписанной ссылке",
     body: UnsubscribeBody,
+    response: Ok,
+  }),
+  webLandingVisit: route({
+    method: "POST",
+    path: "/api/v1/web/landing-visits",
+    auth: "none",
+    tag: "web-public",
+    summary: "Переход на рекламный лендинг: заход или нажатие WhatsApp (метки, fbclid, устройство) — для источника заявки в CRM",
+    body: WebLandingVisitBody,
     response: Ok,
   }),
 } as const satisfies Record<string, RouteDef>;

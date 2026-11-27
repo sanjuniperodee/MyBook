@@ -13,15 +13,20 @@ declare global {
 /** Цели в счётчиках. Названия одинаковые для Метрики, GA4 и Meta Pixel (как custom event). */
 const pixelStandard: Record<string, string> = { sign_up: "CompleteRegistration", begin_checkout: "InitiateCheckout", purchase: "Purchase", gift_purchase: "Purchase", contact: "Contact", lead: "Lead" };
 
-export function track(name: string, value?: number, props?: Record<string, string>) {
+/**
+ * eventId — id события для Meta Pixel (eventID): тот же id потом отправит Conversions API с сервера, и Meta не
+ * посчитает событие дважды. На лендинге /skidka это код перехода.
+ */
+export function track(name: string, value?: number, props?: Record<string, string>, eventId?: string) {
   try {
     const currency = "KZT";
     if (window.ym && window.__mbYm) window.ym(window.__mbYm, "reachGoal", name, value || props ? { ...(value ? { order_price: value, currency } : {}), ...props } : undefined);
     window.gtag?.("event", name, { ...(value ? { value, currency } : {}), ...props });
     if (window.fbq) {
       const std = pixelStandard[name];
-      if (std) window.fbq("track", std, value ? { value, currency } : {});
-      else window.fbq("trackCustom", name, props ?? {});
+      const opts = eventId ? [{ eventID: eventId }] : [];
+      if (std) window.fbq("track", std, value ? { value, currency } : {}, ...opts);
+      else window.fbq("trackCustom", name, props ?? {}, ...opts);
     }
   } catch {}
 }

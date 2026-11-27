@@ -143,6 +143,7 @@ const defaultAnswerFilesPorts: AnswerFilesPorts = {
 };
 
 const defaultPublicPorts: PublicPorts = {
+  recordLandingVisit: async () => {},
   readCatalogSettings: async () => ({ overrides: null, registration: true, giftNote: true, seller: {} }),
   ensureCatalog: async () => {},
   widgetConfig: async () => ({ enabled: false, chat: false, whatsapp: "" }),

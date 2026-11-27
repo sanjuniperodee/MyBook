@@ -85,6 +85,9 @@ const NO_MESSAGES_NOTE =
 /** Бот в инбоксе: входящие, ответ человека, автоответ правил. */
 type InboxBot = Pick<QualifierBot, "onIncoming" | "stopByHuman" | "isActive">;
 
+/** Первое сообщение заявки: когда пришло и с ним ли появился диалог (тогда источник можно искать по времени перехода). */
+type FirstMessage = { at: Date; newChat: boolean };
+
 /** Автосообщение клиенту без почты не уходит, если бот или правило писали ему за сутки, а менеджер — за двое суток. */
 /** «Найти или создать заявку» по номеру клиента — по очереди (ensureDeal). */
 const dealLock = keyedLock();
@@ -224,21 +227,28 @@ export class MessagingService {
   }
 
   /** Сделка для диалога: открытая по клиенту/телефону или новая заявка (с нового номера — в «Неразобранное»). created — заявку завели сейчас. */
-  private async ensureDeal(conv: Conversation, contactName: string, firstText: string): Promise<{ conv: Conversation; created: boolean }> {
+  private async ensureDeal(conv: Conversation, contactName: string, firstText: string, first?: FirstMessage): Promise<{ conv: Conversation; created: boolean }> {
     if (conv.dealId) return { conv, created: false };
     // Два сообщения клиента в одну секунду (или чат WhatsApp и Instagram с одного номера) — одна заявка: «найти или
     // создать» по номеру идёт по очереди, второй находит сделку первого (24.11: Д1686/Д1687 — дубль без переписки, по
     // которому круг сутки слал «никто не взял»).
     return dealLock(contactPhone(conv) ?? conv.clientId ?? conv.id, async () => {
       const fresh = (await this.conversations.findById(conv.id)) ?? conv;
-      return fresh.dealId ? { conv: fresh, created: false } : this.findOrCreateDeal(fresh, contactName, firstText);
+      return fresh.dealId ? { conv: fresh, created: false } : this.findOrCreateDeal(fresh, contactName, firstText, first);
     });
   }
 
-  private async findOrCreateDeal(conv: Conversation, contactName: string, firstText: string): Promise<{ conv: Conversation; created: boolean }> {
+  private async findOrCreateDeal(conv: Conversation, contactName: string, firstText: string, first?: FirstMessage): Promise<{ conv: Conversation; created: boolean }> {
     const phone = contactPhone(conv);
     // Код рекламной ссылки в первом сообщении («… (код: insta-bio)») — откуда пришёл клиент.
-    const utm = await this.links.fromText(firstText);
+    let utm = await this.links.fromText(firstText);
+    // Иначе — переход с рекламного лендинга: по коду перехода, а в новом диалоге WhatsApp без кода — по времени нажатия.
+    // Сбой поиска не мешает завести заявку.
+    const visit =
+      !utm && first && this.links.fromVisit
+        ? await this.links.fromVisit({ text: firstText, at: first.at, conversationId: conv.id, byTime: first.newChat && conv.channel === "whatsapp" }).catch((err) => (this.logger.error("landing visit", err), null))
+        : null;
+    if (visit) utm = visit.utm;
     const existing = await this.sales.findOpenDeal({ clientId: conv.clientId, phone });
     if (existing && utm && !existing.utm) await this.sales.setUtmIfEmpty(existing.id, utm);
     const deal =
@@ -253,6 +263,7 @@ export class MessagingService {
         unsorted: true,
         utm,
       }));
+    if (visit) await this.sales.note(deal, visit.note).catch((err) => this.logger.error("landing note", err));
     const linked = await this.conversations.linkDeal(conv.id, { dealId: deal.id, clientId: conv.clientId ?? deal.clientId, assigneeId: conv.assigneeId ?? deal.assigneeId });
     return { conv: linked, created: !existing };
   }
@@ -325,7 +336,7 @@ export class MessagingService {
       return;
     }
     if (spam) return;
-    const { conv, created: dealCreated } = await this.ensureDeal(base, m.contactName, m.text);
+    const { conv, created: dealCreated } = await this.ensureDeal(base, m.contactName, m.text, { at: m.at, newChat: created });
     // «Не пишите мне» — номер в стоп-лист «Не писать первым» (до бота и правил: напоминание и сообщение правила уже не уйдут).
     if (asksNoMessages(m.text)) await this.optOut(conv, m.text).catch((err) => this.logger.error("no marketing", err));
     // Сообщение уже в базе — открытые вкладки CRM показывают его сразу, не дожидаясь бота, уведомлений и правил.

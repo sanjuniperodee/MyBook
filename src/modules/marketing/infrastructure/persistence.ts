@@ -1,9 +1,9 @@
 import "server-only";
-import { and, desc, eq, sql } from "drizzle-orm";
-import { books, crmLinkClicks, crmLinks, marketingSpend, orders, users } from "@/shared/infrastructure/db/schema";
+import { and, asc, desc, eq, gte, isNotNull, isNull, lte, sql } from "drizzle-orm";
+import { books, crmLinkClicks, crmLinks, landingVisits, marketingSpend, orders, users } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
 import { zonedDay } from "@/shared/domain/time";
-import type { ClientContext, LinkRepository, ReportSource, SpendRepository } from "../application";
+import type { ClientContext, LandingVisitRepository, LinkRepository, ReportSource, SpendRepository } from "../application";
 
 /** Заказ клиента (алиас o) оплачен по paid_at и не отменён — выручка канала; не isPaid() из ordering (тот — по статусу). */
 const paidAndNotCancelled = sql`o.paid_at is not null and o.status <> 'cancelled'`;
@@ -92,5 +92,59 @@ export const drizzleSpend: SpendRepository = {
   async remove(id) {
     const [r] = await executor().delete(marketingSpend).where(eq(marketingSpend.id, id)).returning({ channel: marketingSpend.channel, day: marketingSpend.day, amount: marketingSpend.amount });
     return r ?? null;
+  },
+};
+
+const visitColumns = {
+  id: landingVisits.id,
+  code: landingVisits.code,
+  landing: landingVisits.landing,
+  utmSource: landingVisits.utmSource,
+  utmMedium: landingVisits.utmMedium,
+  utmCampaign: landingVisits.utmCampaign,
+  utmContent: landingVisits.utmContent,
+  utmTerm: landingVisits.utmTerm,
+  adId: landingVisits.adId,
+  inApp: landingVisits.inApp,
+  device: landingVisits.device,
+  createdAt: landingVisits.createdAt,
+  clickedAt: landingVisits.clickedAt,
+  conversationId: landingVisits.conversationId,
+};
+
+export const drizzleLandingVisits: LandingVisitRepository = {
+  async record(visit, clickedAt) {
+    // Заход и нажатие приходят отдельно (и в любом порядке): метки берём из первого, нажатие ставим один раз.
+    await executor()
+      .insert(landingVisits)
+      .values({ ...visit, clickedAt })
+      .onConflictDoUpdate({
+        target: landingVisits.code,
+        set: {
+          clickedAt: sql`coalesce(${landingVisits.clickedAt}, excluded.clicked_at)`,
+          // Cookie пикселя появляются после загрузки счётчика — к нажатию они обычно уже есть.
+          fbp: sql`coalesce(nullif(${landingVisits.fbp}, ''), excluded.fbp)`,
+          fbc: sql`coalesce(nullif(${landingVisits.fbc}, ''), excluded.fbc)`,
+        },
+      });
+  },
+  async byCode(code) {
+    const [v] = await executor().select(visitColumns).from(landingVisits).where(eq(landingVisits.code, code)).limit(1);
+    return v ?? null;
+  },
+  freeClicks: (from, to) =>
+    executor()
+      .select(visitColumns)
+      .from(landingVisits)
+      .where(and(isNull(landingVisits.conversationId), isNotNull(landingVisits.clickedAt), gte(landingVisits.clickedAt, from), lte(landingVisits.clickedAt, to)))
+      .orderBy(asc(landingVisits.clickedAt))
+      .limit(50),
+  async claim(id, conversationId, match, at, onlyFree) {
+    const rows = await executor()
+      .update(landingVisits)
+      .set({ conversationId, match, matchedAt: at })
+      .where(onlyFree ? and(eq(landingVisits.id, id), isNull(landingVisits.conversationId)) : eq(landingVisits.id, id))
+      .returning({ id: landingVisits.id });
+    return rows.length > 0;
   },
 };
