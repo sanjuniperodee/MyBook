@@ -28,6 +28,7 @@ import {
   type PagesPorts,
 } from "../src/modules/authoring-studio/authoring-studio.tokens";
 import { AUTHORING_SITE_PORTS, type AuthoringSitePorts } from "../src/modules/authoring-site/authoring-site.tokens";
+import { CRM_ADMIN_PORTS, type CrmAdminPorts } from "../src/modules/crm-admin/crm-admin.tokens";
 import { CRM_MOBILE_API_PORTS, type CrmMobileApiPorts } from "../src/modules/crm-mobile-api/crm-mobile-api.tokens";
 import {
   CRM_CHATS_PORTS,
@@ -470,6 +471,73 @@ const defaultCrmOpsPorts: CrmOpsPorts = {
   resetStaffTwoFactor: async () => ({ ok: true }),
 };
 
+const defaultCrmAdminPorts: CrmAdminPorts = {
+  catalogSyncIfStale: async () => null,
+  catalogList: async () => [],
+  catalogLastSyncedAt: async () => null,
+  gowaCachedPhone: async () => null,
+  catalogCollections: async () => [],
+  syncCatalog: async () => ({ ok: true, total: 0, removed: 0 }),
+  createProduct: async () => ({ ok: true, id: "1001" }),
+  updateProduct: async () => ({ ok: true }),
+  setProductHidden: async () => ({ ok: true }),
+  deleteProduct: async () => ({ ok: true }),
+  saveCollection: async () => ({ ok: true }),
+  deleteCollection: async () => ({ ok: true }),
+  designAiFreeLimit: async () => 5,
+  designAiStats: async () => ({
+    totals: { ok: 0, failed: 0, users: 0, free: 0, credit: 0, costUsd: 0, avgMs: null },
+    people: { used: 0, hitLimit: 0, withCredits: 0, creditsLeft: 0 },
+    purchases: { paid: 0, paidAmount: 0, pending: 0, pendingAmount: 0 },
+    byMode: [],
+    byDay: [],
+    topUsers: [],
+  }),
+  designAiSettings: async () => ({ enabled: true }),
+  grantDesignAiCredits: async () => ({ ok: "+5" }),
+  saveDesignAiFreeLimit: async () => ({ ok: "Сохранено" }),
+  marketingReport: async () => ({
+    total: { clicks: 0, leads: 0, registrations: 0, startedBook: 0, sales: 0, revenue: 0, spend: 0 },
+    channels: [],
+    links: new Map(),
+  }),
+  marketingLinks: async () => [],
+  marketingLinkTarget: async () => "https://mybooks.kz/",
+  marketingShortUrl: (slug) => `https://mybooks.kz/go/${slug}`,
+  createMarketingLink: async () => ({ ok: "Ссылка создана" }),
+  archiveMarketingLink: async () => {},
+  promoStats: async () => [],
+  createPromo: async () => ({ ok: "Промокод создан" }),
+  togglePromo: async () => {},
+  recentGifts: async () => [],
+  confirmGiftPayment: async () => true,
+  resendGift: async () => {},
+  cancelGift: async () => {},
+  reviewList: async () => [],
+  reviewCounts: async () => ({ new: 0, published: 0, hidden: 0 }),
+  reviewSummary: async () => ({ count: 0, average: 0 }),
+  moderateReview: async () => {},
+  syncCatalogFromSettings: async () => {},
+  maxPhotos: async () => 100,
+  setRegistration: async () => ({ ok: "Сохранено" }),
+  setGiftNote: async () => ({ ok: "Сохранено" }),
+  setMaxPhotos: async () => ({ ok: "Сохранено" }),
+  saveSeller: async () => ({ ok: "Сохранено" }),
+  savePricing: async () => ({ ok: "Цены сохранены" }),
+  listRoles: async () => [],
+  listTeam: async () => [],
+  createStaff: async () => ({ ok: "Сотрудник добавлен" }),
+  setStaffRole: async () => {},
+  setStaffExtension: async () => {},
+  setStaffPhone: async () => ({ ok: true, message: "Телефон сохранён" }),
+  setStaffDisabled: async () => {},
+  revokeStaff: async () => {},
+  resetStaffPassword: async () => ({ ok: true, message: "Новый пароль отправлен" }),
+  listSharedTemplates: async () => [],
+  saveSharedTemplate: async () => ({ ok: "Сохранено" }),
+  deleteSharedTemplate: async () => {},
+};
+
 /** Лимитер в памяти: сколько раз звали с каким ключом; `deny` — следующий вызов вернёт «лимит исчерпан». */
 export class FakeLimiter implements RateLimiter {
   readonly hits: string[] = [];
@@ -557,6 +625,7 @@ export async function bootTestApp(opts: { users: CurrentUser[]; overrides?: [tok
     })
     .overrideProvider(PAGES_PORTS).useValue(defaultPagesPorts)
     .overrideProvider(ANSWER_FILES_PORTS).useValue(defaultAnswerFilesPorts)
+    .overrideProvider(CRM_ADMIN_PORTS).useValue(defaultCrmAdminPorts)
     .overrideProvider(CRM_MOBILE_API_PORTS).useValue(defaultCrmMobileApiPorts)
     .overrideProvider(CRM_LISTS_PORTS).useValue(defaultCrmListsPorts)
     .overrideProvider(CRM_DEALS_PORTS).useValue(defaultCrmDealsPorts)
