@@ -37,15 +37,31 @@ export function visitAttribution(v: Pick<LandingVisit, "landing" | "utmSource" |
 }
 
 /**
- * Переход для нового диалога без кода: ближайшее к первому сообщению нажатие WhatsApp, ещё ни к кому не привязанное,
- * в окне [сообщение − 10 мин, сообщение + 1 мин]. Нет такого — null.
+ * Тестовый переход сотрудника: креатив `?c=lp-check…`, `?c=test…` (или такая же метка кампании). По времени к заявке
+ * клиента не привязывается — 27.11 тестовые нажатия при проверке лендинга «достались» двум настоящим клиентам.
  */
-export function nearestFreeClick<T extends Pick<LandingVisit, "clickedAt" | "conversationId">>(visits: T[], at: Date): T | null {
+export const isTestVisit = (v: Partial<Pick<LandingVisit, "utmCampaign">>) => /^(lp-?check|test)/i.test((v.utmCampaign ?? "").trim());
+
+/**
+ * Стандартный текст кнопки WhatsApp в самом объявлении Meta (Click-to-WhatsApp): человек пришёл из рекламы напрямую,
+ * а не с лендинга, — по времени к переходу его не привязываем.
+ */
+const META_AD_DEFAULT_TEXTS = ["Привет! Можно узнать об этом подробнее?", "Hello! Can I get more info on this?"].map(adText);
+function adText(text: string) {
+  return text.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+}
+export const isMetaAdDefaultText = (text: string) => META_AD_DEFAULT_TEXTS.includes(adText(text));
+
+/**
+ * Переход для нового диалога без кода: ближайшее к первому сообщению нажатие WhatsApp, ещё ни к кому не привязанное,
+ * в окне [сообщение − 10 мин, сообщение + 1 мин], кроме тестовых (isTestVisit). Нет такого — null.
+ */
+export function nearestFreeClick<T extends Pick<LandingVisit, "clickedAt" | "conversationId"> & Partial<Pick<LandingVisit, "utmCampaign">>>(visits: T[], at: Date): T | null {
   const t = at.getTime();
   let best: T | null = null;
   let bestGap = Infinity;
   for (const v of visits) {
-    if (!v.clickedAt || v.conversationId) continue;
+    if (!v.clickedAt || v.conversationId || isTestVisit(v)) continue;
     const d = v.clickedAt.getTime() - t;
     if (d < -LANDING_MATCH_BEFORE_MS || d > LANDING_MATCH_AFTER_MS) continue;
     if (Math.abs(d) < bestGap) {

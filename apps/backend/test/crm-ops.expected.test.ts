@@ -180,7 +180,8 @@ const bookRowFixture: CrmBookListRow = {
     status: "draft",
     occasion: "birthday",
     occasionDate: "2026-12-25",
-    updatedAt: new Date("2026-11-10T06:00:00Z"),
+    // «17 дней без правок» в снимке — от текущей даты: правка ровно 17 суток назад, иначе снимок ломается каждый день.
+    updatedAt: new Date(Date.now() - 17 * 86_400_000),
   },
   owner: { id: CLIENT_ID, email: "client@example.kz", name: "Алия", remindedAt: null },
   answered: 10,

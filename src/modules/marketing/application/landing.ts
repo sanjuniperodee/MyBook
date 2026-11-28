@@ -1,6 +1,6 @@
 import type { Clock } from "@/shared/application";
 import { isLandingCode, LANDING_MATCH_AFTER_MS, LANDING_MATCH_BEFORE_MS } from "@/shared/domain/landing";
-import { isPreviewBot, linkCodeFromText, nearestFreeClick, visitAttribution, visitNote, type LandingMatch } from "../domain";
+import { isMetaAdDefaultText, isPreviewBot, linkCodeFromText, nearestFreeClick, visitAttribution, visitNote, type LandingMatch } from "../domain";
 import type { LandingVisitInput, LandingVisitRepository } from "./ports";
 
 /** Источник новой заявки по переходу с рекламного лендинга. */
@@ -26,7 +26,8 @@ export class LandingService {
 
   /**
    * Первое сообщение нового диалога → переход: по коду «(код: lp…)» в тексте, а если код стёрт (byTime) — по
-   * ближайшему свободному нажатию WhatsApp перед сообщением. Чужой код (рекламная ссылка, виджет) — не наш случай.
+   * ближайшему свободному нажатию WhatsApp перед сообщением (не тестовому и не для стандартного текста объявления Meta).
+   * Чужой код (рекламная ссылка, виджет) — не наш случай.
    */
   async attribute(input: { text: string; at: Date; conversationId: string; byTime: boolean }): Promise<VisitAttribution | null> {
     const code = linkCodeFromText(input.text);
@@ -37,7 +38,8 @@ export class LandingService {
         return { utm: visitAttribution(v) as Record<string, string>, note: visitNote(v, "code", input.at, this.timeZone()), match: "code" };
       // Код есть, а перехода нет (браузер не успел его записать) — ищем по времени, как без кода.
     }
-    if (!input.byTime) return null;
+    // Стандартный текст кнопки объявления Meta — человек пришёл из рекламы напрямую, не с лендинга.
+    if (!input.byTime || isMetaAdDefaultText(input.text)) return null;
     let free = await this.visits.freeClicks(new Date(input.at.getTime() - LANDING_MATCH_BEFORE_MS), new Date(input.at.getTime() + LANDING_MATCH_AFTER_MS));
     // Два диалога в одну минуту: ближайшее нажатие уже взял другой — берём следующее.
     for (;;) {

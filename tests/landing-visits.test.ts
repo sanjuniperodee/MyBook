@@ -149,6 +149,7 @@ describe("код перехода и разбор адреса лендинга"
     expect(nearestFreeClick(list, at)?.id).toBe("near");
     expect(nearestFreeClick([v("skew", "2026-11-27T09:10:40Z")], at)?.id).toBe("skew");
     expect(nearestFreeClick([list[0], list[1], list[4], list[5]], at)).toBeNull();
+    expect(nearestFreeClick([{ ...list[2], utmCampaign: "lp-check3" }, { ...list[3], utmCampaign: "LPCHECK" }], at)).toBeNull();
   });
 });
 
@@ -190,6 +191,19 @@ describe("привязка диалога к переходу", () => {
     expect(await t.service.attribute({ text: "Здравствуйте", at: t.now.value, conversationId: "c1", byTime: false })).toBeNull();
     expect(await t.service.attribute({ text: "Хочу книгу (код: insta-bio)", at: t.now.value, conversationId: "c1", byTime: true })).toBeNull();
     expect(t.rows[0].conversationId).toBeNull();
+  });
+
+  it("по времени не берём тестовые нажатия сотрудников и стандартный текст кнопки объявления Meta (27.11, сделки 1938 и 1986)", async () => {
+    const t = memoryVisits();
+    await t.service.record(input({ code: "lptttttt", utmCampaign: "lp-check3" }), "click");
+    await t.service.record(input({ code: "lpuuuuuu", utmCampaign: "test-1" }), "click");
+    const at = new Date("2026-11-27T09:03:00Z");
+    expect(await t.service.attribute({ text: "Здравствуйте", at, conversationId: "c1", byTime: true })).toBeNull();
+    await t.service.record(input({ code: "lpvvvvvv", utmCampaign: "predmetnaya" }), "click");
+    for (const text of ["Привет! Можно узнать об этом подробнее?", "привет, можно узнать об этом подробнее", "Hello! Can I get more info on this?"])
+      expect(await t.service.attribute({ text, at, conversationId: "c2", byTime: true })).toBeNull();
+    expect(await t.service.attribute({ text: "Здравствуйте! Интересует книга в подарок. Хочу узнать подробности.", at, conversationId: "c3", byTime: true })).toMatchObject({ match: "time", utm: { campaign: "predmetnaya" } });
+    expect(t.rows.filter((r) => r.conversationId).map((r) => r.utmCampaign)).toEqual(["predmetnaya"]);
   });
 
   it("код перехода, который уже взяли по времени, всё равно переходит к своему диалогу", async () => {
