@@ -5,6 +5,8 @@ import {
   editsToRaw,
   editsWithIds,
   editsWithRefs,
+  markAnswer,
+  sameWords,
   helpEditLines,
   helpEditWarning,
   parseHelpEdits,
@@ -33,6 +35,9 @@ const photo = (ref: string, id: string, questionId: string, over: Partial<HelpEd
   width: 1200,
   height: 1600,
   inline: { ...defaultInlineStyle, width: 50, ...over },
+  chapter: null,
+  opener: false,
+  caption: "",
 });
 
 function book(over: Partial<HelpEditBook> = {}): HelpEditBook {
@@ -41,6 +46,23 @@ function book(over: Partial<HelpEditBook> = {}): HelpEditBook {
     titlePage: true,
     showToc: true,
     tocAtEnd: false,
+    tocMode: "chapters",
+    titleAuthor: true,
+    titleLine: "",
+    chapterNumber: "label",
+    title: "Мама",
+    subtitle: "",
+    coverTemplate: true,
+    coverLines: true,
+    hasRecipient: true,
+    hideRecipient: false,
+    coverPhotoId: null,
+    chapterLeadIn: {},
+    chapters: [{ ref: "c1", key: "childhood", title: "Детство" }],
+    questions: [
+      { ref: "q1", id: "q1", heading: "Детство", pageBreak: false, answer: "Я родилась в ауле.\nМенің баға жетпес байлығым!\nМама пела песни." },
+      { ref: "q2", id: "q2", heading: "Свадьба", pageBreak: false, answer: "Свадьба была летом." },
+    ],
     dedication: "",
     chapterStart: "page",
     openersLeft: true,
@@ -50,64 +72,82 @@ function book(over: Partial<HelpEditBook> = {}): HelpEditBook {
     leadIn: false,
     dropCap: "none",
     interiorStyle: { body: { size: 11 } },
-    photos: [photo("p1", "ph-a", "q1"), photo("p2", "ph-b", "q1", { anchor: 2 }), photo("p3", "ph-c", "q2")],
-    photoOrder: ["ph-x", "ph-a", "ph-b", "ph-c"],
+    photos: [photo("p1", "ph-a", "q1"), photo("p2", "ph-b", "q1", { anchor: 2 }), photo("p3", "ph-c", "q2"), { ...photo("p4", "ph-d", "q1"), questionId: null, heading: "альбом" }],
+    photoOrder: ["ph-x", "ph-a", "ph-b", "ph-c", "ph-d"],
     pageFit: () => "contain",
     order: null,
     ...over,
   };
 }
 
-const raw = (kind: string, value = "", photo = "", target = "") => ({ kind, photo, target, value });
+const raw = (kind: string, value = "", ref = "", target = "") => ({ kind, ref, target, value });
 
 describe("правки помощника: разбор и проверка", () => {
-  it("все правки списка разбираются по книге", () => {
+  it("правки всех видов разбираются по книге", () => {
     const r = parseHelpEdits(
       [
         raw("titlePage", "off"),
+        raw("titleAuthor", "off"),
+        raw("titleLine", "Қызы Ләззат"),
         raw("toc", "off"),
         raw("tocPlace", "end"),
+        raw("tocMode", "sections"),
         raw("dedication", "Маме — с любовью"),
         raw("chapterStart", "inline"),
+        raw("chapterNumber", "none"),
         raw("openersLeft", "off"),
         raw("indent", "1,5"),
         raw("indentFirst", "on"),
         raw("leadIn", "on"),
         raw("dropCap", "drop"),
+        raw("bookTitle", ""),
+        raw("coverLines", "off"),
+        raw("hideRecipient", "on"),
+        raw("chapterLeadIn", "on", "c1"),
+        raw("questionBreak", "on", "q2"),
+        raw("textMark", "Менің баға жетпес байлығым!", "q1", "center"),
         raw("photoPage", "on", "p1"),
         raw("photoSize", "large", "p3"),
+        raw("photoShape", "3:4", "p3"),
+        raw("photoAlign", "left", "p3"),
+        raw("photoKeepSize", "on", "p3"),
         raw("photoBreak", "on", "P2"),
+        raw("photoAnchor", "start", "p3"),
+        raw("photoCaption", "Анашым Роза", "p4"),
+        raw("photoPlace", "opener", "p4", "c1"),
+        raw("coverPhoto", "", "p4"),
       ],
       book(),
     );
     expect(r.problems).toEqual([]);
-    expect(r.edits.map((e) => e.kind)).toEqual(["titlePage", "toc", "tocPlace", "dedication", "chapterStart", "openersLeft", "indent", "indentFirst", "leadIn", "dropCap", "photoPage", "photoSize", "photoBreak"]);
-    expect(r.edits.find((e) => e.kind === "indent")).toEqual({ kind: "indent", value: 1.5 });
+    expect(r.edits).toHaveLength(30);
+    expect(r.edits.find((e) => e.kind === "indent")?.value).toBe("1.5");
   });
 
   it("запрещённое и незнакомое — не правка: деньги, заказ, удаление, текст ответа", () => {
-    for (const kind of ["discount", "price", "deleteAnswer", "deletePhoto", "answerText", "orderCancel", "title", "coverTemplate"]) {
+    for (const kind of ["discount", "price", "deleteAnswer", "deletePhoto", "answerText", "orderCancel", "coverDesign", "coverTemplate"]) {
       const r = parseHelpEdits([raw(kind, "x")], book());
       expect(r.edits, kind).toEqual([]);
       expect(r.problems.join(" "), kind).toMatch(/нет в списке/);
       expect((HELP_EDIT_KINDS as readonly string[]).includes(kind)).toBe(false);
     }
-    // Одна запрещённая в пачке — не применяется ни одна.
     expect(parseHelpEdits([raw("titlePage", "off"), raw("deletePhoto", "", "p1")], book()).edits).toEqual([]);
   });
 
-  it("фото — только из ответов этой книги: id чужого фото, несуществующая ссылка, перестановка между ответами", () => {
+  it("ссылки — только этой книги: чужое фото, несуществующий ответ и глава; вид фото — только у фото в ответе", () => {
     expect(parseHelpEdits([raw("photoPage", "on", "ph-zzz-other-book")], book()).problems[0]).toMatch(/нет в списке фото/);
-    expect(parseHelpEdits([raw("photoPage", "on", "p9")], book()).problems[0]).toMatch(/нет в списке фото/);
-    // Прямой id фото этой книги вместо ссылки тоже не принимается: модель видит только ссылки p1…
     expect(parseHelpEdits([raw("photoPage", "on", "ph-a")], book()).edits).toEqual([]);
-    expect(parseHelpEdits([raw("photoMove", "before", "p1", "p3")], book()).problems[0]).toMatch(/внутри одного ответа/);
+    expect(parseHelpEdits([raw("questionBreak", "on", "q9")], book()).problems[0]).toMatch(/нет в списке ответов/);
+    expect(parseHelpEdits([raw("chapterLeadIn", "on", "c9")], book()).problems[0]).toMatch(/нет в списке глав/);
+    expect(parseHelpEdits([raw("photoSize", "large", "p4")], book()).problems[0]).toMatch(/не в ответе/);
     expect(parseHelpEdits([raw("photoMove", "before", "p1", "p1")], book()).problems[0]).toMatch(/другое фото/);
+    expect(parseHelpEdits([raw("photoMove", "before", "p1", "p4")], book()).problems[0]).toMatch(/фото в ответе/);
+    expect(parseHelpEdits([raw("photoPlace", "", "p1", "somewhere")], book()).problems[0]).toMatch(/target/);
   });
 
   it("«С какой страницы начинается глава»: где выпадет / слева / справа — подпись и план правки", () => {
     const r = parseHelpEdits([raw("chapterSide", "right")], book());
-    expect(r.edits).toEqual([{ kind: "chapterSide", value: "right" }]);
+    expect(r.edits).toEqual([{ kind: "chapterSide", ref: "", target: "", value: "right" }]);
     expect(helpEditLines(r.edits, book(), "ru")).toEqual(["С какой страницы начинается глава: Всегда слева → Всегда справа"]);
     expect(planHelpEdits(r.edits, book()).settings).toEqual({ chapterSide: "right" });
     expect(parseHelpEdits([raw("chapterSide", "left")], book()).problems[0]).toMatch(/ничего не меняет/);
@@ -118,30 +158,58 @@ describe("правки помощника: разбор и проверка", ()
     expect(parseHelpEdits([raw("indent", "9")], book()).problems[0]).toMatch(/от 0 до 4/);
     expect(parseHelpEdits([raw("titlePage", "maybe")], book()).problems[0]).toMatch(/on или off/);
     expect(parseHelpEdits([raw("chapterStart", "left")], book()).problems[0]).toMatch(/page, inline, none/);
-    expect(parseHelpEdits([raw("tocPlace", "middle")], book()).problems[0]).toMatch(/start или end/);
+    expect(parseHelpEdits([raw("tocPlace", "middle")], book()).problems[0]).toMatch(/start, end/);
     expect(parseHelpEdits([raw("photoSize", "huge", "p1")], book()).problems[0]).toMatch(/small/);
     expect(parseHelpEdits([raw("dedication", "я".repeat(601))], book()).problems[0]).toMatch(/600/);
+    expect(parseHelpEdits([raw("titleLine", "я".repeat(81))], book()).problems[0]).toMatch(/80/);
+    expect(parseHelpEdits([raw("photoAnchor", "7", "p1")], book()).problems[0]).toMatch(/номер абзаца от 1 до 3/);
     expect(parseHelpEdits([], book()).problems[0]).toMatch(/без правок/);
   });
 
-  it("заказанная книга — правок нет", () => {
-    const r = parseHelpEdits([raw("titlePage", "off")], book({ status: "ordered" }));
-    expect(r.edits).toEqual([]);
-    expect(r.problems.join(" ")).toMatch(/книга заказана/);
+  it("заказанная книга — правок нет; обложка конструктора — без линий, получателя и фото обложки", () => {
+    expect(parseHelpEdits([raw("titlePage", "off")], book({ status: "ordered" })).problems.join(" ")).toMatch(/книга заказана/);
+    expect(parseHelpEdits([raw("coverLines", "off")], book({ coverTemplate: false })).problems[0]).toMatch(/Конструктор/);
+    expect(parseHelpEdits([raw("hideRecipient", "on")], book({ hasRecipient: false })).problems[0]).toMatch(/получателя/);
   });
 
   it("правка, которая ничего не меняет, не предлагается", () => {
     expect(parseHelpEdits([raw("titlePage", "on")], book()).problems[0]).toMatch(/уже так/);
     expect(parseHelpEdits([raw("photoMove", "before", "p1", "p2")], book()).problems[0]).toMatch(/уже так/);
-    // В пачке лишние отбрасываются, остальные остаются.
-    expect(parseHelpEdits([raw("titlePage", "on"), raw("toc", "off")], book()).edits).toEqual([{ kind: "toc", on: false }]);
+    expect(parseHelpEdits([raw("titlePage", "on"), raw("toc", "off")], book()).edits).toEqual([{ kind: "toc", ref: "", target: "", value: "off" }]);
+  });
+});
+
+describe("правки помощника: пометки в тексте ответа — слова те же", () => {
+  const answer = "Я родилась в ауле.\nМенің баға жетпес байлығым!\nМенің анам — менің әлемім.\nМама пела песни.";
+  it("по центру, капитель и жирная строка ставятся, слова не меняются", () => {
+    const c = markAnswer(answer, "center", "Менің баға жетпес байлығым!\nМенің анам — менің әлемім.")!;
+    expect(c).toContain(">> Менің баға жетпес байлығым! <<");
+    expect(c).toContain(">> Менің анам — менің әлемім. <<");
+    const l = markAnswer(answer, "lead", "Мама пела")!;
+    expect(l).toContain("^^Мама пела^^ песни.");
+    const b = markAnswer(answer, "bold", "Я родилась в ауле.")!;
+    expect(b.split("\n")[0]).toBe("**Я родилась в ауле.**");
+    for (const x of [c, l, b]) expect(sameWords(answer, x)).toBe(true);
+  });
+  it("строки нет дословно — null; другое слово — не те же слова", () => {
+    expect(markAnswer(answer, "center", "Менің байлығым")).toBeNull();
+    expect(sameWords(answer, answer.replace("ауле", "городе"))).toBe(false);
+    expect(parseHelpEdits([raw("textMark", "Такой строки нет", "q1", "center")], book()).problems[0]).toMatch(/нет такой строки/);
+    expect(parseHelpEdits([raw("textMark", "Мама пела песни.", "q1", "italic")], book()).problems[0]).toMatch(/center, lead, bold/);
+  });
+  it("план: ответ с пометкой — через QuestionsService.edit, слова те же", () => {
+    const b = book();
+    const plan = planHelpEdits(parseHelpEdits([raw("textMark", "Менің баға жетпес байлығым!", "q1", "center"), raw("questionBreak", "on", "q1")], b).edits, b);
+    expect(plan.questions).toHaveLength(1);
+    expect(plan.questions[0].patch.pageBreak).toBe(true);
+    expect(sameWords(b.questions[0].answer, plan.questions[0].patch.answer!)).toBe(true);
   });
 });
 
 describe("правки помощника: подписи, предупреждение, план", () => {
   it("строки «было → станет» — словами редактора на языке сайта", () => {
     const b = book();
-    const { edits } = parseHelpEdits([raw("titlePage", "off"), raw("photoPage", "on", "p2"), raw("photoMove", "before", "p2", "p1"), raw("dedication", "Маме")], b);
+    const { edits } = parseHelpEdits([raw("titlePage", "off"), raw("photoPage", "on", "p2"), raw("photoMove", "before", "p2", "p1"), raw("dedication", "Маме"), raw("photoPlace", "", "p4", "off")], b);
     const ru = messagesFor("ru");
     const lines = helpEditLines(edits, b, "ru");
     expect(lines[0]).toBe(`${ru.design.pages.elements.titlePagePrint}: ${ru.help.actions.on} → ${ru.help.actions.off}`);
@@ -149,8 +217,11 @@ describe("правки помощника: подписи, предупрежд�
     expect(lines[1]).toContain(`${ru.editor.answerPhoto.inText} → ${ru.editor.answerPhoto.onPage}`);
     expect(lines[2]).toContain(`${ru.editor.answerPhoto.orderOf(2, 2)} → ${ru.editor.answerPhoto.orderOf(1, 2)}`);
     expect(lines[3]).toBe(`${ru.books.pages.dedication}: ${ru.help.actions.empty} → «Маме»`);
-    const kk = helpEditLines(edits, b, "kk");
-    expect(kk[0]).toContain(messagesFor("kk").design.pages.elements.titlePagePrint);
+    expect(lines[4]).toContain(`→ ${ru.editor.photoPlace.off}`);
+    expect(helpEditLines(edits, b, "kk")[0]).toContain(messagesFor("kk").design.pages.elements.titlePagePrint);
+    // Все виды правок дают строку без исключений на всех языках.
+    const all = parseHelpEdits([raw("tocMode", "both"), raw("chapterNumber", "none"), raw("photoShape", "1:1", "p1"), raw("photoAnchor", "2", "p1"), raw("photoCaption", "Мама", "p4"), raw("coverPhoto", "", "p4"), raw("chapterLeadIn", "on", "c1")], b).edits;
+    for (const lang of ["ru", "kk", "uz", "en"] as const) expect(helpEditLines(all, b, lang).every((l) => l.length > 5)).toBe(true);
   });
 
   it("предупреждение: согласованный макет, заказ ждёт согласования, отменённый и без заказа — нет", () => {
@@ -164,44 +235,43 @@ describe("правки помощника: подписи, предупрежд�
     expect(helpEditWarning(null, "ru")).toBeNull();
   });
 
-  it("оглавление в конце — в стиле страниц (elements.toc), «в начале» убирает ключ", () => {
-    const b = book();
-    const plan = planHelpEdits(parseHelpEdits([raw("tocPlace", "end")], b).edits, b);
-    expect(plan.settings.interiorStyle).toEqual({ body: { size: 11 }, elements: { toc: "end" } });
-    const atEnd = book({ tocAtEnd: true, interiorStyle: { elements: { toc: "end" } } });
-    expect(planHelpEdits(parseHelpEdits([raw("tocPlace", "start")], atEnd).edits, atEnd).settings.interiorStyle).toEqual({});
-    const ru = messagesFor("ru").books.pages;
-    expect(helpEditLines(parseHelpEdits([raw("tocPlace", "end")], b).edits, b, "ru")[0]).toBe(`${ru.tocPlace}: ${ru.tocPlaces.start} → ${ru.tocPlaces.end}`);
-  });
-
-  it("план: настройки книги, стиль поверх своего, вид фото целиком, порядок фото", () => {
+  it("план: настройки книги, стиль поверх своего, вид фото целиком, порядок и место фото", () => {
     const b = book();
     const { edits } = parseHelpEdits(
-      [raw("titlePage", "off"), raw("indent", "0"), raw("leadIn", "on"), raw("photoPage", "on", "p1"), raw("photoSize", "small", "p1"), raw("photoMove", "after", "p1", "p2")],
+      [raw("titlePage", "off"), raw("indent", "0"), raw("leadIn", "on"), raw("tocPlace", "end"), raw("chapterNumber", "none"), raw("titleLine", "Қызы"), raw("chapterLeadIn", "on", "c1"), raw("photoPage", "on", "p1"), raw("photoSize", "small", "p1"), raw("photoMove", "after", "p1", "p2"), raw("photoPlace", "", "p3", "off"), raw("coverPhoto", "", "p4")],
       b,
     );
     const plan = planHelpEdits(edits, b);
     expect(plan.settings.titlePage).toBe(false);
-    expect(plan.settings.interiorStyle).toEqual({ body: { size: 11, indent: 0 }, elements: { leadIn: true } });
-    expect(plan.photos).toHaveLength(1);
-    expect(plan.photos[0].id).toBe("ph-a");
-    expect(plan.photos[0].patch.inline).toMatchObject({ page: true, pageFit: "contain", width: 33, anchor: 2 });
-    expect(plan.order).toEqual(["ph-x", "ph-b", "ph-a", "ph-c"]);
-    // Вернуть фото в текст — без отметки страницы.
+    expect(plan.settings.coverPhotoId).toBe("ph-d");
+    expect(plan.settings.interiorStyle).toEqual({ body: { size: 11, indent: 0 }, elements: { leadIn: true, toc: "end", number: "none", titleLine: "Қызы" }, chapters: { childhood: { leadIn: true } } });
+    const a = plan.photos.find((x) => x.id === "ph-a")!;
+    expect(a.patch.inline).toMatchObject({ page: true, pageFit: "contain", width: 33, anchor: 2 });
+    expect(plan.photos.find((x) => x.id === "ph-c")!.patch).toMatchObject({ questionId: null, chapter: "__off", opener: false, inline: null });
+    expect(plan.order).toEqual(["ph-x", "ph-b", "ph-a", "ph-c", "ph-d"]);
     const back = book({ photos: [photo("p1", "ph-a", "q1", { page: true, pageFit: "contain" })] });
-    expect(planHelpEdits(parseHelpEdits([raw("photoPage", "off", "p1")], back).edits, back).photos[0].patch.inline.page).toBeUndefined();
+    expect(planHelpEdits(parseHelpEdits([raw("photoPage", "off", "p1")], back).edits, back).photos[0].patch.inline?.page).toBeUndefined();
   });
 
-  it("в журнале — id фото; по свежей книге — снова ссылки, удалённое фото — правка устарела", () => {
+  it("фото в другой ответ: рядом с фото того ответа; фото не из ответа — в ответ q…", () => {
     const b = book();
-    const { edits } = parseHelpEdits([raw("photoMove", "before", "p2", "p1"), raw("toc", "off")], b);
+    const move = planHelpEdits(parseHelpEdits([raw("photoMove", "before", "p1", "p3")], b).edits, b);
+    expect(move.photos[0]).toMatchObject({ id: "ph-a", patch: { questionId: "q2" } });
+    expect(move.order).toEqual(["ph-x", "ph-b", "ph-a", "ph-c", "ph-d"]);
+    const into = planHelpEdits(parseHelpEdits([raw("photoPlace", "", "p4", "q2")], b).edits, b);
+    expect(into.photos[0]).toMatchObject({ id: "ph-d", patch: { questionId: "q2" } });
+  });
+
+  it("в журнале — id; по свежей книге — снова ссылки, удалённое фото — правка устарела", () => {
+    const b = book();
+    const { edits } = parseHelpEdits([raw("photoMove", "before", "p2", "p1"), raw("toc", "off"), raw("photoPlace", "", "p4", "q2"), raw("questionBreak", "on", "q2")], b);
     const stored = editsWithIds(edits, b);
-    expect(stored[0]).toMatchObject({ photo: "ph-b", target: "ph-a" });
-    // Свежая книга: ссылки сдвинулись (добавили фото раньше) — правка находит те же фото по id.
-    const fresh = book({ photos: [photo("p1", "ph-new", "q0"), photo("p2", "ph-a", "q1"), photo("p3", "ph-b", "q1", { anchor: 2 })] });
+    expect(stored[0]).toMatchObject({ ref: "ph-b", target: "ph-a" });
+    expect(stored[2]).toMatchObject({ ref: "ph-d", target: "q2" });
+    const fresh = book({ photos: [photo("p1", "ph-new", "q2"), photo("p2", "ph-a", "q1"), photo("p3", "ph-b", "q1", { anchor: 2 }), { ...photo("p4", "ph-d", "q1"), questionId: null }] });
     const refs = editsWithRefs(stored, fresh)!;
-    expect(refs[0]).toMatchObject({ photo: "p3", target: "p2" });
-    expect(parseHelpEdits(editsToRaw(refs), fresh).edits).toHaveLength(2);
+    expect(refs[0]).toMatchObject({ ref: "p3", target: "p2" });
+    expect(parseHelpEdits(editsToRaw(refs), fresh).edits).toHaveLength(4);
     expect(editsWithRefs(stored, book({ photos: [photo("p1", "ph-a", "q1")] }))).toBeNull();
   });
 });
@@ -213,8 +283,8 @@ describe("правки помощника: модель", () => {
     expect(s.properties.edits.items.properties.kind.enum).toEqual([...HELP_EDIT_KINDS]);
     expect(s.required).toContain("edits");
     const sys = helpSystemPrompt("ru");
-    for (const k of HELP_EDIT_KINDS) expect(sys).toContain(`- ${k} —`);
-    expect(sys).toMatch(/тексты ответов не пишешь и не меняешь никогда/);
+    for (const k of HELP_EDIT_KINDS) expect(sys, k).toMatch(new RegExp(`(- |; |/ )${k} (—|/)`));
+    expect(sys).toMatch(/Слова ответов ты не пишешь и не меняешь никогда/);
     expect(sys).toMatch(/Удалять ответы и фото/);
   });
 
@@ -225,9 +295,9 @@ describe("правки помощника: модель", () => {
     expect(parseHelpDecision(JSON.stringify({ language: "ru", action: "answer", handoff_reason: "none", reply: "Так.", suggestions: [], edits: [raw("titlePage", "off")] }))?.edits).toEqual([]);
   });
 
-  it("блок «Правки за клиента» в запросе: доступны с фото, недоступны с причиной, не с сайта", () => {
+  it("блок «Правки за клиента» в запросе: доступны с книгой для правок, недоступны с причиной, не с сайта", () => {
     const base = { book: "", history: [], place: null, question: "?", uiLang: "ru" as const };
-    expect(helpUserPrompt({ ...base, edits: { available: true, photos: "[p1] в ответе «Детство»" } })).toMatch(/Доступны[\s\S]*\[p1\]/);
+    expect(helpUserPrompt({ ...base, edits: { available: true, photos: "[p1] в ответе «Детство»" } })).toMatch(/Доступны[\s\S]*Книга для правок[\s\S]*\[p1\]/);
     expect(helpUserPrompt({ ...base, edits: { available: false, why: "книга заказана" } })).toMatch(/Недоступны: книга заказана/);
     expect(helpUserPrompt(base)).toMatch(/Недоступны: клиент пишет не с сайта/);
   });
@@ -335,7 +405,7 @@ describe("правки помощника: сервис", () => {
     expect(r.proposal?.lines).toHaveLength(2);
     expect(t.calls.applied).toEqual([]);
     const stored = t.events[0].rec!;
-    expect(stored.edits[1]).toMatchObject({ kind: "photoPage", photo: "ph-b" });
+    expect(stored.edits[1]).toMatchObject({ kind: "photoPage", ref: "ph-b" });
     expect(stored.userId).toBe("u1");
     expect(stored.bookId).toBe("b1");
     expect(t.calls.logs.at(-1)?.reason).toBe("propose");
@@ -408,5 +478,74 @@ describe("правки помощника: сервис", () => {
     expect(t.calls.user[1]).toMatch(/нет в списке/);
     expect(r.outcome).toBe("handoff");
     expect(t.events).toEqual([]);
+  });
+});
+
+// ─── обращения в поддержку ─────────────────────────────────────────────────
+
+describe("правки помощника: обращения в поддержку", () => {
+  it("номера заказов и телефоны клиента — из текста обращений как их пишут сотрудники", async () => {
+    const { orderNumbersIn, phonesIn } = await import("@/server/helpBook");
+    expect(orderNumbersIn("Готовый заказ 106 ордер убери там название книги")).toEqual([106]);
+    expect(orderNumbersIn("Клиентка Айгерим, под номером 107 order")).toEqual([107]);
+    expect(orderNumbersIn("Ордер N124, есть полупустые страницы такие как 8,10,11")).toEqual([124]);
+    expect(orderNumbersIn("заказ №93")).toEqual([93]);
+    expect(orderNumbersIn("фото на 23странице можешь чуть ниже")).toEqual([]);
+    expect(phonesIn("+7 747 222 4140 разбери полностью чат")).toEqual(["77472224140"]);
+    expect(phonesIn("+7 705 988 8686 Данный клиент")).toEqual(["77059888686"]);
+  });
+
+  function draftHarness(script: unknown[]) {
+    const calls: string[] = [];
+    const service = new CabinetHelpService({
+      conversations: {} as never,
+      messages: {} as never,
+      chats: {} as never,
+      model: {
+        configured: async () => true,
+        complete: async (req) => {
+          calls.push(req.user);
+          const next = script.shift();
+          if (!next) throw new Error("сценарий кончился");
+          return { text: JSON.stringify(next), served: null };
+        },
+      },
+      store: { spentSince: async () => 0 } as never,
+      sales: {} as never,
+      notifier: {} as never,
+      live: {} as never,
+      clock: { now: () => new Date("2026-11-28T09:00:00Z") },
+      logger: { info: () => {}, warn: () => {}, error: () => {} },
+      chatId: (u) => `help-${u}`,
+      uuid: () => "x",
+    });
+    return { service, calls };
+  }
+
+  it("обращение про правку из списка — правки для сотрудника; инструкция «кто пишет» — сотрудник", async () => {
+    const t = draftHarness([propose([raw("titlePage", "off"), raw("chapterNumber", "none")], "Выключу титульный лист и номера глав.")]);
+    const d = await t.service.draft({ bookText: "Название: «Мама».", question: "Описание:\nОрдер 106 убери название книги и нумерацию глав", edit: { book: book(), photos: "[c1] Глава «Детство»" } });
+    expect(d.action).toBe("propose");
+    expect(d.edits.map((e) => e.kind)).toEqual(["titlePage", "chapterNumber"]);
+    expect(t.calls[0]).toMatch(/обращение сотрудника MyBooks в поддержку/);
+    expect(t.calls[0]).toMatch(/Ордер 106/);
+  });
+
+  it("вне списка или книга заказана — правок нет, причина для сотрудника", async () => {
+    const out = draftHarness([{ language: "ru", action: "handoff", handoff_reason: "bug", reply: "Микрофон — это сбой сайта, правками книги не решить.", suggestions: [], edits: [] }]);
+    const d = await out.service.draft({ bookText: "", question: "Не работает микрофон", edit: { book: book(), photos: "" } });
+    expect(d).toMatchObject({ action: "handoff", edits: [], reply: expect.stringMatching(/сбой/) });
+    const locked = draftHarness([propose([raw("titlePage", "off")])]);
+    const l = await locked.service.draft({ bookText: "", question: "убери титул", edit: { unavailable: "книга заказана" } });
+    expect(l.edits).toEqual([]);
+    expect(locked.calls[0]).toMatch(/Недоступны: книга заказана/);
+  });
+
+  it("правки не прошли проверку дважды — без правок, с причиной", async () => {
+    const t = draftHarness([propose([raw("deletePhoto", "", "p1")]), propose([raw("deletePhoto", "", "p1")])]);
+    const d = await t.service.draft({ bookText: "", question: "удали повторы фото", edit: { book: book(), photos: "" } });
+    expect(d.edits).toEqual([]);
+    expect(d.failure).toMatch(/нет в списке/);
+    expect(t.calls[1]).toMatch(/Исправь прошлый вариант/);
   });
 });

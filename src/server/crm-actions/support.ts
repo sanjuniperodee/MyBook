@@ -111,3 +111,43 @@ export async function linkChatAction(number: number, id: string, conversationId:
     return null;
   });
 }
+
+/** Разобрать обращение помощником заново (книгу открыли для правок, приложили переписку): правки — в карточку. */
+export async function assistTicketAction(number: number, id: string): Promise<Result> {
+  const staff = await assertStaff("clients.edit");
+  const ticketId = uuid.parse(id);
+  const ticket = await container().support.tickets.byId(ticketId);
+  if (!ticket || !canOpenTicket(staff, ticket)) return { ok: false, error: "Обращение не найдено" };
+  const { assistTicket } = await import("@/server/helpBook");
+  return run(number, async () => {
+    await assistTicket(ticketId, actorOf(staff).name);
+    return null;
+  });
+}
+
+/**
+ * «Применить» правки помощника по обращению: сотрудник подтверждает вместо клиента; правки — штатными сервисами,
+ * обращение закрывается «Исправлено» с «Что сделали» (уведомление — на номер обращения, как обычно).
+ */
+export async function applyTicketAssistAction(number: number, id: string): Promise<Result> {
+  const staff = await assertStaff("clients.edit");
+  const ticketId = uuid.parse(id);
+  const ticket = await container().support.tickets.byId(ticketId);
+  if (!ticket || !canOpenTicket(staff, ticket)) return { ok: false, error: "Обращение не найдено" };
+  const { applyTicketAssist } = await import("@/server/helpBook");
+  const r = await applyTicketAssist(ticketId, actorOf(staff));
+  if (!r.ok) return r;
+  await audit(staff, "support.assist_apply", "support_ticket", ticketId, { bookId: ticket.assist?.bookId ?? null, edits: ticket.assist?.edits.length ?? 0 });
+  return { ok: true, notified: null };
+}
+
+/** Правки помощника не нужны: сотрудник сделает сам. */
+export async function dismissTicketAssistAction(number: number, id: string): Promise<Result> {
+  const staff = await assertStaff("clients.edit");
+  const ticketId = uuid.parse(id);
+  const ticket = await container().support.tickets.byId(ticketId);
+  if (!ticket || !canOpenTicket(staff, ticket)) return { ok: false, error: "Обращение не найдено" };
+  const { dismissTicketAssist } = await import("@/server/helpBook");
+  await dismissTicketAssist(ticketId, actorOf(staff));
+  return { ok: true, notified: null };
+}

@@ -54,6 +54,30 @@ export interface SupportCommit {
   at: string;
 }
 
+/**
+ * Разбор обращения помощником по книге (src/server/support-assist.ts): обращение про правку книги клиента из белого
+ * списка — помощник готовит правки, сотрудник подтверждает их вместо клиента. proposed — правки готовы, ждут
+ * «Применить»; none — помощник сделать не может (reason — почему); applied — применены, обращение закрыто; failed — сбой.
+ */
+export interface SupportAssist {
+  state: "proposed" | "none" | "applied" | "failed" | "dismissed";
+  at: string;
+  /** Книга клиента, которую правит помощник. */
+  bookId: string | null;
+  bookTitle: string;
+  ownerId: string | null;
+  /** Что понял помощник — для сотрудника (по-русски). */
+  reply: string;
+  /** Почему не может (state none/failed). */
+  reason: string;
+  /** Правки с id (cabinetHelpActions.HelpEdit) и строки «было → станет». */
+  edits: { kind: string; ref: string; target: string; value: string }[];
+  lines: string[];
+  warning: string | null;
+  appliedAt?: string;
+  appliedBy?: string;
+}
+
 /** Строка истории обращения: смена статуса, уведомление, выкатка, заметка. */
 export interface SupportEvent {
   at: string;

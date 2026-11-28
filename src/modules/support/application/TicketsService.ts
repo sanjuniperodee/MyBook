@@ -1,5 +1,5 @@
 import type { Clock, Logger } from "@/shared/application";
-import { isClosedStatus, SUPPORT_STATUS_LABELS, type SupportAttachment, type SupportChat, type SupportChatMessage, type SupportCommit, type SupportEvent, type SupportStatus } from "@/shared/domain/support";
+import { isClosedStatus, SUPPORT_STATUS_LABELS, type SupportAssist, type SupportAttachment, type SupportChat, type SupportChatMessage, type SupportCommit, type SupportEvent, type SupportStatus } from "@/shared/domain/support";
 import {
   attachmentKind,
   FILE_MAX_BYTES,
@@ -85,6 +85,7 @@ export class TicketsService {
       resolution: "",
       devNote: "",
       commits: [],
+      assist: null,
       history: [this.event(actor.name || fields.reporterName || "форма", "Обращение создано")],
       createdBy: actor.userId,
       processedAttempts: 0,
@@ -242,6 +243,13 @@ export class TicketsService {
     const closing = statusChanged && patch.status && isClosedStatus(patch.status);
     if (patch.notify ?? closing) return { notified: await this.notify(id, actor) };
     return { notified: null };
+  }
+
+  /** Разбор помощником по книге: записать (history — строка в историю обращения, если нужна). */
+  async setAssist(id: string, assist: SupportAssist | null, history?: { by: string; text: string }): Promise<void> {
+    const t = await this.repo.byId(id);
+    if (!t) throw new SupportError("notFound", "Обращение не найдено");
+    await this.repo.update(id, { assist, ...(history ? { history: [...t.history, this.event(history.by, history.text)] } : {}) });
   }
 
   /** Написать человеку в WhatsApp: номер, статус и что сделали. false — не ушло (причина — в notifyError и истории). */

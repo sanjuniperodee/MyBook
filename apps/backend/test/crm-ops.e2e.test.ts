@@ -250,6 +250,7 @@ const bookRowFixture: CrmBookListRow = {
 };
 
 const ticketFixture = (createdBy: string): Ticket => ({
+  assist: null,
   id: TICKET_ID,
   number: 77,
   status: "new",

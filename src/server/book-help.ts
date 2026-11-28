@@ -3,10 +3,10 @@ import { HttpError } from "@/server/api";
 import { rateLimit } from "@/server/rateLimit";
 import { hitClientAi } from "@/server/clientAiLimits";
 import { container } from "@/server/container";
-import { helpBookFacts } from "@/server/helpBook";
+import { bookEditor, helpBookFacts } from "@/server/helpBook";
 import { splitPlace, type HelpPlace } from "@/modules/messaging/domain/cabinetHelp";
-import { HelpActionError, type HelpBookEditor, type HelpThreadMessage } from "@/modules/messaging";
-import { HELP_EDITS_LOCKED, type HelpEditPlan } from "@/modules/messaging/domain/cabinetHelpActions";
+import { HelpActionError, type HelpThreadMessage } from "@/modules/messaging";
+import { HELP_EDITS_LOCKED } from "@/modules/messaging/domain/cabinetHelpActions";
 import type { Locale } from "@/i18n/config";
 
 /**
@@ -70,23 +70,6 @@ export async function helpAsk(book: HelpBook, user: { id: string; name: string |
   return { outcome: result.outcome, handoff: result.handoff, suggestions: result.suggestions, messages: helpView(result.messages), proposal: result.proposal ?? null };
 }
 
-/** Книга для правок помощника: свежая книга и штатные сервисы редактора с правами владельца. */
-function bookEditor(bookId: string, userId: string): HelpBookEditor {
-  const viewer = { userId, isStaff: false, staffEdits: false };
-  return {
-    async state() {
-      const fresh = await container().authoring.queries.book(bookId);
-      if (!fresh) throw new HelpActionError("notFound");
-      return (await helpBookFacts(fresh as never)).edit.book;
-    },
-    async apply(plan: HelpEditPlan) {
-      const a = container().authoring;
-      if (plan.photos.length) await a.photos.batch(bookId, viewer, plan.photos);
-      if (plan.order) await a.photos.reorder(bookId, viewer, plan.order);
-      if (Object.keys(plan.settings).length) await a.books.updateSettings(bookId, viewer, plan.settings, a.photoRepository);
-    },
-  };
-}
 
 /**
  * «Применить» / «Не нужно» у правки, которую предложил помощник. Только владелец книги (как в редакторе: сотрудник

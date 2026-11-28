@@ -1,4 +1,5 @@
 import type { Provider } from "@nestjs/common";
+import { assistTicket } from "@/server/helpBook";
 import { getSetting, subscribe, syncMobileBadge, vapidKeys } from "@/modules/workspace";
 import { audit, canSeeOrder } from "@/server/access";
 import { convertAudio } from "@/server/audio-convert";
@@ -64,6 +65,8 @@ export const legacyCrmSitePorts: Provider<CrmSitePorts> = {
     },
     processSupportTicket: async (ticketId) => {
       await c.support.tickets.process(ticketId);
+      // Обращение про правку книги — помощнику: правки для карточки (сбой разбора обращению не мешает).
+      await assistTicket(ticketId).catch((err) => console.error("[support] assist", err));
     },
     scheduleBackground: (fn) => {
       void Promise.resolve().then(fn);

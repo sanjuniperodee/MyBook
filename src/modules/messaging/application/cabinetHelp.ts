@@ -126,6 +126,23 @@ export interface HelpAsk {
   edit?: { book: HelpEditBook; photos: string } | { unavailable: string };
 }
 
+/** Правки по обращению в поддержку: книга, текст обращения с перепиской, без беседы и без отправки сообщений. */
+export interface HelpDraftInput {
+  bookText: string;
+  /** Обращение: описание, суть, переписка клиента — одним текстом. */
+  question: string;
+  edit: { book: HelpEditBook; photos: string } | { unavailable: string };
+}
+
+export interface HelpDraft {
+  action: "propose" | "answer" | "handoff";
+  reply: string;
+  /** Проверенные правки со ссылками книги (p…, q…, c…). */
+  edits: HelpEdit[];
+  /** Что пошло не так: модель не подключена, ответ не по правилам, сбой. */
+  failure: string | null;
+}
+
 export interface HelpApply {
   user: { id: string };
   book: { id: string };
@@ -138,6 +155,8 @@ export interface HelpApply {
 
 /** Модель думает над ответом, пока клиент смотрит на «печатает…». */
 export const HELP_TIMEOUT_MS = 25_000;
+/** Обращение длиннее вопроса в чате, и клиент не ждёт ответа на экране. */
+export const HELP_DRAFT_TIMEOUT_MS = 90_000;
 /** Менеджер писал в беседу за это время — помощник не перебивает, вопрос сразу у менеджера. */
 export const HELP_HUMAN_ACTIVE_MS = 3 * 3_600_000;
 /** Потолок расходов помощника в сутки (сверх — вопросы идут менеджеру, клиент не остаётся без ответа). */
@@ -216,6 +235,53 @@ export class CabinetHelpService {
   private view(p: HelpProposalRecord): HelpProposalView {
     const expired = p.state === "pending" && this.d.clock.now().getTime() - p.createdAt.getTime() > HELP_PROPOSAL_TTL_MS;
     return { id: p.id, lines: p.lines, warning: p.warning, state: expired ? "expired" : p.state };
+  }
+
+  /**
+   * Правки по обращению в поддержку: та же модель, инструкция и проверка правок, что у помощника клиента, но без беседы
+   * (ничего не пишется клиенту) — результат увидит и подтвердит сотрудник в карточке обращения (support-assist.ts).
+   */
+  async draft(input: HelpDraftInput): Promise<HelpDraft> {
+    const now = this.d.clock.now();
+    if (!this.d.model || !(await this.d.model.configured().catch(() => false))) return { action: "handoff", reply: "", edits: [], failure: "модель не подключена" };
+    if (await this.overBudget(now)) return { action: "handoff", reply: "", edits: [], failure: "суточный потолок расходов помощника" };
+    let problems: string[] = [];
+    let failure: string | null = null;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const res = await this.d.model.complete({
+          system: this.#system.ru,
+          cachePrefix: this.#system.ru,
+          user: helpUserPrompt({
+            book: input.bookText,
+            history: [],
+            place: null,
+            question: input.question,
+            uiLang: "ru",
+            problems,
+            staff: true,
+            edits: "unavailable" in input.edit ? { available: false, why: input.edit.unavailable } : { available: true, photos: input.edit.photos },
+          }),
+          schema: helpSchema(),
+          timeoutMs: HELP_DRAFT_TIMEOUT_MS,
+        });
+        const d = parseHelpDecision(res.text);
+        if (!d) {
+          failure = "ответ модели не по схеме";
+          continue;
+        }
+        if (d.action !== "propose") return { action: d.action, reply: d.reply, edits: [], failure: null };
+        if ("unavailable" in input.edit) return { action: "handoff", reply: d.reply, edits: [], failure: null };
+        const r = parseHelpEdits(d.edits, input.edit.book);
+        if (!r.problems.length) return { action: "propose", reply: d.reply, edits: r.edits, failure: null };
+        problems = r.problems;
+        failure = `правки не прошли проверку: ${r.problems.join("; ")}`;
+      } catch (err) {
+        this.d.logger.error("help draft", err);
+        return { action: "handoff", reply: "", edits: [], failure: err instanceof Error ? err.message.slice(0, 200) : "сбой модели" };
+      }
+    }
+    return { action: "handoff", reply: "", edits: [], failure };
   }
 
   /**

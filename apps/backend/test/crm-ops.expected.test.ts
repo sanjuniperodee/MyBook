@@ -193,6 +193,7 @@ const bookRowFixture: CrmBookListRow = {
 };
 
 const ticketFixture: Ticket = {
+  assist: null,
   id: TICKET_ID,
   number: 55,
   status: "new",

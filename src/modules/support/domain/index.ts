@@ -5,6 +5,7 @@ import {
   SUPPORT_KINDS,
   SUPPORT_STATUS_LABELS,
   SUPPORT_URGENCIES,
+  type SupportAssist,
   type SupportAttachment,
   type SupportAttachmentKind,
   type SupportChat,
@@ -40,6 +41,8 @@ export interface Ticket {
   resolution: string;
   devNote: string;
   commits: SupportCommit[];
+  /** Разбор помощником по книге (правки книги клиента); null — не разбирали. */
+  assist: SupportAssist | null;
   history: SupportEvent[];
   createdBy: string | null;
   processedAttempts: number;

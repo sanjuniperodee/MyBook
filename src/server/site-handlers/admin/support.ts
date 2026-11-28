@@ -1,3 +1,4 @@
+import { assistTicket } from "@/server/helpBook";
 import { after } from "@/shared/infrastructure/http/request";
 import { api, apiStaff, HttpError } from "@/server/api";
 import { can, canSeeAssigned } from "@/server/access";
@@ -60,7 +61,12 @@ export const POST = api(async (req: Request) => {
       { chatMessages: messageIds.length },
     );
     if (conversationId && messageIds.length) await support.tickets.linkChat(ticket.id, conversationId, messageIds, { userId: staff.user.id, name });
-    after(() => support.tickets.process(ticket.id).catch((err) => console.error("[support] process", err)));
+    after(() =>
+      support.tickets
+        .process(ticket.id)
+        .then(() => assistTicket(ticket.id))
+        .catch((err) => console.error("[support] process", err)),
+    );
     return Response.json({ number: ticket.number, phone: ticket.notifyPhone });
   } catch (err) {
     if (SupportError.is(err)) return Response.json({ error: err.message }, { status: 400 });

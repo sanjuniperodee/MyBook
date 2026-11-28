@@ -1,6 +1,6 @@
 /** Обращения: проблемы и просьбы клиентов и сотрудников (модуль support). */
 import { index, integer, jsonb, pgTable, serial, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
-import type { SupportAttachment, SupportChat, SupportCommit, SupportEvent, SupportKind, SupportStatus, SupportUrgency } from "@/shared/domain/support";
+import type { SupportAssist, SupportAttachment, SupportChat, SupportCommit, SupportEvent, SupportKind, SupportStatus, SupportUrgency } from "@/shared/domain/support";
 import { timestamps } from "./columns";
 import { users } from "./identity";
 
@@ -39,6 +39,8 @@ export const supportTickets = pgTable(
     /** Заметка разработчика (не уходит наружу). */
     devNote: text("dev_note").notNull().default(""),
     commits: jsonb("commits").$type<SupportCommit[]>().notNull().default([]),
+    /** Разбор помощником по книге: правки книги клиента, которые сотрудник подтверждает вместо клиента. */
+    assist: jsonb("assist").$type<SupportAssist | null>(),
     history: jsonb("history").$type<SupportEvent[]>().notNull().default([]),
     createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
     /** Сколько раз пробовали разобрать вложения (расшифровка и суть): после сбоя — повтор по кнопке. */
