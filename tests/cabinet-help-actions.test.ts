@@ -44,6 +44,7 @@ function book(over: Partial<HelpEditBook> = {}): HelpEditBook {
     dedication: "",
     chapterStart: "page",
     openersLeft: true,
+    chapterSide: "left",
     indent: 1,
     indentFirst: false,
     leadIn: false,
@@ -102,6 +103,15 @@ describe("правки помощника: разбор и проверка", ()
     expect(parseHelpEdits([raw("photoPage", "on", "ph-a")], book()).edits).toEqual([]);
     expect(parseHelpEdits([raw("photoMove", "before", "p1", "p3")], book()).problems[0]).toMatch(/внутри одного ответа/);
     expect(parseHelpEdits([raw("photoMove", "before", "p1", "p1")], book()).problems[0]).toMatch(/другое фото/);
+  });
+
+  it("«С какой страницы начинается глава»: где выпадет / слева / справа — подпись и план правки", () => {
+    const r = parseHelpEdits([raw("chapterSide", "right")], book());
+    expect(r.edits).toEqual([{ kind: "chapterSide", value: "right" }]);
+    expect(helpEditLines(r.edits, book(), "ru")).toEqual(["С какой страницы начинается глава: Всегда слева → Всегда справа"]);
+    expect(planHelpEdits(r.edits, book()).settings).toEqual({ chapterSide: "right" });
+    expect(parseHelpEdits([raw("chapterSide", "left")], book()).problems[0]).toMatch(/ничего не меняет/);
+    expect(parseHelpEdits([raw("chapterSide", "middle")], book()).problems[0]).toMatch(/auto, left, right/);
   });
 
   it("значения вне допустимого и пустые", () => {

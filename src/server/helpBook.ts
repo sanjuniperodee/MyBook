@@ -188,7 +188,7 @@ export async function helpBookFacts(book: BookRow): Promise<HelpBookFacts> {
   // Оформление страниц.
   const el = style.elements ?? {};
   L.push(
-    `Оформление страниц: стиль «${interiorName(interior.id, "ru")}»; кегль основного текста ${style.body?.size ?? interior.type.bodySize} pt; красная строка ${style.body?.indent !== undefined ? (style.body.indent ? `${style.body.indent} em` : "выключена") : "по стилю"} (первый абзац после заголовка всегда без отступа); каждый вопрос с новой страницы: ${(el.questionPage ?? interior.questionPage) ? "да" : "нет"}; глава всегда с левой страницы: ${content.openersLeft ? "включено" : "выключено"}; титульный лист: ${content.titlePage === false ? "не печатается" : "печатается"}; имя автора на титуле: ${el.titleAuthor === false ? "убрано" : "есть"}${el.titleLine ? `, своя строка ${q(el.titleLine, 80)}` : ""}; оглавление: ${book.showToc ? (el.toc === "end" ? "есть, в конце книги" : "есть, в начале книги") : "выключено"}; посвящение: ${book.dedication.trim() ? "есть" : "нет"}.`,
+    `Оформление страниц: стиль «${interiorName(interior.id, "ru")}»; кегль основного текста ${style.body?.size ?? interior.type.bodySize} pt; красная строка ${style.body?.indent !== undefined ? (style.body.indent ? `${style.body.indent} em` : "выключена") : "по стилю"} (первый абзац после заголовка всегда без отступа); каждый вопрос с новой страницы: ${(el.questionPage ?? interior.questionPage) ? "да" : "нет"}; начало главы: ${content.openersLeft ? "всегда с левой страницы" : content.openersRight ? "всегда с правой страницы" : "где выпадет"}; титульный лист: ${content.titlePage === false ? "не печатается" : "печатается"}; имя автора на титуле: ${el.titleAuthor === false ? "убрано" : "есть"}${el.titleLine ? `, своя строка ${q(el.titleLine, 80)}` : ""}; оглавление: ${book.showToc ? (el.toc === "end" ? "есть, в конце книги" : "есть, в начале книги") : "выключено"}; посвящение: ${book.dedication.trim() ? "есть" : "нет"}.`,
   );
 
   // Письма, ИИ-дизайнер, замечания.
@@ -225,6 +225,7 @@ export async function helpBookFacts(book: BookRow): Promise<HelpBookFacts> {
     dedication: book.dedication,
     chapterStart: book.chapterStart,
     openersLeft: !!content.openersLeft,
+    chapterSide: content.openersLeft ? "left" : content.openersRight ? "right" : "auto",
     indent: interior.text?.indent ?? 0,
     indentFirst: interior.text?.indentFirst === true,
     leadIn: !!interior.leadIn,

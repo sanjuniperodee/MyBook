@@ -1,7 +1,7 @@
 import type { Clock, UnitOfWork } from "@/shared/application";
 import type { Locale } from "@/i18n/config";
 import { CHAPTER_EPIGRAPH_MAX, CHAPTER_TITLE_MAX, hasOutline, MAX_CHAPTERS, progressChanged, SECTION_PROMPT_MAX, SECTION_TITLE_MAX } from "@/lib/content/kinds";
-import { LAYOUT_REV_2 } from "@/lib/book/layout";
+import { LAYOUT_REV_2, type ChapterSide } from "@/lib/book/layout";
 import {
   AuthoringError,
   Book,
@@ -73,13 +73,13 @@ export class BooksService {
   async updateSettings(
     bookId: string,
     viewer: BookViewer,
-    patch: BookSettings & { language?: Locale; openersLeft?: boolean; coverPhotoId?: string | null; backPhotoId?: string | null; coverPhotoExtra?: string[]; backPhotoExtra?: string[]; photoFrames?: unknown; tocLines?: unknown; interiorStyle?: unknown; coverDesign?: unknown; coverBack?: unknown },
+    patch: BookSettings & { language?: Locale; openersLeft?: boolean; chapterSide?: ChapterSide; coverPhotoId?: string | null; backPhotoId?: string | null; coverPhotoExtra?: string[]; backPhotoExtra?: string[]; photoFrames?: unknown; tocLines?: unknown; interiorStyle?: unknown; coverDesign?: unknown; coverBack?: unknown },
     photos: PhotoRepository,
   ) {
     return this.uow.run(async () => {
       // Блокировка: save пишет снимок книги целиком (и статус) — заказ, оформленный посреди правки, не откатится в черновик.
       const book = await loadBook(this.books, bookId, viewer, { editable: true, lock: true });
-      const { language, openersLeft, coverPhotoId, backPhotoId, coverPhotoExtra, backPhotoExtra, photoFrames, tocLines, interiorStyle, coverDesign, coverBack, ...settings } = patch;
+      const { language, openersLeft, chapterSide, coverPhotoId, backPhotoId, coverPhotoExtra, backPhotoExtra, photoFrames, tocLines, interiorStyle, coverDesign, coverBack, ...settings } = patch;
       // Смена оформления на книге с прежними правилами раскладки фото — сначала перевод на правила 2 (выпуск 2), по
       // книге как она есть в базе, до остальных правок этого запроса.
       if (this.layout?.onTouch && settings.interior !== undefined && settings.interior !== book.interior && book.layoutRev !== LAYOUT_REV_2) await this.layout.upgrade(book.id);
@@ -103,6 +103,7 @@ export class BooksService {
       if (tocLines !== undefined) book.setTocLines(tocLines);
       if (interiorStyle !== undefined) book.setInteriorStyle(interiorStyle);
       if (openersLeft !== undefined) book.setOpenersLeft(openersLeft);
+      if (chapterSide !== undefined) book.setChapterSide(chapterSide);
       if (coverDesign !== undefined) {
         // Фото в слоях обложки — только фото этой книги.
         const ids = coverDesign === null ? [] : book.coverDesignPhotos(coverDesign);

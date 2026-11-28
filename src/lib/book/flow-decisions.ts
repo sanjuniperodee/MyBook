@@ -85,7 +85,7 @@ export const emptyFlow = (): FlowDecisions => ({ breakBefore: new Set(), rowScal
  * главой сдвигает все следующие на одну, поэтому каждая глава смотрит на страницу с учётом решений по главам выше.
  * Длина глав от стороны полосы не зависит, так что следующий проход обычно уже сходится. Вернёт, поменялось ли решение.
  */
-export function refineBlanks(order: readonly string[], pages: Readonly<Record<string, number>>, flow: FlowDecisions): boolean {
+export function refineBlanks(order: readonly string[], pages: Readonly<Record<string, number>>, flow: FlowDecisions, side: "left" | "right" = "left"): boolean {
   const next = new Set<string>();
   let shift = 0;
   for (const key of order) {
@@ -94,7 +94,8 @@ export function refineBlanks(order: readonly string[], pages: Readonly<Record<st
     const had = flow.blankBefore.has(key);
     // Страница начальной полосы без её пустой полосы — после решений по главам выше.
     const bare = at + shift - (had ? 1 : 0);
-    const need = bare % 2 === 1;
+    // Слева — чётная страница, справа (BookContent.openersRight) — нечётная.
+    const need = bare % 2 === (side === "left" ? 1 : 0);
     if (need) next.add(key);
     shift += Number(need) - Number(had);
   }

@@ -11,6 +11,7 @@
  * сервисов authoring, предупреждение о согласованном макете.
  */
 import { CHAPTER_STARTS, type ChapterStart } from "@/lib/book/chapter-head";
+import { CHAPTER_SIDES, type ChapterSide } from "@/lib/book/layout";
 import { LIMITS, type InteriorStyle } from "@/lib/book/interiors/style";
 import { patchSection } from "@/lib/book/interiors/style-edit";
 import { normalizeStyle, type InlinePhotoStyle } from "@/lib/book/inline-photo";
@@ -27,6 +28,7 @@ export const HELP_EDIT_KINDS = [
   "dedication",
   "chapterStart",
   "openersLeft",
+  "chapterSide",
   "indent",
   "indentFirst",
   "leadIn",
@@ -49,6 +51,7 @@ export type HelpEdit =
   | { kind: "dedication"; text: string }
   | { kind: "chapterStart"; value: ChapterStart }
   | { kind: "tocPlace"; value: TocPlace }
+  | { kind: "chapterSide"; value: ChapterSide }
   | { kind: "indent"; value: number }
   | { kind: "dropCap"; value: DropCapKind }
   | { kind: "photoPage" | "photoBreak"; photo: string; on: boolean }
@@ -77,6 +80,8 @@ export interface HelpEditBook {
   dedication: string;
   chapterStart: ChapterStart;
   openersLeft: boolean;
+  /** С какой страницы начинается глава: где выпадет, всегда слева, всегда справа (books.pagination_rev). */
+  chapterSide: ChapterSide;
   /** Красная строка сейчас, em (с учётом стиля) и есть ли она у первого абзаца. */
   indent: number;
   indentFirst: boolean;
@@ -163,6 +168,11 @@ export function parseHelpEdits(raw: unknown, book: HelpEditBook): { edits: HelpE
       else problems.push(`tocPlace: value — ${TOC_PLACES.join(" или ")}`);
       continue;
     }
+    if (kind === "chapterSide") {
+      if ((CHAPTER_SIDES as readonly string[]).includes(v)) edits.push({ kind, value: v as ChapterSide });
+      else problems.push(`chapterSide: value — одно из ${CHAPTER_SIDES.join(", ")}`);
+      continue;
+    }
     if (kind === "dropCap") {
       if ((DROP_CAPS as readonly string[]).includes(v)) edits.push({ kind, value: v as DropCapKind });
       else problems.push(`dropCap: value — одно из ${DROP_CAPS.join(", ")}`);
@@ -227,6 +237,8 @@ function changes(e: HelpEdit, book: HelpEditBook): boolean {
       return e.on !== book.showToc;
     case "openersLeft":
       return e.on !== book.openersLeft;
+    case "chapterSide":
+      return e.value !== book.chapterSide;
     case "indentFirst":
       return e.on !== book.indentFirst;
     case "leadIn":
@@ -282,6 +294,8 @@ export function helpEditLines(edits: readonly HelpEdit[], book: HelpEditBook, la
         return line(pg.toc, yn(book.showToc), yn(e.on));
       case "openersLeft":
         return line(el.openersLeft, yn(book.openersLeft), yn(e.on));
+      case "chapterSide":
+        return line(el.chapterSide, el.chapterSides[book.chapterSide], el.chapterSides[e.value]);
       case "indentFirst":
         return line(tx.indentFirst, yn(book.indentFirst), yn(e.on));
       case "leadIn":
@@ -326,7 +340,7 @@ export function helpEditWarning(order: HelpEditBook["order"], lang: Locale): str
 
 export interface HelpEditPlan {
   /** Настройки книги для BooksService.updateSettings (пусто — не звать). */
-  settings: { titlePage?: boolean; showToc?: boolean; dedication?: string; chapterStart?: ChapterStart; openersLeft?: boolean; interiorStyle?: InteriorStyle };
+  settings: { titlePage?: boolean; showToc?: boolean; dedication?: string; chapterStart?: ChapterStart; openersLeft?: boolean; chapterSide?: ChapterSide; interiorStyle?: InteriorStyle };
   /** Правки фото для PhotosService.batch: вид фото в ответе целиком (inline), как пишет редактор. */
   photos: { id: string; patch: { inline: InlinePhotoStyle } }[];
   /** Новый порядок всех фото книги для PhotosService.reorder; null — порядок не меняется. */
@@ -355,6 +369,9 @@ export function planHelpEdits(edits: readonly HelpEdit[], book: HelpEditBook): H
         break;
       case "openersLeft":
         settings.openersLeft = e.on;
+        break;
+      case "chapterSide":
+        settings.chapterSide = e.value;
         break;
       case "dedication":
         settings.dedication = e.text;

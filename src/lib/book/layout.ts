@@ -105,6 +105,11 @@ export interface BookContent {
    */
   openersLeft?: true;
   /**
+   * Начальная полоса главы и альбома — всегда справа (нечётная), как в изданных книгах (PAGINATION_REV_RIGHT); где по счёту
+   * она выпала бы слева, перед ней пустая полоса. Ключ только у таких книг — отпечаток прежних не меняется.
+   */
+  openersRight?: true;
+  /**
    * Своя фраза последней страницы (books.end_text): пусто — без фразы. Нет — «Продолжение следует…» (отпечаток кэша
    * прежних книг не меняется).
    */
@@ -197,6 +202,22 @@ export const LAYOUT_REV_2 = 2;
  * прежние: начальная полоса там, куда выпадет. Заказанные до выпуска книги остаются на 1: их печатные файлы уже собраны.
  */
 export const PAGINATION_REV_2 = 2;
+/**
+ * Полосы глав (books.pagination_rev = 3): начальная полоса главы и альбома всегда справа (нечётная), перед ней при нужде
+ * пустая. Своё значение той же колонки, а не новое поле: 1 и 2 у книг не меняются, отпечатки заказанных — тоже.
+ */
+export const PAGINATION_REV_RIGHT = 3;
+
+/** С какой стороны начальные полосы глав: где выпадет (auto), всегда слева, всегда справа — по books.pagination_rev. */
+export const CHAPTER_SIDES = ["auto", "left", "right"] as const;
+export type ChapterSide = (typeof CHAPTER_SIDES)[number];
+export const chapterSideOf = (paginationRev: number | null | undefined): ChapterSide => (paginationRev === PAGINATION_REV_2 ? "left" : paginationRev === PAGINATION_REV_RIGHT ? "right" : "auto");
+export const paginationRevOf = (side: ChapterSide) => (side === "left" ? PAGINATION_REV_2 : side === "right" ? PAGINATION_REV_RIGHT : 1);
+
+/** Сторона начальных полос книги (BookContent): null — где выпадет. */
+export const openersSide = (c: Pick<BookContent, "openersLeft" | "openersRight">): "left" | "right" | null => (c.openersLeft ? "left" : c.openersRight ? "right" : null);
+/** Нужна ли пустая полоса перед начальной полосой, которая выпала бы на страницу page (с 1): слева — чётные, справа — нечётные. */
+export const blankBeforeOpener = (side: "left" | "right" | null, page: number) => (side === "left" ? page % 2 === 1 : side === "right" ? page % 2 === 0 : false);
 
 /** Фото не печатается внутри книги — выбор автора (photos.chapter); у обложки свои снимки. */
 export const PHOTO_OFF_KEY = "__off";
@@ -444,6 +465,7 @@ export function assembleBookContent(
     ...(galleryOpenerPhoto ? { galleryOpenerPhoto } : {}),
     year,
     ...(book.paginationRev === PAGINATION_REV_2 ? { openersLeft: true as const } : {}),
+    ...(book.paginationRev === PAGINATION_REV_RIGHT ? { openersRight: true as const } : {}),
     ...(book.endText != null ? { endText: printableText(book.endText.trim()) } : {}),
     ...(chapterStart ? { chapterStart } : {}),
     ...(book.titlePage === false ? { titlePage: false as const } : {}),

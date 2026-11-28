@@ -61,7 +61,7 @@ export function interiorGroups(content: BookContent, options: InteriorOptions, s
   if (toc && !content.interior.tocAtEnd) front.push(<Toc key="toc" kit={kit} />);
   groups.push({ key: FRONT_GROUP, pages: front });
   const blank = (pages: React.ReactNode[], key: string) => {
-    if (content.openersLeft && kit.flow.blankBefore.has(key)) pages.push(<BlankPage key={`blank-${key}`} kit={kit} />);
+    if ((content.openersLeft || content.openersRight) && kit.flow.blankBefore.has(key)) pages.push(<BlankPage key={`blank-${key}`} kit={kit} />);
   };
 
   for (const ch of content.chapters) {

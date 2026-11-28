@@ -20,7 +20,7 @@ import {
   spineWidthMm,
   type CoverGeometry,
 } from "@/lib/book/formats";
-import { photoAreaMm, photoPages, toPhotoItem, type BookContent, type PhotoItem } from "@/lib/book/layout";
+import { blankBeforeOpener, openersSide, photoAreaMm, photoPages, toPhotoItem, type BookContent, type PhotoItem } from "@/lib/book/layout";
 import { printableText } from "@/lib/book/printable";
 import { buildBookContent } from "@/lib/book/book-content";
 import { estimatePages } from "@/lib/book/estimate";
@@ -260,7 +260,8 @@ export async function renderInterior(bundle: BookBundle, mode: RenderMode, repor
   // Начальные полосы по порядку книги — для пустых полос перед ними (content.openersLeft: начальная полоса всегда слева).
   // Без начальных полос глав (content.chapterStart) слева встаёт только полоса альбома.
   const openers = [...(content.chapterStart ? [] : content.chapters.map((c) => c.key)), ...(content.galleryPhotos.length ? [GALLERY_KEY] : [])];
-  const blanks = (pages: Record<string, number>) => !!content.openersLeft && refineBlanks(openers, pages, flow);
+  const side = openersSide(content);
+  const blanks = (pages: Record<string, number>) => !!side && refineBlanks(openers, pages, flow, side);
   const minLead = flowMinLead(content.interior, interiorSizes(content.interior, interiorMetrics[content.format.id].scale));
   /** Номера для оглавления по раскладке прохода: к начальным полосам глав — в оглавлении по разделам полосы разделов. */
   const withSections = (layout: unknown, chapters: Record<string, number>) => {
@@ -320,7 +321,7 @@ export async function renderInterior(bundle: BookBundle, mode: RenderMode, repor
     if (pages[n - 1]?.kind !== kind || pages[n - 1].chapterKey !== key) throw new Error(`PDF: chapter ${key} starts on page ${n}, which is not its ${kind}`);
   }
   // Начальная полоса слева (content.openersLeft) не сошлась за все проходы — книга всё равно собирается, но это видно в логе.
-  if (content.openersLeft) for (const [key, n] of Object.entries(chapters)) if (n % 2 && openers.includes(key)) console.warn(`PDF: opener of ${key} is on the right page ${n}`);
+  if (side) for (const [key, n] of Object.entries(chapters)) if (blankBeforeOpener(side, n) && openers.includes(key)) console.warn(`PDF: opener of ${key} is not on the ${side} page ${n}`);
   const width = mm(content.format.widthMm + bleed * 2);
   const height = mm(content.format.heightMm + bleed * 2);
   let pageCount = contentPages;

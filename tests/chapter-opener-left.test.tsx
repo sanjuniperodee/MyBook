@@ -199,3 +199,44 @@ describe("переключатель «Глава всегда с левой с�
     expect(res.contentPages).toBeLessThan((await renderInterior(bundleOf({}), "preview")).contentPages);
   });
 });
+
+// 28.11.2026, обращение №40: «Глава всегда справа» — начальная полоса на нечётной (правой) странице, как в изданных
+// книгах; фото и текст главы — со следующей, перед главой при нужде пустая. books.pagination_rev = 3.
+describe("«Глава всегда справа» (полосы глав 3)", () => {
+  it("refineBlanks справа: пустая — перед чётной; openerPage справа сдвигает чётную", () => {
+    const flow = emptyFlow();
+    expect(refineBlanks(["a", "b"], { a: 4, b: 8 }, flow, "right")).toBe(true);
+    // a: 4 → 5 (пустая), b: 8 + 1 = 9 — уже справа.
+    expect([...flow.blankBefore]).toEqual(["a"]);
+    expect(openerPage({ openersRight: true }, 4)).toBe(5);
+    expect(openerPage({ openersRight: true }, 5)).toBe(5);
+  });
+
+  it.each([
+    ["с посвящением", "Моему самому близкому человеку"],
+    ["без посвящения", ""],
+  ])("%s: PDF — каждая глава на нечётной полосе, пустые только перед ними; оценка — та же сторона", async (_name, dedication) => {
+    const bundle = bundleOf({ dedication, paginationRev: 3 });
+    expect(contentFor(bundle).openersRight).toBe(true);
+    expect("openersLeft" in contentFor(bundle)).toBe(false);
+    const res = await renderInterior(bundle, "preview");
+    for (const [key, n] of Object.entries(res.chapterPages)) {
+      expect({ key, right: n % 2 === 1, kind: res.pages[n - 1].kind }).toEqual({ key, right: true, kind: "opener" });
+      expect(res.pages[n]).toMatchObject({ chapterKey: key });
+    }
+    const blanks = res.pages.filter((p) => p.kind === "blank");
+    for (const p of blanks) expect({ left: p.n % 2 === 0, next: res.pages[p.n].kind }).toEqual({ left: true, next: "opener" });
+    expect(Math.abs(estimatePages(contentFor(bundle)) - res.contentPages)).toBeLessThanOrEqual(4);
+  }, 180_000);
+
+  it("домен: где выпадет / слева / справа ↔ pagination_rev 1 / 2 / 3; прежние значения не меняются", () => {
+    const book = startBook();
+    book.setChapterSide("right");
+    expect(book.snapshot().paginationRev).toBe(3);
+    book.setChapterSide("auto");
+    expect(book.snapshot().paginationRev).toBe(1);
+    book.setChapterSide("left");
+    expect(book.snapshot().paginationRev).toBe(2);
+    expect("openersRight" in contentFor(bundleOf({}))).toBe(false);
+  });
+});

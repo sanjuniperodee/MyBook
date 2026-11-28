@@ -5,6 +5,7 @@ import type { FastifyRequest } from "fastify";
 import { z } from "zod";
 import { isLocale } from "@/i18n/config";
 import { CHAPTER_STARTS } from "@/lib/book/chapter-head";
+import { CHAPTER_SIDES } from "@/lib/book/layout";
 import { END_TEXT_MAX } from "@/lib/book/end-page";
 import { TOC_EPIGRAPH_MAX, TOC_LINES_MAX, TOC_MODES, TOC_TITLE_MAX } from "@/lib/book/toc";
 import { CHAPTER_EPIGRAPH_MAX, CHAPTER_TITLE_MAX, MAX_CHAPTERS, SECTION_PROMPT_MAX, SECTION_TITLE_MAX } from "@/lib/content/kinds";
@@ -37,6 +38,8 @@ const bookPatchSchema = z
     photoPlacement: z.enum(["chapters", "end", "none"]),
     showToc: z.boolean(),
     openersLeft: z.boolean(),
+    // Сторона начальных полос глав: где выпадет, слева, справа (books.pagination_rev 1 / 2 / 3).
+    chapterSide: z.enum(CHAPTER_SIDES),
     chapterStart: z.enum(CHAPTER_STARTS),
     titlePage: z.boolean(),
     tocMode: z.enum(TOC_MODES),

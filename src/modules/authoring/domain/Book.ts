@@ -8,7 +8,7 @@ import { DEFAULT_BACK_LAYOUT, isBackLayout } from "@/lib/book/cover-back";
 import { frameKey, parseFrames, type FrameMap } from "@/lib/book/photo-frame";
 import { NAMES_ON_COVER_MAX } from "@/lib/book/cover-names";
 import { isTocMode, parseTocLines, type TocLines, type TocMode } from "@/lib/book/toc";
-import { PAGINATION_REV_2 } from "@/lib/book/layout";
+import { PAGINATION_REV_2, paginationRevOf, type ChapterSide } from "@/lib/book/layout";
 import { getOccasion } from "@/lib/occasions";
 import { INVITE_TEXT_MAX } from "@/lib/content/letter-invite";
 import { END_TEXT_MAX } from "@/lib/book/end-page";
@@ -375,6 +375,12 @@ export class Book extends AggregateRoot<BookProps> {
   setOpenersLeft(on: boolean) {
     this.assertEditable();
     this.props.paginationRev = on ? PAGINATION_REV_2 : 1;
+  }
+
+  /** Сторона начальных полос глав: где выпадет (1), всегда слева (2), всегда справа (3) — books.pagination_rev. */
+  setChapterSide(side: ChapterSide) {
+    this.assertEditable();
+    this.props.paginationRev = paginationRevOf(side);
   }
 
   /** Настройки дизайнера страниц: принимаются только известные поля, числа — в допустимых пределах, цвета — #RRGGBB. */

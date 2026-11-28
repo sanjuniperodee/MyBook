@@ -9,6 +9,7 @@ import { container } from "@/server/container";
 import { INVITE_TEXT_MAX } from "@/lib/content/letter-invite";
 import { END_TEXT_MAX } from "@/lib/book/end-page";
 import { CHAPTER_STARTS } from "@/lib/book/chapter-head";
+import { CHAPTER_SIDES } from "@/lib/book/layout";
 import { TOC_EPIGRAPH_MAX, TOC_LINES_MAX, TOC_MODES, TOC_TITLE_MAX } from "@/lib/book/toc";
 
 const patchSchema = z
@@ -38,6 +39,8 @@ const patchSchema = z
     showToc: z.boolean(),
     // «Глава всегда с левой страницы» (books.pagination_rev 2 / 1).
     openersLeft: z.boolean(),
+    // Сторона начальных полос глав: где выпадет, слева, справа (books.pagination_rev 1 / 2 / 3).
+    chapterSide: z.enum(CHAPTER_SIDES),
     // Как начинается глава: своя страница, название над текстом или чистый лист.
     chapterStart: z.enum(CHAPTER_STARTS),
     // Печатать титульный лист (books.title_page).

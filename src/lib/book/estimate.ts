@@ -11,7 +11,7 @@ import { MM_TO_PT, type BookFormat } from "./formats";
 import { framedBox, layoutInline, normalizeStyle, rowSpaceAbove, splitParagraphsDetailed, type InlinePhotoStyle } from "./inline-photo";
 import { dividerDrawing } from "./interior-art";
 import type { InteriorDesign } from "./interiors";
-import { chapterRuns, frontPages, photoPages, type BookContent, type ContentChapter, type ContentItem, type PhotoItem } from "./layout";
+import { blankBeforeOpener, chapterRuns, frontPages, openersSide, photoPages, type BookContent, type ContentChapter, type ContentItem, type PhotoItem } from "./layout";
 import { chapterHeadHeight } from "./chapter-head";
 import { interiorMetrics, textArea } from "./page-geometry";
 import { hasToc, bookToc, type TocLine } from "./toc";
@@ -300,7 +300,7 @@ function sectionStarts(ch: Pick<ContentChapter, "items">, m: TextMetrics) {
  * Страница начальной полосы главы или альбома, если следующая свободная — next (с 1). У книги с openersLeft начальная
  * полоса всегда слева, на чётной: нечётная следующая уходит под пустую полосу (как в PDF, flow-decisions.ts refineBlanks).
  */
-export const openerPage = (content: Pick<BookContent, "openersLeft">, next: number) => (content.openersLeft && next % 2 ? next + 1 : next);
+export const openerPage = (content: Pick<BookContent, "openersLeft" | "openersRight">, next: number) => (blankBeforeOpener(openersSide(content), next) ? next + 1 : next);
 
 /** Оценка количества страниц в готовой книге (до добивки до кратности). */
 export function estimatePages(content: BookContent): number {
