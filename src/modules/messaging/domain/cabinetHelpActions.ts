@@ -501,7 +501,8 @@ export function helpEditLines(edits: readonly HelpEdit[], book: HelpEditBook, la
     if (p.chapter === "__gallery") return place.album;
     if (p.chapter === "__off") return place.off;
     if (p.chapter && book.chapters.some((c) => c.key === p.chapter)) return p.opener ? place.opener(chapterTitle(p.chapter)) : place.after(chapterTitle(p.chapter));
-    return m.editor.placeSheet.auto.label;
+    // Само, по правилу книги: где оно встало в собранной книге (heading — место по сборке).
+    return p.heading && lang === "ru" ? m.editor.photoPlace.withAuto(p.heading) : m.editor.placeSheet.auto.label;
   };
   const photo = (p: HelpEditPhoto) => {
     if (!p.questionId) return a.photoAt(placeOf(p));
