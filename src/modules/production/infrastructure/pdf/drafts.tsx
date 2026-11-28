@@ -4,7 +4,7 @@ import type { FlowDecisions } from "@/lib/book/flow-decisions";
 import type { BookContent } from "@/lib/book/layout";
 import { layoutPdf, renderPdf } from "./fonts";
 import { DROP_MARK, FLOW_MARK } from "./flow";
-import { FRONT_GROUP, InteriorDocument, interiorGroups, InteriorPages, type InteriorGroup, type PreparedImage } from "./interior";
+import { FRONT_GROUP, TOC_GROUP, InteriorDocument, interiorGroups, InteriorPages, type InteriorGroup, type PreparedImage } from "./interior";
 import type { InteriorOptions } from "./interior/kit";
 import { PAGE_MARK } from "./pages";
 
@@ -176,7 +176,7 @@ export class DraftBook {
       const items = group.items;
       const decisions = items ? DraftBook.decisionsOf(items, flow) : undefined;
       const tail = group.tail !== undefined ? !flow.noTail.has(group.tail) : undefined;
-      const extra = [group.key === FRONT_GROUP ? JSON.stringify(tocPages ?? null) : "", group.blank ? String(flow.blankBefore.has(group.blank)) : ""].join("|");
+      const extra = [group.key === FRONT_GROUP || group.key === TOC_GROUP ? JSON.stringify(tocPages ?? null) : "", group.blank ? String(flow.blankBefore.has(group.blank)) : ""].join("|");
       const sig = JSON.stringify([items ?? null, decisions ? [...decisions].sort() : null, tail ?? null, extra]);
       const old = reuse ? before.get(group.key) : undefined;
       if (old?.sig === sig) {

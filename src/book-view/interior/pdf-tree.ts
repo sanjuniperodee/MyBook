@@ -24,7 +24,7 @@ import { textArea } from "@/lib/book/page-geometry";
 import { paginate, type PagePiece, type PNode, type PText, type PView } from "@/lib/book/paginate";
 import { naturalLineHeight } from "@/lib/book/fonts";
 import { flowMinLead } from "@/lib/book/typesetting";
-import { ANSWER, CHAPTER_TAIL, DIVIDER, dropCapPlan, HTML_LINE_HEIGHT, QUOTE_MARK, quoteFace, quoteStyle, HEADING, INLINE_ROW, KEEP_WITH_NEXT, MEDIA_CARD, paraAfter, splitInitial, splitLeadIn, VIGNETTE_RULE } from "@/lib/book/typesetting";
+import { ANSWER, CHAPTER_TAIL, DIVIDER, dropCapPlan, HTML_LINE_HEIGHT, QUOTE_MARK, quoteFace, quoteStyle, HEADING, INLINE_ROW, KEEP_WITH_NEXT, MEDIA_CARD, leadParts, paraAfter, splitInitial, VIGNETTE_RULE } from "@/lib/book/typesetting";
 import { chapterHeadSizes } from "@/lib/book/chapter-head";
 import type { PageKit } from "@/book-view/interior/kit";
 import { metricsOf } from "@/book-view/interior/kit";
@@ -239,7 +239,7 @@ export function chapterTree(input: TreeInput, drops = new Map<string, number>())
         if (plan && splitInitial(b.text)) {
           const leadOn = start && !!design.leadIn;
           if (plan.style === "drop") {
-            const dc = need(dropCapLayout({ ...kit, dropSplit: flow.dropSplit }, b.text, leadOn, pid));
+            const dc = need(dropCapLayout({ ...kit, dropSplit: flow.dropSplit }, b.text, leadOn, pid, b.lead));
             if (!dc) return null;
             drops.set(pid, dc.real);
             const after = dc.after ? need(lines(dc.afterReq, bodyLh)) : [];
@@ -248,7 +248,7 @@ export function chapterTree(input: TreeInput, drops = new Map<string, number>())
             return view({ id: pid, mb: S.body * paraAfter(design), children: after.length ? [row, text({ id: `${pid}:c`, lines: after })] : [row] });
           }
           const [initial, rest] = splitInitial(b.text)!;
-          const [leadText, tail] = leadOn ? splitLeadIn(rest) : ["", rest];
+          const [leadText, tail] = leadParts(rest, leadOn, b.lead, initial.length);
           const capSpec = faceSpec(plan.face, plan.size);
           const l = need(
             lines(
@@ -270,7 +270,7 @@ export function chapterTree(input: TreeInput, drops = new Map<string, number>())
           // Первая строка — с крупной буквой: высотой по ней (у react-pdf высота строки — по самому высокому куску).
           return l ? text({ id: pid, lines: l.map((h, n) => (n ? h : Math.max(h, plan.size * plan.lineHeight))), mb: S.body * paraAfter(design) }) : null;
         }
-        const [leadText, after] = start && design.leadIn ? splitLeadIn(b.text) : ["", b.text];
+        const [leadText, after] = leadParts(b.text, start && !!design.leadIn, b.lead);
         const l = need(
           lines(
             {
@@ -320,7 +320,7 @@ export function chapterTree(input: TreeInput, drops = new Map<string, number>())
         return view({ id: pid, children: items, mb: S.body * ANSWER.list.after });
       }
       case "verse": {
-        const width = measureW - (design.heading.align === "center" ? 0 : textW * ANSWER.verse.indent);
+        const width = measureW - (design.heading.align === "center" || b.align === "center" ? 0 : textW * ANSWER.verse.indent);
         const verse = (list: string[]) => lines({ text: list.join("\n"), spec: bodySpec(kit), width, hyphens: false }, bodyLh);
         if (b.stanzas?.length) {
           const starts = [0, ...b.stanzas, b.lines.length];

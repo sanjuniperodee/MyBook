@@ -20,7 +20,7 @@ export type { PreparedImage } from "./kit";
  * Блок книги. Шрифты, цвета, виньетки, начальные полосы, колонтитулы и колонцифры берутся из
  * дизайна (content.interior); те же правила рисуют HTML-превью на сайте (components/interior).
  * Порядок полос: титул, оборот титула (оба — если не выключены: content.titlePage), посвящение, оглавление, главы (начальная полоса, текст, фото),
- * галерея, финал. У книг с content.openersLeft начальная полоса главы и альбома всегда слева: где по счёту она выпала бы
+ * галерея, финал. Оглавление в конце (дизайн: tocAtEnd) — своей частью после галереи, перед финалом. У книг с content.openersLeft начальная полоса главы и альбома всегда слева: где по счёту она выпала бы
  * справа, перед ней пустая полоса (какие — решает доводка вёрстки по прошлому проходу, flow.blankBefore). Каждая полоса — свой файл рядом и помечена видом (pageMark) для манифеста сборки.
  * Водяного знака в вёрстке нет: сборка одна для экрана и печати, знак ставится поверх готового PDF (pdf/watermark.tsx).
  */
@@ -42,6 +42,7 @@ export interface InteriorGroup {
 export const FRONT_GROUP = "front";
 export const GALLERY_GROUP = "gallery";
 export const END_GROUP = "end";
+export const TOC_GROUP = "toc";
 
 /**
  * Полосы блока по частям. Каждая часть — свои Page: глава начинается с новой полосы, ответ с разрывом — тоже, и
@@ -56,7 +57,8 @@ export function interiorGroups(content: BookContent, options: InteriorOptions, s
   // Без титула (content.titlePage === false) нет и его оборота: две полосы, чётность дальше не сдвигается.
   const front: React.ReactNode[] = content.titlePage === false ? [] : [<TitlePage key="title" kit={kit} />, <Colophon key="colophon" kit={kit} />];
   if (content.dedication) front.push(<Dedication key="dedication" kit={kit} text={content.dedication} />);
-  if (hasToc(content)) front.push(<Toc key="toc" kit={kit} />);
+  const toc = hasToc(content);
+  if (toc && !content.interior.tocAtEnd) front.push(<Toc key="toc" kit={kit} />);
   groups.push({ key: FRONT_GROUP, pages: front });
   const blank = (pages: React.ReactNode[], key: string) => {
     if (content.openersLeft && kit.flow.blankBefore.has(key)) pages.push(<BlankPage key={`blank-${key}`} kit={kit} />);
@@ -112,6 +114,7 @@ export function interiorGroups(content: BookContent, options: InteriorOptions, s
     groups.push({ key: GALLERY_GROUP, pages, blank: GALLERY_KEY });
   }
 
+  if (toc && content.interior.tocAtEnd) groups.push({ key: TOC_GROUP, pages: [<Toc key="toc" kit={kit} />] });
   groups.push({ key: END_GROUP, pages: [<EndPage key="end" kit={kit} />] });
   return groups;
 }

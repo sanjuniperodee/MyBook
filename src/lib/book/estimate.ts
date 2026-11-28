@@ -96,7 +96,7 @@ function blockHeight(b: AnswerBlock, m: TextMetrics, first = true): number {
     case "strong":
       return lines(b.text.length, column, S.body, charEm) * line + S.body * (ANSWER.strong.before + ANSWER.strong.after);
     case "verse": {
-      const w = centered ? column : column * (1 - ANSWER.verse.indent);
+      const w = centered || b.align === "center" ? column : column * (1 - ANSWER.verse.indent);
       return b.lines.reduce((n, l) => n + lines(l.length, w, S.body, charEm), 0) * line + S.body * (ANSWER.verse.before + ANSWER.verse.after + (b.stanzas?.length ?? 0) * ANSWER.verse.stanza);
     }
   }
@@ -307,11 +307,14 @@ export function estimatePages(content: BookContent): number {
   const m = textMetrics(content.format, content.interior);
   let pages = frontPages(content); // титульный лист + оборот (без титула — ни того, ни другого)
   if (content.dedication) pages += 1;
-  pages += estimateTocPages(content, m);
+  // Оглавление — в начале, после посвящения, или в конце (дизайн: tocAtEnd), перед финальной страницей.
+  const toc = estimateTocPages(content, m);
+  if (!content.interior.tocAtEnd) pages += toc;
   // Перед начальной полосой — пустая, если она должна встать слева, а выпала бы справа.
   // Без начальных полос глава начинается с новой страницы, где выпадет (пустых полос перед ней нет).
   for (const ch of content.chapters) pages = content.chapterStart ? pages + estimateChapterPages(ch, m, content.chapterStart) : openerPage(content, pages + 1) - 1 + estimateChapterPages(ch, m);
   if (content.galleryPhotos.length) pages = openerPage(content, pages + 1) + photoPages(content.galleryPhotos).length;
+  if (content.interior.tocAtEnd) pages += toc;
   pages += 1; // финальная страница
   return pages;
 }
@@ -321,7 +324,7 @@ export function estimateAnswerPages(heading: string | null, answer: string, phot
   return entryHeight(heading, answer, photos, media, false, m) / m.height;
 }
 
-/** Передние полосы книги для номеров полос превью: до оглавления, само оглавление (строки) и его полос по оценке. */
+/** Передние полосы книги для номеров полос превью: до оглавления, само оглавление (строки) и его полос по оценке. Оглавление в конце книги передних полос не занимает — его здесь нет. */
 export interface FrontMatter {
   /** Титул и его оборот, посвящение. */
   before: number;
@@ -332,7 +335,7 @@ export interface FrontMatter {
 export function frontMatter(content: BookContent): FrontMatter {
   return {
     before: frontPages(content) + (content.dedication ? 1 : 0),
-    toc: hasToc(content) ? { lines: bookToc(content), numbered: tocNumbered(content.interior), estimate: estimateTocPages(content, textMetrics(content.format, content.interior)) } : null,
+    toc: hasToc(content) && !content.interior.tocAtEnd ? { lines: bookToc(content), numbered: tocNumbered(content.interior), estimate: estimateTocPages(content, textMetrics(content.format, content.interior)) } : null,
   };
 }
 

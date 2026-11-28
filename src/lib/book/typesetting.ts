@@ -125,6 +125,19 @@ export function splitLeadIn(paragraph: string): [string, string] {
   return [head, paragraph.slice(head.length)];
 }
 
+/**
+ * Капитель абзаца: [капитель, остаток] для text — части абзаца с знака skip (у абзаца с буквицей первая буква снята).
+ * mark — пометка автора (^^…^^, AnswerBlock.lead: сколько первых знаков абзаца капителью) — в любом месте главы; без неё —
+ * начальные слова главы по правилу splitLeadIn, если auto (дизайн с капителью и абзац открывает главу).
+ */
+export function leadParts(text: string, auto: boolean, mark?: number, skip = 0): [string, string] {
+  if (mark) {
+    const n = Math.max(0, Math.min(text.length, mark - skip));
+    return [text.slice(0, n), text.slice(n)];
+  }
+  return auto ? splitLeadIn(text) : ["", text];
+}
+
 /** Заголовок вопроса: интерлиньяж и акцентная линейка над ним — длина и отбивка после pt × scale, толщина pt. */
 export const HEADING = { lineHeight: 1.22, bar: { width: 14, thickness: 1.2, after: 6 } } as const;
 

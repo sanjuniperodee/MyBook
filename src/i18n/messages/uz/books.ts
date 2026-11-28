@@ -270,6 +270,9 @@ export const books: typeof ru = {
     chapterOrderAria: "Bobning kitobdagi o‘rni",
     toc: "Mundarija",
     tocLabel: "Sahifa raqamlari bilan «Mundarija» sahifasini qo‘shish",
+    tocPlace: "Mundarija qayerda",
+    tocPlaces: { start: "Kitob boshida", end: "Kitob oxirida" },
+    tocPlaceHint: "Oxirida — oxirgi bobdan keyin, oxirgi sahifadan oldin. Sahifa raqamlari kitobdagidek.",
     endPage: {
       title: "Oxirgi sahifa",
       modes: { default: "«Davomi bor…»", custom: "O‘z iborangiz", none: "Iborasiz" },

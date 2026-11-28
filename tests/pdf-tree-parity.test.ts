@@ -17,6 +17,7 @@ import { breakLines, glyphAdvance } from "@/lib/book/linebreak";
 import { textArea } from "@/lib/book/page-geometry";
 import { flowMinLead } from "@/lib/book/typesetting";
 import { photoPlaceOf } from "@/lib/book/photo-place";
+import type { InteriorStyle } from "@/lib/book/interiors";
 import { fixtureSample, fixtureVariants, type FixtureBook } from "./fixtures/books";
 import { useFixtureStorage } from "./fixtures/photos";
 
@@ -55,6 +56,20 @@ beforeAll(async () => {
 });
 
 const books = [...fixtureSample(), ...fixtureVariants()].filter((b) => ["classic-a5-ru", "antique-a5-ru", "luna-a5-kk", "magazine-square-ru", "kids-square-kk", "cinema-a5-ru", "thin", "blank"].includes(b.key));
+// Пометки автора (обращение №39): капитель в начале абзаца посреди главы (^^…^^), строки по центру (>>…<<), оглавление в конце.
+books.push(
+  ...["classic-a5-ru", "luna-a5-kk"].map((key) => {
+    const { bundle } = [...fixtureSample()].find((b) => b.key === key)!;
+    const questions = bundle.questions.map((q, i) => {
+      if (!q.answer.trim()) return q;
+      const paras = q.answer.split("\n");
+      if (i % 2) paras[0] = `^^${paras[0]}`;
+      else paras.splice(1, 0, "", ">> Менің баға жетпес байлығым! <<", ">>Менің тірегім мен жүрегім!<<", ">>Менің өмірімнің мәңгілік шуағы!<<", "");
+      return { ...q, answer: paras.join("\n") };
+    });
+    return { key: `${key}-marks`, bundle: { ...bundle, questions, book: { ...bundle.book, interiorStyle: { ...bundle.book.interiorStyle, elements: { ...(bundle.book.interiorStyle as InteriorStyle | null)?.elements, toc: "end" } } } } } as FixtureBook;
+  }),
+);
 
 describe("полосы превью — как у PDF (без браузера)", () => {
   it.each(books.map((b) => [b.key, b] as const))("%s: полос у глав и начала ответов", async (_, { bundle }: FixtureBook) => {

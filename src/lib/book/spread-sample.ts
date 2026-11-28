@@ -91,7 +91,8 @@ export function bookSpreadSample(
   // Оглавление: все строки, которые могут в него попасть, с номерами страниц — из готового макета, а каких там нет
   // (макет не собран, раздел в оглавлении по главам) — примерными (пока ответов нет — главы темы).
   const metrics = textMetrics(format, bookInterior(book));
-  const start = frontPages(content) + 1 + (book.dedication.trim() ? 1 : 0) + 1;
+  // Оглавление в конце (tocAtEnd) первую главу не сдвигает.
+  const start = frontPages(content) + 1 + (book.dedication.trim() ? 1 : 0) + (content.interior.tocAtEnd ? 0 : 1);
   const pageOf = new Map<string, number>();
   let page = start;
   for (const c of content.chapters) {

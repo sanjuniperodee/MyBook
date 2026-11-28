@@ -507,6 +507,15 @@ export const editor: typeof ru = {
     tip: "Tap a photo or the start of a chapter to change it.",
     tipOk: "Got it",
   },
+  /** Formatting answer lines with marks in the text: centred >>…<<, small caps ^^…^^. */
+  marks: {
+    menu: "Format",
+    center: "Centre",
+    centerHint: "Select lines and press — they will be centred. In the text such lines are marked >> … <<.",
+    lead: "Small caps",
+    leadHint: "The start of the paragraph with the cursor is set in capitals, like the first words of a chapter. You can select the exact words. In the text they are marked ^^ … ^^.",
+    help: "The marks are only visible here: the book shows the formatted text. To undo, delete the arrows or carets.",
+  },
   /** Кнопки редактора на телефоне, превью на весь экран и фото глав в оглавлении. */
   chrome: {
     more: "More",

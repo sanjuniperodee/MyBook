@@ -4,18 +4,18 @@
  * поэтому все три выглядят одинаково. Номера абзацев сохраняются: фото, вставленное «после абзаца n»,
  * встаёт после блока, в который попал абзац n.
  */
-import { ANSWER } from "./typesetting";
+import { ANSWER, splitLeadIn } from "./typesetting";
 
 export type AnswerBlock =
   /** Абзац (строки, которые автор перенёс посреди фразы, склеены). */
-  | { kind: "para"; text: string; from: number; to: number }
+  | { kind: "para"; text: string; from: number; to: number; /** Автор пометил начало абзаца капителью (^^…^^): столько первых знаков text — капителью. */ lead?: number }
   /** Короткая первая фраза перед длинным текстом — подзаголовок-лид курсивом. */
   | { kind: "lede"; text: string; from: number; to: number }
   /** Весь ответ в пару строк — выделяется крупным курсивом, а не теряется на полосе. */
   | { kind: "quote"; lines: string[]; from: number; to: number }
   | { kind: "list"; ordered: boolean; items: { marker: string; text: string }[]; from: number; to: number }
   /** Короткие строки подряд — стихи, песня, перечисление в столбик. */
-  | { kind: "verse"; lines: string[]; from: number; to: number; /** Номера строк, с которых начинается новая строфа (автор оставил перед ними пустую строку); нет — без просветов. */ stanzas?: number[] }
+  | { kind: "verse"; lines: string[]; from: number; to: number; /** Номера строк, с которых начинается новая строфа (автор оставил перед ними пустую строку); нет — без просветов. */ stanzas?: number[]; /** Автор поставил строки по центру (>>…<<): по центру при любом дизайне. */ align?: "center" }
   /** Строка, которую автор или менеджер обернул в **…**, — жирным, с отбивкой после (подпись под пожеланием). */
   | { kind: "strong"; text: string; from: number; to: number };
 
@@ -42,6 +42,50 @@ const STRONG = /^\*\*\s*(.+?)\s*\*\*$/u;
 const isStrong = (s: string) => STRONG.test(s);
 /** Строка целиком в одинарных звёздочках без пробела после первой: *курсив* — выделение, а не пункт списка. */
 const EMPHASIS = /^\*([^*\s](?:[^*]*[^*\s])?)\*$/u;
+
+/**
+ * Строка по центру — автор обернул её в >>…<< (кнопка «По центру» в редакторе). Прощаем опечатки: пробел между
+ * стрелками («> >»), лишние стрелки, пробелы внутри, закрытие не в ту сторону («>> строка >>») и забытое («>> строка»). Только в начале строки — «>>» посреди
+ * текста остаётся текстом.
+ */
+const CENTER = /^>\s?>+\s*(.*?)\s*(?:<\s?<+|<|>\s?>+)?$/u;
+/**
+ * Капитель в начале абзаца — автор обернул первые слова в ^^…^^ (кнопка «Капитель»), как начальные слова главы. Одна
+ * или три крышки вместо двух, пробелы внутри — тоже; забыл закрыть («^^Менің анам — …») — капителью первые слова по
+ * правилу начала главы (splitLeadIn).
+ */
+const LEAD_OPEN = /^\^{1,3}\s*/u;
+const LEAD_SPAN = /^\^{1,3}\s*([^^]*?[^\s^])\s*\^{1,3}/u;
+
+/** Строка с пометкой «по центру»: её текст без стрелок (пустая строка из одних стрелок — null). */
+export function centerLine(line: string): string | null {
+  const m = line.trim().match(CENTER);
+  return m?.[1] ? m[1] : null;
+}
+
+/**
+ * Абзац с пометкой капители: текст без крышек и сколько первых знаков — капителью (после типографской чистки, как его
+ * наберёт книга); без пометки — null.
+ */
+export function leadMark(line: string): { text: string; lead: number } | null {
+  const t = line.trim();
+  if (!LEAD_OPEN.test(t)) return null;
+  const span = t.match(LEAD_SPAN);
+  if (span) {
+    const head = tidyLine(span[1]);
+    const text = tidyLine(span[1] + t.slice(span[0].length));
+    return { text, lead: text.startsWith(head) ? head.length : splitLeadIn(text)[0].length };
+  }
+  const text = tidyLine(t.replace(LEAD_OPEN, ""));
+  return text ? { text, lead: splitLeadIn(text)[0].length } : null;
+}
+
+/** Пометки автора в строке ответа (>>…<<, ^^…^^) — сняты: для текста без вёрстки (резервная копия, подсказки). */
+export function stripMarks(line: string): string {
+  const c = centerLine(line);
+  if (c !== null) return c;
+  return leadMark(line)?.text ?? line;
+}
 
 /**
  * Типографская чистка строки: тире вместо дефиса в начале, без двойных пробелов, без пробела перед знаком
@@ -103,12 +147,17 @@ function joinBroken(lines: string[]) {
  * короткого ответа, лида и стихов — чтобы короткие ответы не выглядели иначе, чем длинные.
  */
 export function answerBlocks(paragraphs: string[], { plain = false, breaks }: { plain?: boolean; /** Перед какими абзацами автор оставил пустую строку (splitParagraphsDetailed). */ breaks?: ReadonlySet<number> } = {}): AnswerBlock[] {
+  // Пометки автора — до чистки: «>> строка <<» — по центру, «^^Слова^^ …» — капитель в начале абзаца.
+  const centered = paragraphs.map((p) => centerLine(p));
+  const leads = paragraphs.map((p, k) => (centered[k] === null ? leadMark(p) : null));
   // «*Строка*» — выделение: звёздочки снимаются, строка набирается обычным абзацем (курсива нет во всех шрифтах книги).
-  const lines = paragraphs.map((p) => tidyLine(p).replace(EMPHASIS, "$1"));
+  const lines = paragraphs.map((p, k) => leads[k]?.text ?? tidyLine(centered[k] ?? p).replace(EMPHASIS, "$1"));
   const n = lines.length;
   if (!n) return [];
+  const isCenter = (k: number) => centered[k] !== null;
+  const isMarked = (k: number) => isCenter(k) || !!leads[k];
   const total = lines.reduce((s, l) => s + l.length, 0);
-  const listy = lines.some((l) => BULLET.test(l) || isStrong(l));
+  const listy = lines.some((l, k) => BULLET.test(l) || isStrong(l) || isMarked(k));
   const text = lines.join(" ");
   if (!plain && total <= QUOTE_MAX_CHARS && sentences(text) <= QUOTE_MAX_SENTENCES && !listy && !isDialogue(lines[0])) {
     const joined = joinBroken(lines);
@@ -119,6 +168,15 @@ export function answerBlocks(paragraphs: string[], { plain = false, breaks }: { 
   let i = 0;
   while (i < n) {
     const line = lines[i];
+    // Строки по центру подряд — один блок; пустая строка между ними — просвет строфы.
+    if (isCenter(i)) {
+      const from = i;
+      while (i < n && isCenter(i)) i++;
+      const list = lines.slice(from, i);
+      const stanzas = breaks ? list.map((_, k) => k).filter((k) => k > 0 && breaks.has(from + k)) : [];
+      blocks.push({ kind: "verse", lines: list, from, to: i - 1, align: "center", ...(stanzas.length ? { stanzas } : {}) });
+      continue;
+    }
     const strong = line.match(STRONG);
     if (strong) {
       blocks.push({ kind: "strong", text: strong[1], from: i, to: i });
@@ -146,9 +204,9 @@ export function answerBlocks(paragraphs: string[], { plain = false, breaks }: { 
     }
     // Стихи: от трёх коротких строк подряд (не диалог), большинство — без точки в конце.
     let j = i;
-    while (j < n && verseLine(lines[j])) j++;
+    while (j < n && verseLine(lines[j]) && !isMarked(j)) j++;
     // По строфам — только с начала строфы: после пустой строки или там, где короткие строки начались сами (а не с середины их ряда).
-    const stanzaStart = i === 0 || !!breaks?.has(i) || !verseLine(lines[i - 1]);
+    const stanzaStart = i === 0 || !!breaks?.has(i) || !verseLine(lines[i - 1]) || isMarked(i - 1);
     if (!plain && ((j - i >= VERSE_MIN_LINES && looksLikeVerse(lines.slice(i, j))) || (stanzaStart && isStanzaVerse(i, j, breaks)))) {
       const stanzas = breaks ? Array.from({ length: j - i }, (_, k) => k).filter((k) => k > 0 && breaks.has(i + k)) : [];
       blocks.push({ kind: "verse", lines: lines.slice(i, j), from: i, to: j - 1, ...(stanzas.length ? { stanzas } : {}) });
@@ -158,9 +216,10 @@ export function answerBlocks(paragraphs: string[], { plain = false, breaks }: { 
     // Абзац: строки, перенесённые посреди фразы (Enter вместо пробела), склеиваются в один абзац.
     const from = i;
     const group = [line];
-    while (i + 1 < n && continues(lines[i], lines[i + 1]) && !isStrong(lines[i + 1]) && !BULLET.test(lines[i + 1]) && !NUMBERED.test(lines[i + 1])) group.push(lines[++i]);
+    while (i + 1 < n && continues(lines[i], lines[i + 1]) && !isStrong(lines[i + 1]) && !BULLET.test(lines[i + 1]) && !NUMBERED.test(lines[i + 1]) && !isMarked(i + 1)) group.push(lines[++i]);
     i++;
-    blocks.push({ kind: "para", text: group.join(" "), from, to: i - 1 });
+    const lead = leads[from] ? Math.min(leads[from]!.lead, group[0].length) : 0;
+    blocks.push({ kind: "para", text: group.join(" "), from, to: i - 1, ...(lead ? { lead } : {}) });
   }
 
   // Лид: первый блок — одна короткая строка, за ней длинный текст.
@@ -169,6 +228,7 @@ export function answerBlocks(paragraphs: string[], { plain = false, breaks }: { 
     !plain &&
     first?.kind === "para" &&
     first.from === first.to &&
+    !first.lead &&
     first.text.length <= LEDE_MAX_CHARS &&
     sentences(first.text) === 1 &&
     !isDialogue(first.text) &&

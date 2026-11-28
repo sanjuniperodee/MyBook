@@ -57,6 +57,12 @@ export interface InteriorStyle {
     questionPage?: boolean;
     /** Все ответы одним стилем (см. InteriorDesign.plainAnswers). */
     plainAnswers?: boolean;
+    /**
+     * Где оглавление: "end" — в конце книги (InteriorDesign.tocAtEnd); нет или "start" — в начале. Вёрстка, а не данные
+     * книги — поэтому здесь, рядом с «каждый вопрос с новой страницы»: идёт в PDF, превью и оценку вместе с дизайном, а у
+     * книг без ключа отпечаток содержимого не меняется.
+     */
+    toc?: "start" | "end";
     number?: InteriorDesign["opener"]["number"];
     ornament?: GlyphId;
     vignette?: boolean;
@@ -262,6 +268,7 @@ export function parseInteriorStyle(raw: unknown): InteriorStyle {
             leadIn: bool(e.leadIn),
             questionPage: bool(e.questionPage),
             plainAnswers: bool(e.plainAnswers),
+            toc: oneOf(e.toc, ["start", "end"] as const),
             number: oneOf(e.number, NUMBERS),
             ornament: oneOf(e.ornament, GLYPHS),
             vignette: bool(e.vignette),
@@ -390,6 +397,7 @@ export function applyInteriorStyle(design: InteriorDesign, raw: InteriorStyle | 
     leadIn: el.leadIn ?? design.leadIn,
     ...(el.questionPage !== undefined ? { questionPage: el.questionPage } : {}),
     ...(el.plainAnswers ? { plainAnswers: true } : {}),
+    ...(el.toc === "end" ? { tocAtEnd: true } : {}),
     folio: { ...design.folio, ...(el.folio ? { align: el.folio } : {}), ...(el.folioDashes !== undefined ? { dashes: el.folioDashes } : {}) },
     runningHead: el.runningHead ?? design.runningHead,
     frame: el.frame ?? design.frame,

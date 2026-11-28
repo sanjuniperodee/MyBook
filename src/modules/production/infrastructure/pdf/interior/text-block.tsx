@@ -2,7 +2,7 @@ import "server-only";
 import { Text, View } from "@react-pdf/renderer";
 import type { Style } from "@react-pdf/stylesheet";
 import { listMarkerEm, type AnswerBlock } from "@/lib/book/answer-blocks";
-import { ANSWER, dropCapPlan, estimateDropSplit, indentEm, LEAD_IN, paraIndent, paraAfter, QUOTE_MARK, quoteStyle, splitInitial, splitLeadIn, type DropCapPlan } from "@/lib/book/typesetting";
+import { ANSWER, dropCapPlan, estimateDropSplit, indentEm, LEAD_IN, paraIndent, paraAfter, QUOTE_MARK, quoteStyle, leadParts, splitInitial, type DropCapPlan } from "@/lib/book/typesetting";
 import { face } from "@/modules/production/infrastructure/pdf/fonts";
 import { DROP_MARK } from "@/modules/production/infrastructure/pdf/flow";
 import { mark, noHyphens, textFace, type PdfKit } from "./kit";
@@ -10,15 +10,15 @@ import { mark, noHyphens, textFace, type PdfKit } from "./kit";
 type Block<K extends AnswerBlock["kind"]> = Extract<AnswerBlock, { kind: K }>;
 type BlockProps<K extends AnswerBlock["kind"]> = { kit: PdfKit; block: Block<K>; id: string };
 
-/** Капитель начальных слов главы. */
+/** Капитель начальных слов главы и начала абзаца, помеченного автором. */
 function leadInStyle(kit: PdfKit): Style {
   const { design, sizes: S } = kit;
   return { ...face(design.type.body, 400), fontSize: S.body * LEAD_IN.size, letterSpacing: S.body * LEAD_IN.tracking, textTransform: "uppercase", color: design.palette.accent };
 }
 
-/** Текст с капителью в начале (если нужна). */
-function LeadText({ kit, text, leadIn }: { kit: PdfKit; text: string; leadIn: boolean }) {
-  const [lead, rest] = leadIn ? splitLeadIn(text) : ["", text];
+/** Текст с капителью в начале (если нужна): по началу главы (leadIn) или по пометке автора (mark, с знака skip абзаца). */
+function LeadText({ kit, text, leadIn, mark, skip }: { kit: PdfKit; text: string; leadIn: boolean; mark?: number; skip?: number }) {
+  const [lead, rest] = leadParts(text, leadIn, mark, skip);
   return (
     <>
       {lead ? <Text style={leadInStyle(kit)}>{lead}</Text> : null}
@@ -36,7 +36,7 @@ function Paragraph({ kit, block, id, leadIn, indent }: BlockProps<"para"> & { le
   const em = indentEm(design);
   return (
     <Text {...mark(id)} style={{ ...kit.body, ...kit.measure, marginBottom: S.body * paraAfter(design), ...(indent && em ? { textIndent: S.body * em } : {}) }} orphans={2} widows={2}>
-      <LeadText kit={kit} text={block.text} leadIn={leadIn} />
+      <LeadText kit={kit} text={block.text} leadIn={leadIn} mark={block.lead} />
     </Text>
   );
 }
@@ -57,7 +57,7 @@ function DropCapParagraph({ kit, block, id, leadIn, plan }: BlockProps<"para"> &
     return (
       <Text {...mark(id)} style={{ ...kit.body, ...kit.measure, marginBottom: S.body * paraAfter(design) }} orphans={2} widows={2}>
         <Text style={capStyle}>{initial}</Text>
-        <LeadText kit={kit} text={rest} leadIn={leadIn} />
+        <LeadText kit={kit} text={rest} leadIn={leadIn} mark={block.lead} skip={initial.length} />
       </Text>
     );
   kit.options.dropColumns?.set(id, { text: rest, lines: plan.lines });
@@ -73,7 +73,7 @@ function DropCapParagraph({ kit, block, id, leadIn, plan }: BlockProps<"para"> &
         <View style={{ flexGrow: 1, flexBasis: 0, height: plan.height, overflow: "hidden" }}>
           {/* Абсолютно: иначе react-pdf обрежет текст по высоте колонки и поставит многоточие. */}
           <Text {...({ [DROP_MARK]: id } as object)} style={{ ...kit.body, position: "absolute", top: 0, left: 0, right: 0, maxLines: plan.lines + 1 }}>
-            <LeadText kit={kit} text={rest} leadIn={leadIn} />
+            <LeadText kit={kit} text={rest} leadIn={leadIn} mark={block.lead} skip={initial.length} />
           </Text>
         </View>
       </View>
@@ -160,7 +160,9 @@ export function TextBlock({ kit, block: b, id, leadIn, dropCap = false, first = 
       return <Quote kit={kit} block={b} id={id} />;
     case "list":
       return <List kit={kit} block={b} id={id} />;
-    case "verse":
+    case "verse": {
+      // Стихи по центру — по дизайну (заголовки по центру) или по пометке автора (>>…<<).
+      const centered = design.heading.align === "center" || b.align === "center";
       if (b.stanzas?.length) {
         const starts = [0, ...b.stanzas, b.lines.length];
         return (
@@ -184,6 +186,7 @@ export function TextBlock({ kit, block: b, id, leadIn, dropCap = false, first = 
           {b.lines.join("\n")}
         </Text>
       );
+    }
     case "strong":
       return (
         <Text

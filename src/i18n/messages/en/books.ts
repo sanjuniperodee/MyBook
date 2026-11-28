@@ -270,6 +270,9 @@ export const books: typeof ru = {
     chapterOrderAria: "Chapter order in the book",
     toc: "Table of contents",
     tocLabel: "Add a “Contents” page with page numbers",
+    tocPlace: "Where the contents go",
+    tocPlaces: { start: "At the beginning", end: "At the end" },
+    tocPlaceHint: "At the end — after the last chapter, before the last page. Page numbers match the book.",
     endPage: {
       title: "Last page",
       modes: { default: "“To be continued…”", custom: "Your own phrase", none: "No phrase" },

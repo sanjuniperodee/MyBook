@@ -507,6 +507,15 @@ export const editor: typeof ru = {
     tip: "O‘zgartirish uchun suratni yoki bob boshlanishini bosing.",
     tipOk: "Tushunarli",
   },
+  /** Javob qatorlarini matndagi belgilar bilan bezash: o‘rtaga >>…<<, kapitel ^^…^^. */
+  marks: {
+    menu: "Bezash",
+    center: "O‘rtaga",
+    centerHint: "Qatorlarni belgilab bosing — ular o‘rtada turadi. Matnda bunday qatorlar >> … << bilan belgilanadi.",
+    lead: "Kapitel",
+    leadHint: "Kursor turgan xatboshi boshi — bob boshidagi birinchi so‘zlar kabi bosh harflar bilan. Kerakli so‘zlarni belgilash mumkin. Matnda ular ^^ … ^^ bilan belgilanadi.",
+    help: "Belgilar faqat shu yerda ko‘rinadi: kitobda bezatilgan matn qoladi. Olib tashlash uchun strelka yoki qalpoqchalarni o‘chiring.",
+  },
   /** Кнопки редактора на телефоне, превью на весь экран и фото глав в оглавлении. */
   chrome: {
     more: "Yana",

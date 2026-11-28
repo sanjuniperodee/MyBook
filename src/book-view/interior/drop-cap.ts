@@ -4,7 +4,7 @@
  * решает доводка вёрстки (flow.dropSplit); до первого замера — оценка estimateDropSplit. Строки колонки — Кнут — Пласс
  * по ширине колонки (как у react-pdf), отсюда и настоящее место продолжения.
  */
-import { dropCapPlan, estimateDropSplit, splitInitial, splitLeadIn, type DropCapPlan } from "@/lib/book/typesetting";
+import { dropCapPlan, estimateDropSplit, leadParts, splitInitial, type DropCapPlan } from "@/lib/book/typesetting";
 import type { TextLine } from "@/lib/book/linebreak";
 import type { PageKit } from "./kit";
 import type { BreakRequest, TextSpec } from "./line-breaker";
@@ -33,7 +33,7 @@ export interface DropCapLayout {
 }
 
 /** Буквица абзаца по набору kit; нет буквицы, буквы или строк — null. */
-export function dropCapLayout(kit: PageKit, text: string, leadIn: boolean, pid: string | undefined): DropCapLayout | null {
+export function dropCapLayout(kit: PageKit, text: string, leadIn: boolean, pid: string | undefined, mark?: number): DropCapLayout | null {
   const { design, sizes: S } = kit;
   const plan = dropCapPlan(design, S);
   const parts = splitInitial(text);
@@ -44,7 +44,7 @@ export function dropCapLayout(kit: PageKit, text: string, leadIn: boolean, pid: 
   if (capW === null) return null;
   const measureW = measureWidthPt(kit);
   const column = measureW - capW - plan.gap;
-  const [leadText, tail] = leadIn ? splitLeadIn(rest) : ["", rest];
+  const [leadText, tail] = leadParts(rest, leadIn, mark, initial.length);
   const columnReq: BreakRequest = {
     text: leadText + tail,
     spec: bodySpec(kit),

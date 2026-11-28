@@ -137,7 +137,8 @@ function Strong({ kit, block, style, ...rest }: BlockProps<"strong">) {
 
 function Verse({ kit, block, style, ...rest }: BlockProps<"verse">) {
   const { design, sizes: S, u } = kit;
-  const centered = design.heading.align === "center";
+  // По центру — по дизайну (заголовки по центру) или по пометке автора (>>…<<), как у PDF.
+  const centered = design.heading.align === "center" || block.align === "center";
   const verseTop = gapAbove(S.body * ANSWER.verse.before, u.pt);
   // Строки стиха, как у PDF: каждая — свой абзац, без переносов; не влезла — ломается по словам так же.
   const verseLines = (list: string[], pid = pidOf(rest)) =>
@@ -178,7 +179,7 @@ export function AnswerBlockView({
   style = { ...style, ...breakBefore(kit, pidOf(rest)) };
   switch (b.kind) {
     case "para":
-      return <LeadParagraph kit={kit} text={b.text} leadIn={leadIn} dropCap={dropCap} indent={paraIndent(kit.design, first)} style={style} {...rest} />;
+      return <LeadParagraph kit={kit} text={b.text} leadIn={leadIn} lead={b.lead} dropCap={dropCap} indent={paraIndent(kit.design, first)} style={style} {...rest} />;
     case "lede":
       return <Lede kit={kit} block={b} style={style} {...rest} />;
     case "quote":

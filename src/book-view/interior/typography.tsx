@@ -2,7 +2,7 @@ import type { CSSProperties } from "react";
 import { cssFont, pdfLineCss } from "@/lib/book/fonts";
 import type { TextFace } from "@/lib/book/interiors";
 import { textArea } from "@/lib/book/page-geometry";
-import { bodyAlign, bodyWeight, dropCapPlan, faceLineHeight, indentEm, LEAD_IN, measureInsets, paraAfter, quoteFace, splitInitial, splitLeadIn, trackingPt, type DropCapPlan } from "@/lib/book/typesetting";
+import { bodyAlign, bodyWeight, dropCapPlan, faceLineHeight, indentEm, LEAD_IN, measureInsets, paraAfter, quoteFace, leadParts, splitInitial, trackingPt, type DropCapPlan } from "@/lib/book/typesetting";
 import type { PageKit } from "./kit";
 import { lineSpans } from "./lines";
 import { bodySpec, faceSpec, leadSpec, measureWidthPt } from "./text-specs";
@@ -77,7 +77,7 @@ export function paragraphCss(kit: PageKit): CSSProperties {
   };
 }
 
-/** Начальные слова главы капителью. */
+/** Начальные слова главы (и начало абзаца, помеченное автором) капителью. */
 function leadInCss(kit: PageKit): CSSProperties {
   const { sizes: S, u, design } = kit;
   return { fontSize: u.pt(S.body * LEAD_IN.size), letterSpacing: u.pt(S.body * LEAD_IN.tracking), textTransform: "uppercase", color: design.palette.accent };
@@ -101,15 +101,15 @@ function DropInitial({ kit, initial }: { kit: PageKit; initial: string }) {
  * Абзац с капителью в начале (если она нужна). indent — красная строка (у первого абзаца ответа её нет),
  * dropCap — здесь начинается глава: буквица, если она есть в дизайне.
  */
-export function LeadParagraph({ kit, text, leadIn, indent = false, dropCap = false, style, ...rest }: { kit: PageKit; text: string; leadIn: boolean; indent?: boolean; dropCap?: boolean; style?: CSSProperties } & React.HTMLAttributes<HTMLParagraphElement>) {
+export function LeadParagraph({ kit, text, leadIn, lead: mark, indent = false, dropCap = false, style, ...rest }: { kit: PageKit; text: string; leadIn: boolean; /** Пометка автора: столько первых знаков — капителью (AnswerBlock.lead). */ lead?: number; indent?: boolean; dropCap?: boolean; style?: CSSProperties } & React.HTMLAttributes<HTMLParagraphElement>) {
   const pid = (rest as Record<string, string | undefined>)["data-flow"];
   // Опущенная буквица со строками, как у PDF: буква и колонка рядом, продолжение — отдельным абзацем ниже.
-  const dc = dropCap && kit.design.dropCap ? dropCapLayout(kit, text, leadIn, pid) : null;
+  const dc = dropCap && kit.design.dropCap ? dropCapLayout(kit, text, leadIn, pid, mark) : null;
   if (dc) return <DropCapParagraph kit={kit} dc={dc} pid={pid} style={style} rest={rest} />;
   const plan = dropCap && kit.design.dropCap ? dropCapPlan(kit.design, kit.sizes) : null;
   // Поднятая буквица со строками, как у PDF: крупная первая буква в первой строке.
   if (plan?.style === "raised" && kit.breaker) {
-    const raised = raisedLines(kit, text, leadIn, pid, plan);
+    const raised = raisedLines(kit, text, leadIn, pid, plan, mark);
     if (raised)
       return (
         <p style={{ ...paragraphCss(kit), ...style }} {...rest}>
@@ -119,7 +119,7 @@ export function LeadParagraph({ kit, text, leadIn, indent = false, dropCap = fal
   }
   const parts = dropCap && kit.design.dropCap ? splitInitial(text) : null;
   const body = parts ? parts[1] : text;
-  const [lead, after] = leadIn ? splitLeadIn(body) : ["", body];
+  const [lead, after] = leadParts(body, leadIn, mark, parts ? parts[0].length : 0);
   const em = indentEm(kit.design);
   const indentPt = indent && em && !parts ? kit.sizes.body * em : 0;
   const align = bodyAlign(kit.design);
@@ -177,11 +177,11 @@ function DropCapParagraph({ kit, dc, pid, style, rest }: { kit: PageKit; dc: Dro
 }
 
 /** Строки абзаца с поднятой буквицей, как у PDF: крупная буква — кусок первой строки (и её высота). */
-function raisedLines(kit: PageKit, text: string, leadIn: boolean, pid: string | undefined, plan: DropCapPlan) {
+function raisedLines(kit: PageKit, text: string, leadIn: boolean, pid: string | undefined, plan: DropCapPlan, mark?: number) {
   const parts = splitInitial(text);
   if (!parts) return null;
   const [initial, body] = parts;
-  const [lead, after] = leadIn ? splitLeadIn(body) : ["", body];
+  const [lead, after] = leadParts(body, leadIn, mark, initial.length);
   const align = bodyAlign(kit.design);
   // Буква — на базовой линии первой строки и строку не раздвигает (lineHeight 0, без своего сдвига: сдвиг — у абзаца);
   // строка выше обычной ровно на столько, на сколько её поднимает буква у PDF (plan.lineHeight): отступом сверху. Так
