@@ -199,6 +199,7 @@ describe("Контекст 2C — все 42 маршрута сайта Authorin
   let lastChunk: { offset: number; bytes: Buffer } | null;
   let lastUploadCount: number;
   let lastHelpLocale: string | null;
+  let lastHelpApply: Record<string, unknown> | null = null;
   let lastDesignAiLocale: string | null;
   let lastBuildRetry: boolean | undefined;
   let kaspiAvailable = true;
@@ -391,6 +392,10 @@ describe("Контекст 2C — все 42 маршрута сайта Authorin
         lastHelpLocale = locale;
         return { outcome: "answered", handoff: false, suggestions: [], messages: [{ id: "m1", from: "assistant", at: NOW.toISOString(), text: input.text }] };
       },
+      helpApply: async (book, _user, input) => {
+        lastHelpApply = { bookId: book.id, ...input };
+        return { outcome: "answered", proposal: { id: input.proposal, lines: [], warning: null, state: input.decline ? "declined" : "applied" }, messages: [] };
+      },
       designAiInfo: async () => ({ allowance: { limit: 5, used: 1, remaining: 4, credits: 0, total: 4 }, packs: [], theme: "love", hasPhotos: true }),
       runDesignAi: async (_user, _book, input, locale) => {
         lastDesignAiLocale = locale;
@@ -465,6 +470,7 @@ describe("Контекст 2C — все 42 маршрута сайта Authorin
     lastChunk = null;
     lastUploadCount = 0;
     lastHelpLocale = null;
+    lastHelpApply = null;
     lastDesignAiLocale = null;
     lastBuildRetry = undefined;
     kaspiAvailable = true;
@@ -715,6 +721,17 @@ describe("Контекст 2C — все 42 маршрута сайта Authorin
     const hp = await app.inject({ method: "POST", url: `/api/books/${BOOK_ID}/help`, headers: { ...asOwner, [LOCALE_HEADER]: "kk" }, payload: { text: "Как добавить фото?" } });
     expect(hp.statusCode).toBe(200);
     expect(lastHelpLocale).toBe("kk");
+
+    // 31a. help/apply: «Применить» у правки помощника — владелец, uuid предложения, чужая книга не видна
+    const PROPOSAL = "7d0c1f2e-3b4a-4c5d-8e9f-0a1b2c3d4e5f";
+    const ha = await app.inject({ method: "POST", url: `/api/books/${BOOK_ID}/help/apply`, headers: asOwner, payload: { proposal: PROPOSAL } });
+    expect(ha.statusCode).toBe(200);
+    expect(ha.json().proposal.state).toBe("applied");
+    expect(lastHelpApply).toEqual({ bookId: BOOK_ID, proposal: PROPOSAL });
+    expect((await app.inject({ method: "POST", url: `/api/books/${BOOK_ID}/help/apply`, headers: asOwner, payload: { proposal: "p1" } })).statusCode).toBe(400);
+    lastHelpApply = null;
+    expect((await app.inject({ method: "POST", url: `/api/books/${BOOK_ID}/help/apply`, headers: asStranger, payload: { proposal: PROPOSAL } })).statusCode).toBe(404);
+    expect(lastHelpApply).toBeNull();
 
     // 32. design-ai GET/POST
     expect((await app.inject({ method: "GET", url: `/api/books/${BOOK_ID}/design-ai`, headers: asOwner })).statusCode).toBe(200);

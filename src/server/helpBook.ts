@@ -20,6 +20,10 @@ import { coverName, interiorName } from "@/i18n/labels";
 import { orderStatusLabel } from "@/modules/ordering/ui/status";
 import { designAiAllowance } from "@/server/designAiStore";
 import type { BookBuild } from "@/lib/book/book-build";
+import { normalizeStyle } from "@/lib/book/inline-photo";
+import { defaultPageFit } from "@/lib/book/photo-loss";
+import { photoSizeWord } from "@/lib/book/photo-sizes";
+import type { HelpEditBook, HelpEditPhoto } from "@/modules/messaging/domain/cabinetHelpActions";
 
 /**
  * Книга клиента для помощника в кабинете: всё, что видно в кабинете, одним текстом — вид и статус, главы и вопросы
@@ -36,6 +40,8 @@ const q = (s: string, max = 80) => `«${one(s, max)}»`;
 const MAX_QUESTION_LINES = 140;
 /** Знаков ответа, на который нажал клиент (или который открыт в редакторе). */
 const ANSWER_EXCERPT = 1800;
+/** Фото в ответах, перечисленных для правок помощника. */
+const MAX_PHOTO_LINES = 80;
 
 type Place = { text: string; chapter?: string };
 
@@ -71,6 +77,8 @@ const PAGE_KIND: Record<string, string> = {
 
 export interface HelpBookFacts {
   text: string;
+  /** Книга для правок помощника (cabinetHelpActions) и её фото в ответах строками со ссылками p1, p2… для модели. */
+  edit: { book: HelpEditBook; photos: string };
   /** Подробности по метке data-help (photo:<id>, question:<id>, page:<n>); нет — пусто. */
   detail(anchor: string): string;
 }
@@ -191,13 +199,51 @@ export async function helpBookFacts(book: BookRow): Promise<HelpBookFacts> {
 
   const text = L.join("\n");
 
+  // Правки помощника: книга сейчас и фото в ответах со ссылками (по порядку глав, ответов и фото в ответе).
+  const answerPhotos: HelpEditPhoto[] = [];
+  const photoLines: string[] = [];
+  for (const ch of chapters)
+    for (const x of questions.filter((qq) => qq.chapter === ch.key)) {
+      const list = photos.filter((p) => p.questionId === x.id);
+      list.forEach((p, i) => {
+        const ref = `p${answerPhotos.length + 1}`;
+        const inline = normalizeStyle(p.inline);
+        const heading = one(questionHeading(x, book), 90);
+        answerPhotos.push({ ref, id: p.id, questionId: x.id, heading, width: p.width, height: p.height, inline });
+        if (photoLines.length < MAX_PHOTO_LINES)
+          photoLines.push(
+            `[${ref}] в ответе ${q(heading, 70)} (глава ${q(ch.title, 50)}), ${i + 1} из ${list.length}; ${inline.page ? "на отдельной странице" : `в тексте, размер ${photoSizeWord(inline.width)} (${inline.width})`}${inline.breakBefore ? ", с новой страницы" : ""}${p.caption ? `, подпись ${q(p.caption, 60)}` : ""}`,
+          );
+      });
+    }
+  if (answerPhotos.length > photoLines.length) photoLines.push(`… остальные фото в ответах не перечислены (всего ${answerPhotos.length}).`);
+  const editBook: HelpEditBook = {
+    status: book.status === "ordered" ? "ordered" : "draft",
+    titlePage: content.titlePage !== false,
+    showToc: book.showToc,
+    tocAtEnd: style.elements?.toc === "end",
+    dedication: book.dedication,
+    chapterStart: book.chapterStart,
+    openersLeft: !!content.openersLeft,
+    indent: interior.text?.indent ?? 0,
+    indentFirst: interior.text?.indentFirst === true,
+    leadIn: !!interior.leadIn,
+    dropCap: interior.dropCap ? (interior.dropCap.style === "raised" ? "raised" : "drop") : "none",
+    interiorStyle: style,
+    photos: answerPhotos,
+    photoOrder: photos.map((p) => p.id),
+    pageFit: (p) => defaultPageFit(p, format),
+    order: order && order.status !== "cancelled" ? { status: order.status, approvalRequired: order.layoutApprovalRequired, approvedAt: order.layoutApprovedAt, revokedAt: order.layoutApprovalRevokedAt } : null,
+  };
+
   const detail = (anchor: string): string => {
     const [kindOf, id] = [anchor.slice(0, anchor.indexOf(":")), anchor.slice(anchor.indexOf(":") + 1)];
     if (kindOf === "photo") {
       const p = photoById.get(id);
       if (!p) return "";
       const place = places.get(id)?.text ?? "не печатается (место не выбрано и правило книги его не ставит)";
-      return `Фото, на которое нажал клиент: ${p.width}×${p.height} px, место в книге — ${place}${p.caption ? `, подпись ${q(p.caption, 80)}` : ""}${lowRes.has(id) ? ", низкое разрешение — может напечататься нечётко" : ""}.`;
+      const ref = answerPhotos.find((x) => x.id === id)?.ref;
+      return `Фото, на которое нажал клиент${ref ? ` [${ref}]` : ""}: ${p.width}×${p.height} px, место в книге — ${place}${p.caption ? `, подпись ${q(p.caption, 80)}` : ""}${lowRes.has(id) ? ", низкое разрешение — может напечататься нечётко" : ""}.`;
     }
     if (kindOf === "question") {
       const x = questions.find((qq) => qq.id === id);
@@ -215,7 +261,7 @@ export async function helpBookFacts(book: BookRow): Promise<HelpBookFacts> {
     }
     return "";
   };
-  return { text, detail };
+  return { text, detail, edit: { book: editBook, photos: photoLines.join("\n") } };
 }
 
 /** Пустые полосы макета: перед главами (правило «глава слева») и добивка в конце — номерами, если их немного. */

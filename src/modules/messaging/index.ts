@@ -43,7 +43,8 @@ export { EDIT_WINDOW_MS, MessageActionError, REVOKE_WINDOW_MS } from "./applicat
 export { GOWA_DEVICE, GowaError, type GowaConfig, type GowaStatus, type GowaWebhook } from "./infrastructure/gowa";
 export type { Attachment, BlockReason, ContactsTarget, IngestExtra, SalesGateway as MessagingSalesGateway, IncomingRules, BotBrain, BotCrm, BotInvoices, BotSellerModel } from "./application";
 export type { BotSiteInfo } from "./infrastructure/adapters";
-export type { HelpThreadMessage, HelpResult, HelpOutcome } from "./application/cabinetHelp";
+export type { HelpThreadMessage, HelpResult, HelpOutcome, HelpBookEditor, HelpProposalView } from "./application/cabinetHelp";
+export { HelpActionError } from "./application/cabinetHelp";
 export type { BotMetrics } from "./infrastructure/persistence";
 export type { BotPreviewInput, BotPreviewResult, BotStatus } from "./application/botPreview";
 

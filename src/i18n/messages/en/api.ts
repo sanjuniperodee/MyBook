@@ -9,6 +9,7 @@ export const api: typeof ru = {
   helpOff: "The assistant is switched off right now — write to us on WhatsApp",
   helpRate: "Too many questions in a row. Please wait a moment and ask again.",
   helpDaily: "There have been too many questions to the assistant today. Write to the manager on WhatsApp — they will help.",
+  helpActionGone: "This suggestion is no longer valid — please ask the assistant again.",
   badRequest: "Invalid request",
   badData: "Invalid data",
   server: "Internal server error",

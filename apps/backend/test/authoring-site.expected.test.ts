@@ -469,6 +469,7 @@ describe("ответы Nest байт в байт (эталон — прежни�
         suggestions: [],
         messages: [{ id: "m1", from: "assistant", at: FIXED_NOW.toISOString(), text: `${locale}:${input.text}` }],
       }),
+      helpApply: async (_b, _u, input) => ({ outcome: "answered", proposal: { id: input.proposal, lines: [], warning: null, state: "applied" }, messages: [] }),
       designAiInfo: async () => ({ allowance: { limit: 5, used: 1, remaining: 4, credits: 0, total: 4 }, packs: [], theme: "love", hasPhotos: true }),
       runDesignAi: async (_u, _b, input) => ({ mode: input.mode, reply: "Готово", patch: { interior: "classic" } }),
       hitClientAi: async () => shared.clientAi,

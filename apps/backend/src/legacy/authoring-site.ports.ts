@@ -22,7 +22,7 @@ import {
   startUpload,
 } from "@/server/answerFiles";
 import { kickAnswerFiles } from "@/server/answerFilesWorker";
-import { helpAsk, helpThread } from "@/server/book-help";
+import { helpApply, helpAsk, helpThread } from "@/server/book-help";
 import { syncCatalogFromSettings } from "@/server/catalog";
 import { hitClientAi } from "@/server/clientAiLimits";
 import type { Container } from "@/server/container";
@@ -93,7 +93,8 @@ export const legacyAuthoringSitePorts: Provider<AuthoringSitePorts> = {
     coverTemplateThumb: (book, template) => coverTemplateThumb(book, template),
 
     helpThread: (book, userId) => helpThread(book, userId),
-    helpAsk: (book, user, input, locale) => helpAsk(book, user, input, locale),
+    helpAsk: (book, user, input, locale, opts) => helpAsk(book, user, input, locale, opts),
+    helpApply: (book, user, input, locale) => helpApply(book, user, input, locale),
     designAiInfo: (userId, book) => designAiInfo(userId, book),
     runDesignAi: (user, book, input, locale) => runDesignAiRequest(user, book, input, locale),
     hitClientAi: (tool, userId) => hitClientAi(tool, userId),

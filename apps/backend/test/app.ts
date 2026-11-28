@@ -250,6 +250,7 @@ const defaultAuthoringSitePorts: AuthoringSitePorts = {
   coverTemplateThumb: async () => null,
   helpThread: async () => ({ enabled: false, whatsapp: "", messages: [], hints: [] }),
   helpAsk: async () => ({ outcome: "answered", handoff: false, suggestions: [], messages: [] }),
+  helpApply: async () => ({ outcome: "answered", proposal: null, messages: [] }),
   designAiInfo: async () => ({ allowance: { limit: 5, used: 0, remaining: 5, credits: 0, total: 5 }, packs: [], theme: "love", hasPhotos: false }),
   runDesignAi: async () => ({ mode: "edit", reply: "", patch: {} }),
   hitClientAi: async () => "ok",

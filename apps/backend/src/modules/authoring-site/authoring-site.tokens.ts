@@ -116,7 +116,9 @@ export interface AuthoringSitePorts {
     user: { id: string; name: string | null },
     input: { text: string; place: HelpPlace | null; human?: boolean },
     locale: Locale,
+    opts?: { actions?: boolean },
   ): Promise<Record<string, unknown>>;
+  helpApply(book: BookRow, user: { id: string }, input: { proposal: string; decline?: boolean }, locale: Locale): Promise<Record<string, unknown>>;
   designAiInfo(userId: string, book: BookRow): Promise<Record<string, unknown>>;
   runDesignAi(user: { id: string }, book: BookRow, input: DesignAiBody, locale: Locale): Promise<Record<string, unknown>>;
   hitClientAi(tool: SiteClientAiTool, userId: string): Promise<"ok" | "short" | "long">;

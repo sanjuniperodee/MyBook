@@ -2,7 +2,46 @@ import "server-only";
 import { and, asc, desc, eq, gte, sql } from "drizzle-orm";
 import { crmBotEvents, crmConversations, crmMessages } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
-import type { HelpStore, HelpThreadMessage } from "../application/cabinetHelp";
+import type { HelpProposalRecord, HelpProposalState, HelpStore, HelpThreadMessage } from "../application/cabinetHelp";
+import type { HelpEdit } from "../domain/cabinetHelpActions";
+
+/** Журнал правок помощника: предложение (reason proposed) и итог (applied, declined, expired, failed) — по proposalId. */
+const ACTION_KIND = "help_action";
+
+type ActionMeta = { proposalId?: string; bookId?: string; userId?: string; edits?: HelpEdit[]; lines?: string[]; warning?: string | null };
+
+function records(rows: { reason: string | null; meta: Record<string, unknown> | null; messageId: string | null; at: Date }[]): HelpProposalRecord[] {
+  const out = new Map<string, HelpProposalRecord>();
+  for (const r of rows) {
+    const m = (r.meta ?? {}) as ActionMeta;
+    if (!m.proposalId) continue;
+    if (r.reason === "proposed")
+      out.set(m.proposalId, {
+        id: m.proposalId,
+        bookId: m.bookId ?? "",
+        userId: m.userId ?? "",
+        messageId: r.messageId,
+        edits: m.edits ?? [],
+        lines: m.lines ?? [],
+        warning: m.warning ?? null,
+        state: "pending",
+        createdAt: r.at,
+      });
+    else {
+      const rec = out.get(m.proposalId);
+      if (rec && rec.state === "pending") rec.state = r.reason as HelpProposalState;
+    }
+  }
+  return [...out.values()];
+}
+
+const actionRows = (where: ReturnType<typeof and>, limit: number) =>
+  executor()
+    .select({ reason: crmBotEvents.reason, meta: crmBotEvents.meta, messageId: crmBotEvents.messageId, at: crmBotEvents.createdAt })
+    .from(crmBotEvents)
+    .where(where)
+    .orderBy(asc(crmBotEvents.createdAt))
+    .limit(limit);
 
 /**
  * Беседы помощника в кабинете: обычный диалог CRM «Чат на сайте» (канал site, без канала шлюза) с собеседником
@@ -27,6 +66,30 @@ export const drizzleHelpStore: HelpStore = {
     await executor()
       .insert(crmBotEvents)
       .values({ conversationId, kind: "help", reason: e.reason.slice(0, 200), lang: e.lang, meta: e.meta, messageId: e.messageId });
+  },
+
+  async propose(conversationId: string, p: Omit<HelpProposalRecord, "state" | "createdAt">) {
+    await executor()
+      .insert(crmBotEvents)
+      .values({ conversationId, kind: ACTION_KIND, reason: "proposed", messageId: p.messageId, meta: { proposalId: p.id, bookId: p.bookId, userId: p.userId, edits: p.edits, lines: p.lines, warning: p.warning } });
+  },
+
+  async proposal(conversationId: string, id: string) {
+    const rows = await actionRows(and(eq(crmBotEvents.conversationId, conversationId), eq(crmBotEvents.kind, ACTION_KIND), sql`${crmBotEvents.meta}->>'proposalId' = ${id}`), 20);
+    return records(rows)[0] ?? null;
+  },
+
+  async proposals(conversationId: string) {
+    // Карточки — у последних сообщений беседы (виджет показывает 60): предложений за 30 дней хватает с запасом.
+    const rows = await actionRows(and(eq(crmBotEvents.conversationId, conversationId), eq(crmBotEvents.kind, ACTION_KIND), gte(crmBotEvents.createdAt, sql`now() - interval '30 days'`)), 400);
+    return records(rows);
+  },
+
+  async settle(conversationId: string, id: string, state: Exclude<HelpProposalState, "pending">, meta: Record<string, unknown>) {
+    const { messageId, ...rest } = meta as { messageId?: string };
+    await executor()
+      .insert(crmBotEvents)
+      .values({ conversationId, kind: ACTION_KIND, reason: state, messageId: typeof messageId === "string" ? messageId : null, meta: { ...rest, proposalId: id } });
   },
 
   async spentSince(since: Date): Promise<number> {

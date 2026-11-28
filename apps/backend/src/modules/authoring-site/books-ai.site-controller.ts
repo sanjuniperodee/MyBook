@@ -22,6 +22,8 @@ const helpPostSchema = z.object({
   human: z.boolean().optional(),
 });
 
+const helpApplySchema = z.object({ proposal: z.string().uuid(), decline: z.boolean().optional() });
+
 const proofreadAiSchema = z.object({ text: z.string().min(1).max(20_000), ui: z.string().optional() });
 const proofreadSpellSchema = z.object({ words: z.array(z.string().min(2).max(40)).max(300) });
 const writeAiSchema = z
@@ -35,8 +37,8 @@ const writeAiSchema = z
 const log = new Logger("authoring-site-ai");
 
 /**
- * 5 маршрутов сайта (7 HTTP-обработчиков) для помощников книги:
- * виджет помощи `/help`, ИИ-дизайнер `/design-ai`, корректор `/proofread/ai`, словарь `/proofread/spell` и писатель `/write/ai`.
+ * 6 маршрутов сайта (8 HTTP-обработчиков) для помощников книги:
+ * виджет помощи `/help` и правки помощника `/help/apply`, ИИ-дизайнер `/design-ai`, корректор `/proofread/ai`, словарь `/proofread/spell` и писатель `/write/ai`.
  */
 @Controller()
 export class BooksAiSiteController {
@@ -65,8 +67,23 @@ export class BooksAiSiteController {
     const { book } = await this.access.bookFor(req, user, id, false);
     const input = helpPostSchema.parse(parseJsonBody(raw));
     return Response.json(
-      await this.ports.helpAsk(book, user, { text: input.text, place: parseHelpPlace(input.place), human: input.human }, locale),
+      await this.ports.helpAsk(book, user, { text: input.text, place: parseHelpPlace(input.place), human: input.human }, locale, { actions: true }),
     );
+  }
+
+  /** «Применить» / «Не нужно» у правки книги, которую предложил помощник (только владелец, книга не заказана). */
+  @SiteRoute("POST", "/api/books/{id}/help/apply", { auth: "user" })
+  async helpApply(
+    @Param("id") rawId: string,
+    @CurrentUser() user: AuthUser,
+    @RequestLocale() locale: Locale,
+    @RawBody() raw: Buffer,
+    @Req() req: FastifyRequest,
+  ): Promise<Response> {
+    const id = requireUuid(rawId);
+    const { book } = await this.access.bookFor(req, user, id, false);
+    const input = helpApplySchema.parse(parseJsonBody(raw));
+    return Response.json(await this.ports.helpApply(book, user, input, locale));
   }
 
   @SiteRoute("GET", "/api/books/{id}/design-ai", { auth: "user" })

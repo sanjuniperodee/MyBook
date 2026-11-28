@@ -9,6 +9,7 @@ export const api: typeof ru = {
   helpOff: "Yordamchi hozir o‘chirilgan — bizga WhatsApp’da yozing",
   helpRate: "Ketma-ket juda ko‘p savol berildi. Biroz kutib, qaytadan so‘rang.",
   helpDaily: "Bugun yordamchiga savollar juda ko‘p bo‘ldi. Menejerga WhatsApp’da yozing — u yordam beradi.",
+  helpActionGone: "Bu taklif endi amal qilmaydi — yordamchidan qaytadan so‘rang.",
   badRequest: "So‘rov noto‘g‘ri",
   badData: "Ma’lumotlar noto‘g‘ri",
   server: "Serverning ichki xatosi",
