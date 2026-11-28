@@ -128,6 +128,9 @@ export async function crmTick() {
     // Google Календари сотрудников: выгрузить изменённые задачи, продлить каналы, забрать правки из Google.
     const google = await step(p, "google calendar", () => container().boards.google.syncAll(), 0);
     if (google) console.log(`[scheduler] google calendar changes=${google}`);
+    // Обращения про правку книги, которые помощник ещё не разобрал (пришли до выкатки, сбой модели) — по два за проход.
+    const assisted = await step(p, "support assist", async () => (await import("@/server/helpBook")).assistPendingTickets(2), 0);
+    if (assisted) console.log(`[scheduler] support assist tickets=${assisted}`);
     // Круг: ночные заявки — утром первым на смене, не взятые вовремя — следующему.
     const routed = await step(p, "lead routing", () => container().sales.routing.run(), 0);
     if (routed) console.log(`[scheduler] crm leads routed=${routed}`);

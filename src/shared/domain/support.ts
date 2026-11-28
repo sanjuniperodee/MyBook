@@ -74,6 +74,8 @@ export interface SupportAssist {
   edits: { kind: string; ref: string; target: string; value: string }[];
   lines: string[];
   warning: string | null;
+  /** Книга заказана, заказ ещё не в печати: перед правками помощник откроет её для правок (заказ). */
+  reopenOrderId?: string | null;
   appliedAt?: string;
   appliedBy?: string;
 }

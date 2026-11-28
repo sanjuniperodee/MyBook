@@ -549,3 +549,23 @@ describe("правки помощника: обращения в поддерж�
     expect(t.calls[1]).toMatch(/Исправь прошлый вариант/);
   });
 });
+
+describe("правки по обращению: заказанная книга", () => {
+  it("до печати помощник откроет книгу сам, в печати и дальше — к менеджеру", async () => {
+    const { ticketBookAccess } = await import("@/server/helpBook");
+    const order = (over: Record<string, unknown>) => ({ id: "o1", status: "paid" as const, layoutApprovalRequired: true, layoutApprovedAt: null, printedAt: null, ...over });
+    expect(ticketBookAccess("draft", null)).toEqual({ kind: "open" });
+    expect(ticketBookAccess("ordered", order({}))).toEqual({ kind: "reopen", orderId: "o1" }); // ждёт согласования
+    expect(ticketBookAccess("ordered", order({ layoutApprovedAt: new Date() }))).toEqual({ kind: "reopen", orderId: "o1" }); // в очереди на печать
+    expect(ticketBookAccess("ordered", order({ status: "pending_payment" }))).toEqual({ kind: "reopen", orderId: "o1" });
+    expect(ticketBookAccess("ordered", order({ status: "in_production" }))).toEqual({ kind: "locked", stage: "printing" });
+    expect(ticketBookAccess("ordered", order({ status: "in_production", printedAt: new Date() }))).toEqual({ kind: "locked", stage: "printed" });
+    expect(ticketBookAccess("ordered", order({ status: "shipped" }))).toEqual({ kind: "locked", stage: "shipped" });
+    expect(ticketBookAccess("ordered", order({ status: "cancelled" }))).toEqual({ kind: "locked", stage: null });
+    expect(ticketBookAccess("ordered", null)).toEqual({ kind: "locked", stage: null });
+  });
+
+  it("в кабинете у клиента правило прежнее: заказанную книгу помощник не правит", () => {
+    expect(parseHelpEdits([raw("titlePage", "off")], book({ status: "ordered" })).problems.join(" ")).toMatch(/книга заказана/);
+  });
+});

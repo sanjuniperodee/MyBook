@@ -39,6 +39,8 @@ import {
   type HelpEdit,
 } from "@/modules/messaging/domain/cabinetHelpActions";
 import type { SupportAssist } from "@/shared/domain/support";
+import { productionStage, type ProductionStage } from "@/modules/ordering";
+import type { OrderStatus } from "@/shared/domain/orders";
 import { HelpActionError, type HelpBookEditor } from "@/modules/messaging";
 import type { HelpEditPlan } from "@/modules/messaging/domain/cabinetHelpActions";
 
@@ -493,26 +495,60 @@ const none = (reason: string, extra: Partial<SupportAssist> = {}): SupportAssist
  * Что предложил бы помощник по обращению — без записи. pretendOpen — проверка на прошлых обращениях: заказанную книгу
  * считать открытой для правок (как после «Открыть для правок»), чтобы увидеть правки, а не только «книга заказана».
  */
+/** Этапы заказа, на которых помощник по обращению может открыть книгу для правок сам: до «В печати». */
+const REOPEN_STAGES = new Set<ProductionStage>(["awaiting_payment", "approval", "queued"]);
+
+type OrderRowLite = { id: string; status: OrderStatus; layoutApprovalRequired: boolean; layoutApprovedAt: Date | null; printedAt: Date | null };
+
+/**
+ * Можно ли править книгу обращения: open — книга открыта; reopen — заказана, но заказ ещё не в печати: перед правками
+ * помощник откроет её для правок тем же сервисом, что «Открыть для правок» в заказе (только по обращению — у клиента в
+ * кабинете правило прежнее); locked — заказ в печати или дальше, правки — менеджеру.
+ */
+export function ticketBookAccess(bookStatus: string, order: OrderRowLite | null): { kind: "open" } | { kind: "reopen"; orderId: string } | { kind: "locked"; stage: ProductionStage | null } {
+  if (bookStatus === "draft") return { kind: "open" };
+  if (!order) return { kind: "locked", stage: null };
+  const stage = productionStage({ status: order.status, layoutRequired: order.layoutApprovalRequired, layoutApprovedAt: order.layoutApprovedAt, bookEditing: false, printedAt: order.printedAt });
+  return stage && REOPEN_STAGES.has(stage) ? { kind: "reopen", orderId: order.id } : { kind: "locked", stage };
+}
+
+const STAGE_TEXT: Partial<Record<ProductionStage, string>> = { printing: "в печати", printed: "напечатана", shipped: "отправлена", delivered: "доставлена" };
+
 export async function draftTicketAssist(t: Ticket, opts: { pretendOpen?: boolean } = {}): Promise<SupportAssist> {
   const c = container();
   const found = await findBook(t);
   if (!found.book) return none(found.why);
   const chat = found.chat;
   const book = found.book;
-  const open = book.status === "draft" || !!opts.pretendOpen;
-  const facts = await helpBookFacts(opts.pretendOpen ? ({ ...book, status: "draft" } as BookRow) : book);
+  const order = book.status === "draft" ? null : ((await c.ordering.queries.lastOrderOfBook(book.id).catch(() => null)) as OrderRowLite | null);
+  const access = opts.pretendOpen ? ({ kind: "open" } as const) : ticketBookAccess(book.status, order);
+  const open = access.kind !== "locked";
+  // Книгу, которую помощник откроет сам, разбираем как открытую.
+  const facts = await helpBookFacts(open && book.status !== "draft" ? ({ ...book, status: "draft" } as BookRow) : book);
   const base = { bookId: book.id, bookTitle: book.title, ownerId: book.userId };
   const draft = await c.messaging.help.draft({
     bookText: facts.text,
     question: [summaryInput(t), t.summary ? `Суть (AI): ${t.summary}` : "", chat].filter(Boolean).join("\n\n").slice(0, 30_000),
-    edit: open ? facts.edit : { unavailable: `${HELP_EDITS_LOCKED}: откройте книгу для правок в заказе («Открыть для правок»), потом «Разобрать заново»` },
+    edit: open ? facts.edit : { unavailable: `${HELP_EDITS_LOCKED}: заказ уже в печати` },
   });
   if (draft.action === "propose" && draft.edits.length) {
     const eb = facts.edit.book;
-    return { ...none(""), ...base, state: "proposed", reply: draft.reply, edits: editsWithIds(draft.edits, eb), lines: helpEditLines(draft.edits, eb, "ru"), warning: helpEditWarning(eb.order, "ru") };
+    const reopen = access.kind === "reopen" ? access.orderId : null;
+    return {
+      ...none(""),
+      ...base,
+      state: "proposed",
+      reply: draft.reply,
+      edits: editsWithIds(draft.edits, eb),
+      lines: helpEditLines(draft.edits, eb, "ru"),
+      warning: reopen ? messagesFor("ru").help.actions.warnReopen : helpEditWarning(eb.order, "ru"),
+      reopenOrderId: reopen,
+    };
   }
   return none(
-    !open ? `Книга «${book.title}» заказана — помощник правит только открытую книгу. Откройте её для правок в заказе и нажмите «Разобрать заново».` : draft.reply || draft.failure || "помощник не нашёл, что поправить",
+    access.kind === "locked"
+      ? `Книга «${book.title}» уже ${access.stage ? (STAGE_TEXT[access.stage] ?? "в работе") : "заказана"} — правки после печати делает менеджер.`
+      : draft.reply || draft.failure || "помощник не нашёл, что поправить",
     { ...base, reply: draft.reply },
   );
 }
@@ -540,17 +576,55 @@ export async function applyTicketAssist(ticketId: string, actor: { userId: strin
   if (!t || !a || a.state !== "proposed" || !a.bookId || !a.ownerId) return { ok: false, error: "Правок помощника нет — нажмите «Разобрать заново»" };
   if (Date.now() - new Date(a.at).getTime() > HELP_PROPOSAL_TTL_MS) return { ok: false, error: "Правки устарели — нажмите «Разобрать заново»" };
   const editor = bookEditor(a.bookId, a.ownerId);
-  const book = await editor.state();
-  if (book.status !== "draft") return { ok: false, error: "Книга заказана — откройте её для правок в заказе и нажмите «Разобрать заново»" };
-  const refs = editsWithRefs(a.edits as HelpEdit[], book);
-  const parsed = refs ? parseHelpEdits(editsToRaw(refs), book) : null;
-  if (!parsed || parsed.problems.length) return { ok: false, error: `Книга изменилась, правки больше не подходят${parsed ? `: ${parsed.problems.join("; ")}` : ""} — нажмите «Разобрать заново»` };
-  const lines = helpEditLines(parsed.edits, book, "ru");
-  await editor.apply(planHelpEdits(parsed.edits, book));
-  const resolution = `Помощник поправил книгу «${a.bookTitle}»:\n${lines.map((l) => `• ${l}`).join("\n")}`;
+  const ordering = c.ordering.orders;
+  const who = { label: `admin:${actor.name}`, userId: actor.userId };
+  // Заказанная книга до печати: открыть для правок, как «Открыть для правок» в заказе (заметка в заказе, согласование
+  // макета снимается), а после правок снова закрыть — заказ вернётся на согласование, клиент согласует книгу заново.
+  let reopened: string | null = null;
+  const before = await c.authoring.queries.book(a.bookId);
+  if (before?.status !== "draft") {
+    const order = (await c.ordering.queries.lastOrderOfBook(a.bookId).catch(() => null)) as OrderRowLite | null;
+    const access = ticketBookAccess(before?.status ?? "ordered", order);
+    if (access.kind !== "reopen" || access.orderId !== a.reopenOrderId) return { ok: false, error: "Заказ уже в печати — правки делает менеджер. «Разобрать заново» покажет причину" };
+    await ordering.toggleBookEditing(access.orderId, who);
+    reopened = access.orderId;
+  }
+  let lines: string[];
+  try {
+    const book = await editor.state();
+    const refs = editsWithRefs(a.edits as HelpEdit[], book);
+    const parsed = refs ? parseHelpEdits(editsToRaw(refs), book) : null;
+    if (!parsed || parsed.problems.length) return { ok: false, error: `Книга изменилась, правки больше не подходят${parsed ? `: ${parsed.problems.join("; ")}` : ""} — нажмите «Разобрать заново»` };
+    lines = helpEditLines(parsed.edits, book, "ru");
+    await editor.apply(planHelpEdits(parsed.edits, book));
+  } finally {
+    if (reopened) await ordering.toggleBookEditing(reopened, who);
+  }
+  const resolution = `Помощник поправил книгу «${a.bookTitle}»:\n${lines.map((l) => `• ${l}`).join("\n")}${reopened ? "\nКнига открывалась для правок и снова закрыта — клиенту нужно заново согласовать макет в заказе." : ""}`;
   await c.support.tickets.setAssist(t.id, { ...a, state: "applied", lines, appliedAt: new Date().toISOString(), appliedBy: actor.name }, { by: actor.name, text: "Правки помощника применены" });
   await c.support.tickets.update(t.id, { status: "done", resolution: t.resolution ? `${t.resolution}\n\n${resolution}` : resolution }, actor);
   return { ok: true };
+}
+
+/**
+ * Подстраховка в фоне (быстрый проход CRM): открытые обращения, которые разобрали, но помощник ещё не смотрел (пришли
+ * до выкатки, сбой модели или процесса) — разобрать. Не больше limit за проход; сбой записывается как failed, чтобы не
+ * повторять его каждую минуту.
+ */
+export async function assistPendingTickets(limit = 2): Promise<number> {
+  const c = container();
+  if (!(await c.messaging.helpConfig()).enabled) return 0;
+  const since = Date.now() - 14 * 86_400_000;
+  const list = (await c.support.tickets.list({ status: "open", limit: 200 })).filter((t) => !t.assist && t.processedAt && t.createdAt.getTime() > since).slice(0, limit);
+  for (const t of list) {
+    try {
+      await assistTicket(t.id);
+    } catch (err) {
+      console.error("[support] assist", err);
+      await c.support.tickets.setAssist(t.id, none(`сбой разбора: ${err instanceof Error ? err.message.slice(0, 200) : "?"}`, { state: "failed" }));
+    }
+  }
+  return list.length;
 }
 
 /** Сотрудник решил сам: правки помощника не нужны. */

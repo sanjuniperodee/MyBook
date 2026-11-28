@@ -81,6 +81,7 @@ export const help: Messages["help"] = {
     coverPhoto: "Cover photo",
     bold: "Bold line",
     warnOrder: "The book is already ordered: after this change the layout will need to be checked and approved again.",
+    warnReopen: "The book is ordered but not printed yet: the assistant will open it for editing, make the changes and close it again. The layout approval will be cancelled — the client needs to approve the layout again.",
     warnApproved: "The layout is already approved. This change will cancel the approval — the layout will need to be checked and approved again.",
     done: "Done, changed in the book:",
     nothing: "The book is already like that — nothing to change.",

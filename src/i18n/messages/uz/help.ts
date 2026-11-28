@@ -83,6 +83,7 @@ export const help: Messages["help"] = {
     coverPhoto: "Muqovadagi surat",
     bold: "Qalin satr",
     warnOrder: "Kitob buyurtmada: tuzatishdan keyin maketni qayta tekshirib, qayta tasdiqlash kerak bo‘ladi.",
+    warnReopen: "Kitob buyurtma qilingan, lekin hali chop etilmagan: yordamchi uni tahrirga ochadi, tuzatadi va yana yopadi. Maket tasdig‘i bekor bo‘ladi — mijoz maketni qayta tasdiqlashi kerak.",
     warnApproved: "Maket tasdiqlangan. Tuzatish tasdiqni bekor qiladi — maketni qayta tekshirib, qayta tasdiqlash kerak bo‘ladi.",
     done: "Tayyor, kitobda o‘zgartirdim:",
     nothing: "Kitobda hammasi shunday — o‘zgartiradigan narsa yo‘q.",

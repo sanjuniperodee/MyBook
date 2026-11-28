@@ -219,3 +219,18 @@ describe("обращения: сценарии", () => {
     await expect(service.create(input(), [{ name: "big.mp4", mime: "video/mp4", data: Buffer.alloc(51 * 1024 * 1024) }], { userId: null, name: "" })).rejects.toThrow(/больше 50 МБ/);
   });
 });
+
+describe("обращения: разбор помощником по книге", () => {
+  it("правки помощника записываются и при повторном разборе заменяются, в истории — строка", async () => {
+    const { service, repo } = setup();
+    const t = await service.create(input({ description: "ордер 106 убери титул" }), [], { userId: "s1", name: "Марат" });
+    expect(t.assist).toBeNull();
+    const first = { state: "none" as const, at: "2026-11-23T10:00:00Z", bookId: "b1", bookTitle: "Мама", ownerId: "u1", reply: "", reason: "заказ в печати", edits: [], lines: [], warning: null };
+    await service.setAssist(t.id, first, { by: "Помощник", text: "Помощник не может сделать сам" });
+    const second = { ...first, state: "proposed" as const, reason: "", edits: [{ kind: "titlePage", ref: "", target: "", value: "off" }], lines: ["Титульный лист: вкл. → выкл."], reopenOrderId: "o1" };
+    await service.setAssist(t.id, second, { by: "Помощник", text: "Помощник предлагает правки (1)" });
+    const saved = (await repo.byId(t.id))!;
+    expect(saved.assist).toMatchObject({ state: "proposed", reopenOrderId: "o1" });
+    expect(saved.history.map((h) => h.text)).toEqual(["Обращение создано", "Помощник не может сделать сам", "Помощник предлагает правки (1)"]);
+  });
+});
