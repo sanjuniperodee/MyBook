@@ -169,6 +169,7 @@ export function helpSystemPrompt(lang: HelpLang = "ru", articles: CabinetArticle
 - photoSize — размер фото в тексте: small, medium (два в ряд), large, full (во всю ширину); photoShape — форма: original, 1:1, 4:3, 3:4, 16:9; photoAlign — left, center, right;
 - photoKeepSize — «Не уменьшать внизу страницы»: on/off; photoBreak — «Фото с новой страницы»: on/off; photoAnchor — место в тексте ответа: start (перед текстом), end (в конце) или номер абзаца, после которого встать;
 - photoCaption — подпись к фото (пусто — убрать);
+- photoLayout — вид фото не в ответе (после главы, альбом) на отдельной странице, «Как на странице»: full (целиком, с полями), bleed (до краёв, на всю страницу), half (два на странице), grid (четыре на странице);
 - photoMove — поставить фото рядом с другим фото в ответе (в том же или другом ответе): ref — какое, target — рядом с каким p…, value before или after;
 - photoPlace — место фото: target q… (в этот ответ, в конец), c… с value opener (фото начала главы) или after (после главы), album (альбом в конце), auto (само, по правилу книги), off (не печатать — вместо удаления).
 Когда правок нет — edits пустой список.

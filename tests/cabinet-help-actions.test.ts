@@ -38,6 +38,7 @@ const photo = (ref: string, id: string, questionId: string, over: Partial<HelpEd
   chapter: null,
   opener: false,
   caption: "",
+  layout: "full" as const,
 });
 
 function book(over: Partial<HelpEditBook> = {}): HelpEditBook {
@@ -563,6 +564,15 @@ describe("правки по обращению: заказанная книга"
     expect(ticketBookAccess("ordered", order({ status: "shipped" }))).toEqual({ kind: "locked", stage: "shipped" });
     expect(ticketBookAccess("ordered", order({ status: "cancelled" }))).toEqual({ kind: "locked", stage: null });
     expect(ticketBookAccess("ordered", null)).toEqual({ kind: "locked", stage: null });
+  });
+
+  it("вид фото после главы на отдельной странице: до краёв, два или четыре на странице", () => {
+    const b = book();
+    const r = parseHelpEdits([raw("photoLayout", "bleed", "p4")], b);
+    expect(planHelpEdits(r.edits, b).photos[0]).toMatchObject({ id: "ph-d", patch: { layout: "bleed" } });
+    const ed = messagesFor("ru").editor.placeSheet;
+    expect(helpEditLines(r.edits, b, "ru")[0]).toContain(`${ed.layoutTitle}: ${ed.layouts.full} → ${ed.layouts.bleed}`);
+    expect(parseHelpEdits([raw("photoLayout", "bleed", "p1")], b).problems[0]).toMatch(/в ответе/);
   });
 
   it("в кабинете у клиента правило прежнее: заказанную книгу помощник не правит", () => {

@@ -265,7 +265,7 @@ export async function helpBookFacts(book: BookRow): Promise<HelpBookFacts> {
       const ref = `p${editPhotos.length + 1}`;
       const inline = normalizeStyle(p.inline);
       const heading = one(questionHeading(x, book), 90);
-      editPhotos.push({ ref, id: p.id, questionId: x.id, chapter: null, opener: false, heading, width: p.width, height: p.height, inline, caption: p.caption ?? "" });
+      editPhotos.push({ ref, id: p.id, questionId: x.id, chapter: null, opener: false, heading, width: p.width, height: p.height, inline, caption: p.caption ?? "", layout: p.layout });
       const qref = editQuestions.find((qq) => qq.id === x.id)!.ref;
       if (editPhotos.length <= MAX_PHOTO_LINES)
         E.push(
@@ -276,8 +276,8 @@ export async function helpBookFacts(book: BookRow): Promise<HelpBookFacts> {
     if (p.questionId) continue;
     const ref = `p${editPhotos.length + 1}`;
     const placeText = places.get(p.id)?.text ?? "не печатается";
-    editPhotos.push({ ref, id: p.id, questionId: null, chapter: p.chapter ?? null, opener: !!p.opener, heading: placeText, width: p.width, height: p.height, inline: normalizeStyle(null), caption: p.caption ?? "" });
-    if (editPhotos.length <= MAX_PHOTO_LINES) E.push(`[${ref}] ${placeText}${pagesText(photoPages.get(p.id)) ? `, ${pagesText(photoPages.get(p.id))}` : ""}${p.id === book.coverPhotoId ? ", на обложке" : ""}${p.caption ? `, подпись ${q(p.caption, 60)}` : ""}`);
+    editPhotos.push({ ref, id: p.id, questionId: null, chapter: p.chapter ?? null, opener: !!p.opener, heading: placeText, width: p.width, height: p.height, inline: normalizeStyle(null), caption: p.caption ?? "", layout: p.layout });
+    if (editPhotos.length <= MAX_PHOTO_LINES) E.push(`[${ref}] ${placeText}, вид ${p.layout}${pagesText(photoPages.get(p.id)) ? `, ${pagesText(photoPages.get(p.id))}` : ""}${p.id === book.coverPhotoId ? ", на обложке" : ""}${p.caption ? `, подпись ${q(p.caption, 60)}` : ""}`);
   }
   if (editPhotos.length > MAX_PHOTO_LINES) E.push(`… остальные фото не перечислены (всего ${editPhotos.length}).`);
   // Ответ, на который нажал клиент или о котором обращение, — целиком в detail(); здесь только начало.

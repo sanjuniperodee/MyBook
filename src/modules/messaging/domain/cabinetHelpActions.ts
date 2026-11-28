@@ -47,6 +47,9 @@ export const PHOTO_SHAPES = ["original", "1:1", "4:3", "3:4", "16:9"] as const;
 export const PHOTO_ALIGNS = ["left", "center", "right"] as const;
 export const PHOTO_FITS = ["contain", "fill"] as const;
 export const TEXT_MARKS = ["center", "lead", "bold"] as const;
+/** Вид фото на отдельных страницах (после главы, альбом): «Как на странице». */
+export const PHOTO_LAYOUTS = ["full", "bleed", "half", "grid"] as const;
+export type PhotoLayout = (typeof PHOTO_LAYOUTS)[number];
 export type TextMark = (typeof TEXT_MARKS)[number];
 /** Места фото без ссылки (photoPlace, target): альбом, само, не печатать; иначе — ответ q… или глава c…. */
 export const PHOTO_SPOTS = ["album", "auto", "off"] as const;
@@ -83,6 +86,7 @@ const SPEC = {
   photoBreak: { ref: "answerPhoto", value: flag },
   photoAnchor: { ref: "answerPhoto", value: { t: "text", max: 10, empty: false } },
   photoCaption: { ref: "photo", value: { t: "text", max: 200, empty: true } },
+  photoLayout: { ref: "photo", value: oneOf(PHOTO_LAYOUTS) },
   photoMove: { ref: "photo", value: oneOf(["before", "after"]) },
   photoPlace: { ref: "photo", value: { t: "text", max: 10, empty: true } },
   coverPhoto: { ref: "photo", value: { t: "text", max: 10, empty: true } },
@@ -118,6 +122,8 @@ export interface HelpEditPhoto {
   height: number;
   inline: InlinePhotoStyle;
   caption: string;
+  /** Вид на отдельной странице (фото не в ответе): целиком, до краёв, два или четыре на странице. */
+  layout: PhotoLayout;
 }
 
 export interface HelpEditQuestion {
@@ -339,6 +345,7 @@ function check(e: HelpEdit, book: HelpEditBook): string | null {
     const s = spotOf(book, e.target, e.value.toLowerCase());
     return typeof s === "string" ? s : null;
   }
+  if (e.kind === "photoLayout" && photoByRef(book, e.ref)!.questionId) return `photoLayout: фото ${e.ref} в ответе — у него photoPage и photoFit`;
   if (e.kind === "photoMove") {
     const t = photoByRef(book, e.target);
     if (!t || t.ref === e.ref) return "photoMove: target — другое фото из списка";
@@ -445,6 +452,8 @@ function changes(e: HelpEdit, book: HelpEditBook): boolean {
       return anchorOf(e.value) !== p!.inline.anchor;
     case "photoCaption":
       return e.value !== p!.caption.trim();
+    case "photoLayout":
+      return e.value !== p!.layout;
     case "photoMove": {
       const t = photoByRef(book, e.target)!;
       if (t.questionId !== p!.questionId) return true;
@@ -585,6 +594,8 @@ export function helpEditLines(edits: readonly HelpEdit[], book: HelpEditBook, la
       }
       case "photoCaption":
         return `${photo(p!)} — ${line(ph.caption, quote(p!.caption), quote(e.value, 120))}`;
+      case "photoLayout":
+        return `${photo(p!)} — ${line(m.editor.placeSheet.layoutTitle, m.editor.placeSheet.layouts[p!.layout], m.editor.placeSheet.layouts[e.value as PhotoLayout])}`;
       case "photoMove": {
         const t = photoByRef(book, e.target)!;
         if (t.questionId === p!.questionId) {
@@ -630,7 +641,7 @@ export interface HelpEditPlan {
     interiorStyle?: InteriorStyle;
   };
   /** Правки фото для PhotosService.batch. */
-  photos: { id: string; patch: { inline?: InlinePhotoStyle | null; caption?: string; questionId?: string | null; chapter?: string | null; opener?: boolean } }[];
+  photos: { id: string; patch: { inline?: InlinePhotoStyle | null; caption?: string; layout?: PhotoLayout; questionId?: string | null; chapter?: string | null; opener?: boolean } }[];
   /** Новый порядок всех фото книги для PhotosService.reorder; null — не меняется. */
   order: string[] | null;
   /** Правки ответов для QuestionsService.edit: с новой страницы и текст с пометками (слова те же). */
@@ -773,6 +784,9 @@ export function planHelpEdits(edits: readonly HelpEdit[], book: HelpEditBook): H
         break;
       case "photoCaption":
         patchOf(p!.id).caption = e.value;
+        break;
+      case "photoLayout":
+        patchOf(p!.id).layout = e.value as PhotoLayout;
         break;
       case "photoMove": {
         const t = photoByRef(book, e.target)!;
